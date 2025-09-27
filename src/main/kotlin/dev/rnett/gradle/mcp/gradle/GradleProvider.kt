@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.gradle
 
 import com.github.benmanes.caffeine.cache.Caffeine
+import io.ktor.server.plugins.di.annotations.Property
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -16,8 +17,6 @@ import org.gradle.tooling.events.ProgressListener
 import org.gradle.tooling.model.Model
 import org.gradle.tooling.model.build.BuildEnvironment
 import org.slf4j.LoggerFactory
-import org.springframework.boot.context.properties.EnableConfigurationProperties
-import org.springframework.stereotype.Service
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
 import kotlin.coroutines.resumeWithException
@@ -26,14 +25,16 @@ import kotlin.io.path.isDirectory
 import kotlin.io.path.notExists
 import kotlin.reflect.KClass
 import kotlin.time.ExperimentalTime
+import kotlin.time.toJavaDuration
 
-@EnableConfigurationProperties(GradleConnectionConfiguration::class)
-@Service
-class GradleProvider(val config: GradleConnectionConfiguration) {
-    val LOGGER = LoggerFactory.getLogger(GradleProvider::class.java)
+
+class GradleProvider(@Property("gradle.tooling") val config: GradleConnectionConfiguration) {
+    companion object {
+        private val LOGGER = LoggerFactory.getLogger(GradleProvider::class.java)
+    }
 
     private val connectionCache = Caffeine.newBuilder()
-        .expireAfterAccess(config.ttl)
+        .expireAfterAccess(config.ttl.toJavaDuration())
         .maximumSize(config.maxConnections.toLong())
         .evictionListener<Path, ProjectConnection> { k, v, _ ->
             v?.close()

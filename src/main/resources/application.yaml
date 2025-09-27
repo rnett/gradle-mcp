@@ -1,27 +1,6 @@
-server:
-  port: 8081
-management:
-  endpoints:
-    web:
-      exposure:
-        include: "*"
-spring:
-  application:
-    name: "gradle-mcp"
-  ai:
-    mcp:
-      server:
-        name: "gradle-mcp"
-        type: ASYNC  # Recommended for reactive applications
-        instructions: "This server provides tools and resources for working with Gradle builds"
-        annotation-scanner:
-          enabled: true
-        capabilities:
-          tool: true
-          resource: true
-          prompt: true
-          completion: true
-        stdio: false
+ktor:
+  deployment:
+    port: 8081
 gradle:
-  max-connections: 10
+  maxConnections: 10
   ttl: PT5M

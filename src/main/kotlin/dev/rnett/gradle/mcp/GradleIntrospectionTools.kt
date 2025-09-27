@@ -1,22 +1,66 @@
 package dev.rnett.gradle.mcp
 
 import dev.rnett.gradle.mcp.gradle.GradleProvider
-import dev.rnett.gradle.mcp.mcp.McpFactory
+import dev.rnett.gradle.mcp.mcp.McpServer
 import io.github.smiley4.schemakenerator.core.annotations.Description
-import io.modelcontextprotocol.spec.McpSchema.LoggingLevel
+import io.ktor.server.application.Application
+import io.modelcontextprotocol.kotlin.sdk.LoggingLevel
 import kotlinx.serialization.Serializable
 import org.gradle.tooling.model.GradleProject
 import org.gradle.tooling.model.Model
 import org.gradle.tooling.model.build.BuildEnvironment
 import org.gradle.tooling.model.gradle.GradleBuild
-import org.springframework.context.annotation.Bean
-import org.springframework.stereotype.Service
 
-@Service
-class BasicGradleTools(
-    val connectionProvider: GradleProvider,
-    val toolFactory: McpFactory
-) {
+class GradleIntrospectionTools(
+    val connectionProvider: GradleProvider
+) : McpServerContributor {
+
+    context(application: Application)
+    override fun contribute(server: McpServer) {
+        server.addTool<GetEnvArguments, GradleBuildEnvironment>(
+            "get_environment",
+            "Get the environment used to execute Gradle for the given project, including the Gradle version and JVM information."
+        ) {
+            getBuildModel<BuildEnvironment>(
+                it.projectRoot,
+                it.invocationArgs
+            ).let {
+                GradleBuildEnvironment(
+                    GradleBuildEnvironment.GradleInfo(it.gradle.gradleUserHome.absolutePath, it.gradle.gradleVersion),
+                    GradleBuildEnvironment.JavaInfo(it.java.javaHome.absolutePath, it.java.jvmArguments)
+                )
+            }
+        }
+
+        server.addTool<DescribeProjectArgs, GradleProjectInfo>(
+            "describe_project",
+            "Describes a Gradle project or subproject. Includes the tasks and child projects."
+        ) { args ->
+            getBuildModel<GradleProject>(args.projectRoot, args.invocationArgs).let {
+                val project = it.findByPath(args.projectPath) ?: throw IllegalArgumentException("Project with project path \"${args.projectPath}\" not found")
+                GradleProjectInfo(
+                    project.path,
+                    project.name,
+                    project.description,
+                    project.tasks.groupBy { it.group ?: "other" }.mapValues { it.value.map { task -> GradleTask(task.name, task.description) } },
+                    project.children.map { it.path },
+                    project.buildScript?.sourceFile?.absolutePath,
+                    project.projectDirectory?.absolutePath
+                )
+            }
+        }
+
+        server.addTool<IncludedBuildsArgs, GradleIncludedBuilds>(
+            "get_included_builds",
+            "Gets the included builds of a Gradle project."
+        ) {
+            getBuildModel<GradleBuild>(it.projectRoot, it.invocationArgs).let {
+                GradleIncludedBuilds(it.editableBuilds.map {
+                    IncludedBuild(it.rootProject.name, it.rootProject.projectDirectory.absolutePath)
+                })
+            }
+        }
+    }
 
     @Serializable
     @Description("Arguments that determine how Gradle is invoked")
@@ -31,7 +75,7 @@ class BasicGradleTools(
         val additionalArguments: List<String>? = null,
     )
 
-    final suspend inline fun <reified T : Model> McpFactory.McpContext<*>.getBuildModel(
+    suspend inline fun <reified T : Model> McpContext.getBuildModel(
         projectRoot: String,
         invocationArgs: GradleInvocationArguments?,
     ): T {
@@ -42,8 +86,8 @@ class BasicGradleTools(
             invocationArgs?.additionalSystemProps.orEmpty(),
             invocationArgs?.additionalEnvVars.orEmpty(),
             invocationArgs?.additionalArguments.orEmpty(),
-            stdoutLineHandler = { emitLoggingNotification("gradle-build", LoggingLevel.INFO, it) },
-            stderrLineHandler = { emitLoggingNotification("gradle-build", LoggingLevel.ERROR, it) },
+            stdoutLineHandler = { emitLoggingNotification("gradle-build", LoggingLevel.info, it) },
+            stderrLineHandler = { emitLoggingNotification("gradle-build", LoggingLevel.error, it) },
         )
     }
 
@@ -85,22 +129,6 @@ class BasicGradleTools(
         val invocationArgs: GradleInvocationArguments = GradleInvocationArguments(),
     )
 
-    @Bean
-    fun getEnvTool() = toolFactory.tool<GetEnvArguments, GradleBuildEnvironment>(
-        "get_environment",
-        "Get the environment used to execute Gradle for the given project"
-    ) {
-        getBuildModel<BuildEnvironment>(
-            it.projectRoot,
-            it.invocationArgs
-        ).let {
-            GradleBuildEnvironment(
-                GradleBuildEnvironment.GradleInfo(it.gradle.gradleUserHome.absolutePath, it.gradle.gradleVersion),
-                GradleBuildEnvironment.JavaInfo(it.java.javaHome.absolutePath, it.java.jvmArguments)
-            )
-        }
-    }
-
     @Serializable
     data class GradleProjectInfo(
         @Description("The Gradle project's path, e.g. :project-a")
@@ -137,25 +165,6 @@ class BasicGradleTools(
         val invocationArgs: GradleInvocationArguments = GradleInvocationArguments()
     )
 
-    @Bean
-    fun describeProjectTool() = toolFactory.tool<DescribeProjectArgs, GradleProjectInfo>(
-        "describe_project",
-        "Describes a Gradle project or subproject. Includes the tasks and child projects."
-    ) { args ->
-        getBuildModel<GradleProject>(args.projectRoot, args.invocationArgs).let {
-            val project = it.findByPath(args.projectPath) ?: throw IllegalArgumentException("Project with project path \"${args.projectPath}\" not found")
-            GradleProjectInfo(
-                project.path,
-                project.name,
-                project.description,
-                project.tasks.groupBy { it.group ?: "other" }.mapValues { it.value.map { task -> GradleTask(task.name, task.description) } },
-                project.children.map { it.path },
-                project.buildScript?.sourceFile?.absolutePath,
-                project.projectDirectory?.absolutePath
-            )
-        }
-    }
-
     @Serializable
     data class GradleIncludedBuilds(
         @Description("Builds added as included builds to this Gradle project. Defined in the settings.gradle(.kts) file.")
@@ -177,16 +186,4 @@ class BasicGradleTools(
         @Description(INVOCATION_ARGS)
         val invocationArgs: GradleInvocationArguments = GradleInvocationArguments(),
     )
-
-    @Bean
-    fun includedBuildsTool() = toolFactory.tool<IncludedBuildsArgs, GradleIncludedBuilds>(
-        "get_included_builds",
-        "Gets the included builds of a Gradle project."
-    ) {
-        getBuildModel<GradleBuild>(it.projectRoot, it.invocationArgs).let {
-            GradleIncludedBuilds(it.editableBuilds.map {
-                IncludedBuild(it.rootProject.name, it.rootProject.projectDirectory.absolutePath)
-            })
-        }
-    }
 }

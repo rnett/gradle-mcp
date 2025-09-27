@@ -1,7 +1,8 @@
 package dev.rnett.gradle.mcp.gradle
 
-import org.springframework.boot.context.properties.ConfigurationProperties
+import kotlinx.serialization.Serializable
+import kotlin.time.Duration
 
-@ConfigurationProperties(prefix = "gradle")
-class GradleConnectionConfiguration(val maxConnections: Int, val ttl: java.time.Duration) {
+@Serializable
+class GradleConnectionConfiguration(val maxConnections: Int, val ttl: Duration) {
 }
