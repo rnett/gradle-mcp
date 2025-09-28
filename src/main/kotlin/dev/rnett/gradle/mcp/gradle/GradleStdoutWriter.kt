@@ -6,7 +6,7 @@ abstract class GradleStdoutWriter(val checkForTosRequest: Boolean, lineLogger: (
         val SCAN_LINES = setOf(
             "Publishing build scan...",
             "Publishing Build Scan to Develocity..."
-        )
+        ).map { it.lowercase() }.toSet()
     }
 
     abstract fun onScansTosRequest(tosAcceptRequest: GradleScanTosAcceptRequest)
@@ -19,7 +19,7 @@ abstract class GradleStdoutWriter(val checkForTosRequest: Boolean, lineLogger: (
             onScanPublication(line.trim())
             lastLineWasPublishNotification = false
         }
-        if (line in SCAN_LINES) {
+        if (line.lowercase() in SCAN_LINES) {
             lastLineWasPublishNotification = true
         }
     }

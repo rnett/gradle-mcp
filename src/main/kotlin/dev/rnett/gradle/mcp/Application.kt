@@ -8,7 +8,6 @@ import dev.rnett.gradle.mcp.mcp.add
 import dev.rnett.gradle.mcp.tools.GradleExecutionTools
 import dev.rnett.gradle.mcp.tools.GradleIntrospectionTools
 import dev.rnett.gradle.mcp.tools.RelatedTools
-import io.ktor.server.application.Application
 import io.ktor.server.config.property
 import io.ktor.server.netty.EngineMain
 import io.ktor.server.plugins.di.dependencies
@@ -19,11 +18,6 @@ import io.modelcontextprotocol.kotlin.sdk.ServerCapabilities
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.server.mcp
 import kotlinx.serialization.json.Json
-
-fun interface McpServerContributor {
-    context(application: Application)
-    fun contribute(server: McpServer)
-}
 
 suspend fun main(args: Array<String>) {
     val server = EngineMain.createServer(args)
@@ -47,22 +41,22 @@ suspend fun main(args: Array<String>) {
             GradleExecutionTools(dependencies.resolve()),
         )
 
-        val server = McpServer(
-            Implementation("gradle-mcp", "0.0.1"),
-            ServerOptions(
-                ServerCapabilities(
-                    logging = EmptyJsonObject,
-                    tools = ServerCapabilities.Tools(false)
-                ),
-                enforceStrictCapabilities = false
-            ),
-            dependencies.resolve()
-        ).apply {
-            components.forEach { add(it) }
-        }
+        val json: Json = dependencies.resolve()
 
         mcp {
-            server
+            McpServer(
+                Implementation("gradle-mcp", "0.0.1"),
+                ServerOptions(
+                    ServerCapabilities(
+                        logging = EmptyJsonObject,
+                        tools = ServerCapabilities.Tools(false)
+                    ),
+                    enforceStrictCapabilities = false
+                ),
+                json
+            ).apply {
+                components.forEach { add(it) }
+            }
         }
     }
 

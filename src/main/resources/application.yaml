@@ -1,6 +1,7 @@
 ktor:
   deployment:
     port: 8081
+  development: false
 gradle:
   maxConnections: 10
   ttl: PT5M

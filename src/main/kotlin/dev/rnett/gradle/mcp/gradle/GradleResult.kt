@@ -27,5 +27,10 @@ data class GradleBuildScan(
     @Description("The URL of the Develocity instance the Build Scan is located on")
     val develocityInstance: String
 ) {
-    constructor(url: String) : this(url, url.substringAfter("/s/"), url.substringBefore("/s/"))
+    companion object {
+        fun fromUrl(url: String): GradleBuildScan {
+            val fixed = url.replace("https://gradle.com/s/", "https://scans.gradle.com/s/")
+            return GradleBuildScan(fixed, fixed.substringAfter("/s/"), fixed.substringBefore("/s/"))
+        }
+    }
 }

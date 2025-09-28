@@ -149,7 +149,7 @@ class GradleProvider(val config: GradleConfiguration) {
                         }
 
                         override fun onScanPublication(url: String) {
-                            scans += GradleBuildScan(url)
+                            scans += GradleBuildScan.fromUrl(url)
                         }
 
                     }

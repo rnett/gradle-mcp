@@ -37,7 +37,7 @@ dependencies {
 }
 
 ktor {
-    development = true
+    development = false
 }
 
 kotlin {
