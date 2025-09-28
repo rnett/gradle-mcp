@@ -29,3 +29,7 @@ suspend inline fun <R> localSupervisorScope(context: CoroutineContext = EmptyCor
         scope.cancel("Finished")
     }
 }
+
+inline fun <T, R> Collection<T>.mapToSet(block: (T) -> R): Set<R> = buildSet(this.size) {
+    this@mapToSet.mapTo(this, block)
+}

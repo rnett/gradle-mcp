@@ -2,17 +2,39 @@ package dev.rnett.gradle.mcp.gradle
 
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
+import org.gradle.tooling.Failure
 import org.gradle.tooling.GradleConnectionException
+import kotlin.time.Duration
 
 //TODO include problems? At least the summary
-sealed interface GradleResult<T> {
-    val publishedScans: List<GradleBuildScan>
+data class GradleResult<out T>(
+    val publishedScans: List<GradleBuildScan>,
+    val testResults: TestResults?,
+    val outcome: Outcome<T>
+) {
 
-    data class Success<T>(val value: T, override val publishedScans: List<GradleBuildScan>) : GradleResult<T>
-    data class Failure<T>(val error: GradleConnectionException, override val publishedScans: List<GradleBuildScan>) : GradleResult<T>
+    sealed interface Outcome<out T>
+
+    data class Success<T>(val value: T) : Outcome<T>
+    data class Failure(val error: GradleConnectionException) : Outcome<Nothing>
 }
 
-fun <T> GradleResult<T>.throwFailure(): GradleResult.Success<T> = when (this) {
+data class TestResults(
+    val passed: Set<TestResult>,
+    val skipped: Set<TestResult>,
+    val failed: Set<TestResult>,
+) {
+    val isEmpty: Boolean get() = passed.isEmpty() && skipped.isEmpty() && failed.isEmpty()
+}
+
+data class TestResult(
+    val testName: String,
+    val output: String?,
+    val duration: Duration,
+    val failures: List<Failure>?
+)
+
+fun <T> GradleResult.Outcome<T>.throwFailure(): GradleResult.Success<T> = when (this) {
     is GradleResult.Failure -> throw this.error
     is GradleResult.Success -> this
 }

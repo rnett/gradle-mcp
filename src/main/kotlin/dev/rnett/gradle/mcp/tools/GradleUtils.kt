@@ -5,8 +5,10 @@ import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleResult
 import dev.rnett.gradle.mcp.gradle.GradleScanTosAcceptRequest
 import dev.rnett.gradle.mcp.gradle.runBuildAndGetOutput
+import dev.rnett.gradle.mcp.gradle.runTestsAndGetOutput
 import dev.rnett.gradle.mcp.mcp.McpContext
 import io.github.smiley4.schemakenerator.core.annotations.Description
+import io.github.smiley4.schemakenerator.core.annotations.Example
 import io.modelcontextprotocol.kotlin.sdk.LoggingLevel
 import kotlinx.serialization.Serializable
 import org.gradle.tooling.model.Model
@@ -44,16 +46,17 @@ data class GradleInvocationArguments(
     }
 }
 
-fun GradleInvocationArguments?.orDefault(): GradleInvocationArguments = this ?: GradleInvocationArguments.DEFAULT
-
 @JvmInline
 @Serializable
-@Description("The path of the Gradle project's root, where the gradlew script and settings.gradle(.kts) files are located")
+@Description("The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.")
 value class GradleProjectRoot(val projectRoot: String)
 
 @JvmInline
 @Serializable
 @Description("The Gradle project path, e.g. :project-a:subproject-b. ':' is the root project.")
+@Example(":")
+@Example(":my-project")
+@Example(":my-project:subproject")
 value class GradleProjectPath(val projectPath: String)
 
 //TODO have a "remember acceptance" option?
@@ -80,13 +83,44 @@ suspend inline fun <reified T : Model> GradleProvider.getBuildModel(
 
 
 context(ctx: McpContext)
-suspend inline fun GradleProvider.runBuildAndGetOutput(
+suspend inline fun GradleProvider.doBuild(
     projectRoot: String,
+    captureFailedTestOutput: Boolean,
+    captureAllTestOutput: Boolean,
     invocationArgs: GradleInvocationArguments,
     includeFailures: Boolean,
 ): BuildResult {
     return runBuildAndGetOutput(
         projectRoot,
+        captureFailedTestOutput,
+        captureAllTestOutput,
+        invocationArgs,
+        includeFailures,
+        { askForScansTos(it) },
+        stdoutLineHandler = {
+            ctx.emitLoggingNotification("gradle-build", LoggingLevel.notice, it)
+        },
+        stderrLineHandler = {
+            ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it)
+        }
+    )
+}
+
+
+context(ctx: McpContext)
+suspend inline fun GradleProvider.doTests(
+    projectRoot: String,
+    testPatterns: Map<String, Set<String>>,
+    captureFailedTestOutput: Boolean,
+    captureAllTestOutput: Boolean,
+    invocationArgs: GradleInvocationArguments,
+    includeFailures: Boolean,
+): BuildResult {
+    return runTestsAndGetOutput(
+        projectRoot,
+        testPatterns,
+        captureFailedTestOutput,
+        captureAllTestOutput,
         invocationArgs,
         includeFailures,
         { askForScansTos(it) },

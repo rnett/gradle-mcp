@@ -50,7 +50,7 @@ class GradleIntrospectionTools(
         gradle.getBuildModel<BuildEnvironment>(
             it.projectRoot.projectRoot,
             it.invocationArgs
-        ).throwFailure().value.let {
+        ).outcome.throwFailure().value.let {
             GradleBuildEnvironment(
                 GradleBuildEnvironment.GradleInfo(it.gradle.gradleUserHome.absolutePath, it.gradle.gradleVersion),
                 GradleBuildEnvironment.JavaInfo(it.java.javaHome.absolutePath, it.java.jvmArguments)
@@ -95,7 +95,7 @@ class GradleIntrospectionTools(
         "describe_project",
         "Describes a Gradle project or subproject. Includes the tasks and child projects."
     ) { args ->
-        gradle.getBuildModel<GradleProject>(args.projectRoot.projectRoot, args.invocationArgs).throwFailure().value.let {
+        gradle.getBuildModel<GradleProject>(args.projectRoot.projectRoot, args.invocationArgs).outcome.throwFailure().value.let {
             val project = it.findByPath(args.projectPath.projectPath) ?: throw IllegalArgumentException("Project with project path \"${args.projectPath}\" not found")
             GradleProjectInfo(
                 project.path,
@@ -133,7 +133,7 @@ class GradleIntrospectionTools(
         "get_included_builds",
         "Gets the included builds of a Gradle project."
     ) {
-        gradle.getBuildModel<GradleBuild>(it.projectRoot.projectRoot, it.invocationArgs).throwFailure().value.let {
+        gradle.getBuildModel<GradleBuild>(it.projectRoot.projectRoot, it.invocationArgs).outcome.throwFailure().value.let {
             GradleIncludedBuilds(it.editableBuilds.map {
                 IncludedBuild(it.rootProject.name, it.rootProject.projectDirectory.absolutePath)
             })

@@ -21,8 +21,8 @@ fun org.gradle.tooling.events.problems.Problem.toModel(): Problem = Problem(
         },
         documentationLink = definition.documentationLink?.url
     ),
-    contextualLabel = contextualLabel.contextualLabel,
-    details = details.details,
+    contextualLabel = contextualLabel?.contextualLabel,
+    details = details?.details,
     originLocations = originLocations.mapNotNull { it.toModel() },
     contextualLocations = contextualLocations.mapNotNull { it.toModel() },
     solutions = solutions.map { it.solution }
@@ -41,9 +41,9 @@ data class Problem(
     @Description("The definition of the problem type")
     val definition: ProblemDefinition,
     @Description("The human-readable label of this instance of the problem")
-    val contextualLabel: String,
+    val contextualLabel: String?,
     @Description("Detailed information about the problem")
-    val details: String,
+    val details: String?,
     @Description("Locations this problem occurred within the build")
     val originLocations: List<Location>,
     @Description("Additional locations that didn't cause the problem, but are part of its context")

@@ -22,7 +22,18 @@ import org.gradle.tooling.GradleConnector
 import org.gradle.tooling.ModelBuilder
 import org.gradle.tooling.ProjectConnection
 import org.gradle.tooling.TestExecutionException
+import org.gradle.tooling.events.OperationType
+import org.gradle.tooling.events.ProgressEvent
 import org.gradle.tooling.events.ProgressListener
+import org.gradle.tooling.events.test.Destination
+import org.gradle.tooling.events.test.JvmTestOperationDescriptor
+import org.gradle.tooling.events.test.TestFailureResult
+import org.gradle.tooling.events.test.TestFinishEvent
+import org.gradle.tooling.events.test.TestOperationDescriptor
+import org.gradle.tooling.events.test.TestOutputEvent
+import org.gradle.tooling.events.test.TestSkippedResult
+import org.gradle.tooling.events.test.TestStartEvent
+import org.gradle.tooling.events.test.TestSuccessResult
 import org.gradle.tooling.model.Model
 import org.gradle.tooling.model.build.BuildEnvironment
 import org.slf4j.LoggerFactory
@@ -35,6 +46,7 @@ import kotlin.io.path.Path
 import kotlin.io.path.isDirectory
 import kotlin.io.path.notExists
 import kotlin.reflect.KClass
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 import kotlin.time.toJavaDuration
@@ -70,9 +82,71 @@ class GradleProvider(val config: GradleConfiguration) {
         return getConnection(path)
     }
 
+    class TestCollector(val captureFailedTestOutput: Boolean, val captureAllTestOutput: Boolean) : ProgressListener {
+        private val output = mutableMapOf<String, StringBuilder>()
+        private val passed = mutableListOf<TestResult>()
+        private val skipped = mutableListOf<TestResult>()
+        private val failed = mutableListOf<TestResult>()
+
+        private fun TestOperationDescriptor.testName(): String? {
+            if (this is JvmTestOperationDescriptor) {
+                return (this.className ?: return null) + "." + (this.methodName ?: return null)
+            }
+            return this.testDisplayName
+        }
+
+        override fun statusChanged(event: ProgressEvent) {
+            when (event) {
+                is TestStartEvent -> {}
+                is TestFinishEvent -> {
+                    val testResult = TestResult(
+                        event.descriptor.testName() ?: return,
+                        null,
+                        (event.result.endTime - event.result.startTime).milliseconds,
+                        null
+                    )
+                    val output = output.remove(testResult.testName)?.toString() ?: ""
+                    when (val result = event.result) {
+                        is TestSuccessResult -> {
+                            passed += testResult.copy(output = output.takeIf { captureAllTestOutput })
+                        }
+
+                        is TestSkippedResult -> {
+                            skipped += testResult.copy(output = output.takeIf { captureAllTestOutput })
+                        }
+
+                        is TestFailureResult -> {
+                            failed += testResult.copy(failures = result.failures.toList(), output = output.takeIf { captureAllTestOutput || captureFailedTestOutput })
+                        }
+                    }
+                }
+
+                is TestOutputEvent -> {
+                    val testName = (event.descriptor.parent as? TestOperationDescriptor)?.testName() ?: return
+                    val prefix = if (event.descriptor.destination == Destination.StdErr) "Err: " else ""
+                    output.getOrPut(testName) { StringBuilder() }.append(prefix + event.descriptor.message)
+                }
+            }
+        }
+
+        fun results() = TestResults(
+            passed = passed.toSet(),
+            skipped = skipped.toSet(),
+            failed = failed.toSet()
+        ).takeUnless { it.isEmpty }
+
+        val operations = buildSet {
+            add(OperationType.TEST)
+            if (captureFailedTestOutput || captureAllTestOutput) {
+                add(OperationType.TEST_OUTPUT)
+            }
+        }
+    }
+
     private suspend inline fun <I : ConfigurableLauncher<*>, R> I.invokeBuild(
         connection: ProjectConnection,
         args: GradleInvocationArguments,
+        testResultCollector: TestCollector?,
         additionalProgressListeners: List<ProgressListener>,
         noinline stdoutLineHandler: ((String) -> Unit)?,
         noinline stderrLineHandler: ((String) -> Unit)?,
@@ -109,6 +183,12 @@ class GradleProvider(val config: GradleConfiguration) {
             additionalProgressListeners.forEach {
                 addProgressListener(it)
             }
+
+            if (testResultCollector != null) {
+                addProgressListener(testResultCollector, testResultCollector.operations)
+            }
+
+            // Build scan TOS acceptance
 
             val tosHolder = CompletableDeferred<Deferred<Boolean>>()
             val inputStream = DeferredInputStream(GradleScanTosAcceptRequest.TIMEOUT + 30.seconds, scope.async(start = CoroutineStart.LAZY) {
@@ -171,21 +251,26 @@ class GradleProvider(val config: GradleConfiguration) {
 
             setStandardInput(inputStream)
 
-            runCatchingExceptCancellation {
+            val outcome = runCatchingExceptCancellation {
                 scope.async {
                     invoker(this@invokeBuild)
                 }.await()
             }
                 .fold(
-                    { GradleResult.Success(it, scans) },
+                    { GradleResult.Success(it) },
                     {
                         if (it is BuildException || it is TestExecutionException) {
-                            GradleResult.Failure(it, scans)
+                            GradleResult.Failure(it)
                         } else {
                             throw it
                         }
                     }
                 )
+            GradleResult(
+                scans,
+                testResultCollector?.results(),
+                outcome
+            )
         }
     }
 
@@ -198,13 +283,14 @@ class GradleProvider(val config: GradleConfiguration) {
         additionalProgressListeners: List<ProgressListener> = emptyList(),
         stdoutLineHandler: ((String) -> Unit)? = null,
         stderrLineHandler: ((String) -> Unit)? = null,
-    ): GradleResult<T> = withContext(Dispatchers.IO) {
+    ): GradleResult<T> {
         val connection = validateAndGetConnection(projectRoot)
         val builder = connection.model(kClass.java)
 
-        return@withContext builder.invokeBuild(
+        return builder.invokeBuild(
             connection,
             args,
+            null,
             additionalProgressListeners,
             stdoutLineHandler,
             stderrLineHandler,
@@ -218,22 +304,62 @@ class GradleProvider(val config: GradleConfiguration) {
     suspend fun runBuild(
         projectRoot: String,
         args: GradleInvocationArguments,
+        captureFailedTestOutput: Boolean,
+        captureAllTestOutput: Boolean,
         tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
         additionalProgressListeners: List<ProgressListener> = emptyList(),
         stdoutLineHandler: ((String) -> Unit)? = null,
         stderrLineHandler: ((String) -> Unit)? = null,
-    ): GradleResult<Unit> = withContext(Dispatchers.IO) {
+    ): GradleResult<Unit> {
         val connection = validateAndGetConnection(projectRoot)
         val builder = connection.newBuild()
 
-        return@withContext builder.invokeBuild(
+        return builder.invokeBuild(
             connection,
             args,
+            TestCollector(captureFailedTestOutput, captureAllTestOutput),
             additionalProgressListeners,
             stdoutLineHandler,
             stderrLineHandler,
             tosAccepter,
             BuildLauncher::run
         )
+    }
+
+    /**
+     * [testPatterns] is a map of task path -> test patterns
+     */
+    @OptIn(ExperimentalTime::class)
+    suspend fun runTests(
+        projectRoot: String,
+        testPatterns: Map<String, Set<String>>,
+        captureFailedTestOutput: Boolean,
+        captureAllTestOutput: Boolean,
+        args: GradleInvocationArguments,
+        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
+        additionalProgressListeners: List<ProgressListener> = emptyList(),
+        stdoutLineHandler: ((String) -> Unit)? = null,
+        stderrLineHandler: ((String) -> Unit)? = null,
+    ): GradleResult<Unit> {
+        val connection = validateAndGetConnection(projectRoot)
+        val builder = connection.newTestLauncher()
+
+        builder.withTestsFor {
+            testPatterns.forEach { (taskPath, patterns) ->
+                it.forTaskPath(taskPath).includePatterns(patterns)
+            }
+        }
+
+        return builder.invokeBuild(
+            connection,
+            args,
+            TestCollector(captureFailedTestOutput, captureAllTestOutput),
+            additionalProgressListeners,
+            stdoutLineHandler,
+            stderrLineHandler,
+            tosAccepter
+        ) {
+            it.run()
+        }
     }
 }
