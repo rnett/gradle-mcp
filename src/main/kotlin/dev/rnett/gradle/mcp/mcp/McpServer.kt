@@ -8,8 +8,13 @@ import io.modelcontextprotocol.kotlin.sdk.Method
 import io.modelcontextprotocol.kotlin.sdk.Notification
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
+import kotlinx.serialization.json.Json
 
-class McpServer(serverInfo: Implementation, options: ServerOptions) : Server(serverInfo, options) {
+class McpServer(
+    serverInfo: Implementation,
+    options: ServerOptions,
+    val json: Json
+) : Server(serverInfo, options) {
     private var logLevel: LoggingLevel = LoggingLevel.info
 
     init {

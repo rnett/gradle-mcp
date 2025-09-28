@@ -2,9 +2,19 @@ package dev.rnett.gradle.mcp.gradle
 
 import java.io.Writer
 
-class LineEmittingWriter(private val onLine: (String) -> Unit) : Writer() {
+open class LineEmittingWriter(val lineLogger: (String) -> Unit) : Writer() {
     private val buf = StringBuilder()
     private var lastWasCR = false
+
+    protected fun current(): String = buf.toString()
+
+    open fun onLine(line: String) {
+
+    }
+
+    open fun onLineOrFlush(current: String) {
+
+    }
 
     @Synchronized
     override fun write(cbuf: CharArray, off: Int, len: Int) {
@@ -34,7 +44,7 @@ class LineEmittingWriter(private val onLine: (String) -> Unit) : Writer() {
 
     @Synchronized
     override fun flush() {
-        // no-op
+        onLineOrFlush(current())
     }
 
     @Synchronized
@@ -46,6 +56,8 @@ class LineEmittingWriter(private val onLine: (String) -> Unit) : Writer() {
         val str = buf.toString()
         if (str.isNotEmpty()) {
             onLine(str)
+            onLineOrFlush(str)
+            lineLogger(str)
         }
         buf.setLength(0)
     }

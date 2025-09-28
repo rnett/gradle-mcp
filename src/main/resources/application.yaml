@@ -4,3 +4,4 @@ ktor:
 gradle:
   maxConnections: 10
   ttl: PT5M
+  allowPublicScansPublishing: true

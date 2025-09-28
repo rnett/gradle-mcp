@@ -1,7 +1,5 @@
-package dev.rnett.gradle.mcp
+package dev.rnett.gradle.mcp.mcp
 
-import dev.rnett.gradle.mcp.mcp.JsonSchemaFactory
-import dev.rnett.gradle.mcp.mcp.McpServer
 import io.github.smiley4.schemakenerator.jsonschema.data.CompiledJsonSchemaData
 import io.github.smiley4.schemakenerator.jsonschema.jsonDsl.JsonArray
 import io.github.smiley4.schemakenerator.jsonschema.jsonDsl.JsonBooleanValue
@@ -10,15 +8,18 @@ import io.github.smiley4.schemakenerator.jsonschema.jsonDsl.JsonNullValue
 import io.github.smiley4.schemakenerator.jsonschema.jsonDsl.JsonNumericValue
 import io.github.smiley4.schemakenerator.jsonschema.jsonDsl.JsonObject
 import io.github.smiley4.schemakenerator.jsonschema.jsonDsl.JsonTextValue
-import io.ktor.server.application.Application
-import io.ktor.server.plugins.di.dependencies
-import io.modelcontextprotocol.kotlin.sdk.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.CreateElicitationRequest
+import io.modelcontextprotocol.kotlin.sdk.CreateElicitationResult
 import io.modelcontextprotocol.kotlin.sdk.LoggingLevel
 import io.modelcontextprotocol.kotlin.sdk.LoggingMessageNotification
 import io.modelcontextprotocol.kotlin.sdk.Notification
-import io.modelcontextprotocol.kotlin.sdk.TextContent
+import io.modelcontextprotocol.kotlin.sdk.ProgressNotification
+import io.modelcontextprotocol.kotlin.sdk.Request
+import io.modelcontextprotocol.kotlin.sdk.RequestId
 import io.modelcontextprotocol.kotlin.sdk.Tool
-import io.modelcontextprotocol.kotlin.sdk.ToolAnnotations
+import io.modelcontextprotocol.kotlin.sdk.WithMeta
+import io.modelcontextprotocol.kotlin.sdk.shared.DEFAULT_REQUEST_TIMEOUT
+import io.modelcontextprotocol.kotlin.sdk.shared.RequestOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -26,26 +27,40 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.serializer
 import org.slf4j.LoggerFactory
+import kotlin.time.Duration
 
 object McpToolHelper {
     @PublishedApi
     internal val logger = LoggerFactory.getLogger("dev.rnett.gradle.mcp.McpTool")
 }
 
-class McpContext(private val server: McpServer) : AutoCloseable {
+sealed interface ElicitationResult<out T> {
+    data object Decline : ElicitationResult<Nothing>
+    data object Cancel : ElicitationResult<Nothing>
+    data class Accept<out T>(val data: T) : ElicitationResult<T>
+
+    val isAccepted: Boolean get() = this is Accept
+}
+
+open class McpContext(
+    val server: McpServer,
+    private val request: Request,
+    val requestWithMeta: WithMeta
+) : AutoCloseable {
     private val notificationQueue = MutableSharedFlow<Notification>(0, 50, BufferOverflow.DROP_OLDEST)
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+
+    @PublishedApi
+    internal val json = server.json
 
     suspend fun sendNotification(notification: Notification) {
         server.sendNotification(notification)
@@ -57,6 +72,43 @@ class McpContext(private val server: McpServer) : AutoCloseable {
 
     fun emitLoggingNotification(logger: String, loggingLevel: LoggingLevel, message: String) {
         emitNotification(LoggingMessageNotification(LoggingMessageNotification.Params(loggingLevel, logger, JsonPrimitive(message))))
+    }
+
+    suspend inline fun <reified O> elicit(message: String, timeout: Duration = DEFAULT_REQUEST_TIMEOUT): ElicitationResult<O> {
+        val responseSerializer = json.serializersModule.serializer<O>()
+        val responseSchema = JsonSchemaFactory.generateSchema<O>(json.serializersModule)
+        val result = server.createElicitation(message, responseSchema.toRequestedSchema(), RequestOptions(null, timeout))
+        return when (result.action) {
+            CreateElicitationResult.Action.accept -> ElicitationResult.Accept(json.decodeFromJsonElement(responseSerializer, result.content ?: JsonNull))
+            CreateElicitationResult.Action.decline -> ElicitationResult.Decline
+            CreateElicitationResult.Action.cancel -> ElicitationResult.Cancel
+        }
+    }
+
+    suspend inline fun elicitUnit(message: String, timeout: Duration = DEFAULT_REQUEST_TIMEOUT): ElicitationResult<Unit> {
+        val result = server.createElicitation(message, CreateElicitationRequest.RequestedSchema(), RequestOptions(null, timeout))
+        return when (result.action) {
+            CreateElicitationResult.Action.accept -> ElicitationResult.Accept(Unit)
+            CreateElicitationResult.Action.decline -> ElicitationResult.Decline
+            CreateElicitationResult.Action.cancel -> ElicitationResult.Cancel
+        }
+    }
+
+    private val progressToken = requestWithMeta._meta["progressToken"]?.jsonPrimitive?.contentOrNull?.let { RequestId.StringId(it) }
+
+    fun emitProgressNotification(progress: Double, total: Double? = null, message: String? = null) {
+        if (progressToken != null) {
+            emitNotification(
+                ProgressNotification(
+                    ProgressNotification.Params(
+                        progress,
+                        progressToken,
+                        total,
+                        message
+                    )
+                )
+            )
+        }
     }
 
     init {
@@ -72,55 +124,6 @@ class McpContext(private val server: McpServer) : AutoCloseable {
     }
 }
 
-context(application: Application)
-inline fun <reified I, reified O> McpServer.addTool(
-    name: String,
-    description: String,
-    title: String? = null,
-    toolAnnotations: ToolAnnotations? = null,
-    crossinline handler: suspend McpContext.(I) -> O,
-) {
-    val json: Json by application.dependencies
-    val inputSchema = JsonSchemaFactory.generateSchema<I>(json.serializersModule)
-    val outputSchema = JsonSchemaFactory.generateSchema<O>(json.serializersModule)
-    addTool(
-        name,
-        description,
-        inputSchema.toInput(),
-        title,
-        outputSchema.toOutput(),
-        toolAnnotations,
-    ) { request ->
-        val input = json.decodeFromJsonElement<I>(request.arguments)
-        val output = runCatchingExceptCancellation { handler(McpContext(this), input) }
-        output.fold(
-            {
-
-                if (it is String) {
-                    return@fold CallToolResult(
-                        listOf(TextContent(it))
-                    )
-                }
-
-                if (it is CallToolResult) {
-                    return@fold it
-                }
-
-                val structured = json.encodeToJsonElement(it)
-                val text = json.encodeToString(structured)
-                CallToolResult(
-                    listOf(TextContent(text)),
-                    structured as? kotlinx.serialization.json.JsonObject
-                )
-            },
-            {
-                McpToolHelper.logger.error("Error while executing tool call $request", it)
-                CallToolResult(listOf(TextContent("Error executing tool $name: ${it.message ?: "Unknown error"}")), isError = true)
-            }
-        )
-    }
-}
-
 fun CompiledJsonSchemaData.toInput(): Tool.Input {
     val obj = json.toKotlinxSerialization().jsonObject
 
@@ -129,6 +132,19 @@ fun CompiledJsonSchemaData.toInput(): Tool.Input {
     }
 
     return Tool.Input(
+        obj.getValue("properties").jsonObject,
+        obj["required"]?.jsonArray?.let { it.map { it.jsonPrimitive.content } }
+    )
+}
+
+fun CompiledJsonSchemaData.toRequestedSchema(): CreateElicitationRequest.RequestedSchema {
+    val obj = json.toKotlinxSerialization().jsonObject
+
+    if (obj["type"]?.jsonPrimitive?.contentOrNull != "object") {
+        error("Object schema expected")
+    }
+
+    return CreateElicitationRequest.RequestedSchema(
         obj.getValue("properties").jsonObject,
         obj["required"]?.jsonArray?.let { it.map { it.jsonPrimitive.content } }
     )

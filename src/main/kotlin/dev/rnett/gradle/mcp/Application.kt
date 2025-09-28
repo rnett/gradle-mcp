@@ -1,8 +1,13 @@
 package dev.rnett.gradle.mcp
 
-import dev.rnett.gradle.mcp.gradle.GradleConnectionConfiguration
+import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.mcp.McpServer
+import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import dev.rnett.gradle.mcp.mcp.add
+import dev.rnett.gradle.mcp.tools.GradleExecutionTools
+import dev.rnett.gradle.mcp.tools.GradleIntrospectionTools
+import dev.rnett.gradle.mcp.tools.RelatedTools
 import io.ktor.server.application.Application
 import io.ktor.server.config.property
 import io.ktor.server.netty.EngineMain
@@ -24,7 +29,7 @@ suspend fun main(args: Array<String>) {
     val server = EngineMain.createServer(args)
     server.application.apply {
         dependencies {
-            provide { this@apply.property<GradleConnectionConfiguration>("gradle") }
+            provide { this@apply.property<GradleConfiguration>("gradle") }
             provide(::GradleProvider)
             provide {
                 Json {
@@ -35,9 +40,11 @@ suspend fun main(args: Array<String>) {
                 }
             }
         }
-        val contributors: Set<McpServerContributor> = setOf(
+
+        val components: List<McpServerComponent> = listOf(
+            RelatedTools(),
             GradleIntrospectionTools(dependencies.resolve()),
-            RelatedTools()
+            GradleExecutionTools(dependencies.resolve()),
         )
 
         val server = McpServer(
@@ -46,10 +53,12 @@ suspend fun main(args: Array<String>) {
                 ServerCapabilities(
                     logging = EmptyJsonObject,
                     tools = ServerCapabilities.Tools(false)
-                )
-            )
+                ),
+                enforceStrictCapabilities = false
+            ),
+            dependencies.resolve()
         ).apply {
-            contributors.forEach { it.contribute(this) }
+            components.forEach { add(it) }
         }
 
         mcp {
