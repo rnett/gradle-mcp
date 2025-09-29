@@ -80,6 +80,7 @@ tasks.shadowJar {
 
 mavenPublishing {
     publishToMavenCentral()
+    coordinates(group.toString(), project.name, project.version.toString())
 
     signAllPublications()
 
