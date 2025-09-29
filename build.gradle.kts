@@ -1,3 +1,5 @@
+import io.ktor.plugin.features.DockerImageRegistry
+
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
@@ -47,6 +49,11 @@ ktor {
     development = false
     docker {
         jreVersion = JavaVersion.VERSION_24
+        externalRegistry = DockerImageRegistry.dockerHub(
+            provider { "gradle-mcp-snapshots" },
+            provider { "rnett" },
+            providers.gradleProperty("dockerHubPassword")
+        )
     }
 }
 
