@@ -44,7 +44,7 @@ If you're using `gradlew` (as opposed to `gradle`) make sure to set the working 
 }
 ```
 
-##### Windows
+##### Mac/Linux
 
 ```yaml
 {
@@ -63,8 +63,6 @@ If you're using `gradlew` (as opposed to `gradle`) make sure to set the working 
   }
 }
 ```
-
-Mac/Linux
 
 ### Docker
 
