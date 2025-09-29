@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.gradle
 
 import dev.rnett.gradle.mcp.mapToSet
 import dev.rnett.gradle.mcp.tools.GradleInvocationArguments
+import dev.rnett.gradle.mcp.tools.GradleProjectRoot
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
@@ -89,7 +90,7 @@ fun GradleResult<Unit>.toBuildResult(output: String, includeFailures: Boolean): 
 }
 
 suspend fun GradleProvider.runBuildAndGetOutput(
-    projectRoot: String,
+    projectRoot: GradleProjectRoot,
     captureFailedTestOutput: Boolean,
     captureAllTestOutput: Boolean,
     invocationArgs: GradleInvocationArguments,
@@ -117,7 +118,7 @@ suspend fun GradleProvider.runBuildAndGetOutput(
 }
 
 suspend fun GradleProvider.runTestsAndGetOutput(
-    projectRoot: String,
+    projectRoot: GradleProjectRoot,
     testPatterns: Map<String, Set<String>>,
     captureFailedTestOutput: Boolean,
     captureAllTestOutput: Boolean,

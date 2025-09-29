@@ -26,6 +26,7 @@ import kotlinx.serialization.json.Json
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
+
 class Application(val args: Array<String>) {
 
     private val config = CommandLineConfig(args)
@@ -37,8 +38,9 @@ class Application(val args: Array<String>) {
         encodeDefaults = true
     }
 
+    val appConfig = config.rootConfig.environment.config
 
-    val gradleConfig = config.rootConfig.environment.config.property("gradle").getAs<GradleConfiguration>()
+    val gradleConfig = appConfig.property("gradle").getAs<GradleConfiguration>()
 
     val provider = GradleProvider(gradleConfig)
 

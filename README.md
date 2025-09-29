@@ -6,69 +6,52 @@ Also supports publishing Develocity Build Scans.
 
 ## Installation
 
-### Hacky but convenient
+Use [jbang](https://www.jbang.dev/documentation/jbang/latest/installation.html):
 
-Download the `mcp.init.gradle.kts` file into your `~/.gradle/init.d/` directory.
-You can then run the server with `./gradlew --no-daemon gradle-mcp`.
-To run a STDIO server, use `./gradlew -q --no-daemon --no-configuration-cache --refresh-dependencies gradle-mcp stdio`.
-The server will be stopped if the daemon is killed (e.g. via `./gradlew --stop`).
+```shell
+jbang run --fresh dev.rnett.gradle-mcp:gradle-mcp:+ stdio
+```
 
-The latest version will be used automatically.
-To set a version, set the `gradle.mcp.version` in your `~/.gradle/gradle.properties` file (project properties files will not work).
-Snapshot and local versions can be included by setting the `gradle.mcp.repositories.snapshots` and `gradle.mcp.repositories.local` properties, respectively (they can be set to anything, but must be set in the Gradle user home properties
-file).
+For snapshots:
+
+```shell
+jbang run --fresh --repos snapshots=https://central.sonatype.com/repository/maven-snapshots/ dev.rnett.gradle-mcp:gradle-mcp:+ stdio
+```
+
+You can add an alias to make invoking it easier:
+
+```shell
+jbang alias add dev.rnett.gradle-mcp:gradle-mcp:+
+```
+
+Then run it with `jbang gradle-mcp stdio`.
+
+Or even install it as a command (`gradle-mcp`):
+
+```shell
+jbang app setup
+jbang app install --name gradle-mcp dev.rnett.gradle-mcp:gradle-mcp:+
+```
+
+See [jbang documentation](https://www.jbang.dev/documentation/jbang/latest/install.html) for more details.
 
 #### Example MCP configuration
 
-If you're using `gradlew` (as opposed to `gradle`) make sure to set the working directory to a directory with a `gradlew` script.
-
-##### Windows
-
-```yaml
+```json
 {
   "mcpServers": {
     "gradle": {
-      "command": "cmd",
+      "command": "jbang",
       "args": [
-        "/C",
-        "gradlew.bat",
-        "-q",
-        "--no-daemon",
-        "--no-configuration-cache",
-        "--refresh-dependencies",
-        "gradle-mcp",
+        "run",
+        "--fresh",
+        "dev.rnett.gradle-mcp:gradle-mcp:+",
         "stdio"
       ]
     }
   }
 }
 ```
-
-##### Windows
-
-```yaml
-{
-  "mcpServers": {
-    "gradle": {
-      "command": "gradlew",
-      "args": [
-        "-q",
-        "--no-daemon",
-        "--no-configuration-cache",
-        "--refresh-dependencies",
-        "gradle-mcp",
-        "stdio"
-      ]
-    }
-  }
-}
-```
-
-Mac/Linux
-
-### Docker
-
-Coming soon.
 
 ## Usage
 

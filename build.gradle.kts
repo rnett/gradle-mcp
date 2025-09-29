@@ -1,7 +1,3 @@
-import io.ktor.plugin.features.DockerImageRegistry
-import io.ktor.plugin.features.DockerPortMapping
-import java.time.Clock
-
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
@@ -19,9 +15,18 @@ repositories {
     maven("https://repo.gradle.org/gradle/libs-releases")
 }
 
+val sharedJvmArgs = listOf(
+    "-Xmx1024m",
+    "-Xms256m",
+//    "--enable-native-access=ALL-UNNAMED",
+//    "--sun-misc-unsafe-memory-access=allow"
+)
+
 application {
     mainClass.set("dev.rnett.gradle.mcp.Application")
+    applicationDefaultJvmArgs = sharedJvmArgs
 }
+
 
 dependencies {
     implementation(libs.gradle.tooling.api)
@@ -47,23 +52,8 @@ dependencies {
     testImplementation(libs.kotlin.test)
 }
 
-val gitCommit = providers.exec {
-    commandLine("git", "rev-parse", "HEAD")
-    isIgnoreExitValue = false
-}.standardOutput.asText.map { it.trim() }
-
 ktor {
     development = false
-    docker {
-        jreVersion = JavaVersion.VERSION_24
-        externalRegistry = DockerImageRegistry.dockerHub(
-            provider { "gradle-mcp-snapshots" },
-            provider { "rnett" },
-            providers.gradleProperty("dockerHubPassword")
-        )
-        portMappings.add(DockerPortMapping(47813))
-        imageTag = gitCommit.map { it + Clock.systemUTC().millis() }
-    }
 }
 
 kotlin {
@@ -105,6 +95,7 @@ mavenPublishing {
         description.set("A MCP server for Gradle.")
         inceptionYear.set("2025")
         url.set("https://github.com/rnett/gradle-mcp/")
+        this.
         licenses {
             license {
                 name.set("The Apache License, Version 2.0")
