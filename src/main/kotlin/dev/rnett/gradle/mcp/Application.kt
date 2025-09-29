@@ -50,7 +50,7 @@ class Application(val args: Array<String>) {
 
     private fun createServer(): McpServer {
         return McpServer(
-            Implementation("gradle-mcp", "0.0.1"),
+            Implementation("gradle-mcp", BuildConfig.APP_VERSION),
             ServerOptions(
                 ServerCapabilities(
                     logging = EmptyJsonObject,
@@ -95,13 +95,13 @@ class Application(val args: Array<String>) {
     companion object {
         @JvmStatic
         fun stdio(args: Array<String>) {
-            System.err.println("Starting STDIO transport...")
+            System.err.println("Starting Gradle MCP server with STDIO transport...")
             Application(args).startStdio()
         }
 
         @JvmStatic
         fun server(args: Array<String>) {
-            System.err.println("Starting SSE transport...")
+            System.err.println("Starting Gradle MCP server with SSE transport...")
             Application(args).startServer()
         }
 

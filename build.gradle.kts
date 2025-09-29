@@ -3,10 +3,12 @@ plugins {
     kotlin("plugin.serialization") version "2.2.10"
     id("io.ktor.plugin") version "3.3.0"
     `maven-publish`
+    id("com.github.gmazzo.buildconfig") version "5.6.8"
+    id("com.vanniktech.maven.publish") version "0.34.0"
 }
 
 group = "dev.rnett.gradle-mcp"
-version = "1.0-SNAPSHOT"
+version = "0.0.1-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -49,10 +51,13 @@ ktor {
 }
 
 kotlin {
-    jvmToolchain(24)
+    jvmToolchain(17)
 
     compilerOptions {
-        freeCompilerArgs.set(listOf("-Xannotation-default-target=param-property", "-Xcontext-parameters"))
+        freeCompilerArgs.addAll(
+            "-Xannotation-default-target=param-property",
+            "-Xcontext-parameters"
+        )
     }
 }
 
@@ -64,8 +69,47 @@ tasks.named<UpdateDaemonJvm>("updateDaemonJvm") {
     languageVersion = JavaLanguageVersion.of(24)
 }
 
+buildConfig {
+    packageName("dev.rnett.gradle.mcp")
+    buildConfigField("APP_VERSION", provider { "${project.version}" })
+}
+
 tasks.shadowJar {
     archiveClassifier = ""
+}
+
+mavenPublishing {
+    publishToMavenCentral()
+
+    signAllPublications()
+
+    coordinates("com.example.mylibrary", "mylibrary-runtime", "1.0.3-SNAPSHOT")
+
+    pom {
+        name.set("Gradle MCP")
+        description.set("A MCP server for Gradle.")
+        inceptionYear.set("2025")
+        url.set("https://github.com/rnett/gradle-mcp/")
+        licenses {
+            license {
+                name.set("The Apache License, Version 2.0")
+                url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                distribution.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+            }
+        }
+        developers {
+            developer {
+                id.set("rnett")
+                name.set("Ryan Nett")
+                url.set("https://github.com/rnett/")
+            }
+        }
+        scm {
+            url.set("https://github.com/rnett/gradle-mcp/")
+            connection.set("scm:git:git://github.com/rnett/gradle-mcp.git")
+            developerConnection.set("scm:git:ssh://git@github.com/rnett/gradle-mcp.git")
+        }
+    }
 }
 
 publishing {

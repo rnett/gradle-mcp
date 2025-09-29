@@ -13,7 +13,10 @@ You can then run the server with `./gradlew --no-daemon gradle-mcp`.
 To run a STDIO server, use `./gradlew -q --no-daemon --no-configuration-cache --refresh-dependencies gradle-mcp stdio`.
 The server will be stopped if the daemon is killed (e.g. via `./gradlew --stop`).
 
-The latest version will be used automatically. To set a version, set the `gradle.mcp.version` in your `~/.gradle/gradle.properties` file (project properties files will not work).
+The latest version will be used automatically.
+To set a version, set the `gradle.mcp.version` in your `~/.gradle/gradle.properties` file (project properties files will not work).
+Snapshot and local versions can be included by setting the `gradle.mcp.repositories.snapshots` and `gradle.mcp.repositories.local` properties, respectively (they can be set to anything, but must be set in the Gradle user home properties
+file).
 
 #### Example MCP configuration
 

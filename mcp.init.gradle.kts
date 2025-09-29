@@ -1,12 +1,30 @@
 import org.gradle.kotlin.dsl.support.serviceOf
 
 initscript {
+
+    val gradleHomeProperties = startParameter.gradleUserHomeDir.resolve("gradle.properties").inputStream().use { java.util.Properties().apply { load(it) } }
+    fun getProperty(property: String): String? {
+        return startParameter.projectProperties[property] ?: gradleHomeProperties[property]?.toString() ?: System.getProperty(property)
+    }
+
     repositories {
-        mavenCentral()
-        mavenLocal()
+        mavenCentral() {
+            mavenContent { includeModule("dev.rnett.gradle-mcp", "gradle-mcp") }
+        }
+        if (getProperty("gradle.mcp.repositories.local") != null) {
+            mavenLocal() {
+                mavenContent { includeModule("dev.rnett.gradle-mcp", "gradle-mcp") }
+            }
+        }
+        if (getProperty("gradle.mcp.repositories.snapshots") != null) {
+            maven("https://central.sonatype.com/repository/maven-snapshots") {
+                mavenContent { snapshotsOnly() }
+                mavenContent { includeModule("dev.rnett.gradle-mcp", "gradle-mcp") }
+            }
+        }
     }
     dependencies {
-        val mcpVersion = startParameter.projectProperties.getOrElse("gradle.mcp.version") { "+" }
+        val mcpVersion = getProperty("gradle.mcp.version") ?: "+"
         classpath("dev.rnett.gradle-mcp:gradle-mcp:${mcpVersion}")
     }
 }

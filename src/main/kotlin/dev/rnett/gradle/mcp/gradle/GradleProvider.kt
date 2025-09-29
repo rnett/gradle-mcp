@@ -166,6 +166,7 @@ class GradleProvider(val config: GradleConfiguration) {
             setJvmArguments(environment.java.jvmArguments)
 
             setEnvironmentVariables(System.getenv() + args.additionalEnvVars)
+            @Suppress("UNCHECKED_CAST")
             withSystemProperties((System.getProperties().toMap() as Map<String, String>) + args.additionalSystemProps)
             addJvmArguments(args.additionalJvmArgs)
             withDetailedFailure()

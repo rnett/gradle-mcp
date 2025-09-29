@@ -40,7 +40,7 @@ class RelatedTools() : McpServerComponent() {
         while (root == null) {
             if (isGradleProjectDir(current) && project == null)
                 project = current
-            if (isGradleRootProjectDir(current) && root == null)
+            if (isGradleRootProjectDir(current))
                 root = current
             current = current.parent ?: throw IllegalArgumentException("The target file is not in a Gradle project")
         }

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  reviewers: [
+    "rnett"
+  ],
+  assignees: [
+    "rnett"
+  ],
+  "pruneStaleBranches": false,
+  enabledManagers: [
+    "gradle",
+    "gradle-wrapper"
+  ],
+}
