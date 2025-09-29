@@ -68,7 +68,7 @@ If you're using `gradlew` (as opposed to `gradle`) make sure to set the working 
 
 > [!WARNING]
 > Using the Docker image is not recommended, since the executed Gradle builds run in the container, not on the host.
->
+> I'm going to remove docker installation as soon as I have a workable standalone installation
 
 [//]: # (> TODO consider removing docker instructions)
 
