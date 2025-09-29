@@ -1,10 +1,10 @@
 plugins {
-    kotlin("jvm") version "2.2.10"
-    kotlin("plugin.serialization") version "2.2.10"
-    id("io.ktor.plugin") version "3.3.0"
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ktor)
     `maven-publish`
-    id("com.github.gmazzo.buildconfig") version "5.6.8"
-    id("com.vanniktech.maven.publish") version "0.34.0"
+    alias(libs.plugins.buildconfig)
+    alias(libs.plugins.vanniktech.maven.publish)
 }
 
 group = "dev.rnett.gradle-mcp"
@@ -16,31 +16,31 @@ repositories {
 }
 
 application {
-    mainClass.set("dev.rnett.gradle.mcp.Application ")
+    mainClass.set("dev.rnett.gradle.mcp.Application")
 }
 
 dependencies {
-    implementation("org.gradle:gradle-tooling-api:9.1.0")
+    implementation(libs.gradle.tooling.api)
 
-    implementation("com.github.ben-manes.caffeine:caffeine:3.2.2")
-    implementation("commons-io:commons-io:2.20.0")
+    implementation(libs.caffeine)
+    implementation(libs.commons.io)
 
-    implementation(kotlin("reflect"))
-    implementation("io.github.smiley4:schema-kenerator-core:2.4.0")
-    implementation("io.github.smiley4:schema-kenerator-serialization:2.4.0")
-    implementation("io.github.smiley4:schema-kenerator-jsonschema:2.4.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    implementation(libs.kotlin.reflect)
+    implementation(libs.schema.kenerator.core)
+    implementation(libs.schema.kenerator.serialization)
+    implementation(libs.schema.kenerator.jsonschema)
+    implementation(libs.kotlinx.serialization.json)
 
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-    implementation("io.modelcontextprotocol:kotlin-sdk:0.7.2")
-    implementation("io.ktor:ktor-server-netty")
-    implementation("io.ktor:ktor-server-di")
-    implementation("io.ktor:ktor-serialization-kotlinx-json")
-    implementation("io.ktor:ktor-server-config-yaml")
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.mcp.sdk)
+    implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.di)
+    implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.ktor.server.config.yaml)
 
-    implementation("ch.qos.logback:logback-classic:1.5.18")
+    implementation(libs.logback.classic)
 
-    testImplementation(kotlin("test"))
+    testImplementation(libs.kotlin.test)
 }
 
 ktor {

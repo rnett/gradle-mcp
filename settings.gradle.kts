@@ -3,6 +3,15 @@ plugins {
 }
 rootProject.name = "gradle-mcp"
 
-gradle.run {
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+    }
+}
 
+val projectVersion = providers.fileContents(layout.rootDirectory.file("version.txt")).asText.get().trim()
+
+gradle.beforeProject {
+    group = "dev.rnett.gradle-mcp"
+    version = projectVersion
 }
