@@ -83,8 +83,6 @@ mavenPublishing {
 
     signAllPublications()
 
-    coordinates("com.example.mylibrary", "mylibrary-runtime", "1.0.3-SNAPSHOT")
-
     pom {
         name.set("Gradle MCP")
         description.set("A MCP server for Gradle.")
