@@ -16,7 +16,7 @@ class NewRootPathConverterTest {
 
         val converted = converter.convertPath(input)
 
-        assertEquals("\\test-root\\C\\Users\\me\\projects\\app", converted.pathString)
+        assertEquals("\\test-root\\c\\Users\\me\\projects\\app", converted.pathString)
     }
 
     // can't test linux paths because they don't show as absolute on windows
