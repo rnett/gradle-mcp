@@ -77,8 +77,3 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYPASSWORD }}
         run: ./gradlew :publishShadowPublicationToMavenCentralRepository --no-configuration-cache
-
-      - name: Publish Docker snapshot
-        env:
-          ORG_GRADLE_PROJECT_dockerHubPassword: ${{ secrets.ORG_GRADLE_PROJECT_DOCKERHUBPASSWORD }}
-        run: ./gradlew :publishImage --no-configuration-cache
