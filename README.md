@@ -18,6 +18,11 @@ For snapshots:
 jbang run --fresh --repos snapshots=https://central.sonatype.com/repository/maven-snapshots/ dev.rnett.gradle-mcp:gradle-mcp:+ stdio
 ```
 
+> [!CAUTION]
+> For now, you need to use `0.0.1-SNAPSHOT` as the snapshot version since I mistakenly published a few `1.0-SNAPSHOT` versions.
+> If you're seeing `Error: Could not find or load main class dev.rnett.gradle.mcp.Application`, this is the cause.
+
+
 You can add an alias to make invoking it easier:
 
 ```shell
