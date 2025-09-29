@@ -1,4 +1,5 @@
 import io.ktor.plugin.features.DockerImageRegistry
+import io.ktor.plugin.features.DockerPortMapping
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -45,6 +46,11 @@ dependencies {
     testImplementation(libs.kotlin.test)
 }
 
+val gitCommit = providers.exec {
+    commandLine("git", "rev-parse", "HEAD")
+    isIgnoreExitValue = false
+}.standardOutput.asText.map { it.trim() }
+
 ktor {
     development = false
     docker {
@@ -54,6 +60,8 @@ ktor {
             provider { "rnett" },
             providers.gradleProperty("dockerHubPassword")
         )
+        portMappings.add(DockerPortMapping(47813))
+        imageTag = gitCommit
     }
 }
 
