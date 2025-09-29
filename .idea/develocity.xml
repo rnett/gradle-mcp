@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="DevelocitySettings">
-    <option name="version" value="1" />
-    <option name="develocityGradlePluginVersion" value="4.2" />
-    <option name="configureDevelocitySet" value="true" />
-    <option name="tosAgree" value="true" />
-  </component>
-</project>
