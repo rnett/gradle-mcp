@@ -1,5 +1,6 @@
 import io.ktor.plugin.features.DockerImageRegistry
 import io.ktor.plugin.features.DockerPortMapping
+import java.time.Clock
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -61,7 +62,7 @@ ktor {
             providers.gradleProperty("dockerHubPassword")
         )
         portMappings.add(DockerPortMapping(47813))
-        imageTag = gitCommit
+        imageTag = gitCommit.map { it + Clock.systemUTC().millis() }
     }
 }
 
