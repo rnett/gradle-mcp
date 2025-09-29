@@ -41,21 +41,11 @@ class Application(val args: Array<String>) {
     val appConfig = config.rootConfig.environment.config
 
     val gradleConfig = appConfig.property("gradle").getAs<GradleConfiguration>()
-    val dockerConfig = appConfig.property("docker").getAs<DockerConfig>()
-    val pathConverter = dockerConfig.converterIfDocker ?: PathConverter.NoOp
 
-    init {
-        if (dockerConfig.isDocker)
-            System.err.println("Running in Docker")
-        if (pathConverter is NewRootPathConverter) {
-            System.err.println("Will attempt to convert paths with new root ${pathConverter.root}")
-        }
-    }
-
-    val provider = GradleProvider(gradleConfig, pathConverter)
+    val provider = GradleProvider(gradleConfig)
 
     val components: List<McpServerComponent> = listOf(
-        RelatedTools(pathConverter),
+        RelatedTools(),
         GradleIntrospectionTools(provider),
         GradleExecutionTools(provider),
     )

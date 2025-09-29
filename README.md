@@ -6,120 +6,46 @@ Also supports publishing Develocity Build Scans.
 
 ## Installation
 
-### Hacky but convenient
+Use [jbang](https://www.jbang.dev/documentation/jbang/latest/installation.html):
 
-Download the `mcp.init.gradle.kts` file into your `~/.gradle/init.d/` directory.
-You can then run the server with `./gradlew --no-daemon gradle-mcp`.
-To run a STDIO server, use `./gradlew -q --no-daemon --no-configuration-cache --refresh-dependencies gradle-mcp stdio`.
-The server will be stopped if the daemon is killed (e.g. via `./gradlew --stop`).
-
-The latest version will be used automatically.
-To set a version, set the `gradle.mcp.version` in your `~/.gradle/gradle.properties` file (project properties files will not work).
-Snapshot and local versions can be included by setting the `gradle.mcp.repositories.snapshots` and `gradle.mcp.repositories.local` properties, respectively (they can be set to anything, but must be set in the Gradle user home properties
-file).
-
-#### Example MCP configuration
-
-If you're using `gradlew` (as opposed to `gradle`) make sure to set the working directory to a directory with a `gradlew` script.
-
-##### Windows
-
-```yaml
-{
-  "mcpServers": {
-    "gradle": {
-      "command": "cmd",
-      "args": [
-        "/C",
-        "gradlew.bat",
-        "-q",
-        "--no-daemon",
-        "--no-configuration-cache",
-        "--refresh-dependencies",
-        "gradle-mcp",
-        "stdio"
-      ]
-    }
-  }
-}
+```shell
+jbang run --fresh dev.rnett.gradle-mcp:gradle-mcp:+ stdio
 ```
 
-##### Mac/Linux
+For snapshots:
 
-```yaml
-{
-  "mcpServers": {
-    "gradle": {
-      "command": "gradlew",
-      "args": [
-        "-q",
-        "--no-daemon",
-        "--no-configuration-cache",
-        "--refresh-dependencies",
-        "gradle-mcp",
-        "stdio"
-      ]
-    }
-  }
-}
+```shell
+jbang run --fresh --repos snapshots=https://central.sonatype.com/repository/maven-snapshots/ dev.rnett.gradle-mcp:gradle-mcp:+ stdio
 ```
 
-### Docker
+You can add an alias to make invoking it easier:
 
-> [!WARNING]
-> Using the Docker image is not recommended, since the executed Gradle builds run in the container, not on the host.
-> I'm going to remove docker installation as soon as I have a workable standalone installation
+```shell
+jbang alias add dev.rnett.gradle-mcp:gradle-mcp:+
+```
 
-[//]: # (> TODO consider removing docker instructions)
+Then run it with `jbang gradle-mcp stdio`.
 
-Images are published to `rnett/gradle-mcp`.
-Snapshot versions (from every commit on `main`, just like the Maven versions) are published to `rnett/gradle-snapshots`.
+Or even install it as a command (`gradle-mcp`):
 
-For the MCP server to function, it needs access to your Gradle projects.
-The easiest way to do this is a read-only bind mount of the entire filesystem.
+```shell
+jbang app setup
+jbang app install --name gradle-mcp dev.rnett.gradle-mcp:gradle-mcp:+
+```
 
-The MCP server will attempt to convert paths it receives to the in-container paths.
-If you mount it at something other than `/hostfs`, you should probably pass `-P:docker.paths.root=<my-new-root>`.
+See [jbang documentation](https://www.jbang.dev/documentation/jbang/latest/install.html) for more details.
 
 #### Example MCP configuration
-
-#### Windows
 
 ```json
 {
   "mcpServers": {
     "gradle": {
-      "command": "docker.exe",
+      "command": "jbang",
       "args": [
         "run",
-        "-i",
-        "--rm",
-        "--mount",
-        "type=bind,src=/mnt/host,dst=/hostfs",
-        "rnett/gradle-mcp",
-        "stdio"
-      ]
-    }
-  }
-}
-```
-
-The mount can't be readonly since the invoked Gradle builds run in the container, not on the host.
-
-##### Mac/Linux
-
-```json
-{
-  "mcpServers": {
-    "gradle": {
-      "command": "docker",
-      "args": [
-        "run",
-        "-i",
-        "--rm",
-        "--mount",
-        "type=bind,src=/,dst=/hostfs,readonly",
-        "rnett/gradle-mcp",
+        "--fresh",
+        "dev.rnett.gradle-mcp:gradle-mcp:+",
         "stdio"
       ]
     }

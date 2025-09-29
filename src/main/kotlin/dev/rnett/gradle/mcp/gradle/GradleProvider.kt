@@ -1,7 +1,6 @@
 package dev.rnett.gradle.mcp.gradle
 
 import com.github.benmanes.caffeine.cache.Caffeine
-import dev.rnett.gradle.mcp.PathConverter
 import dev.rnett.gradle.mcp.localSupervisorScope
 import dev.rnett.gradle.mcp.runCatchingExceptCancellation
 import dev.rnett.gradle.mcp.tools.GradleInvocationArguments
@@ -52,8 +51,7 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.toJavaDuration
 
 class GradleProvider(
-    val config: GradleConfiguration,
-    val pathConverter: PathConverter
+    val config: GradleConfiguration
 ) {
     companion object {
         private val LOGGER = LoggerFactory.getLogger(GradleProvider::class.java)
@@ -73,10 +71,8 @@ class GradleProvider(
         return connectionCache.get(projectRoot).asDeferred().await()
     }
 
-    fun getPath(root: GradleProjectRoot) = pathConverter.getExistingDirectory(root.projectRoot)
-
     suspend fun validateAndGetConnection(projectRoot: GradleProjectRoot, requiresGradleProject: Boolean = true): ProjectConnection {
-        val path = getPath(projectRoot)
+        val path = GradlePathUtils.getExistingDirPath(projectRoot)
         if (requiresGradleProject) {
             if (!GradlePathUtils.isGradleRootProjectDir(path)) {
                 throw IllegalArgumentException("Path is not the root of a Gradle project: $path")

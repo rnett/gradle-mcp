@@ -1,22 +1,17 @@
 package dev.rnett.gradle.mcp.tools
 
-import dev.rnett.gradle.mcp.PathConverter
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.tools.GradlePathUtils.isGradleProjectDir
 import dev.rnett.gradle.mcp.tools.GradlePathUtils.isGradleRootProjectDir
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
 import java.nio.file.Path
-import kotlin.io.path.Path
 import kotlin.io.path.absolutePathString
-import kotlin.io.path.isDirectory
-import kotlin.io.path.isRegularFile
-import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.name
 import kotlin.io.path.notExists
 import kotlin.io.path.relativeTo
 
-class RelatedTools(val pathConverter: PathConverter) : McpServerComponent() {
+class RelatedTools() : McpServerComponent() {
 
     @Serializable
     data class GetContainingProjectArgs(@Description(description = "The target file's path. Must be absolute.") val path: String)
@@ -33,7 +28,7 @@ class RelatedTools(val pathConverter: PathConverter) : McpServerComponent() {
         "get_gradle_project_containing_file",
         "Gets the nearest Gradle project containing the given file if there is one."
     ) {
-        var current = pathConverter.getExistingPath(it.path)
+        var current = GradlePathUtils.getExistingPath(it.path)
         if (current.notExists())
             throw IllegalArgumentException("The target file does not exist")
 
@@ -81,25 +76,3 @@ class RelatedTools(val pathConverter: PathConverter) : McpServerComponent() {
     private fun docsUrl(version: String) = "https://docs.gradle.org/$version/userguide/userguide.html"
 }
 
-object GradlePathUtils {
-
-    fun isGradleProjectDir(path: Path): Boolean {
-        if (path.notExists() || !path.isDirectory())
-            return false
-
-        val dirName = path.name
-
-        return path.listDirectoryEntries("*.gradle*").any {
-            it.isRegularFile() && (it.name.startsWith("build.gradle") || it.name.startsWith("$dirName.gradle"))
-        }
-    }
-
-    fun isGradleRootProjectDir(path: Path): Boolean {
-        if (path.notExists() || !path.isDirectory())
-            return false
-
-        return path.listDirectoryEntries("gradlew*").any {
-            it.isRegularFile() && (it.name == "gradlew" || it.name == "gradlew.bat")
-        }
-    }
-}
