@@ -25,7 +25,7 @@ data class GradleInvocationArguments(
     val additionalJvmArgs: List<String> = emptyList(),
     @Description("Additional arguments for the Gradle process. Optional.")
     val additionalArguments: List<String> = emptyList(),
-    @Description("Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server.")
+    @Description("Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation.")
     val publishScan: Boolean = false,
 ) {
     operator fun plus(other: GradleInvocationArguments): GradleInvocationArguments {
@@ -76,7 +76,10 @@ suspend inline fun <reified T : Model> GradleProvider.getBuildModel(
         T::class,
         invocationArgs,
         { askForScansTos(it) },
-        stdoutLineHandler = { ctx.emitLoggingNotification("gradle-build", LoggingLevel.notice, it) },
+        stdoutLineHandler = {
+            ctx.emitLoggingNotification("gradle-build", LoggingLevel.notice, it)
+            ctx.emitProgressNotification(0.0, 0.0, it)
+        },
         stderrLineHandler = { ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it) },
     )
 }
@@ -99,6 +102,7 @@ suspend inline fun GradleProvider.doBuild(
         { askForScansTos(it) },
         stdoutLineHandler = {
             ctx.emitLoggingNotification("gradle-build", LoggingLevel.notice, it)
+            ctx.emitProgressNotification(0.0, 0.0, it)
         },
         stderrLineHandler = {
             ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it)
@@ -126,6 +130,7 @@ suspend inline fun GradleProvider.doTests(
         { askForScansTos(it) },
         stdoutLineHandler = {
             ctx.emitLoggingNotification("gradle-build", LoggingLevel.notice, it)
+            ctx.emitProgressNotification(0.0, 0.0, it)
         },
         stderrLineHandler = {
             ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it)

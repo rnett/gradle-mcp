@@ -35,6 +35,7 @@ class GradleExecutionTools(
         "run_gradle_command",
         """
             |Runs a Gradle command in the given project, just as if the command line had been passed directly to './gradlew'.
+            |Can be used to execute any Gradle tasks.
             |When running tests, prefer the `run_tests_with_gradle` tool.
             |The console output is included in the result. Show this to the user, as if they had ran the command themselves.
             |Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues, using something like the Develocity MCP server.
@@ -57,7 +58,7 @@ class GradleExecutionTools(
         result
     }
 
-    @Description("A pattern to select tests. This is a prefix of the test class or method's fully qualified name. '*' wildcards are supported. Test classes may omit the package, e.g. `SomeClass` or `SomeClass.someMethod`.")
+    @Description("A pattern to select tests. This is a prefix of the test class or method's fully qualified name. '*' wildcards are supported. Test classes may omit the package, e.g. `SomeClass` or `SomeClass.someMethod`. A filter of '*' will select all tests.")
     @Example("com.example.MyTestClass")
     @Example("com.example.MyTestClass.myTestMethod")
     @Example("com.example.http.*")
@@ -72,7 +73,7 @@ class GradleExecutionTools(
     @Serializable
     data class ExecuteTestsArgs(
         val projectRoot: GradleProjectRoot,
-        @Description("A map of each test task to run (e.g. `:test`), to the test patterns for the tests to run for that task (e.g. `com.example.*`).")
+        @Description("A map of each test task to run (e.g. `:test`), to the test patterns for the tests to run for that task (e.g. `com.example.*`).  The typical test task is `:test`.  At least one task is required. A task with no patterns will run all tests.")
         val testPatterns: Map<String, Set<TestPattern>>,
         @Description("Whether to capture the console output of failed tests. Defaults to true.")
         val captureFailedTestOutput: Boolean = true,
@@ -94,9 +95,17 @@ class GradleExecutionTools(
             |Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues and test failures, using something like the Develocity MCP server.
         """.trimMargin(),
     ) {
+        if (it.testPatterns.isEmpty()) {
+            throw IllegalArgumentException("At least one test task is required.")
+        }
+
+        if (it.testPatterns.all { it.value.isEmpty() }) {
+            throw IllegalArgumentException("At least one test pattern is required.")
+        }
+
         val result = gradle.doTests(
             it.projectRoot.projectRoot,
-            it.testPatterns.mapValues { it.value.map { it.pattern }.toSet() },
+            it.testPatterns.mapValues { it.value.map { it.pattern }.toSet().ifEmpty { setOf("*") } },
             it.captureFailedTestOutput,
             it.captureAllTestOutput,
             GradleInvocationArguments(publishScan = it.scan) + it.invocationArguments,

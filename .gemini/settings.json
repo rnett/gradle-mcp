@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "gradle": {
-      "url": "http://localhost:8081/sse",
-      "trust": "true"
-    }
-  }
-}

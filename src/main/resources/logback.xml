@@ -1,21 +1,24 @@
 <configuration>
-    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <file>gradle-mcp.log</file>
-        <append>true</append>
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${user.home}/.gradle-mcp/gradle-mcp.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>gradle-mcp-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>20</maxHistory>
+            <totalSizeCap>100MB</totalSizeCap>
+        </rollingPolicy>
         <encoder>
             <pattern>%d{YYYY-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
-    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
         <encoder>
             <pattern>%d{YYYY-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
-    <root level="trace">
+    <root level="info">
+        <appender-ref ref="STDERR"/>
         <appender-ref ref="FILE"/>
     </root>
-    <root level="info">
-        <appender-ref ref="STDOUT"/>
-    </root>
-    <logger name="io.netty" level="INFO"/>
 </configuration>

@@ -45,6 +45,7 @@ object McpToolHelper {
 
 sealed interface ElicitationResult<out T> {
     data object Decline : ElicitationResult<Nothing>
+    data object NotSupported : ElicitationResult<Nothing>
     data object Cancel : ElicitationResult<Nothing>
     data class Accept<out T>(val data: T) : ElicitationResult<T>
 
@@ -75,6 +76,8 @@ open class McpContext(
     }
 
     suspend inline fun <reified O> elicit(message: String, timeout: Duration = DEFAULT_REQUEST_TIMEOUT): ElicitationResult<O> {
+        if (server.clientCapabilities?.elicitation == null) return ElicitationResult.NotSupported
+
         val responseSerializer = json.serializersModule.serializer<O>()
         val responseSchema = JsonSchemaFactory.generateSchema<O>(json.serializersModule)
         val result = server.createElicitation(message, responseSchema.toRequestedSchema(), RequestOptions(null, timeout))
@@ -86,6 +89,8 @@ open class McpContext(
     }
 
     suspend inline fun elicitUnit(message: String, timeout: Duration = DEFAULT_REQUEST_TIMEOUT): ElicitationResult<Unit> {
+        if (server.clientCapabilities?.elicitation == null) return ElicitationResult.NotSupported
+
         val result = server.createElicitation(message, CreateElicitationRequest.RequestedSchema(), RequestOptions(null, timeout))
         return when (result.action) {
             CreateElicitationResult.Action.accept -> ElicitationResult.Accept(Unit)

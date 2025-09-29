@@ -2,6 +2,7 @@ plugins {
     kotlin("jvm") version "2.2.10"
     kotlin("plugin.serialization") version "2.2.10"
     id("io.ktor.plugin") version "3.3.0"
+    `maven-publish`
 }
 
 group = "dev.rnett.gradle-mcp"
@@ -10,6 +11,10 @@ version = "1.0-SNAPSHOT"
 repositories {
     mavenCentral()
     maven("https://repo.gradle.org/gradle/libs-releases")
+}
+
+application {
+    mainClass.set("dev.rnett.gradle.mcp.Application ")
 }
 
 dependencies {
@@ -38,6 +43,9 @@ dependencies {
 
 ktor {
     development = false
+    docker {
+        jreVersion = JavaVersion.VERSION_24
+    }
 }
 
 kotlin {
@@ -54,4 +62,16 @@ tasks.test {
 
 tasks.named<UpdateDaemonJvm>("updateDaemonJvm") {
     languageVersion = JavaLanguageVersion.of(24)
+}
+
+tasks.shadowJar {
+    archiveClassifier = ""
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("shadow") {
+            from(components["shadow"])
+        }
+    }
 }

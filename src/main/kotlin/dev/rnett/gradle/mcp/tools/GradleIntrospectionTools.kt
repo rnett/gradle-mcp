@@ -93,7 +93,7 @@ class GradleIntrospectionTools(
 
     val describeProject by tool<DescribeProjectArgs, GradleProjectInfo>(
         "describe_project",
-        "Describes a Gradle project or subproject. Includes the tasks and child projects."
+        "Describes a Gradle project or subproject. Includes the tasks and child projects. Can be used to query available tasks."
     ) { args ->
         gradle.getBuildModel<GradleProject>(args.projectRoot.projectRoot, args.invocationArgs).outcome.throwFailure().value.let {
             val project = it.findByPath(args.projectPath.projectPath) ?: throw IllegalArgumentException("Project with project path \"${args.projectPath}\" not found")
