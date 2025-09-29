@@ -1,6 +1,9 @@
 package dev.rnett.gradle.mcp.tools
 
+import dev.rnett.gradle.mcp.PathConverter
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import dev.rnett.gradle.mcp.tools.GradlePathUtils.isGradleProjectDir
+import dev.rnett.gradle.mcp.tools.GradlePathUtils.isGradleRootProjectDir
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
 import java.nio.file.Path
@@ -13,7 +16,7 @@ import kotlin.io.path.name
 import kotlin.io.path.notExists
 import kotlin.io.path.relativeTo
 
-class RelatedTools() : McpServerComponent() {
+class RelatedTools(val pathConverter: PathConverter) : McpServerComponent() {
 
     @Serializable
     data class GetContainingProjectArgs(@Description(description = "The target file's path. Must be absolute.") val path: String)
@@ -30,7 +33,7 @@ class RelatedTools() : McpServerComponent() {
         "get_gradle_project_containing_file",
         "Gets the nearest Gradle project containing the given file if there is one."
     ) {
-        var current = Path(it.path)
+        var current = pathConverter.getExistingPath(it.path)
         if (current.notExists())
             throw IllegalArgumentException("The target file does not exist")
 
@@ -75,7 +78,12 @@ class RelatedTools() : McpServerComponent() {
         docsUrl(it.version.trimStart('v'))
     }
 
-    private fun isGradleProjectDir(path: Path): Boolean {
+    private fun docsUrl(version: String) = "https://docs.gradle.org/$version/userguide/userguide.html"
+}
+
+object GradlePathUtils {
+
+    fun isGradleProjectDir(path: Path): Boolean {
         if (path.notExists() || !path.isDirectory())
             return false
 
@@ -86,7 +94,7 @@ class RelatedTools() : McpServerComponent() {
         }
     }
 
-    private fun isGradleRootProjectDir(path: Path): Boolean {
+    fun isGradleRootProjectDir(path: Path): Boolean {
         if (path.notExists() || !path.isDirectory())
             return false
 
@@ -94,6 +102,4 @@ class RelatedTools() : McpServerComponent() {
             it.isRegularFile() && (it.name == "gradlew" || it.name == "gradlew.bat")
         }
     }
-
-    private fun docsUrl(version: String) = "https://docs.gradle.org/$version/userguide/userguide.html"
 }

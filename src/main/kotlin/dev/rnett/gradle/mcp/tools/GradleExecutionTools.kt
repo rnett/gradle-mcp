@@ -42,7 +42,7 @@ class GradleExecutionTools(
         """.trimMargin(),
     ) {
         val result = gradle.doBuild(
-            it.projectRoot.projectRoot,
+            it.projectRoot,
             it.captureFailedTestOutput,
             it.captureAllTestOutput,
             GradleInvocationArguments(additionalArguments = it.commandLine, publishScan = it.scan) + it.invocationArguments,
@@ -104,7 +104,7 @@ class GradleExecutionTools(
         }
 
         val result = gradle.doTests(
-            it.projectRoot.projectRoot,
+            it.projectRoot,
             it.testPatterns.mapValues { it.value.map { it.pattern }.toSet().ifEmpty { setOf("*") } },
             it.captureFailedTestOutput,
             it.captureAllTestOutput,

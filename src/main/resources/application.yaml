@@ -6,3 +6,8 @@ gradle:
   maxConnections: 10
   ttl: PT5M
   allowPublicScansPublishing: true
+docker:
+  isDocker: "$IS_DOCKER:false"
+  paths:
+    convert: true
+    root: /hostfs

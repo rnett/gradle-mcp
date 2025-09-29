@@ -26,6 +26,7 @@ import kotlinx.serialization.json.Json
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
+
 class Application(val args: Array<String>) {
 
     private val config = CommandLineConfig(args)
@@ -37,13 +38,24 @@ class Application(val args: Array<String>) {
         encodeDefaults = true
     }
 
+    val appConfig = config.rootConfig.environment.config
 
-    val gradleConfig = config.rootConfig.environment.config.property("gradle").getAs<GradleConfiguration>()
+    val gradleConfig = appConfig.property("gradle").getAs<GradleConfiguration>()
+    val dockerConfig = appConfig.property("docker").getAs<DockerConfig>()
+    val pathConverter = dockerConfig.converterIfDocker ?: PathConverter.NoOp
 
-    val provider = GradleProvider(gradleConfig)
+    init {
+        if (dockerConfig.isDocker)
+            System.err.println("Running in Docker")
+        if (pathConverter is NewRootPathConverter) {
+            System.err.println("Will attempt to convert paths with new root ${pathConverter.root}")
+        }
+    }
+
+    val provider = GradleProvider(gradleConfig, pathConverter)
 
     val components: List<McpServerComponent> = listOf(
-        RelatedTools(),
+        RelatedTools(pathConverter),
         GradleIntrospectionTools(provider),
         GradleExecutionTools(provider),
     )

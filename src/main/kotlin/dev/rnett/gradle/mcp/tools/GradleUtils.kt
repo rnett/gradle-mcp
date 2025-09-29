@@ -48,7 +48,7 @@ data class GradleInvocationArguments(
 
 @JvmInline
 @Serializable
-@Description("The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.")
+@Description("The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal.")
 value class GradleProjectRoot(val projectRoot: String)
 
 @JvmInline
@@ -68,8 +68,9 @@ internal suspend fun askForScansTos(tosAcceptRequest: GradleScanTosAcceptRequest
 
 context(ctx: McpContext)
 suspend inline fun <reified T : Model> GradleProvider.getBuildModel(
-    projectRoot: String,
+    projectRoot: GradleProjectRoot,
     invocationArgs: GradleInvocationArguments,
+    requiresGradleProject: Boolean = true
 ): GradleResult<T> {
     return getBuildModel(
         projectRoot,
@@ -81,13 +82,14 @@ suspend inline fun <reified T : Model> GradleProvider.getBuildModel(
             ctx.emitProgressNotification(0.0, 0.0, it)
         },
         stderrLineHandler = { ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it) },
+        requiresGradleProject = requiresGradleProject
     )
 }
 
 
 context(ctx: McpContext)
 suspend inline fun GradleProvider.doBuild(
-    projectRoot: String,
+    projectRoot: GradleProjectRoot,
     captureFailedTestOutput: Boolean,
     captureAllTestOutput: Boolean,
     invocationArgs: GradleInvocationArguments,
@@ -113,7 +115,7 @@ suspend inline fun GradleProvider.doBuild(
 
 context(ctx: McpContext)
 suspend inline fun GradleProvider.doTests(
-    projectRoot: String,
+    projectRoot: GradleProjectRoot,
     testPatterns: Map<String, Set<String>>,
     captureFailedTestOutput: Boolean,
     captureAllTestOutput: Boolean,

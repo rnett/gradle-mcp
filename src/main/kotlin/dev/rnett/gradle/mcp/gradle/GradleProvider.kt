@@ -1,9 +1,12 @@
 package dev.rnett.gradle.mcp.gradle
 
 import com.github.benmanes.caffeine.cache.Caffeine
+import dev.rnett.gradle.mcp.PathConverter
 import dev.rnett.gradle.mcp.localSupervisorScope
 import dev.rnett.gradle.mcp.runCatchingExceptCancellation
 import dev.rnett.gradle.mcp.tools.GradleInvocationArguments
+import dev.rnett.gradle.mcp.tools.GradlePathUtils
+import dev.rnett.gradle.mcp.tools.GradleProjectRoot
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
@@ -42,16 +45,16 @@ import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
 import java.util.UUID
-import kotlin.io.path.Path
-import kotlin.io.path.isDirectory
-import kotlin.io.path.notExists
 import kotlin.reflect.KClass
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 import kotlin.time.toJavaDuration
 
-class GradleProvider(val config: GradleConfiguration) {
+class GradleProvider(
+    val config: GradleConfiguration,
+    val pathConverter: PathConverter
+) {
     companion object {
         private val LOGGER = LoggerFactory.getLogger(GradleProvider::class.java)
     }
@@ -70,15 +73,15 @@ class GradleProvider(val config: GradleConfiguration) {
         return connectionCache.get(projectRoot).asDeferred().await()
     }
 
-    suspend fun validateAndGetConnection(projectRoot: String): ProjectConnection {
-        val path = Path(projectRoot)
-        if (path.notExists()) {
-            throw IllegalStateException("Provided project root path \"$path\" does not exist")
-        }
-        if (!path.isDirectory()) {
-            throw IllegalStateException("Provided project root path \"$path\" is not a directory")
-        }
+    fun getPath(root: GradleProjectRoot) = pathConverter.getExistingDirectory(root.projectRoot)
 
+    suspend fun validateAndGetConnection(projectRoot: GradleProjectRoot, requiresGradleProject: Boolean = true): ProjectConnection {
+        val path = getPath(projectRoot)
+        if (requiresGradleProject) {
+            if (!GradlePathUtils.isGradleRootProjectDir(path)) {
+                throw IllegalArgumentException("Path is not the root of a Gradle project: $path")
+            }
+        }
         return getConnection(path)
     }
 
@@ -277,15 +280,16 @@ class GradleProvider(val config: GradleConfiguration) {
 
     @OptIn(ExperimentalTime::class)
     suspend fun <T : Model> getBuildModel(
-        projectRoot: String,
+        projectRoot: GradleProjectRoot,
         kClass: KClass<T>,
         args: GradleInvocationArguments,
         tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
         additionalProgressListeners: List<ProgressListener> = emptyList(),
         stdoutLineHandler: ((String) -> Unit)? = null,
         stderrLineHandler: ((String) -> Unit)? = null,
+        requiresGradleProject: Boolean = true
     ): GradleResult<T> {
-        val connection = validateAndGetConnection(projectRoot)
+        val connection = validateAndGetConnection(projectRoot, requiresGradleProject)
         val builder = connection.model(kClass.java)
 
         return builder.invokeBuild(
@@ -303,7 +307,7 @@ class GradleProvider(val config: GradleConfiguration) {
 
     @OptIn(ExperimentalTime::class)
     suspend fun runBuild(
-        projectRoot: String,
+        projectRoot: GradleProjectRoot,
         args: GradleInvocationArguments,
         captureFailedTestOutput: Boolean,
         captureAllTestOutput: Boolean,
@@ -332,7 +336,7 @@ class GradleProvider(val config: GradleConfiguration) {
      */
     @OptIn(ExperimentalTime::class)
     suspend fun runTests(
-        projectRoot: String,
+        projectRoot: GradleProjectRoot,
         testPatterns: Map<String, Set<String>>,
         captureFailedTestOutput: Boolean,
         captureAllTestOutput: Boolean,

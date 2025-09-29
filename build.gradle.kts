@@ -19,12 +19,25 @@ repositories {
     maven("https://repo.gradle.org/gradle/libs-releases")
 }
 
+val sharedJvmArgs = listOf(
+    "-Xmx1024m",
+    "-Xms256m",
+    "--enable-native-access=ALL-UNNAMED",
+    "--sun-misc-unsafe-memory-access=allow"
+)
+
 application {
     mainClass.set("dev.rnett.gradle.mcp.Application")
-    applicationDefaultJvmArgs = listOf(
-        "-Xmx1024m",
-        "-Xms256m"
-    )
+    applicationDefaultJvmArgs = sharedJvmArgs
+}
+
+jib {
+    container {
+        environment = mapOf(
+            "IS_DOCKER" to "true"
+        )
+        jvmFlags = sharedJvmArgs
+    }
 }
 
 dependencies {
@@ -65,8 +78,10 @@ ktor {
             provider { "rnett" },
             providers.gradleProperty("dockerHubPassword")
         )
+        localImageName = "rnett/gradle-mcp-snapshots"
+
         portMappings.add(DockerPortMapping(47813))
-        imageTag = gitCommit.map { it + Clock.systemUTC().millis() }
+        imageTag = gitCommit.map { it + "-" + Clock.systemUTC().millis() }
     }
 }
 

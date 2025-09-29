@@ -68,7 +68,66 @@ Mac/Linux
 
 ### Docker
 
-Coming soon.
+> [!WARNING]
+> Using the Docker image is not recommended, since the executed Gradle builds run in the container, not on the host.
+>
+
+[//]: # (> TODO consider removing docker instructions)
+
+Images are published to `rnett/gradle-mcp`.
+Snapshot versions (from every commit on `main`, just like the Maven versions) are published to `rnett/gradle-snapshots`.
+
+For the MCP server to function, it needs access to your Gradle projects.
+The easiest way to do this is a read-only bind mount of the entire filesystem.
+
+The MCP server will attempt to convert paths it receives to the in-container paths.
+If you mount it at something other than `/hostfs`, you should probably pass `-P:docker.paths.root=<my-new-root>`.
+
+#### Example MCP configuration
+
+#### Windows
+
+```json
+{
+  "mcpServers": {
+    "gradle": {
+      "command": "docker.exe",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "--mount",
+        "type=bind,src=/mnt/host,dst=/hostfs",
+        "rnett/gradle-mcp",
+        "stdio"
+      ]
+    }
+  }
+}
+```
+
+The mount can't be readonly since the invoked Gradle builds run in the container, not on the host.
+
+##### Mac/Linux
+
+```json
+{
+  "mcpServers": {
+    "gradle": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "--mount",
+        "type=bind,src=/,dst=/hostfs,readonly",
+        "rnett/gradle-mcp",
+        "stdio"
+      ]
+    }
+  }
+}
+```
 
 ## Usage
 
