@@ -39,7 +39,7 @@ if (startRequest != null) {
 
     execService.javaexec {
         environment(System.getenv())
-        maxHeapSize = "512m"
+        maxHeapSize = "1024m"
         minHeapSize = "256m"
         systemProperties = System.getProperties().mapKeys { it.key.toString() }
         classpath(mcpClass.protectionDomain.codeSource.location.toURI())
