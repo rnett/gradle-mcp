@@ -93,7 +93,7 @@ class GradleExecutionTools(
             |Runs some tests in the given project via Gradle.
             |The console output is included in the result. Show this to the user, as if they had ran the command themselves.
             |Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues and test failures, using something like the Develocity MCP server.
-            |The testTaskPattern parameter is required, and is simply a map of each test task to run (e.g. `:test`), to the test patterns for the tests to run for that task (e.g. `com.example.*`).  
+            |The testTaskPatterns parameter is required, and is simply a map of each test task to run (e.g. `:test`), to the test patterns for the tests to run for that task (e.g. `com.example.*`).  
             |The typical test task is `:test`.  At least one task is required. A task with no patterns will run all tests.
         """.trimMargin(),
     ) {
