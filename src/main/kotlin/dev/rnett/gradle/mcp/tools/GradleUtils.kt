@@ -12,7 +12,11 @@ import io.github.smiley4.schemakenerator.core.annotations.Example
 import io.modelcontextprotocol.kotlin.sdk.LoggingLevel
 import kotlinx.serialization.Serializable
 import org.gradle.tooling.model.Model
+import org.gradle.tooling.model.ProjectIdentifier
+import kotlin.io.path.absolute
 
+fun ProjectIdentifier.matches(root: GradleProjectRoot, projectPath: GradleProjectPath): Boolean =
+    buildIdentifier.rootDir.toPath().absolute() == GradlePathUtils.getRootProjectPath(root) && this.projectPath == projectPath.path
 
 @Serializable
 @Description("Additional arguments to configure the Gradle process.")
@@ -53,11 +57,30 @@ value class GradleProjectRoot(val projectRoot: String)
 
 @JvmInline
 @Serializable
-@Description("The Gradle project path, e.g. :project-a:subproject-b. ':' is the root project.")
+@Description("The Gradle project path, e.g. :project-a:subproject-b. ':' is the root project.  Defaults to ':'")
 @Example(":")
 @Example(":my-project")
 @Example(":my-project:subproject")
-value class GradleProjectPath(val projectPath: String)
+value class GradleProjectPath(private val projectPath: String) {
+    companion object {
+        val DEFAULT = GradleProjectPath(":")
+    }
+
+    val path get() = ':' + projectPath.trim(':')
+
+    val isRootProject get() = projectPath.isBlank() || projectPath == ":"
+
+    fun taskPath(task: String): String = buildString {
+        append(path)
+        if (!isRootProject)
+            append(':')
+        append(task.trimStart(':'))
+    }
+
+    override fun toString(): String {
+        return path
+    }
+}
 
 //TODO have a "remember acceptance" option?
 @PublishedApi
@@ -111,7 +134,6 @@ suspend inline fun GradleProvider.doBuild(
         }
     )
 }
-
 
 context(ctx: McpContext)
 suspend inline fun GradleProvider.doTests(

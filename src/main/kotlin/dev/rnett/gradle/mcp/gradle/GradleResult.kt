@@ -12,6 +12,14 @@ data class GradleResult<out T>(
     val testResults: TestResults?,
     val outcome: Outcome<T>
 ) {
+    fun <R> withResultIfSuccess(result: R): GradleResult<R> = GradleResult(
+        publishedScans,
+        testResults,
+        when (outcome) {
+            is Success -> Success(result)
+            is Failure -> outcome
+        }
+    )
 
     sealed interface Outcome<out T>
 

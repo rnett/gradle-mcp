@@ -7,6 +7,7 @@ import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.mcp.add
 import dev.rnett.gradle.mcp.tools.GradleExecutionTools
 import dev.rnett.gradle.mcp.tools.GradleIntrospectionTools
+import dev.rnett.gradle.mcp.tools.GradleTaskWrapperTools
 import dev.rnett.gradle.mcp.tools.RelatedTools
 import io.ktor.server.config.getAs
 import io.ktor.server.engine.CommandLineConfig
@@ -48,6 +49,7 @@ class Application(val args: Array<String>) {
         RelatedTools(),
         GradleIntrospectionTools(provider),
         GradleExecutionTools(provider),
+        GradleTaskWrapperTools(provider)
     )
 
     private fun createServer(): McpServer {

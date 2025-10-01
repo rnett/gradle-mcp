@@ -72,13 +72,7 @@ class GradleProvider(
     }
 
     suspend fun validateAndGetConnection(projectRoot: GradleProjectRoot, requiresGradleProject: Boolean = true): ProjectConnection {
-        val path = GradlePathUtils.getExistingDirPath(projectRoot)
-        if (requiresGradleProject) {
-            if (!GradlePathUtils.isGradleRootProjectDir(path)) {
-                throw IllegalArgumentException("Path is not the root of a Gradle project: $path")
-            }
-        }
-        return getConnection(path)
+        return getConnection(GradlePathUtils.getRootProjectPath(projectRoot, requiresGradleProject))
     }
 
     class TestCollector(val captureFailedTestOutput: Boolean, val captureAllTestOutput: Boolean) : ProgressListener {
@@ -146,7 +140,7 @@ class GradleProvider(
         connection: ProjectConnection,
         args: GradleInvocationArguments,
         testResultCollector: TestCollector?,
-        additionalProgressListeners: List<ProgressListener>,
+        additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
         noinline stdoutLineHandler: ((String) -> Unit)?,
         noinline stderrLineHandler: ((String) -> Unit)?,
         crossinline tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
@@ -181,7 +175,7 @@ class GradleProvider(
             }
 
             additionalProgressListeners.forEach {
-                addProgressListener(it)
+                addProgressListener(it.key, it.value)
             }
 
             if (testResultCollector != null) {
@@ -280,7 +274,7 @@ class GradleProvider(
         kClass: KClass<T>,
         args: GradleInvocationArguments,
         tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
-        additionalProgressListeners: List<ProgressListener> = emptyList(),
+        additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
         stdoutLineHandler: ((String) -> Unit)? = null,
         stderrLineHandler: ((String) -> Unit)? = null,
         requiresGradleProject: Boolean = true
@@ -308,7 +302,7 @@ class GradleProvider(
         captureFailedTestOutput: Boolean,
         captureAllTestOutput: Boolean,
         tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
-        additionalProgressListeners: List<ProgressListener> = emptyList(),
+        additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
         stdoutLineHandler: ((String) -> Unit)? = null,
         stderrLineHandler: ((String) -> Unit)? = null,
     ): GradleResult<Unit> {
@@ -338,7 +332,7 @@ class GradleProvider(
         captureAllTestOutput: Boolean,
         args: GradleInvocationArguments,
         tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
-        additionalProgressListeners: List<ProgressListener> = emptyList(),
+        additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
         stdoutLineHandler: ((String) -> Unit)? = null,
         stderrLineHandler: ((String) -> Unit)? = null,
     ): GradleResult<Unit> {

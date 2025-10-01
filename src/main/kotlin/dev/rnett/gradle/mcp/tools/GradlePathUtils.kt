@@ -11,6 +11,17 @@ import kotlin.io.path.notExists
 
 object GradlePathUtils {
 
+
+    fun getRootProjectPath(projectRoot: GradleProjectRoot, requireGradleProject: Boolean = true): Path {
+        val path = GradlePathUtils.getExistingDirPath(projectRoot)
+        if (requireGradleProject) {
+            if (!GradlePathUtils.isGradleRootProjectDir(path)) {
+                throw IllegalArgumentException("Path is not the root of a Gradle project: $path")
+            }
+        }
+        return path
+    }
+
     fun getExistingPath(path: String): Path {
         val path = try {
             Path(path).toRealPath()

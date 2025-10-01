@@ -8,6 +8,7 @@ import kotlinx.serialization.Serializable
 import org.gradle.tooling.model.GradleProject
 import org.gradle.tooling.model.build.BuildEnvironment
 import org.gradle.tooling.model.gradle.GradleBuild
+import org.gradle.tooling.model.idea.IdeaSourceDirectory
 
 class GradleIntrospectionTools(
     val gradle: GradleProvider,
@@ -88,7 +89,7 @@ class GradleIntrospectionTools(
     @Serializable
     data class DescribeProjectArgs(
         val projectRoot: GradleProjectRoot,
-        val projectPath: GradleProjectPath = GradleProjectPath(":"),
+        val projectPath: GradleProjectPath = GradleProjectPath.DEFAULT,
         val invocationArgs: GradleInvocationArguments = GradleInvocationArguments.DEFAULT
     )
 
@@ -97,7 +98,7 @@ class GradleIntrospectionTools(
         "Describes a Gradle project or subproject. Includes the tasks and child projects. Can be used to query available tasks."
     ) { args ->
         gradle.getBuildModel<GradleProject>(args.projectRoot, args.invocationArgs).outcome.throwFailure().value.let {
-            val project = it.findByPath(args.projectPath.projectPath) ?: throw IllegalArgumentException("Project with project path \"${args.projectPath}\" not found")
+            val project = it.findByPath(args.projectPath.path) ?: throw IllegalArgumentException("Project with project path \"${args.projectPath}\" not found")
             GradleProjectInfo(
                 project.path,
                 project.name,
@@ -141,5 +142,121 @@ class GradleIntrospectionTools(
         }
     }
 
+
+    @Description("An artifact published by Gradle")
+    @Serializable
+    data class Publication(
+        @Description("The group of the publication's module identifier")
+        val group: String,
+        @Description("The name of the publication's module identifier")
+        val name: String,
+        @Description("The version of the publication's module identifier")
+        val version: String
+    )
+
+    @Serializable
+    data class ProjectPublicationsResult(
+        @Description("All publications that Gradle knows about for the project.")
+        val publications: Set<Publication>
+    )
+
+    @Serializable
+    data class ProjectPublicationsArgs(
+        val projectRoot: GradleProjectRoot,
+        val projectPath: GradleProjectPath = GradleProjectPath.DEFAULT,
+        val invocationArgs: GradleInvocationArguments = GradleInvocationArguments.DEFAULT,
+    )
+
+    val getProjectPublications by tool<ProjectPublicationsArgs, ProjectPublicationsResult>(
+        "get_project_publications",
+        "Gets all publications (i.e. artifacts published that Gradle knows about) for the Gradle project."
+    ) { args ->
+        val publicationsModel = gradle.getBuildModel<org.gradle.tooling.model.gradle.ProjectPublications>(
+            args.projectRoot,
+            args.invocationArgs
+        ).outcome.throwFailure().value
+
+        val publications = publicationsModel.publications
+            .filter { it.projectIdentifier.matches(args.projectRoot, args.projectPath) }
+            .map { Publication(it.id.group, it.id.name, it.id.version) }
+            .toSet()
+
+        ProjectPublicationsResult(publications)
+    }
+
+    @Serializable
+    enum class SourceDirectoryType {
+        @Description("A source directory (main sources)")
+        SOURCE,
+
+        @Description("A test source directory")
+        TEST_SOURCE,
+
+        @Description("A resource directory (main resources)")
+        RESOURCE,
+
+        @Description("A test resource directory")
+        TEST_RESOURCE
+    }
+
+    @Serializable
+    @Description("A source directory in a Gradle project")
+    data class SourceDirectoryEntry(
+        @Description("Absolute path to the directory")
+        val path: String,
+        @Description("The type/category of this directory.")
+        val type: SourceDirectoryType,
+        @Description("Whether this directory is generated")
+        val isGenerated: Boolean,
+        @Description("The java language level for this directory. DOES NOT MEAN IT IS A JAVA SOURCE SET.")
+        val javaLanguageLevel: String?
+    )
+
+    @Serializable
+    data class ProjectSourceDirectoriesResult(
+        @Description("All source directories known by Gradle.")
+        val directoriesByModulePath: List<SourceDirectoryEntry>
+    )
+
+    @Serializable
+    data class ProjectSourceDirectoriesArgs(
+        val projectRoot: GradleProjectRoot,
+        val projectPath: GradleProjectPath = GradleProjectPath.DEFAULT,
+        val invocationArgs: GradleInvocationArguments = GradleInvocationArguments.DEFAULT,
+    )
+
+    private fun IdeaSourceDirectory.toEntry(type: SourceDirectoryType, javaLanguageLevel: String?) = SourceDirectoryEntry(
+        directory.absolutePath,
+        type,
+        isGenerated,
+        javaLanguageLevel
+    )
+
+    val getProjectSourceDirectories by tool<ProjectSourceDirectoriesArgs, ProjectSourceDirectoriesResult>(
+        "get_project_source_directories",
+        "Gets source/test/resource directories for the project. Sometimes non-JVM source directories will also exist that aren't known to Gradle. Note that the javaLanguageLevel setting does not necessarily mean the directory is a Java source set."
+    ) { args ->
+        val ideaProject = gradle.getBuildModel<org.gradle.tooling.model.idea.BasicIdeaProject>(
+            args.projectRoot,
+            args.invocationArgs
+        ).outcome.throwFailure().value
+
+        ProjectSourceDirectoriesResult(
+            ideaProject.modules
+                .asSequence()
+                .filter { it.projectIdentifier.matches(args.projectRoot, args.projectPath) }
+                .flatMap { module ->
+                    module.javaLanguageSettings.languageLevel.majorVersion
+                    module.contentRoots.asSequence().flatMap {
+                        it.sourceDirectories?.map { it.toEntry(SourceDirectoryType.SOURCE, module.javaLanguageSettings?.languageLevel?.majorVersion) }.orEmpty() +
+                                it.resourceDirectories?.map { it.toEntry(SourceDirectoryType.RESOURCE, module.javaLanguageSettings?.languageLevel?.majorVersion) }.orEmpty() +
+                                it.testDirectories?.map { it.toEntry(SourceDirectoryType.TEST_SOURCE, module.javaLanguageSettings?.languageLevel?.majorVersion) }.orEmpty() +
+                                it.testResourceDirectories?.map { it.toEntry(SourceDirectoryType.TEST_RESOURCE, module.javaLanguageSettings?.languageLevel?.majorVersion) }.orEmpty()
+                    }
+                }
+                .distinct()
+                .toList()
+        )
+    }
 
 }

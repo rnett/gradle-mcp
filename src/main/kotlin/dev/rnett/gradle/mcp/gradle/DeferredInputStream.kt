@@ -6,6 +6,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.slf4j.LoggerFactory
 import java.io.InputStream
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
 
 class DeferredInputStream(val timeout: Duration, val stream: Deferred<InputStream>) : InputStream() {
@@ -26,7 +27,10 @@ class DeferredInputStream(val timeout: Duration, val stream: Deferred<InputStrea
                         awaited = it
                     }
                 } catch (e: Throwable) {
-                    LOGGER.error("Failed to await deferred stream: ${e.message}", e)
+                    if (e is CancellationException)
+                        LOGGER.debug("Deferred stream's deferred source was cancelled")
+                    else
+                        LOGGER.error("Failed to await deferred stream: ${e.message}", e)
                     null
                 }
             }
