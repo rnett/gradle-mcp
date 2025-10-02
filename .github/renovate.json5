@@ -12,6 +12,7 @@
   "pruneStaleBranches": false,
   enabledManagers: [
     "gradle",
-    "gradle-wrapper"
+    "gradle-wrapper",
+    "github-actions"
   ],
 }
