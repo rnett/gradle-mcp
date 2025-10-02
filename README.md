@@ -7,7 +7,8 @@ Also supports publishing Develocity Build Scans.
 ## Installation
 
 > [!IMPORTANT]
-> JDK 17 or higher is required to run gradle-mcp.
+> JDK 17 or higher is required to run `gradle-mcp`.
+> You can use JBang to install JDKs too: [docs](https://www.jbang.dev/documentation/jbang/latest/javaversions.html).
 
 Use [jbang](https://www.jbang.dev/documentation/jbang/latest/installation.html):
 
