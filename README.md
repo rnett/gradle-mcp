@@ -6,6 +6,9 @@ Also supports publishing Develocity Build Scans.
 
 ## Installation
 
+> [!IMPORTANT]
+> JDK 17 or higher is required to run gradle-mcp.
+
 Use [jbang](https://www.jbang.dev/documentation/jbang/latest/installation.html):
 
 ```shell
