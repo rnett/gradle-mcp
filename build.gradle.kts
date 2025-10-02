@@ -128,15 +128,17 @@ mavenPublishing {
         }
     }
 }
-
-publishing {
-    publications {
-        create<MavenPublication>("shadow") {
-            from(components["shadow"])
-        }
-    }
-}
 java {
     withSourcesJar()
     withJavadocJar()
+}
+
+publishing {
+    publications {
+        register<MavenPublication>("shadow") {
+            from(components["shadow"])
+            artifact(tasks.kotlinSourcesJar)
+            artifact(tasks.named("javadocJar"))
+        }
+    }
 }
