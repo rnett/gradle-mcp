@@ -1,21 +1,29 @@
-name: CI
-run-name: CI
-on: [ push ]
+name: Release
+run-name: Manual release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
 jobs:
-  buildAndTest:
-    name: Build and test
+  release:
+    name: Release to Maven Central and tag
     runs-on: ubuntu-latest
     env:
       GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m"
-    outputs:
-      version: ${{ steps.get-version.outputs.version }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: 17
+
       - name: Setup Java 24
         uses: actions/setup-java@v4
         with:
@@ -29,47 +37,19 @@ jobs:
           build-scan-publish: true
           build-scan-terms-of-use-url: 'https://gradle.com/terms-of-service'
           build-scan-terms-of-use-agree: 'yes'
-
-      - name: Build library
-        run: |
-          ./gradlew assemble
-
-      - name: Test library
-        run: ./gradlew check
 
       - name: Get version
         id: get-version
         run: echo "version=$(cat version.txt)" >> "$GITHUB_OUTPUT"
 
-  publishSnapshot:
-    name: Publish snapshot
-    needs: buildAndTest
-    runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' && endsWith(needs.buildAndTest.outputs.version, '-SNAPSHOT') }}
-    env:
-      GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m"
-    steps:
-      - uses: actions/checkout@v5
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: 17
-      - name: Setup Java 24
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: 24
+      - name: Ensure version is not a SNAPSHOT
+        run: |
+          if [[ "${{ steps.get-version.outputs.version }}" == *-SNAPSHOT ]]; then
+            echo "Version ${{ steps.get-version.outputs.version }} is a SNAPSHOT. Refusing to release." >&2
+            exit 1
+          fi
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-          build-scan-publish: true
-          build-scan-terms-of-use-url: 'https://gradle.com/terms-of-service'
-          build-scan-terms-of-use-agree: 'yes'
-
-      - name: Publish to Maven staging
+      - name: Publish to Maven Central
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.ORG_GRADLE_PROJECT_MAVENCENTRALUSERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.ORG_GRADLE_PROJECT_MAVENCENTRALPASSWORD }}
@@ -77,3 +57,19 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYPASSWORD }}
         run: ./gradlew :publishToMavenCentral --no-configuration-cache
+
+      - name: Create and push git tag
+        env:
+          TAG: ${{ steps.get-version.outputs.version }}
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists locally." >&2
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists on origin. Skipping push." >&2
+            exit 0
+          fi
+          git tag "$TAG"
+          git push origin "$TAG"

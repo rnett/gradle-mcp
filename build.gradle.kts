@@ -100,7 +100,7 @@ tasks.shadowJar {
 }
 
 mavenPublishing {
-    publishToMavenCentral()
+    publishToMavenCentral(automaticRelease = true)
     coordinates(group.toString(), project.name, project.version.toString())
 
     signAllPublications()
@@ -110,8 +110,7 @@ mavenPublishing {
         description.set("A MCP server for Gradle.")
         inceptionYear.set("2025")
         url.set("https://github.com/rnett/gradle-mcp/")
-        this.
-        licenses {
+        this.licenses {
             license {
                 name.set("The Apache License, Version 2.0")
                 url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
@@ -138,5 +137,11 @@ publishing {
         create<MavenPublication>("shadow") {
             from(components["shadow"])
         }
+    }
+}
+
+afterEvaluate {
+    tasks.named("publishMavenPublicationToMavenCentralRepository") {
+        enabled = false
     }
 }
