@@ -1,6 +1,6 @@
 name: CI
 run-name: CI
-on: [ push ]
+on: [ push, workflow_call ]
 jobs:
   buildAndTest:
     name: Build and test
@@ -45,7 +45,7 @@ jobs:
     name: Publish snapshot
     needs: buildAndTest
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' && endsWith(needs.buildAndTest.outputs.version, '-SNAPSHOT') }}
+    if: ${{ github.event_name != 'workflow_call' && github.ref == 'refs/heads/main' && endsWith(needs.buildAndTest.outputs.version, '-SNAPSHOT') }}
     env:
       GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m"
     steps:

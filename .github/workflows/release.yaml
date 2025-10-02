@@ -4,11 +4,18 @@ run-name: Manual release
 on:
   workflow_dispatch:
 
+
 permissions:
   contents: write
+  actions: read
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yaml
+    secrets: inherit
+
   release:
+    needs: ci
     name: Release to Maven Central and tag
     runs-on: ubuntu-latest
     env:
@@ -37,6 +44,7 @@ jobs:
           build-scan-publish: true
           build-scan-terms-of-use-url: 'https://gradle.com/terms-of-service'
           build-scan-terms-of-use-agree: 'yes'
+
 
       - name: Get version
         id: get-version
