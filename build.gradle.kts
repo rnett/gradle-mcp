@@ -1,15 +1,11 @@
 plugins {
-    application
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ktor)
     `maven-publish`
     alias(libs.plugins.buildconfig)
-    alias(libs.plugins.shadow)
     alias(libs.plugins.vanniktech.maven.publish)
 }
-
-group = "dev.rnett.gradle-mcp"
-version = "0.0.1-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -68,8 +64,8 @@ dependencies {
     testImplementation(libs.kotlin.test)
 }
 
-tasks.shadowJar {
-    archiveClassifier = ""
+ktor {
+    development = false
 }
 
 kotlin {
@@ -94,6 +90,10 @@ tasks.named<UpdateDaemonJvm>("updateDaemonJvm") {
 buildConfig {
     packageName("dev.rnett.gradle.mcp")
     buildConfigField("APP_VERSION", provider { "${project.version}" })
+}
+
+tasks.shadowJar {
+    archiveClassifier = ""
 }
 
 mavenPublishing {
@@ -135,4 +135,8 @@ publishing {
             from(components["shadow"])
         }
     }
+}
+java {
+    withSourcesJar()
+    withJavadocJar()
 }

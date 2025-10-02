@@ -11,14 +11,13 @@ mcpSdk = "0.7.2"
 gradleToolingApi = "9.1.0"
 buildconfig = "5.6.8"
 vanniktechPublish = "0.34.0"
-shadow = "9.2.2"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
 buildconfig = { id = "com.github.gmazzo.buildconfig", version.ref = "buildconfig" }
-vanniktech-maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktechPublish" }
-shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
+vanniktech-maven-publish = { id = "com.vanniktech.maven.publish.base", version.ref = "vanniktechPublish" }
 
 [libraries]
 gradle-tooling-api = { module = "org.gradle:gradle-tooling-api", version.ref = "gradleToolingApi" }
