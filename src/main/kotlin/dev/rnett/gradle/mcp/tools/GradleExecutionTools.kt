@@ -73,8 +73,8 @@ class GradleExecutionTools(
     @Serializable
     data class ExecuteTestsArgs(
         val projectRoot: GradleProjectRoot,
-        @Description("A map of each test task to run (e.g. `:test`), to the test patterns for the tests to run for that task (e.g. `com.example.*`).  The typical test task is `:test`.  At least one task is required. A task with no patterns will run all tests.")
-        val testTaskPatterns: Map<String, Set<TestPattern>>,
+        @Description("A map (i.e. JSON object) of each test task to run (e.g. `:test`, `:project-a:sub-b:test`) to the test patterns for the tests to run for that task (e.g. `com.example.*`, `*MyTest*`).  The typical test task is `:test`.  At least one task is required. A task with no patterns will run all tests in that task.")
+        val tests: Map<String, Set<TestPattern>>,
         @Description("Whether to capture the console output of failed tests. Defaults to true.")
         val captureFailedTestOutput: Boolean = true,
         @Description("Whether to capture the console output of all tests. Defaults to false.")
@@ -93,21 +93,21 @@ class GradleExecutionTools(
             |Runs some tests in the given project via Gradle.
             |The console output is included in the result. Show this to the user, as if they had ran the command themselves.
             |Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues and test failures, using something like the Develocity MCP server.
-            |The testTaskPatterns parameter is required, and is simply a map of each test task to run (e.g. `:test`), to the test patterns for the tests to run for that task (e.g. `com.example.*`).  
+            |The `tests` parameter is REQUIRED, and is simply a map (i.e. JSON object) of each test task to run (e.g. `:test`, `:project-a:sub-b:test`), to the test patterns for the tests to run for that task (e.g. `com.example.*`, `*MyTest*`).  
             |The typical test task is `:test`.  At least one task is required. A task with no patterns will run all tests.
         """.trimMargin(),
     ) {
-        if (it.testTaskPatterns.isEmpty()) {
+        if (it.tests.isEmpty()) {
             throw IllegalArgumentException("At least one test task is required.")
         }
 
-        if (it.testTaskPatterns.all { it.value.isEmpty() }) {
+        if (it.tests.all { it.value.isEmpty() }) {
             throw IllegalArgumentException("At least one test pattern is required.")
         }
 
         val result = gradle.doTests(
             it.projectRoot,
-            it.testTaskPatterns.mapValues { it.value.map { it.pattern }.toSet().ifEmpty { setOf("*") } },
+            it.tests.mapValues { it.value.map { it.pattern }.toSet().ifEmpty { setOf("*") } },
             it.captureFailedTestOutput,
             it.captureAllTestOutput,
             GradleInvocationArguments(publishScan = it.scan) + it.invocationArguments,
