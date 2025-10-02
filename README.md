@@ -90,6 +90,7 @@ Gets the nearest Gradle project containing the given file if there is one.
 
 <summary>Input schema</summary>
 
+
 ```json
 {
   "properties": {
@@ -105,12 +106,14 @@ Gets the nearest Gradle project containing the given file if there is one.
 }
 ```
 
+
 </details>
 
 
 <details>
 
 <summary>Output schema</summary>
+
 
 ```json
 {
@@ -132,6 +135,7 @@ Gets the nearest Gradle project containing the given file if there is one.
 }
 ```
 
+
 </details>
 
 ### get_gradle_docs_link
@@ -141,6 +145,7 @@ Get a link to the Gradle documentation for the passed version or the latest if n
 <details>
 
 <summary>Input schema</summary>
+
 
 ```json
 {
@@ -155,7 +160,9 @@ Get a link to the Gradle documentation for the passed version or the latest if n
 }
 ```
 
+
 </details>
+
 
 ### get_environment
 
@@ -164,6 +171,7 @@ Get the environment used to execute Gradle for the given project, including the 
 <details>
 
 <summary>Input schema</summary>
+
 
 ```json
 {
@@ -225,12 +233,14 @@ Get the environment used to execute Gradle for the given project, including the 
 }
 ```
 
+
 </details>
 
 
 <details>
 
 <summary>Output schema</summary>
+
 
 ```json
 {
