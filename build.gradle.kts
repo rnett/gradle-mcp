@@ -27,6 +27,21 @@ application {
     applicationDefaultJvmArgs = sharedJvmArgs
 }
 
+val updateToolsList by tasks.registering(JavaExec::class) {
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("dev.rnett.gradle.mcp.UpdateTools")
+    args = listOf(project.rootDir.resolve("README.md").absolutePath)
+}
+
+val verifyToolsList by tasks.registering(JavaExec::class) {
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("dev.rnett.gradle.mcp.UpdateTools")
+    args = listOf(project.rootDir.resolve("README.md").absolutePath, "--verify")
+}
+
+tasks.check {
+    dependsOn(verifyToolsList)
+}
 
 dependencies {
     implementation(libs.gradle.tooling.api)

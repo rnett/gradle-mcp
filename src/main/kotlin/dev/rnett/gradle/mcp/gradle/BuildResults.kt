@@ -7,6 +7,7 @@ import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 
+
 @Serializable
 @Description("The result of a Gradle build.")
 data class BuildResult(
@@ -29,8 +30,8 @@ data class BuildResult(
         val message: String?,
         @Description("A longer description of the details of the failure")
         val description: String?,
-        @Description("Other failures that caused this failure")
-        val causes: List<Failure>,
+        @Description("Other failures that caused this failure. Only contains the failure message, check the result for matching failures.")
+        val causesMessages: List<String>,
         @Description("Problems in the build that caused this failure")
         val problems: List<Problem>,
     )
@@ -60,7 +61,7 @@ private fun org.gradle.tooling.Failure.toModel(): BuildResult.Failure {
     return BuildResult.Failure(
         message,
         description,
-        causes.map { it.toModel() },
+        causes.map { it.message },
         problems.map { it.toModel() }
     )
 }

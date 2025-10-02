@@ -52,7 +52,7 @@ class Application(val args: Array<String>) {
         GradleTaskWrapperTools(provider)
     )
 
-    private fun createServer(): McpServer {
+    fun createServer(): McpServer {
         return McpServer(
             Implementation("gradle-mcp", BuildConfig.APP_VERSION),
             ServerOptions(
