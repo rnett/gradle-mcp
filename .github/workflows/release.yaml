@@ -65,21 +65,6 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYPASSWORD }}
         run: ./gradlew :publishAndReleaseToMavenCentral --no-configuration-cache
 
-      - name: Create tag
-        uses: actions/github-script@v8
-        env:
-          TAG:${{ steps.get-version.outputs.version }}
-        with:
-          script: |
-            const tag = process.env.TAG
-            console.log(`Creating tag ${tag}`)
-            github.rest.git.createRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: "refs/tags/" + tag,
-              sha: context.sha
-            })
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
