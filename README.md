@@ -70,7 +70,6 @@ By default it runs as a server on port 47813.
 > [!CAUTION]
 > **DO NOT EVER EXPOSE THIS SERVER TO THE INTERNET.**
 
-
 ## Publishing Build Scans
 
 Even if you don't have your build configured to publish build scans automatically, you can still publish build scans - just ask your agent to publish a scan when invoking Gradle.
@@ -80,6 +79,7 @@ If your agent does not support elicitation, you will not be able to publish scan
 
 ## Tools
 
+[//]: # (@formatter:off)
 [//]: # (<<TOOLS_LIST_START>>)
 
 ### get_gradle_project_containing_file
@@ -293,6 +293,7 @@ Get the environment used to execute Gradle for the given project, including the 
 }
 ```
 
+
 </details>
 
 ### describe_project
@@ -302,6 +303,7 @@ Describes a Gradle project or subproject. Includes the tasks and child projects.
 <details>
 
 <summary>Input schema</summary>
+
 
 ```json
 {
@@ -372,12 +374,14 @@ Describes a Gradle project or subproject. Includes the tasks and child projects.
 }
 ```
 
+
 </details>
 
 
 <details>
 
 <summary>Output schema</summary>
+
 
 ```json
 {
@@ -459,6 +463,7 @@ Describes a Gradle project or subproject. Includes the tasks and child projects.
 }
 ```
 
+
 </details>
 
 ### get_included_builds
@@ -468,6 +473,7 @@ Gets the included builds of a Gradle project.
 <details>
 
 <summary>Input schema</summary>
+
 
 ```json
 {
@@ -529,12 +535,14 @@ Gets the included builds of a Gradle project.
 }
 ```
 
+
 </details>
 
 
 <details>
 
 <summary>Output schema</summary>
+
 
 ```json
 {
@@ -568,6 +576,7 @@ Gets the included builds of a Gradle project.
 }
 ```
 
+
 </details>
 
 ### get_project_publications
@@ -577,6 +586,7 @@ Gets all publications (i.e. artifacts published that Gradle knows about) for the
 <details>
 
 <summary>Input schema</summary>
+
 
 ```json
 {
@@ -647,12 +657,14 @@ Gets all publications (i.e. artifacts published that Gradle knows about) for the
 }
 ```
 
+
 </details>
 
 
 <details>
 
 <summary>Output schema</summary>
+
 
 ```json
 {
@@ -693,6 +705,7 @@ Gets all publications (i.e. artifacts published that Gradle knows about) for the
 }
 ```
 
+
 </details>
 
 ### get_project_source_directories
@@ -702,6 +715,7 @@ Gets source/test/resource directories for the project. Sometimes non-JVM source 
 <details>
 
 <summary>Input schema</summary>
+
 
 ```json
 {
@@ -772,12 +786,14 @@ Gets source/test/resource directories for the project. Sometimes non-JVM source 
 }
 ```
 
+
 </details>
 
 
 <details>
 
 <summary>Output schema</summary>
+
 
 ```json
 {
@@ -830,6 +846,7 @@ Gets source/test/resource directories for the project. Sometimes non-JVM source 
 }
 ```
 
+
 </details>
 
 ### run_gradle_command
@@ -843,6 +860,7 @@ Can publish a Develocity Build Scan if requested. This is the preferred way to d
 <details>
 
 <summary>Input schema</summary>
+
 
 ```json
 {
@@ -928,12 +946,14 @@ Can publish a Develocity Build Scan if requested. This is the preferred way to d
 }
 ```
 
+
 </details>
 
 
 <details>
 
 <summary>Output schema</summary>
+
 
 ```json
 {
@@ -1944,6 +1964,7 @@ Can publish a Develocity Build Scan if requested. This is the preferred way to d
 }
 ```
 
+
 </details>
 
 ### run_tests_with_gradle
@@ -1952,11 +1973,12 @@ Runs some tests in the given project via Gradle.
 The console output is included in the result. Show this to the user, as if they had ran the command themselves.
 Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues and test failures, using something like the Develocity MCP server.
 The `tests` parameter is REQUIRED, and is simply a map (i.e. JSON object) of each test task to run (e.g. `:test`, `:project-a:sub-b:test`), to the test patterns for the tests to run for that task (e.g. `com.example.*`, `*MyTest*`).  
-The typical test task is `:test`. At least one task is required. A task with no patterns will run all tests.
+The typical test task is `:test`.  At least one task is required. A task with no patterns will run all tests.
 
 <details>
 
 <summary>Input schema</summary>
+
 
 ```json
 {
@@ -2056,12 +2078,14 @@ The typical test task is `:test`. At least one task is required. A task with no 
 }
 ```
 
+
 </details>
 
 
 <details>
 
 <summary>Output schema</summary>
+
 
 ```json
 {
@@ -3072,19 +3096,20 @@ The typical test task is `:test`. At least one task is required. A task with no 
 }
 ```
 
+
 </details>
 
 ### get_dependencies
 
-Gets all dependencies of a Gradle project, optionally filtered by configuration. Use `get_resolvable_configurations` to get all configurations. Use `get_build_dependencies` to get the Gradle build dependencies (i.e. plugins and buildscript
-dependencies).
+Gets all dependencies of a Gradle project, optionally filtered by configuration. Use `get_resolvable_configurations` to get all configurations.  Use `get_build_dependencies` to get the Gradle build dependencies (i.e. plugins and buildscript dependencies).
 In the output, a `(*)` indicates that the dependency tree is repeated because the dependency is used multiple times. Only the first occurence in the report expands the tree.
 A `(c)` indicates that a dependency is only a constraint, not an actual dependency, and a `(n)` indicates that it could not be resolved.
-WARNING: The response can be quite large. Prefer specifying a configuration and/or using `get_dependency_resolution_information` when possible. Works by executing the `dependencies` task of the given project.
+WARNING: The response can be quite large. Prefer specifying a configuration and/or using `get_dependency_resolution_information` when possible.  Works by executing the `dependencies` task of the given project.
 
 <details>
 
 <summary>Input schema</summary>
+
 
 ```json
 {
@@ -3162,16 +3187,19 @@ WARNING: The response can be quite large. Prefer specifying a configuration and/
 }
 ```
 
+
 </details>
+
 
 ### get_dependency_resolution_information
 
 Gets detailed information about the resolution of the specific dependencies. Any dependencies with a `group:artifact` that start with the `dependencyPrefix` will be included in the report.
-The configuration. Works by executing the `dependencyInsight` task of the given project.
+The configuration.  Works by executing the `dependencyInsight` task of the given project.
 
 <details>
 
 <summary>Input schema</summary>
+
 
 ```json
 {
@@ -3260,15 +3288,18 @@ The configuration. Works by executing the `dependencyInsight` task of the given 
 }
 ```
 
+
 </details>
+
 
 ### get_build_dependencies
 
-Gets the Gradle build dependencies of a Gradle project, as well as some information about the JVM used to execute the build. Works by executing the `buildEnvironment` task of the given project.
+Gets the Gradle build dependencies of a Gradle project, as well as some information about the JVM used to execute the build.  Works by executing the `buildEnvironment` task of the given project.
 
 <details>
 
 <summary>Input schema</summary>
+
 
 ```json
 {
@@ -3339,15 +3370,18 @@ Gets the Gradle build dependencies of a Gradle project, as well as some informat
 }
 ```
 
+
 </details>
+
 
 ### get_resolvable_configurations
 
-Gets all resolvable configurations of a Gradle project. Works by executing the `resolvableConfigurations` task of the given project.
+Gets all resolvable configurations of a Gradle project.  Works by executing the `resolvableConfigurations` task of the given project.
 
 <details>
 
 <summary>Input schema</summary>
+
 
 ```json
 {
@@ -3418,15 +3452,18 @@ Gets all resolvable configurations of a Gradle project. Works by executing the `
 }
 ```
 
+
 </details>
+
 
 ### get_available_toolchains
 
-Gets all available Java/JVM toolchains for a Gradle project. Also includes whether auto-detection and auto-downloading are enabled. Works by executing the `javaToolchains` task of the given project.
+Gets all available Java/JVM toolchains for a Gradle project. Also includes whether auto-detection and auto-downloading are enabled.  Works by executing the `javaToolchains` task of the given project.
 
 <details>
 
 <summary>Input schema</summary>
+
 
 ```json
 {
@@ -3497,15 +3534,18 @@ Gets all available Java/JVM toolchains for a Gradle project. Also includes wheth
 }
 ```
 
+
 </details>
+
 
 ### get_properties
 
-Gets all properties of a Gradle project. WARNING: may return sensitive information like configured credentials. Works by executing the `properties` task of the given project.
+Gets all properties of a Gradle project. WARNING: may return sensitive information like configured credentials.  Works by executing the `properties` task of the given project.
 
 <details>
 
 <summary>Input schema</summary>
+
 
 ```json
 {
@@ -3576,15 +3616,18 @@ Gets all properties of a Gradle project. WARNING: may return sensitive informati
 }
 ```
 
+
 </details>
+
 
 ### get_artifact_transforms
 
-Gets all artifact transforms of a Gradle project. Works by executing the `artifactTransforms` task of the given project.
+Gets all artifact transforms of a Gradle project.  Works by executing the `artifactTransforms` task of the given project.
 
 <details>
 
 <summary>Input schema</summary>
+
 
 ```json
 {
@@ -3655,15 +3698,18 @@ Gets all artifact transforms of a Gradle project. Works by executing the `artifa
 }
 ```
 
+
 </details>
+
 
 ### get_outgoing_variants
 
-Gets all outgoing variants of a Gradle project. These are configurations that may be consumed by other projects or published. Works by executing the `outgoingVariants` task of the given project.
+Gets all outgoing variants of a Gradle project. These are configurations that may be consumed by other projects or published.  Works by executing the `outgoingVariants` task of the given project.
 
 <details>
 
 <summary>Input schema</summary>
+
 
 ```json
 {
@@ -3734,7 +3780,9 @@ Gets all outgoing variants of a Gradle project. These are configurations that ma
 }
 ```
 
+
 </details>
+
 
 
 [//]: # (<<TOOLS_LIST_END>>)
