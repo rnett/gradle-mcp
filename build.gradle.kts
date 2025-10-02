@@ -141,7 +141,9 @@ publishing {
 }
 
 afterEvaluate {
-    tasks.named("publishMavenPublicationToMavenCentralRepository") {
-        enabled = false
+    listOf("signMavenPublication", "publishMavenPublicationToMavenCentralRepository").forEach {
+        tasks.named(it) {
+            enabled = false
+        }
     }
 }
