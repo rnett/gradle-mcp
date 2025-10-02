@@ -32,7 +32,7 @@ jobs:
 
       - name: Build library
         run: |
-          ./gradlew assemble
+          ./gradlew shadowJar
 
       - name: Test library
         run: ./gradlew check
