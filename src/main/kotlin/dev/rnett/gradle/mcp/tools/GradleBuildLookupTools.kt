@@ -11,7 +11,9 @@ import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
 import kotlin.time.DurationUnit
 
-class GradleBuildReportTools : McpServerComponent() {
+class GradleBuildLookupTools : McpServerComponent() {
+
+    //TODO get N last run builds?  Build summaries?
 
     @Serializable
     data class TestDetailsLookupArgs(

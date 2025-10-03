@@ -5,6 +5,7 @@ import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.mcp.McpServer
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.mcp.add
+import dev.rnett.gradle.mcp.tools.GradleBuildLookupTools
 import dev.rnett.gradle.mcp.tools.GradleExecutionTools
 import dev.rnett.gradle.mcp.tools.GradleIntrospectionTools
 import dev.rnett.gradle.mcp.tools.GradleTaskWrapperTools
@@ -49,7 +50,8 @@ class Application(val args: Array<String>) {
         RelatedTools(),
         GradleIntrospectionTools(provider),
         GradleExecutionTools(provider),
-        GradleTaskWrapperTools(provider)
+        GradleTaskWrapperTools(provider),
+        GradleBuildLookupTools(),
     )
 
     fun createServer(): McpServer {

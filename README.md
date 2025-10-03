@@ -2308,5 +2308,954 @@ Gets all outgoing variants of a Gradle project. These are configurations that ma
 </details>
 
 
+### lookup_build_test_details
+
+For a given build, gets the details of test executions matching the prefix.
+
+<details>
+
+<summary>Input schema</summary>
+
+
+```json
+{
+  "properties": {
+    "buildId": {
+      "type": "string",
+      "description": "The build ID to look up."
+    },
+    "testNamePrefix": {
+      "type": "string",
+      "description": "A prefix of the fully-qualified test name (class or method). Matching is case-sensitive and checks startsWith on the full test name."
+    }
+  },
+  "required": [
+    "buildId",
+    "testNamePrefix"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
+
+<details>
+
+<summary>Output schema</summary>
+
+
+```json
+{
+  "properties": {
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "testName",
+          "consoleOutput",
+          "executionDurationSeconds",
+          "failures"
+        ],
+        "properties": {
+          "testName": {
+            "type": "string"
+          },
+          "consoleOutput": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "executionDurationSeconds": {
+            "type": "number",
+            "minimum": 4.9E-324,
+            "maximum": 1.7976931348623157E308
+          },
+          "failures": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "message",
+                "description",
+                "causes"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "The ID of a Gradle failure, used to identify the failure when looking up more information."
+                },
+                "message": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "A short description of the failure."
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "A description of the failure, with more details."
+                },
+                "causes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "description": "The ID of a Gradle failure, used to identify the failure when looking up more information."
+                  },
+                  "uniqueItems": true,
+                  "description": "A set of IDs of the causes of this failure."
+                }
+              },
+              "description": "A summary of a single failure. Details can be looked up using the `lookup_build_failure_details` tool."
+            },
+            "description": "Summaries of failures for this test, if any"
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "tests"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
+### lookup_build_tests_summary
+
+For a given build, gets the summary of all test executions.
+
+<details>
+
+<summary>Input schema</summary>
+
+
+```json
+{
+  "properties": {
+    "buildId": {
+      "type": "string",
+      "description": "The build ID to look up information for."
+    }
+  },
+  "required": [
+    "buildId"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
+
+<details>
+
+<summary>Output schema</summary>
+
+
+```json
+{
+  "properties": {
+    "passed": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "failed": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "skipped": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "totalPassed": {
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647
+    },
+    "totalFailed": {
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647
+    },
+    "totalSkipped": {
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647
+    },
+    "total": {
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647
+    }
+  },
+  "required": [
+    "passed",
+    "failed",
+    "skipped"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
+### lookup_build_summary
+
+Takes a build ID; returns a summary of tests for that build.
+
+<details>
+
+<summary>Input schema</summary>
+
+
+```json
+{
+  "properties": {
+    "buildId": {
+      "type": "string",
+      "description": "The build ID to look up information for."
+    }
+  },
+  "required": [
+    "buildId"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
+
+<details>
+
+<summary>Output schema</summary>
+
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "consoltOutput": {
+      "type": "string"
+    },
+    "publishedScans": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "url",
+          "id",
+          "develocityInstance"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The URL of the Build Scan. Can be used to view it."
+          },
+          "id": {
+            "type": "string",
+            "description": "The Build Scan's ID"
+          },
+          "develocityInstance": {
+            "type": "string",
+            "description": "The URL of the Develocity instance the Build Scan is located on"
+          }
+        },
+        "description": "A reference to a Develocity Build Scan"
+      }
+    },
+    "wasSuccessful": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "testsRan": {
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647
+    },
+    "testsFailed": {
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647
+    },
+    "failureSummaries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "message",
+          "description",
+          "causes"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The ID of a Gradle failure, used to identify the failure when looking up more information."
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A short description of the failure."
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A description of the failure, with more details."
+          },
+          "causes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "The ID of a Gradle failure, used to identify the failure when looking up more information."
+            },
+            "uniqueItems": true,
+            "description": "A set of IDs of the causes of this failure."
+          }
+        },
+        "description": "A summary of a single failure. Details can be looked up using the `lookup_build_failure_details` tool."
+      },
+      "description": "Summaries of all failures encountered during the build. Does not include test failures. Details can be looked up using the `lookup_build_failure_details` tool."
+    },
+    "problemsSummary": {
+      "type": "object",
+      "required": [
+        "errorsCount",
+        "warningsCount",
+        "advicesCount",
+        "othersCount"
+      ],
+      "properties": {
+        "errorsCount": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "warningsCount": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "advicesCount": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "othersCount": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        }
+      },
+      "description": "A summary of all problems encountered during the build. More information can be looked up with the `lookup_build_problems_summary` tool."
+    }
+  },
+  "required": [
+    "id",
+    "consoltOutput",
+    "publishedScans",
+    "wasSuccessful",
+    "testsRan",
+    "testsFailed",
+    "failureSummaries",
+    "problemsSummary"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
+### lookup_build_failures_summary
+
+For a given build, gets the summary of all failures (including build and test failures) in the build. Use `lookup_build_failure_details` to get the details of a specific failure.
+
+<details>
+
+<summary>Input schema</summary>
+
+
+```json
+{
+  "properties": {
+    "buildId": {
+      "type": "string",
+      "description": "The build ID to look up information for."
+    }
+  },
+  "required": [
+    "buildId"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
+
+<details>
+
+<summary>Output schema</summary>
+
+
+```json
+{
+  "properties": {
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "message",
+          "description",
+          "causes"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The ID of a Gradle failure, used to identify the failure when looking up more information."
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A short description of the failure."
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A description of the failure, with more details."
+          },
+          "causes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "The ID of a Gradle failure, used to identify the failure when looking up more information."
+            },
+            "uniqueItems": true,
+            "description": "A set of IDs of the causes of this failure."
+          }
+        },
+        "description": "A summary of a single failure. Details can be looked up using the `lookup_build_failure_details` tool."
+      },
+      "description": "Summaries of all failures (including build and test failures) in the build."
+    }
+  },
+  "required": [
+    "failures"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
+### lookup_build_failure_details
+
+For a given build, gets the details of a failure with the given ID. Use `lookup_build_failures_summary` to get a list of failure IDs.
+
+<details>
+
+<summary>Input schema</summary>
+
+
+```json
+{
+  "properties": {
+    "buildId": {
+      "type": "string",
+      "description": "The build ID to look up."
+    },
+    "failureId": {
+      "type": "string",
+      "description": "The failure ID to get details for."
+    }
+  },
+  "required": [
+    "buildId",
+    "failureId"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
+
+<details>
+
+<summary>Output schema</summary>
+
+
+```json
+{
+  "properties": {
+    "failure": {
+      "type": "object",
+      "required": [
+        "id",
+        "message",
+        "description",
+        "causes",
+        "problems"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The ID of a Gradle failure, used to identify the failure when looking up more information."
+        },
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "causes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "message",
+              "description",
+              "causes"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "The ID of a Gradle failure, used to identify the failure when looking up more information."
+              },
+              "message": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "A short description of the failure."
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "A description of the failure, with more details."
+              },
+              "causes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "description": "The ID of a Gradle failure, used to identify the failure when looking up more information."
+                },
+                "uniqueItems": true,
+                "description": "A set of IDs of the causes of this failure."
+              }
+            },
+            "description": "A summary of a single failure. Details can be looked up using the `lookup_build_failure_details` tool."
+          },
+          "description": "Summaries of the direct causes of this failure"
+        },
+        "problems": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "The identifier of a problem. Use with `lookup_build_problem_details`. Note that the same problem may occur in different places in the build."
+          },
+          "description": "Summaries for problems associated with this failure, if any"
+        }
+      }
+    }
+  },
+  "required": [
+    "failure"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
+### lookup_build_problems_summary
+
+For a given build, get summaries for all problems attached to failures in the build. Use `lookup_build_problem_details` with the returned failure ID to get full details.
+
+<details>
+
+<summary>Input schema</summary>
+
+
+```json
+{
+  "properties": {
+    "buildId": {
+      "type": "string",
+      "description": "The build ID to look up information for."
+    }
+  },
+  "required": [
+    "buildId"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
+
+<details>
+
+<summary>Output schema</summary>
+
+
+```json
+{
+  "properties": {
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "displayName",
+          "severity",
+          "documentationLink",
+          "numberOfOccurrences"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The identifier of a problem. Use with `lookup_build_problem_details`. Note that the same problem may occur in different places in the build."
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "ADVICE",
+              "WARNING",
+              "ERROR",
+              "OTHER"
+            ],
+            "description": "The severity of the problem. ERROR will fail a build."
+          },
+          "documentationLink": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "numberOfOccurrences": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "displayName",
+          "severity",
+          "documentationLink",
+          "numberOfOccurrences"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The identifier of a problem. Use with `lookup_build_problem_details`. Note that the same problem may occur in different places in the build."
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "ADVICE",
+              "WARNING",
+              "ERROR",
+              "OTHER"
+            ],
+            "description": "The severity of the problem. ERROR will fail a build."
+          },
+          "documentationLink": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "numberOfOccurrences": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          }
+        }
+      }
+    },
+    "advices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "displayName",
+          "severity",
+          "documentationLink",
+          "numberOfOccurrences"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The identifier of a problem. Use with `lookup_build_problem_details`. Note that the same problem may occur in different places in the build."
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "ADVICE",
+              "WARNING",
+              "ERROR",
+              "OTHER"
+            ],
+            "description": "The severity of the problem. ERROR will fail a build."
+          },
+          "documentationLink": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "numberOfOccurrences": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          }
+        }
+      }
+    },
+    "others": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "displayName",
+          "severity",
+          "documentationLink",
+          "numberOfOccurrences"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The identifier of a problem. Use with `lookup_build_problem_details`. Note that the same problem may occur in different places in the build."
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "ADVICE",
+              "WARNING",
+              "ERROR",
+              "OTHER"
+            ],
+            "description": "The severity of the problem. ERROR will fail a build."
+          },
+          "documentationLink": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "numberOfOccurrences": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "errors",
+    "warnings",
+    "advices",
+    "others"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
+### lookup_build_problem_details
+
+For a given build, gets the details of all occurences of the problem with the given ID. Use `lookup_build_problems_summary` to get a list of all problem IDs for the build.
+
+<details>
+
+<summary>Input schema</summary>
+
+
+```json
+{
+  "properties": {
+    "buildId": {
+      "type": "string",
+      "description": "The build ID to look up."
+    },
+    "problemId": {
+      "type": "string",
+      "description": "The ProblemId of the problem to look up. Obtain from `lookup_build_problems_summary`."
+    }
+  },
+  "required": [
+    "buildId",
+    "problemId"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
+
+<details>
+
+<summary>Output schema</summary>
+
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "The identifier of a problem. Use with `lookup_build_problem_details`. Note that the same problem may occur in different places in the build."
+    },
+    "displayName": {
+      "type": "string"
+    },
+    "severity": {
+      "enum": [
+        "ADVICE",
+        "WARNING",
+        "ERROR",
+        "OTHER"
+      ],
+      "description": "The severity of the problem. ERROR will fail a build."
+    },
+    "documentationLink": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "occurences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "details",
+          "originLocations",
+          "contextualLocations",
+          "potentialSolutions"
+        ],
+        "properties": {
+          "details": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Detailed information about the problem"
+          },
+          "originLocations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "contextualLocations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Additional locations that didn't cause the problem, but are part of its context"
+          },
+          "potentialSolutions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "numberOfOccurrences": {
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647
+    }
+  },
+  "required": [
+    "id",
+    "displayName",
+    "severity",
+    "documentationLink",
+    "occurences"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
 
 [//]: # (<<TOOLS_LIST_END>>)

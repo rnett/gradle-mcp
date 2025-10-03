@@ -14,6 +14,8 @@ class GradleIntrospectionTools(
     val gradle: GradleProvider,
 ) : McpServerComponent() {
 
+    //TODO should return build IDs?
+
     @Serializable
     data class GradleBuildEnvironment(
         @Description("Information about the Gradle build environment")
