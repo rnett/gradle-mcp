@@ -33,7 +33,7 @@ class GradleIntrospectionTools(
         data class JavaInfo(
             @Description("The path of the Java home used by this Gradle project")
             val javaHome: String,
-            @Description("The JVM used by this Gradle project")
+            @Description("The JVM arguments used by this Gradle project")
             val jvmArguments: List<String>
         )
     }
@@ -52,7 +52,7 @@ class GradleIntrospectionTools(
             it.projectRoot,
             it.invocationArgs,
             requiresGradleProject = false
-        ).outcome.throwFailure().value.let {
+        ).throwFailure().let {
             GradleBuildEnvironment(
                 GradleBuildEnvironment.GradleInfo(it.gradle.gradleUserHome.absolutePath, it.gradle.gradleVersion),
                 GradleBuildEnvironment.JavaInfo(it.java.javaHome.absolutePath, it.java.jvmArguments)
@@ -97,7 +97,7 @@ class GradleIntrospectionTools(
         "describe_project",
         "Describes a Gradle project or subproject. Includes the tasks and child projects. Can be used to query available tasks."
     ) { args ->
-        gradle.getBuildModel<GradleProject>(args.projectRoot, args.invocationArgs).outcome.throwFailure().value.let {
+        gradle.getBuildModel<GradleProject>(args.projectRoot, args.invocationArgs).throwFailure().let {
             val project = it.findByPath(args.projectPath.path) ?: throw IllegalArgumentException("Project with project path \"${args.projectPath}\" not found")
             GradleProjectInfo(
                 project.path,
@@ -135,7 +135,7 @@ class GradleIntrospectionTools(
         "get_included_builds",
         "Gets the included builds of a Gradle project."
     ) {
-        gradle.getBuildModel<GradleBuild>(it.projectRoot, it.invocationArgs).outcome.throwFailure().value.let {
+        gradle.getBuildModel<GradleBuild>(it.projectRoot, it.invocationArgs).throwFailure().let {
             GradleIncludedBuilds(it.editableBuilds.map {
                 IncludedBuild(it.rootProject.name, it.rootProject.projectDirectory.absolutePath)
             })
@@ -174,7 +174,7 @@ class GradleIntrospectionTools(
         val publicationsModel = gradle.getBuildModel<org.gradle.tooling.model.gradle.ProjectPublications>(
             args.projectRoot,
             args.invocationArgs
-        ).outcome.throwFailure().value
+        ).throwFailure()
 
         val publications = publicationsModel.publications
             .filter { it.projectIdentifier.matches(args.projectRoot, args.projectPath) }
@@ -239,7 +239,7 @@ class GradleIntrospectionTools(
         val ideaProject = gradle.getBuildModel<org.gradle.tooling.model.idea.BasicIdeaProject>(
             args.projectRoot,
             args.invocationArgs
-        ).outcome.throwFailure().value
+        ).throwFailure()
 
         ProjectSourceDirectoriesResult(
             ideaProject.modules

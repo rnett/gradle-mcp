@@ -20,6 +20,7 @@ import org.apache.commons.io.output.WriterOutputStream
 import org.gradle.tooling.BuildException
 import org.gradle.tooling.BuildLauncher
 import org.gradle.tooling.ConfigurableLauncher
+import org.gradle.tooling.Failure
 import org.gradle.tooling.GradleConnector
 import org.gradle.tooling.ModelBuilder
 import org.gradle.tooling.ProjectConnection
@@ -27,6 +28,8 @@ import org.gradle.tooling.TestExecutionException
 import org.gradle.tooling.events.OperationType
 import org.gradle.tooling.events.ProgressEvent
 import org.gradle.tooling.events.ProgressListener
+import org.gradle.tooling.events.problems.ProblemAggregation
+import org.gradle.tooling.events.problems.ProblemAggregationEvent
 import org.gradle.tooling.events.test.Destination
 import org.gradle.tooling.events.test.JvmTestOperationDescriptor
 import org.gradle.tooling.events.test.TestFailureResult
@@ -43,8 +46,8 @@ import org.slf4j.event.Level
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
-import java.util.UUID
 import kotlin.reflect.KClass
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
@@ -77,9 +80,22 @@ class GradleProvider(
 
     class TestCollector(val captureFailedTestOutput: Boolean, val captureAllTestOutput: Boolean) : ProgressListener {
         private val output = mutableMapOf<String, StringBuilder>()
-        private val passed = mutableListOf<TestResult>()
-        private val skipped = mutableListOf<TestResult>()
-        private val failed = mutableListOf<TestResult>()
+        private val passed = mutableListOf<Result>()
+        private val skipped = mutableListOf<Result>()
+        private val failed = mutableListOf<Result>()
+
+        data class Results(
+            val passed: Set<Result>,
+            val skipped: Set<Result>,
+            val failed: Set<Result>,
+        )
+
+        data class Result(
+            val testName: String,
+            val output: String?,
+            val duration: Duration,
+            val failures: List<Failure>?,
+        )
 
         private fun TestOperationDescriptor.testName(): String? {
             if (this is JvmTestOperationDescriptor) {
@@ -92,7 +108,7 @@ class GradleProvider(
             when (event) {
                 is TestStartEvent -> {}
                 is TestFinishEvent -> {
-                    val testResult = TestResult(
+                    val testResult = Result(
                         event.descriptor.testName() ?: return,
                         null,
                         (event.result.endTime - event.result.startTime).milliseconds,
@@ -122,11 +138,11 @@ class GradleProvider(
             }
         }
 
-        fun results() = TestResults(
+        fun results() = Results(
             passed = passed.toSet(),
             skipped = skipped.toSet(),
             failed = failed.toSet()
-        ).takeUnless { it.isEmpty }
+        )
 
         val operations = buildSet {
             add(OperationType.TEST)
@@ -139,14 +155,14 @@ class GradleProvider(
     private suspend inline fun <I : ConfigurableLauncher<*>, R> I.invokeBuild(
         connection: ProjectConnection,
         args: GradleInvocationArguments,
-        testResultCollector: TestCollector?,
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
         noinline stdoutLineHandler: ((String) -> Unit)?,
         noinline stderrLineHandler: ((String) -> Unit)?,
         crossinline tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
         crossinline invoker: (I) -> R,
     ): GradleResult<R> = withContext(Dispatchers.IO) {
-        val buildId = UUID.randomUUID().toString()
+        val buildId = BuildId.newId()
+        val testResultCollector = TestCollector(true, true)
         localSupervisorScope(exceptionHandler = {
             LOGGER.makeLoggingEventBuilder(Level.WARN)
                 .addKeyValue("buildId", buildId)
@@ -178,9 +194,16 @@ class GradleProvider(
                 addProgressListener(it.key, it.value)
             }
 
-            if (testResultCollector != null) {
-                addProgressListener(testResultCollector, testResultCollector.operations)
-            }
+            addProgressListener(testResultCollector, testResultCollector.operations)
+
+
+            val problems = mutableListOf<ProblemAggregation>()
+            addProgressListener(object : ProgressListener {
+                override fun statusChanged(event: ProgressEvent) {
+                    if (event is ProblemAggregationEvent)
+                        problems.add(event.problemAggregation)
+                }
+            }, OperationType.PROBLEMS)
 
             // Build scan TOS acceptance
 
@@ -197,11 +220,14 @@ class GradleProvider(
 
             val scans = mutableListOf<GradleBuildScan>()
 
+            val consoleOutput = StringBuilder()
+
             setStandardOutput(
                 WriterOutputStream.builder().apply {
                     charset = StandardCharsets.UTF_8
                     bufferSize = 80
                     writer = object : GradleStdoutWriter(config.allowPublicScansPublishing, {
+                        consoleOutput.append(it)
                         stdoutLineHandler?.invoke(it)
                         LOGGER.makeLoggingEventBuilder(Level.INFO)
                             .addKeyValue("buildId", buildId)
@@ -235,6 +261,7 @@ class GradleProvider(
                     charset = StandardCharsets.UTF_8
                     bufferSize = 80
                     writer = LineEmittingWriter {
+                        consoleOutput.append("ERR: $it")
                         stderrLineHandler?.invoke(it)
                         LOGGER.makeLoggingEventBuilder(Level.INFO)
                             .addKeyValue("buildId", buildId)
@@ -250,21 +277,26 @@ class GradleProvider(
                     invoker(this@invokeBuild)
                 }.await()
             }
-                .fold(
-                    { GradleResult.Success(it) },
-                    {
-                        if (it is BuildException || it is TestExecutionException) {
-                            GradleResult.Failure(it)
-                        } else {
-                            throw it
-                        }
-                    }
-                )
-            GradleResult(
+
+            val exception = outcome.exceptionOrNull()?.let {
+                if (it is BuildException || it is TestExecutionException) {
+                    it
+                } else {
+                    throw it
+                }
+            }
+
+            GradleResult.build(
+                buildId,
+                consoleOutput.toString(),
                 scans,
-                testResultCollector?.results(),
+                problems,
+                testResultCollector.results(),
+                exception,
                 outcome
             )
+        }.also {
+            BuildResults.storeResult(it.buildResult)
         }
     }
 
@@ -285,7 +317,6 @@ class GradleProvider(
         return builder.invokeBuild(
             connection,
             args,
-            null,
             additionalProgressListeners,
             stdoutLineHandler,
             stderrLineHandler,
@@ -299,8 +330,6 @@ class GradleProvider(
     suspend fun runBuild(
         projectRoot: GradleProjectRoot,
         args: GradleInvocationArguments,
-        captureFailedTestOutput: Boolean,
-        captureAllTestOutput: Boolean,
         tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
         stdoutLineHandler: ((String) -> Unit)? = null,
@@ -312,7 +341,6 @@ class GradleProvider(
         return builder.invokeBuild(
             connection,
             args,
-            TestCollector(captureFailedTestOutput, captureAllTestOutput),
             additionalProgressListeners,
             stdoutLineHandler,
             stderrLineHandler,
@@ -328,8 +356,6 @@ class GradleProvider(
     suspend fun runTests(
         projectRoot: GradleProjectRoot,
         testPatterns: Map<String, Set<String>>,
-        captureFailedTestOutput: Boolean,
-        captureAllTestOutput: Boolean,
         args: GradleInvocationArguments,
         tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
@@ -348,7 +374,6 @@ class GradleProvider(
         return builder.invokeBuild(
             connection,
             args,
-            TestCollector(captureFailedTestOutput, captureAllTestOutput),
             additionalProgressListeners,
             stdoutLineHandler,
             stderrLineHandler,

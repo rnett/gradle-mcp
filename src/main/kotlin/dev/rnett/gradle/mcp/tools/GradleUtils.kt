@@ -4,13 +4,12 @@ import dev.rnett.gradle.mcp.gradle.BuildResult
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleResult
 import dev.rnett.gradle.mcp.gradle.GradleScanTosAcceptRequest
-import dev.rnett.gradle.mcp.gradle.runBuildAndGetOutput
-import dev.rnett.gradle.mcp.gradle.runTestsAndGetOutput
 import dev.rnett.gradle.mcp.mcp.McpContext
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import io.github.smiley4.schemakenerator.core.annotations.Example
 import io.modelcontextprotocol.kotlin.sdk.LoggingLevel
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import org.gradle.tooling.model.Model
 import org.gradle.tooling.model.ProjectIdentifier
 import kotlin.io.path.absolute
@@ -42,7 +41,7 @@ data class GradleInvocationArguments(
         )
     }
 
-
+    @Transient
     val allAdditionalArguments = additionalArguments + (if (publishScan && "--scan" !in additionalArguments) listOf("--scan") else emptyList())
 
     companion object {
@@ -113,17 +112,11 @@ suspend inline fun <reified T : Model> GradleProvider.getBuildModel(
 context(ctx: McpContext)
 suspend inline fun GradleProvider.doBuild(
     projectRoot: GradleProjectRoot,
-    captureFailedTestOutput: Boolean,
-    captureAllTestOutput: Boolean,
     invocationArgs: GradleInvocationArguments,
-    includeFailures: Boolean,
 ): BuildResult {
-    return runBuildAndGetOutput(
+    return runBuild(
         projectRoot,
-        captureFailedTestOutput,
-        captureAllTestOutput,
         invocationArgs,
-        includeFailures,
         { askForScansTos(it) },
         stdoutLineHandler = {
             ctx.emitLoggingNotification("gradle-build", LoggingLevel.notice, it)
@@ -132,25 +125,19 @@ suspend inline fun GradleProvider.doBuild(
         stderrLineHandler = {
             ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it)
         }
-    )
+    ).buildResult
 }
 
 context(ctx: McpContext)
 suspend inline fun GradleProvider.doTests(
     projectRoot: GradleProjectRoot,
     testPatterns: Map<String, Set<String>>,
-    captureFailedTestOutput: Boolean,
-    captureAllTestOutput: Boolean,
     invocationArgs: GradleInvocationArguments,
-    includeFailures: Boolean,
 ): BuildResult {
-    return runTestsAndGetOutput(
+    return runTests(
         projectRoot,
         testPatterns,
-        captureFailedTestOutput,
-        captureAllTestOutput,
         invocationArgs,
-        includeFailures,
         { askForScansTos(it) },
         stdoutLineHandler = {
             ctx.emitLoggingNotification("gradle-build", LoggingLevel.notice, it)
@@ -159,5 +146,5 @@ suspend inline fun GradleProvider.doTests(
         stderrLineHandler = {
             ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it)
         }
-    )
+    ).buildResult
 }

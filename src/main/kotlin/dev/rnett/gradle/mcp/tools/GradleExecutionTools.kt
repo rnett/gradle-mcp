@@ -19,10 +19,6 @@ class GradleExecutionTools(
         val projectRoot: GradleProjectRoot,
         @Description("The Gradle command to run. Will be ran as if it had been passed directly to './gradlew'")
         val commandLine: List<String>,
-        @Description("Whether to capture the console output of failed tests. Defaults to true.")
-        val captureFailedTestOutput: Boolean = true,
-        @Description("Whether to capture the console output of all tests. Defaults to false.")
-        val captureAllTestOutput: Boolean = false,
         @Description("Whether to run with the --scan argument to publish a build scan. Requires a configured Develocity instance. Publishing a scan and using it to diagnose issues (e.g. using the Develocity MCP server) is recommended over `includeFailureInformation` when possible. Defaults to false.")
         val scan: Boolean = false,
         @Description("Whether to include failure information in the result, if the build fails. Defaults to false. The information can be helpful in diagnosing failures, but is very verbose.")
@@ -31,7 +27,7 @@ class GradleExecutionTools(
     )
 
     @OptIn(ExperimentalTime::class)
-    val executeCommand by tool<ExecuteCommandArgs, BuildResult>(
+    val executeCommand by tool<ExecuteCommandArgs, BuildResultSummary>(
         "run_gradle_command",
         """
             |Runs a Gradle command in the given project, just as if the command line had been passed directly to './gradlew'.
@@ -43,19 +39,14 @@ class GradleExecutionTools(
     ) {
         val result = gradle.doBuild(
             it.projectRoot,
-            it.captureFailedTestOutput,
-            it.captureAllTestOutput,
-            GradleInvocationArguments(additionalArguments = it.commandLine, publishScan = it.scan) + it.invocationArguments,
-            it.includeFailureInformation
+            GradleInvocationArguments(additionalArguments = it.commandLine, publishScan = it.scan) + it.invocationArguments
         )
-
-        addAdditionalContent(TextContent(result.output, Annotations(listOf(Role.user), null, 1.0)))
 
         if (!result.isSuccessful) {
             isError = true
         }
 
-        result
+        result.toSummary()
     }
 
     @Description("A pattern to select tests. This is a prefix of the test class or method's fully qualified name. '*' wildcards are supported. Test classes may omit the package, e.g. `SomeClass` or `SomeClass.someMethod`. A filter of '*' will select all tests.")
@@ -70,57 +61,95 @@ class GradleExecutionTools(
     @Serializable
     value class TestPattern(val pattern: String)
 
+
     @Serializable
-    data class ExecuteTestsArgs(
+    data class ExecuteSingleTestArgs(
         val projectRoot: GradleProjectRoot,
-        @Description("A map (i.e. JSON object) of each test task to run (e.g. `:test`, `:project-a:sub-b:test`) to the test patterns for the tests to run for that task (e.g. `com.example.*`, `*MyTest*`).  The typical test task is `:test`.  At least one task is required. A task with no patterns will run all tests in that task.")
-        val tests: Map<String, Set<TestPattern>>,
-        @Description("Whether to capture the console output of failed tests. Defaults to true.")
-        val captureFailedTestOutput: Boolean = true,
-        @Description("Whether to capture the console output of all tests. Defaults to false.")
-        val captureAllTestOutput: Boolean = false,
+        val projectPath: GradleProjectPath = GradleProjectPath.DEFAULT,
+        @Description("The Gradle task to run. REAUIRED. Must be a test task. The usual test task is `test`, but THIS IS NOT USED AS A DEFAULT AND MUST BE SPECIFIED.")
+        val taskName: String,
+        @Description("The tests to run, as test patterns. The default is all tests. Note that this is the task name (e.g. `test`) not the task path (e.g. `:test`).")
+        val tests: List<TestPattern> = emptyList(),
         @Description("Whether to run with the --scan argument to publish a build scan. Requires a configured Develocity instance. Publishing a scan and using it to diagnose issues (e.g. using the Develocity MCP server) is recommended over `includeFailureInformation` when possible. Defaults to false.")
         val scan: Boolean = false,
-        @Description("Whether to include build (not test) failure information in the result, if the build fails. Defaults to false. The information can be helpful in diagnosing failures, but is very verbose.")
-        val includeNonTestFailureInformation: Boolean = false,
+        val invocationArguments: GradleInvocationArguments = GradleInvocationArguments.DEFAULT
+    )
+
+    @Serializable
+    data class TestResultOutput(
+        val testsSummary: TestResultsSummary,
+        val buildResult: BuildResultSummary
+    )
+
+    private fun BuildResult.toTestResultOutput() = TestResultOutput(
+        this.testResults?.toSummary() ?: error("No tests were ran"),
+        this.toSummary()
+    )
+
+    @OptIn(ExperimentalTime::class)
+    val runSingleTest by tool<ExecuteSingleTestArgs, TestResultOutput>(
+        "run_test_task",
+        """
+            |Runs a single test task, with an option to filter which tests to run.
+            |The console output is included in the result. Show this to the user, as if they had ran the command themselves.
+            |Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues and test failures, using something like the Develocity MCP server.
+            |The typical test task is `test`.  At least one task is required. A task with no patterns will run all tests.
+        """.trimMargin(),
+    ) {
+        val result = gradle.doTests(
+            it.projectRoot,
+            mapOf(it.projectPath.taskPath(it.taskName) to it.tests.map { it.pattern }.toSet().ifEmpty { setOf("*") }),
+            GradleInvocationArguments(publishScan = it.scan) + it.invocationArguments
+        )
+
+        addAdditionalContent(TextContent(result.consoleOutput, Annotations(listOf(Role.user), null, 1.0)))
+
+        if (!result.isSuccessful) {
+            isError = true
+        }
+
+        result.toTestResultOutput()
+    }
+
+
+    @Serializable
+    data class ExecuteManyTestsArgs(
+        val projectRoot: GradleProjectRoot,
+        @Description("A map (i.e. JSON object) of each absolute task paths of the test tasks to run (e.g. `:test`, `:project-a:sub-b:test`) to the test patterns for the tests to run for that task (e.g. `com.example.*`, `*MyTest*`).  The typical test task is `:test`.  At least one task is required. A task with no patterns will run all tests in that task.")
+        val testsExecutions: Map<String, Set<TestPattern>>,
+        @Description("Whether to run with the --scan argument to publish a build scan. Requires a configured Develocity instance. Publishing a scan and using it to diagnose issues (e.g. using the Develocity MCP server) is recommended over `includeFailureInformation` when possible. Defaults to false.")
+        val scan: Boolean = false,
         val invocationArguments: GradleInvocationArguments = GradleInvocationArguments.DEFAULT
     )
 
     @OptIn(ExperimentalTime::class)
-    val runTests by tool<ExecuteTestsArgs, BuildResult>(
-        "run_tests_with_gradle",
+    val runTests by tool<ExecuteManyTestsArgs, TestResultOutput>(
+        "run_many_test_tasks",
         """
-            |Runs some tests in the given project via Gradle.
+            |Runs may test tasks, each with their own test filters. To run a single test task, use the `run_test_task` tool.
             |The console output is included in the result. Show this to the user, as if they had ran the command themselves.
             |Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues and test failures, using something like the Develocity MCP server.
             |The `tests` parameter is REQUIRED, and is simply a map (i.e. JSON object) of each test task to run (e.g. `:test`, `:project-a:sub-b:test`), to the test patterns for the tests to run for that task (e.g. `com.example.*`, `*MyTest*`).  
             |The typical test task is `:test`.  At least one task is required. A task with no patterns will run all tests.
         """.trimMargin(),
     ) {
-        if (it.tests.isEmpty()) {
+        if (it.testsExecutions.isEmpty()) {
             throw IllegalArgumentException("At least one test task is required.")
-        }
-
-        if (it.tests.all { it.value.isEmpty() }) {
-            throw IllegalArgumentException("At least one test pattern is required.")
         }
 
         val result = gradle.doTests(
             it.projectRoot,
-            it.tests.mapValues { it.value.map { it.pattern }.toSet().ifEmpty { setOf("*") } },
-            it.captureFailedTestOutput,
-            it.captureAllTestOutput,
+            it.testsExecutions.mapValues { it.value.map { it.pattern }.toSet().ifEmpty { setOf("*") } },
             GradleInvocationArguments(publishScan = it.scan) + it.invocationArguments,
-            it.includeNonTestFailureInformation
         )
 
-        addAdditionalContent(TextContent(result.output, Annotations(listOf(Role.user), null, 1.0)))
+        addAdditionalContent(TextContent(result.consoleOutput, Annotations(listOf(Role.user), null, 1.0)))
 
         if (!result.isSuccessful) {
             isError = true
         }
 
-        result
+        result.toTestResultOutput()
     }
 
 }

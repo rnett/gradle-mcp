@@ -35,17 +35,14 @@ class GradleTaskWrapperTools(
 
         val result = gradle.doBuild(
             args.projectRoot,
-            false,
-            false,
-            args.invocationArgs.copy(additionalArguments = commandLine),
-            false
+            args.invocationArgs.copy(additionalArguments = commandLine)
         )
 
         (if (result.isSuccessful) {
-            return@tool result.output
+            return@tool result.consoleOutput
         } else {
             isError = true
-            addAdditionalContent(TextContent(result.output))
+            addAdditionalContent(TextContent(result.consoleOutput))
             return@tool "Error executing Gradle command `commandLine`. Try running it via run_gradle_command for more information and diagnostics, especially if you ask it to publish a build scan."
         })
     }
