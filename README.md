@@ -215,12 +215,6 @@ Get the environment used to execute Gradle for the given project, including the 
         "publishScan": {
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
-        },
-        "allAdditionalArguments": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -279,7 +273,7 @@ Get the environment used to execute Gradle for the given project, including the 
           "items": {
             "type": "string"
           },
-          "description": "The JVM used by this Gradle project"
+          "description": "The JVM arguments used by this Gradle project"
         }
       },
       "description": "Information about the JVM used to execute Gradle in the build environment"
@@ -356,12 +350,6 @@ Describes a Gradle project or subproject. Includes the tasks and child projects.
         "publishScan": {
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
-        },
-        "allAdditionalArguments": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -517,12 +505,6 @@ Gets the included builds of a Gradle project.
         "publishScan": {
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
-        },
-        "allAdditionalArguments": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -639,12 +621,6 @@ Gets all publications (i.e. artifacts published that Gradle knows about) for the
         "publishScan": {
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
-        },
-        "allAdditionalArguments": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -768,12 +744,6 @@ Gets source/test/resource directories for the project. Sometimes non-JVM source 
         "publishScan": {
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
-        },
-        "allAdditionalArguments": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -876,14 +846,6 @@ Can publish a Develocity Build Scan if requested. This is the preferred way to d
       },
       "description": "The Gradle command to run. Will be ran as if it had been passed directly to './gradlew'"
     },
-    "captureFailedTestOutput": {
-      "type": "boolean",
-      "description": "Whether to capture the console output of failed tests. Defaults to true."
-    },
-    "captureAllTestOutput": {
-      "type": "boolean",
-      "description": "Whether to capture the console output of all tests. Defaults to false."
-    },
     "scan": {
       "type": "boolean",
       "description": "Whether to run with the --scan argument to publish a build scan. Requires a configured Develocity instance. Publishing a scan and using it to diagnose issues (e.g. using the Develocity MCP server) is recommended over `includeFailureInformation` when possible. Defaults to false."
@@ -927,12 +889,6 @@ Can publish a Develocity Build Scan if requested. This is the preferred way to d
         "publishScan": {
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
-        },
-        "allAdditionalArguments": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -958,9 +914,11 @@ Can publish a Develocity Build Scan if requested. This is the preferred way to d
 ```json
 {
   "properties": {
-    "output": {
-      "type": "string",
-      "description": "The console output of the build."
+    "id": {
+      "type": "string"
+    },
+    "consoltOutput": {
+      "type": "string"
     },
     "publishedScans": {
       "type": "array",
@@ -986,979 +944,109 @@ Can publish a Develocity Build Scan if requested. This is the preferred way to d
           }
         },
         "description": "A reference to a Develocity Build Scan"
-      },
-      "description": "All Gradle Build Scans published during the build."
+      }
     },
-    "testResults": {
+    "wasSuccessful": {
       "type": [
-        "object",
+        "boolean",
         "null"
-      ],
-      "required": [
-        "passed",
-        "skipped",
-        "failed"
-      ],
-      "properties": {
-        "passed": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": [
-              "testName",
-              "output",
-              "executionDuration",
-              "failures"
-            ],
-            "properties": {
-              "testName": {
-                "type": "string",
-                "description": "The name of the test."
-              },
-              "output": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "Console output of the test, if it was captured."
-              },
-              "executionDuration": {
-                "type": "string",
-                "description": "How long the test took to execute"
-              },
-              "failures": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "type": "object",
-                  "required": [
-                    "message",
-                    "description",
-                    "causesMessages",
-                    "problems"
-                  ],
-                  "properties": {
-                    "message": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "description": "A short message describing the failure"
-                    },
-                    "description": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "description": "A longer description of the details of the failure"
-                    },
-                    "causesMessages": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "description": "Other failures that caused this failure. Only contains the failure message, check the result for matching failures."
-                    },
-                    "problems": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "required": [
-                          "definition",
-                          "contextualLabel",
-                          "details",
-                          "originLocations",
-                          "contextualLocations",
-                          "solutions"
-                        ],
-                        "properties": {
-                          "definition": {
-                            "type": "object",
-                            "required": [
-                              "id",
-                              "severity",
-                              "documentationLink"
-                            ],
-                            "properties": {
-                              "id": {
-                                "type": "object",
-                                "required": [
-                                  "name",
-                                  "group",
-                                  "displayName"
-                                ],
-                                "properties": {
-                                  "name": {
-                                    "type": "string",
-                                    "description": "The short name of the problem"
-                                  },
-                                  "group": {
-                                    "type": "string",
-                                    "description": "The problem's group"
-                                  },
-                                  "displayName": {
-                                    "type": "string",
-                                    "description": "The display name of the problem"
-                                  }
-                                },
-                                "description": "The problem's ID"
-                              },
-                              "severity": {
-                                "type": "string",
-                                "description": "The severity of the problem. ERROR will fail a build, WARNING will not."
-                              },
-                              "documentationLink": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "description": "An optional link to the documentation about this problem."
-                              }
-                            },
-                            "description": "The definition of the problem type"
-                          },
-                          "contextualLabel": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "The human-readable label of this instance of the problem"
-                          },
-                          "details": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "Detailed information about the problem"
-                          },
-                          "originLocations": {
-                            "type": "array",
-                            "items": {
-                              "anyOf": [
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "path"
-                                  ],
-                                  "properties": {
-                                    "path": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A file"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "pluginId"
-                                  ],
-                                  "properties": {
-                                    "pluginId": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A gradle plugin"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "taskPath"
-                                  ],
-                                  "properties": {
-                                    "taskPath": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A Gradle task"
-                                }
-                              ],
-                              "description": "A location of a problem within a Gradle build"
-                            },
-                            "description": "Locations this problem occurred within the build"
-                          },
-                          "contextualLocations": {
-                            "type": "array",
-                            "items": {
-                              "anyOf": [
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "path"
-                                  ],
-                                  "properties": {
-                                    "path": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A file"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "pluginId"
-                                  ],
-                                  "properties": {
-                                    "pluginId": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A gradle plugin"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "taskPath"
-                                  ],
-                                  "properties": {
-                                    "taskPath": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A Gradle task"
-                                }
-                              ],
-                              "description": "A location of a problem within a Gradle build"
-                            },
-                            "description": "Additional locations that didn't cause the problem, but are part of its context"
-                          },
-                          "solutions": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            },
-                            "description": "Provided solutions to the problem"
-                          }
-                        },
-                        "description": "A problem that occurred during a Gradle build"
-                      },
-                      "description": "Problems in the build that caused this failure"
-                    }
-                  },
-                  "description": "A failure encountered during a Gradle build or test."
-                },
-                "description": "The test's failures, if it failed"
-              }
-            }
-          },
-          "uniqueItems": true
-        },
-        "skipped": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": [
-              "testName",
-              "output",
-              "executionDuration",
-              "failures"
-            ],
-            "properties": {
-              "testName": {
-                "type": "string",
-                "description": "The name of the test."
-              },
-              "output": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "Console output of the test, if it was captured."
-              },
-              "executionDuration": {
-                "type": "string",
-                "description": "How long the test took to execute"
-              },
-              "failures": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "type": "object",
-                  "required": [
-                    "message",
-                    "description",
-                    "causesMessages",
-                    "problems"
-                  ],
-                  "properties": {
-                    "message": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "description": "A short message describing the failure"
-                    },
-                    "description": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "description": "A longer description of the details of the failure"
-                    },
-                    "causesMessages": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "description": "Other failures that caused this failure. Only contains the failure message, check the result for matching failures."
-                    },
-                    "problems": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "required": [
-                          "definition",
-                          "contextualLabel",
-                          "details",
-                          "originLocations",
-                          "contextualLocations",
-                          "solutions"
-                        ],
-                        "properties": {
-                          "definition": {
-                            "type": "object",
-                            "required": [
-                              "id",
-                              "severity",
-                              "documentationLink"
-                            ],
-                            "properties": {
-                              "id": {
-                                "type": "object",
-                                "required": [
-                                  "name",
-                                  "group",
-                                  "displayName"
-                                ],
-                                "properties": {
-                                  "name": {
-                                    "type": "string",
-                                    "description": "The short name of the problem"
-                                  },
-                                  "group": {
-                                    "type": "string",
-                                    "description": "The problem's group"
-                                  },
-                                  "displayName": {
-                                    "type": "string",
-                                    "description": "The display name of the problem"
-                                  }
-                                },
-                                "description": "The problem's ID"
-                              },
-                              "severity": {
-                                "type": "string",
-                                "description": "The severity of the problem. ERROR will fail a build, WARNING will not."
-                              },
-                              "documentationLink": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "description": "An optional link to the documentation about this problem."
-                              }
-                            },
-                            "description": "The definition of the problem type"
-                          },
-                          "contextualLabel": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "The human-readable label of this instance of the problem"
-                          },
-                          "details": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "Detailed information about the problem"
-                          },
-                          "originLocations": {
-                            "type": "array",
-                            "items": {
-                              "anyOf": [
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "path"
-                                  ],
-                                  "properties": {
-                                    "path": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A file"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "pluginId"
-                                  ],
-                                  "properties": {
-                                    "pluginId": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A gradle plugin"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "taskPath"
-                                  ],
-                                  "properties": {
-                                    "taskPath": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A Gradle task"
-                                }
-                              ],
-                              "description": "A location of a problem within a Gradle build"
-                            },
-                            "description": "Locations this problem occurred within the build"
-                          },
-                          "contextualLocations": {
-                            "type": "array",
-                            "items": {
-                              "anyOf": [
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "path"
-                                  ],
-                                  "properties": {
-                                    "path": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A file"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "pluginId"
-                                  ],
-                                  "properties": {
-                                    "pluginId": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A gradle plugin"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "taskPath"
-                                  ],
-                                  "properties": {
-                                    "taskPath": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A Gradle task"
-                                }
-                              ],
-                              "description": "A location of a problem within a Gradle build"
-                            },
-                            "description": "Additional locations that didn't cause the problem, but are part of its context"
-                          },
-                          "solutions": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            },
-                            "description": "Provided solutions to the problem"
-                          }
-                        },
-                        "description": "A problem that occurred during a Gradle build"
-                      },
-                      "description": "Problems in the build that caused this failure"
-                    }
-                  },
-                  "description": "A failure encountered during a Gradle build or test."
-                },
-                "description": "The test's failures, if it failed"
-              }
-            }
-          },
-          "uniqueItems": true
-        },
-        "failed": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": [
-              "testName",
-              "output",
-              "executionDuration",
-              "failures"
-            ],
-            "properties": {
-              "testName": {
-                "type": "string",
-                "description": "The name of the test."
-              },
-              "output": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "Console output of the test, if it was captured."
-              },
-              "executionDuration": {
-                "type": "string",
-                "description": "How long the test took to execute"
-              },
-              "failures": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "type": "object",
-                  "required": [
-                    "message",
-                    "description",
-                    "causesMessages",
-                    "problems"
-                  ],
-                  "properties": {
-                    "message": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "description": "A short message describing the failure"
-                    },
-                    "description": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "description": "A longer description of the details of the failure"
-                    },
-                    "causesMessages": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "description": "Other failures that caused this failure. Only contains the failure message, check the result for matching failures."
-                    },
-                    "problems": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "required": [
-                          "definition",
-                          "contextualLabel",
-                          "details",
-                          "originLocations",
-                          "contextualLocations",
-                          "solutions"
-                        ],
-                        "properties": {
-                          "definition": {
-                            "type": "object",
-                            "required": [
-                              "id",
-                              "severity",
-                              "documentationLink"
-                            ],
-                            "properties": {
-                              "id": {
-                                "type": "object",
-                                "required": [
-                                  "name",
-                                  "group",
-                                  "displayName"
-                                ],
-                                "properties": {
-                                  "name": {
-                                    "type": "string",
-                                    "description": "The short name of the problem"
-                                  },
-                                  "group": {
-                                    "type": "string",
-                                    "description": "The problem's group"
-                                  },
-                                  "displayName": {
-                                    "type": "string",
-                                    "description": "The display name of the problem"
-                                  }
-                                },
-                                "description": "The problem's ID"
-                              },
-                              "severity": {
-                                "type": "string",
-                                "description": "The severity of the problem. ERROR will fail a build, WARNING will not."
-                              },
-                              "documentationLink": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "description": "An optional link to the documentation about this problem."
-                              }
-                            },
-                            "description": "The definition of the problem type"
-                          },
-                          "contextualLabel": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "The human-readable label of this instance of the problem"
-                          },
-                          "details": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "Detailed information about the problem"
-                          },
-                          "originLocations": {
-                            "type": "array",
-                            "items": {
-                              "anyOf": [
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "path"
-                                  ],
-                                  "properties": {
-                                    "path": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A file"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "pluginId"
-                                  ],
-                                  "properties": {
-                                    "pluginId": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A gradle plugin"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "taskPath"
-                                  ],
-                                  "properties": {
-                                    "taskPath": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A Gradle task"
-                                }
-                              ],
-                              "description": "A location of a problem within a Gradle build"
-                            },
-                            "description": "Locations this problem occurred within the build"
-                          },
-                          "contextualLocations": {
-                            "type": "array",
-                            "items": {
-                              "anyOf": [
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "path"
-                                  ],
-                                  "properties": {
-                                    "path": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A file"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "pluginId"
-                                  ],
-                                  "properties": {
-                                    "pluginId": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A gradle plugin"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "taskPath"
-                                  ],
-                                  "properties": {
-                                    "taskPath": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A Gradle task"
-                                }
-                              ],
-                              "description": "A location of a problem within a Gradle build"
-                            },
-                            "description": "Additional locations that didn't cause the problem, but are part of its context"
-                          },
-                          "solutions": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            },
-                            "description": "Provided solutions to the problem"
-                          }
-                        },
-                        "description": "A problem that occurred during a Gradle build"
-                      },
-                      "description": "Problems in the build that caused this failure"
-                    }
-                  },
-                  "description": "A failure encountered during a Gradle build or test."
-                },
-                "description": "The test's failures, if it failed"
-              }
-            }
-          },
-          "uniqueItems": true
-        }
-      },
-      "description": "Detailed test results, if the build ran tests."
+      ]
     },
-    "failures": {
-      "type": [
-        "array",
-        "null"
-      ],
+    "testsRan": {
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647
+    },
+    "testsFailed": {
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647
+    },
+    "failureSummaries": {
+      "type": "array",
       "items": {
         "type": "object",
         "required": [
+          "id",
           "message",
           "description",
-          "causesMessages",
-          "problems"
+          "causes"
         ],
         "properties": {
+          "id": {
+            "type": "string",
+            "description": "The ID of a Gradle failure, used to identify the failure when looking up more information."
+          },
           "message": {
             "type": [
               "string",
               "null"
             ],
-            "description": "A short message describing the failure"
+            "description": "A short description of the failure."
           },
           "description": {
             "type": [
               "string",
               "null"
             ],
-            "description": "A longer description of the details of the failure"
+            "description": "A description of the failure, with more details."
           },
-          "causesMessages": {
+          "causes": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "description": "The ID of a Gradle failure, used to identify the failure when looking up more information."
             },
-            "description": "Other failures that caused this failure. Only contains the failure message, check the result for matching failures."
-          },
-          "problems": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "definition",
-                "contextualLabel",
-                "details",
-                "originLocations",
-                "contextualLocations",
-                "solutions"
-              ],
-              "properties": {
-                "definition": {
-                  "type": "object",
-                  "required": [
-                    "id",
-                    "severity",
-                    "documentationLink"
-                  ],
-                  "properties": {
-                    "id": {
-                      "type": "object",
-                      "required": [
-                        "name",
-                        "group",
-                        "displayName"
-                      ],
-                      "properties": {
-                        "name": {
-                          "type": "string",
-                          "description": "The short name of the problem"
-                        },
-                        "group": {
-                          "type": "string",
-                          "description": "The problem's group"
-                        },
-                        "displayName": {
-                          "type": "string",
-                          "description": "The display name of the problem"
-                        }
-                      },
-                      "description": "The problem's ID"
-                    },
-                    "severity": {
-                      "type": "string",
-                      "description": "The severity of the problem. ERROR will fail a build, WARNING will not."
-                    },
-                    "documentationLink": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "description": "An optional link to the documentation about this problem."
-                    }
-                  },
-                  "description": "The definition of the problem type"
-                },
-                "contextualLabel": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "description": "The human-readable label of this instance of the problem"
-                },
-                "details": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "description": "Detailed information about the problem"
-                },
-                "originLocations": {
-                  "type": "array",
-                  "items": {
-                    "anyOf": [
-                      {
-                        "type": "object",
-                        "required": [
-                          "path"
-                        ],
-                        "properties": {
-                          "path": {
-                            "type": "string"
-                          }
-                        },
-                        "description": "A file"
-                      },
-                      {
-                        "type": "object",
-                        "required": [
-                          "pluginId"
-                        ],
-                        "properties": {
-                          "pluginId": {
-                            "type": "string"
-                          }
-                        },
-                        "description": "A gradle plugin"
-                      },
-                      {
-                        "type": "object",
-                        "required": [
-                          "taskPath"
-                        ],
-                        "properties": {
-                          "taskPath": {
-                            "type": "string"
-                          }
-                        },
-                        "description": "A Gradle task"
-                      }
-                    ],
-                    "description": "A location of a problem within a Gradle build"
-                  },
-                  "description": "Locations this problem occurred within the build"
-                },
-                "contextualLocations": {
-                  "type": "array",
-                  "items": {
-                    "anyOf": [
-                      {
-                        "type": "object",
-                        "required": [
-                          "path"
-                        ],
-                        "properties": {
-                          "path": {
-                            "type": "string"
-                          }
-                        },
-                        "description": "A file"
-                      },
-                      {
-                        "type": "object",
-                        "required": [
-                          "pluginId"
-                        ],
-                        "properties": {
-                          "pluginId": {
-                            "type": "string"
-                          }
-                        },
-                        "description": "A gradle plugin"
-                      },
-                      {
-                        "type": "object",
-                        "required": [
-                          "taskPath"
-                        ],
-                        "properties": {
-                          "taskPath": {
-                            "type": "string"
-                          }
-                        },
-                        "description": "A Gradle task"
-                      }
-                    ],
-                    "description": "A location of a problem within a Gradle build"
-                  },
-                  "description": "Additional locations that didn't cause the problem, but are part of its context"
-                },
-                "solutions": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
-                  "description": "Provided solutions to the problem"
-                }
-              },
-              "description": "A problem that occurred during a Gradle build"
-            },
-            "description": "Problems in the build that caused this failure"
+            "uniqueItems": true,
+            "description": "A set of IDs of the causes of this failure."
           }
         },
-        "description": "A failure encountered during a Gradle build or test."
+        "description": "A summary of a single failure. Details can be looked up using the `lookup_build_failure_details` tool."
       },
-      "description": "The failures reported by the build, if it failed. Includes the failures of test tasks if tests failed."
+      "description": "Summaries of all failures encountered during the build. Does not include test failures. Details can be looked up using the `lookup_build_failure_details` tool."
     },
-    "isSuccessful": {
-      "type": "boolean",
-      "description": "True if the build was a success, false if it was a failure"
+    "problemsSummary": {
+      "type": "object",
+      "required": [
+        "errorsCount",
+        "warningsCount",
+        "advicesCount",
+        "othersCount"
+      ],
+      "properties": {
+        "errorsCount": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "warningsCount": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "advicesCount": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "othersCount": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        }
+      },
+      "description": "A summary of all problems encountered during the build. More information can be looked up with the `lookup_build_problems_summary` tool."
     }
   },
   "required": [
-    "output",
+    "id",
+    "consoltOutput",
     "publishedScans",
-    "testResults",
-    "failures"
+    "wasSuccessful",
+    "testsRan",
+    "testsFailed",
+    "failureSummaries",
+    "problemsSummary"
   ],
   "type": "object"
 }
@@ -1967,13 +1055,12 @@ Can publish a Develocity Build Scan if requested. This is the preferred way to d
 
 </details>
 
-### run_tests_with_gradle
+### run_test_task
 
-Runs some tests in the given project via Gradle.
+Runs a single test task, with an option to filter which tests to run.
 The console output is included in the result. Show this to the user, as if they had ran the command themselves.
 Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues and test failures, using something like the Develocity MCP server.
-The `tests` parameter is REQUIRED, and is simply a map (i.e. JSON object) of each test task to run (e.g. `:test`, `:project-a:sub-b:test`), to the test patterns for the tests to run for that task (e.g. `com.example.*`, `*MyTest*`).  
-The typical test task is `:test`.  At least one task is required. A task with no patterns will run all tests.
+The typical test task is `test`.  At least one task is required. A task with no patterns will run all tests.
 
 <details>
 
@@ -1987,42 +1074,39 @@ The typical test task is `:test`.  At least one task is required. A task with no
       "type": "string",
       "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal."
     },
+    "projectPath": {
+      "type": "string",
+      "description": "The Gradle project path, e.g. :project-a:subproject-b. ':' is the root project.  Defaults to ':'",
+      "examples": [
+        ":",
+        ":my-project",
+        ":my-project:subproject"
+      ]
+    },
+    "taskName": {
+      "type": "string",
+      "description": "The Gradle task to run. REAUIRED. Must be a test task. The usual test task is `test`, but THIS IS NOT USED AS A DEFAULT AND MUST BE SPECIFIED."
+    },
     "tests": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "description": "A pattern to select tests. This is a prefix of the test class or method's fully qualified name. '*' wildcards are supported. Test classes may omit the package, e.g. `SomeClass` or `SomeClass.someMethod`. A filter of '*' will select all tests.",
-          "examples": [
-            "com.example.MyTestClass",
-            "com.example.MyTestClass.myTestMethod",
-            "com.example.http.*",
-            "com.example.MyTestClass.myTestMethod",
-            "MyTestClass",
-            "MyTestClass.myTestMethod",
-            "*IntegTest)"
-          ]
-        },
-        "uniqueItems": true
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "A pattern to select tests. This is a prefix of the test class or method's fully qualified name. '*' wildcards are supported. Test classes may omit the package, e.g. `SomeClass` or `SomeClass.someMethod`. A filter of '*' will select all tests.",
+        "examples": [
+          "com.example.MyTestClass",
+          "com.example.MyTestClass.myTestMethod",
+          "com.example.http.*",
+          "com.example.MyTestClass.myTestMethod",
+          "MyTestClass",
+          "MyTestClass.myTestMethod",
+          "*IntegTest)"
+        ]
       },
-      "description": "A map (i.e. JSON object) of each test task to run (e.g. `:test`, `:project-a:sub-b:test`) to the test patterns for the tests to run for that task (e.g. `com.example.*`, `*MyTest*`).  The typical test task is `:test`.  At least one task is required. A task with no patterns will run all tests in that task."
-    },
-    "captureFailedTestOutput": {
-      "type": "boolean",
-      "description": "Whether to capture the console output of failed tests. Defaults to true."
-    },
-    "captureAllTestOutput": {
-      "type": "boolean",
-      "description": "Whether to capture the console output of all tests. Defaults to false."
+      "description": "The tests to run, as test patterns. The default is all tests. Note that this is the task name (e.g. `test`) not the task path (e.g. `:test`)."
     },
     "scan": {
       "type": "boolean",
       "description": "Whether to run with the --scan argument to publish a build scan. Requires a configured Develocity instance. Publishing a scan and using it to diagnose issues (e.g. using the Develocity MCP server) is recommended over `includeFailureInformation` when possible. Defaults to false."
-    },
-    "includeNonTestFailureInformation": {
-      "type": "boolean",
-      "description": "Whether to include build (not test) failure information in the result, if the build fails. Defaults to false. The information can be helpful in diagnosing failures, but is very verbose."
     },
     "invocationArguments": {
       "type": "object",
@@ -2059,12 +1143,6 @@ The typical test task is `:test`.  At least one task is required. A task with no
         "publishScan": {
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
-        },
-        "allAdditionalArguments": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -2072,7 +1150,7 @@ The typical test task is `:test`.  At least one task is required. A task with no
   },
   "required": [
     "projectRoot",
-    "tests"
+    "taskName"
   ],
   "type": "object"
 }
@@ -2090,1007 +1168,501 @@ The typical test task is `:test`.  At least one task is required. A task with no
 ```json
 {
   "properties": {
-    "output": {
-      "type": "string",
-      "description": "The console output of the build."
-    },
-    "publishedScans": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "url",
-          "id",
-          "develocityInstance"
-        ],
-        "properties": {
-          "url": {
-            "type": "string",
-            "description": "The URL of the Build Scan. Can be used to view it."
-          },
-          "id": {
-            "type": "string",
-            "description": "The Build Scan's ID"
-          },
-          "develocityInstance": {
-            "type": "string",
-            "description": "The URL of the Develocity instance the Build Scan is located on"
-          }
-        },
-        "description": "A reference to a Develocity Build Scan"
-      },
-      "description": "All Gradle Build Scans published during the build."
-    },
-    "testResults": {
-      "type": [
-        "object",
-        "null"
-      ],
+    "testsSummary": {
+      "type": "object",
       "required": [
         "passed",
-        "skipped",
-        "failed"
+        "failed",
+        "skipped"
       ],
       "properties": {
         "passed": {
           "type": "array",
           "items": {
-            "type": "object",
-            "required": [
-              "testName",
-              "output",
-              "executionDuration",
-              "failures"
-            ],
-            "properties": {
-              "testName": {
-                "type": "string",
-                "description": "The name of the test."
-              },
-              "output": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "Console output of the test, if it was captured."
-              },
-              "executionDuration": {
-                "type": "string",
-                "description": "How long the test took to execute"
-              },
-              "failures": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "type": "object",
-                  "required": [
-                    "message",
-                    "description",
-                    "causesMessages",
-                    "problems"
-                  ],
-                  "properties": {
-                    "message": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "description": "A short message describing the failure"
-                    },
-                    "description": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "description": "A longer description of the details of the failure"
-                    },
-                    "causesMessages": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "description": "Other failures that caused this failure. Only contains the failure message, check the result for matching failures."
-                    },
-                    "problems": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "required": [
-                          "definition",
-                          "contextualLabel",
-                          "details",
-                          "originLocations",
-                          "contextualLocations",
-                          "solutions"
-                        ],
-                        "properties": {
-                          "definition": {
-                            "type": "object",
-                            "required": [
-                              "id",
-                              "severity",
-                              "documentationLink"
-                            ],
-                            "properties": {
-                              "id": {
-                                "type": "object",
-                                "required": [
-                                  "name",
-                                  "group",
-                                  "displayName"
-                                ],
-                                "properties": {
-                                  "name": {
-                                    "type": "string",
-                                    "description": "The short name of the problem"
-                                  },
-                                  "group": {
-                                    "type": "string",
-                                    "description": "The problem's group"
-                                  },
-                                  "displayName": {
-                                    "type": "string",
-                                    "description": "The display name of the problem"
-                                  }
-                                },
-                                "description": "The problem's ID"
-                              },
-                              "severity": {
-                                "type": "string",
-                                "description": "The severity of the problem. ERROR will fail a build, WARNING will not."
-                              },
-                              "documentationLink": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "description": "An optional link to the documentation about this problem."
-                              }
-                            },
-                            "description": "The definition of the problem type"
-                          },
-                          "contextualLabel": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "The human-readable label of this instance of the problem"
-                          },
-                          "details": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "Detailed information about the problem"
-                          },
-                          "originLocations": {
-                            "type": "array",
-                            "items": {
-                              "anyOf": [
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "path"
-                                  ],
-                                  "properties": {
-                                    "path": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A file"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "pluginId"
-                                  ],
-                                  "properties": {
-                                    "pluginId": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A gradle plugin"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "taskPath"
-                                  ],
-                                  "properties": {
-                                    "taskPath": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A Gradle task"
-                                }
-                              ],
-                              "description": "A location of a problem within a Gradle build"
-                            },
-                            "description": "Locations this problem occurred within the build"
-                          },
-                          "contextualLocations": {
-                            "type": "array",
-                            "items": {
-                              "anyOf": [
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "path"
-                                  ],
-                                  "properties": {
-                                    "path": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A file"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "pluginId"
-                                  ],
-                                  "properties": {
-                                    "pluginId": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A gradle plugin"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "taskPath"
-                                  ],
-                                  "properties": {
-                                    "taskPath": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A Gradle task"
-                                }
-                              ],
-                              "description": "A location of a problem within a Gradle build"
-                            },
-                            "description": "Additional locations that didn't cause the problem, but are part of its context"
-                          },
-                          "solutions": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            },
-                            "description": "Provided solutions to the problem"
-                          }
-                        },
-                        "description": "A problem that occurred during a Gradle build"
-                      },
-                      "description": "Problems in the build that caused this failure"
-                    }
-                  },
-                  "description": "A failure encountered during a Gradle build or test."
-                },
-                "description": "The test's failures, if it failed"
-              }
-            }
-          },
-          "uniqueItems": true
-        },
-        "skipped": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": [
-              "testName",
-              "output",
-              "executionDuration",
-              "failures"
-            ],
-            "properties": {
-              "testName": {
-                "type": "string",
-                "description": "The name of the test."
-              },
-              "output": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "Console output of the test, if it was captured."
-              },
-              "executionDuration": {
-                "type": "string",
-                "description": "How long the test took to execute"
-              },
-              "failures": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "type": "object",
-                  "required": [
-                    "message",
-                    "description",
-                    "causesMessages",
-                    "problems"
-                  ],
-                  "properties": {
-                    "message": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "description": "A short message describing the failure"
-                    },
-                    "description": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "description": "A longer description of the details of the failure"
-                    },
-                    "causesMessages": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "description": "Other failures that caused this failure. Only contains the failure message, check the result for matching failures."
-                    },
-                    "problems": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "required": [
-                          "definition",
-                          "contextualLabel",
-                          "details",
-                          "originLocations",
-                          "contextualLocations",
-                          "solutions"
-                        ],
-                        "properties": {
-                          "definition": {
-                            "type": "object",
-                            "required": [
-                              "id",
-                              "severity",
-                              "documentationLink"
-                            ],
-                            "properties": {
-                              "id": {
-                                "type": "object",
-                                "required": [
-                                  "name",
-                                  "group",
-                                  "displayName"
-                                ],
-                                "properties": {
-                                  "name": {
-                                    "type": "string",
-                                    "description": "The short name of the problem"
-                                  },
-                                  "group": {
-                                    "type": "string",
-                                    "description": "The problem's group"
-                                  },
-                                  "displayName": {
-                                    "type": "string",
-                                    "description": "The display name of the problem"
-                                  }
-                                },
-                                "description": "The problem's ID"
-                              },
-                              "severity": {
-                                "type": "string",
-                                "description": "The severity of the problem. ERROR will fail a build, WARNING will not."
-                              },
-                              "documentationLink": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "description": "An optional link to the documentation about this problem."
-                              }
-                            },
-                            "description": "The definition of the problem type"
-                          },
-                          "contextualLabel": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "The human-readable label of this instance of the problem"
-                          },
-                          "details": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "Detailed information about the problem"
-                          },
-                          "originLocations": {
-                            "type": "array",
-                            "items": {
-                              "anyOf": [
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "path"
-                                  ],
-                                  "properties": {
-                                    "path": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A file"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "pluginId"
-                                  ],
-                                  "properties": {
-                                    "pluginId": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A gradle plugin"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "taskPath"
-                                  ],
-                                  "properties": {
-                                    "taskPath": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A Gradle task"
-                                }
-                              ],
-                              "description": "A location of a problem within a Gradle build"
-                            },
-                            "description": "Locations this problem occurred within the build"
-                          },
-                          "contextualLocations": {
-                            "type": "array",
-                            "items": {
-                              "anyOf": [
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "path"
-                                  ],
-                                  "properties": {
-                                    "path": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A file"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "pluginId"
-                                  ],
-                                  "properties": {
-                                    "pluginId": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A gradle plugin"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "taskPath"
-                                  ],
-                                  "properties": {
-                                    "taskPath": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A Gradle task"
-                                }
-                              ],
-                              "description": "A location of a problem within a Gradle build"
-                            },
-                            "description": "Additional locations that didn't cause the problem, but are part of its context"
-                          },
-                          "solutions": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            },
-                            "description": "Provided solutions to the problem"
-                          }
-                        },
-                        "description": "A problem that occurred during a Gradle build"
-                      },
-                      "description": "Problems in the build that caused this failure"
-                    }
-                  },
-                  "description": "A failure encountered during a Gradle build or test."
-                },
-                "description": "The test's failures, if it failed"
-              }
-            }
-          },
-          "uniqueItems": true
+            "type": "string"
+          }
         },
         "failed": {
           "type": "array",
           "items": {
+            "type": "string"
+          }
+        },
+        "skipped": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "totalPassed": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "totalFailed": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "totalSkipped": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "total": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        }
+      }
+    },
+    "buildResult": {
+      "type": "object",
+      "required": [
+        "id",
+        "consoltOutput",
+        "publishedScans",
+        "wasSuccessful",
+        "testsRan",
+        "testsFailed",
+        "failureSummaries",
+        "problemsSummary"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "consoltOutput": {
+          "type": "string"
+        },
+        "publishedScans": {
+          "type": "array",
+          "items": {
             "type": "object",
             "required": [
-              "testName",
-              "output",
-              "executionDuration",
-              "failures"
+              "url",
+              "id",
+              "develocityInstance"
             ],
             "properties": {
-              "testName": {
+              "url": {
                 "type": "string",
-                "description": "The name of the test."
+                "description": "The URL of the Build Scan. Can be used to view it."
               },
-              "output": {
+              "id": {
+                "type": "string",
+                "description": "The Build Scan's ID"
+              },
+              "develocityInstance": {
+                "type": "string",
+                "description": "The URL of the Develocity instance the Build Scan is located on"
+              }
+            },
+            "description": "A reference to a Develocity Build Scan"
+          }
+        },
+        "wasSuccessful": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "testsRan": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "testsFailed": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "failureSummaries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "message",
+              "description",
+              "causes"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "The ID of a Gradle failure, used to identify the failure when looking up more information."
+              },
+              "message": {
                 "type": [
                   "string",
                   "null"
                 ],
-                "description": "Console output of the test, if it was captured."
+                "description": "A short description of the failure."
               },
-              "executionDuration": {
-                "type": "string",
-                "description": "How long the test took to execute"
-              },
-              "failures": {
+              "description": {
                 "type": [
-                  "array",
+                  "string",
                   "null"
                 ],
+                "description": "A description of the failure, with more details."
+              },
+              "causes": {
+                "type": "array",
                 "items": {
-                  "type": "object",
-                  "required": [
-                    "message",
-                    "description",
-                    "causesMessages",
-                    "problems"
-                  ],
-                  "properties": {
-                    "message": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "description": "A short message describing the failure"
-                    },
-                    "description": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "description": "A longer description of the details of the failure"
-                    },
-                    "causesMessages": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "description": "Other failures that caused this failure. Only contains the failure message, check the result for matching failures."
-                    },
-                    "problems": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "required": [
-                          "definition",
-                          "contextualLabel",
-                          "details",
-                          "originLocations",
-                          "contextualLocations",
-                          "solutions"
-                        ],
-                        "properties": {
-                          "definition": {
-                            "type": "object",
-                            "required": [
-                              "id",
-                              "severity",
-                              "documentationLink"
-                            ],
-                            "properties": {
-                              "id": {
-                                "type": "object",
-                                "required": [
-                                  "name",
-                                  "group",
-                                  "displayName"
-                                ],
-                                "properties": {
-                                  "name": {
-                                    "type": "string",
-                                    "description": "The short name of the problem"
-                                  },
-                                  "group": {
-                                    "type": "string",
-                                    "description": "The problem's group"
-                                  },
-                                  "displayName": {
-                                    "type": "string",
-                                    "description": "The display name of the problem"
-                                  }
-                                },
-                                "description": "The problem's ID"
-                              },
-                              "severity": {
-                                "type": "string",
-                                "description": "The severity of the problem. ERROR will fail a build, WARNING will not."
-                              },
-                              "documentationLink": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "description": "An optional link to the documentation about this problem."
-                              }
-                            },
-                            "description": "The definition of the problem type"
-                          },
-                          "contextualLabel": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "The human-readable label of this instance of the problem"
-                          },
-                          "details": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "description": "Detailed information about the problem"
-                          },
-                          "originLocations": {
-                            "type": "array",
-                            "items": {
-                              "anyOf": [
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "path"
-                                  ],
-                                  "properties": {
-                                    "path": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A file"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "pluginId"
-                                  ],
-                                  "properties": {
-                                    "pluginId": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A gradle plugin"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "taskPath"
-                                  ],
-                                  "properties": {
-                                    "taskPath": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A Gradle task"
-                                }
-                              ],
-                              "description": "A location of a problem within a Gradle build"
-                            },
-                            "description": "Locations this problem occurred within the build"
-                          },
-                          "contextualLocations": {
-                            "type": "array",
-                            "items": {
-                              "anyOf": [
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "path"
-                                  ],
-                                  "properties": {
-                                    "path": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A file"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "pluginId"
-                                  ],
-                                  "properties": {
-                                    "pluginId": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A gradle plugin"
-                                },
-                                {
-                                  "type": "object",
-                                  "required": [
-                                    "taskPath"
-                                  ],
-                                  "properties": {
-                                    "taskPath": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "description": "A Gradle task"
-                                }
-                              ],
-                              "description": "A location of a problem within a Gradle build"
-                            },
-                            "description": "Additional locations that didn't cause the problem, but are part of its context"
-                          },
-                          "solutions": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            },
-                            "description": "Provided solutions to the problem"
-                          }
-                        },
-                        "description": "A problem that occurred during a Gradle build"
-                      },
-                      "description": "Problems in the build that caused this failure"
-                    }
-                  },
-                  "description": "A failure encountered during a Gradle build or test."
+                  "type": "string",
+                  "description": "The ID of a Gradle failure, used to identify the failure when looking up more information."
                 },
-                "description": "The test's failures, if it failed"
+                "uniqueItems": true,
+                "description": "A set of IDs of the causes of this failure."
               }
+            },
+            "description": "A summary of a single failure. Details can be looked up using the `lookup_build_failure_details` tool."
+          },
+          "description": "Summaries of all failures encountered during the build. Does not include test failures. Details can be looked up using the `lookup_build_failure_details` tool."
+        },
+        "problemsSummary": {
+          "type": "object",
+          "required": [
+            "errorsCount",
+            "warningsCount",
+            "advicesCount",
+            "othersCount"
+          ],
+          "properties": {
+            "errorsCount": {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            },
+            "warningsCount": {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            },
+            "advicesCount": {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            },
+            "othersCount": {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
             }
           },
-          "uniqueItems": true
+          "description": "A summary of all problems encountered during the build. More information can be looked up with the `lookup_build_problems_summary` tool."
         }
       },
-      "description": "Detailed test results, if the build ran tests."
-    },
-    "failures": {
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "type": "object",
-        "required": [
-          "message",
-          "description",
-          "causesMessages",
-          "problems"
-        ],
-        "properties": {
-          "message": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "A short message describing the failure"
-          },
-          "description": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "A longer description of the details of the failure"
-          },
-          "causesMessages": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Other failures that caused this failure. Only contains the failure message, check the result for matching failures."
-          },
-          "problems": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "definition",
-                "contextualLabel",
-                "details",
-                "originLocations",
-                "contextualLocations",
-                "solutions"
-              ],
-              "properties": {
-                "definition": {
-                  "type": "object",
-                  "required": [
-                    "id",
-                    "severity",
-                    "documentationLink"
-                  ],
-                  "properties": {
-                    "id": {
-                      "type": "object",
-                      "required": [
-                        "name",
-                        "group",
-                        "displayName"
-                      ],
-                      "properties": {
-                        "name": {
-                          "type": "string",
-                          "description": "The short name of the problem"
-                        },
-                        "group": {
-                          "type": "string",
-                          "description": "The problem's group"
-                        },
-                        "displayName": {
-                          "type": "string",
-                          "description": "The display name of the problem"
-                        }
-                      },
-                      "description": "The problem's ID"
-                    },
-                    "severity": {
-                      "type": "string",
-                      "description": "The severity of the problem. ERROR will fail a build, WARNING will not."
-                    },
-                    "documentationLink": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "description": "An optional link to the documentation about this problem."
-                    }
-                  },
-                  "description": "The definition of the problem type"
-                },
-                "contextualLabel": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "description": "The human-readable label of this instance of the problem"
-                },
-                "details": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "description": "Detailed information about the problem"
-                },
-                "originLocations": {
-                  "type": "array",
-                  "items": {
-                    "anyOf": [
-                      {
-                        "type": "object",
-                        "required": [
-                          "path"
-                        ],
-                        "properties": {
-                          "path": {
-                            "type": "string"
-                          }
-                        },
-                        "description": "A file"
-                      },
-                      {
-                        "type": "object",
-                        "required": [
-                          "pluginId"
-                        ],
-                        "properties": {
-                          "pluginId": {
-                            "type": "string"
-                          }
-                        },
-                        "description": "A gradle plugin"
-                      },
-                      {
-                        "type": "object",
-                        "required": [
-                          "taskPath"
-                        ],
-                        "properties": {
-                          "taskPath": {
-                            "type": "string"
-                          }
-                        },
-                        "description": "A Gradle task"
-                      }
-                    ],
-                    "description": "A location of a problem within a Gradle build"
-                  },
-                  "description": "Locations this problem occurred within the build"
-                },
-                "contextualLocations": {
-                  "type": "array",
-                  "items": {
-                    "anyOf": [
-                      {
-                        "type": "object",
-                        "required": [
-                          "path"
-                        ],
-                        "properties": {
-                          "path": {
-                            "type": "string"
-                          }
-                        },
-                        "description": "A file"
-                      },
-                      {
-                        "type": "object",
-                        "required": [
-                          "pluginId"
-                        ],
-                        "properties": {
-                          "pluginId": {
-                            "type": "string"
-                          }
-                        },
-                        "description": "A gradle plugin"
-                      },
-                      {
-                        "type": "object",
-                        "required": [
-                          "taskPath"
-                        ],
-                        "properties": {
-                          "taskPath": {
-                            "type": "string"
-                          }
-                        },
-                        "description": "A Gradle task"
-                      }
-                    ],
-                    "description": "A location of a problem within a Gradle build"
-                  },
-                  "description": "Additional locations that didn't cause the problem, but are part of its context"
-                },
-                "solutions": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
-                  "description": "Provided solutions to the problem"
-                }
-              },
-              "description": "A problem that occurred during a Gradle build"
-            },
-            "description": "Problems in the build that caused this failure"
-          }
-        },
-        "description": "A failure encountered during a Gradle build or test."
-      },
-      "description": "The failures reported by the build, if it failed. Includes the failures of test tasks if tests failed."
-    },
-    "isSuccessful": {
-      "type": "boolean",
-      "description": "True if the build was a success, false if it was a failure"
+      "description": "A summary of the results of a Gradle build. More details can be obtained by using `lookup_build_*` tools or a Develocity Build Scan. Prefer build scans when possible."
     }
   },
   "required": [
-    "output",
-    "publishedScans",
-    "testResults",
-    "failures"
+    "testsSummary",
+    "buildResult"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
+### run_many_test_tasks
+
+Runs may test tasks, each with their own test filters. To run a single test task, use the `run_test_task` tool.
+The console output is included in the result. Show this to the user, as if they had ran the command themselves.
+Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues and test failures, using something like the Develocity MCP server.
+The `tests` parameter is REQUIRED, and is simply a map (i.e. JSON object) of each test task to run (e.g. `:test`, `:project-a:sub-b:test`), to the test patterns for the tests to run for that task (e.g. `com.example.*`, `*MyTest*`).  
+The typical test task is `:test`.  At least one task is required. A task with no patterns will run all tests.
+
+<details>
+
+<summary>Input schema</summary>
+
+
+```json
+{
+  "properties": {
+    "projectRoot": {
+      "type": "string",
+      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal."
+    },
+    "testsExecutions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "A pattern to select tests. This is a prefix of the test class or method's fully qualified name. '*' wildcards are supported. Test classes may omit the package, e.g. `SomeClass` or `SomeClass.someMethod`. A filter of '*' will select all tests.",
+          "examples": [
+            "com.example.MyTestClass",
+            "com.example.MyTestClass.myTestMethod",
+            "com.example.http.*",
+            "com.example.MyTestClass.myTestMethod",
+            "MyTestClass",
+            "MyTestClass.myTestMethod",
+            "*IntegTest)"
+          ]
+        },
+        "uniqueItems": true
+      },
+      "description": "A map (i.e. JSON object) of each absolute task paths of the test tasks to run (e.g. `:test`, `:project-a:sub-b:test`) to the test patterns for the tests to run for that task (e.g. `com.example.*`, `*MyTest*`).  The typical test task is `:test`.  At least one task is required. A task with no patterns will run all tests in that task."
+    },
+    "scan": {
+      "type": "boolean",
+      "description": "Whether to run with the --scan argument to publish a build scan. Requires a configured Develocity instance. Publishing a scan and using it to diagnose issues (e.g. using the Develocity MCP server) is recommended over `includeFailureInformation` when possible. Defaults to false."
+    },
+    "invocationArguments": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "additionalEnvVars": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Additional environment variables to set for the Gradle process. Optional."
+        },
+        "additionalSystemProps": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Additional system properties to set for the Gradle process. Optional."
+        },
+        "additionalJvmArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional JVM arguments to set for the Gradle process. Optional."
+        },
+        "additionalArguments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional arguments for the Gradle process. Optional."
+        },
+        "publishScan": {
+          "type": "boolean",
+          "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
+        }
+      },
+      "description": "Additional arguments to configure the Gradle process."
+    }
+  },
+  "required": [
+    "projectRoot",
+    "testsExecutions"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
+
+<details>
+
+<summary>Output schema</summary>
+
+
+```json
+{
+  "properties": {
+    "testsSummary": {
+      "type": "object",
+      "required": [
+        "passed",
+        "failed",
+        "skipped"
+      ],
+      "properties": {
+        "passed": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "failed": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "skipped": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "totalPassed": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "totalFailed": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "totalSkipped": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "total": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        }
+      }
+    },
+    "buildResult": {
+      "type": "object",
+      "required": [
+        "id",
+        "consoltOutput",
+        "publishedScans",
+        "wasSuccessful",
+        "testsRan",
+        "testsFailed",
+        "failureSummaries",
+        "problemsSummary"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "consoltOutput": {
+          "type": "string"
+        },
+        "publishedScans": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "url",
+              "id",
+              "develocityInstance"
+            ],
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The URL of the Build Scan. Can be used to view it."
+              },
+              "id": {
+                "type": "string",
+                "description": "The Build Scan's ID"
+              },
+              "develocityInstance": {
+                "type": "string",
+                "description": "The URL of the Develocity instance the Build Scan is located on"
+              }
+            },
+            "description": "A reference to a Develocity Build Scan"
+          }
+        },
+        "wasSuccessful": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "testsRan": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "testsFailed": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "failureSummaries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "message",
+              "description",
+              "causes"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "The ID of a Gradle failure, used to identify the failure when looking up more information."
+              },
+              "message": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "A short description of the failure."
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "A description of the failure, with more details."
+              },
+              "causes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "description": "The ID of a Gradle failure, used to identify the failure when looking up more information."
+                },
+                "uniqueItems": true,
+                "description": "A set of IDs of the causes of this failure."
+              }
+            },
+            "description": "A summary of a single failure. Details can be looked up using the `lookup_build_failure_details` tool."
+          },
+          "description": "Summaries of all failures encountered during the build. Does not include test failures. Details can be looked up using the `lookup_build_failure_details` tool."
+        },
+        "problemsSummary": {
+          "type": "object",
+          "required": [
+            "errorsCount",
+            "warningsCount",
+            "advicesCount",
+            "othersCount"
+          ],
+          "properties": {
+            "errorsCount": {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            },
+            "warningsCount": {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            },
+            "advicesCount": {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            },
+            "othersCount": {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            }
+          },
+          "description": "A summary of all problems encountered during the build. More information can be looked up with the `lookup_build_problems_summary` tool."
+        }
+      },
+      "description": "A summary of the results of a Gradle build. More details can be obtained by using `lookup_build_*` tools or a Develocity Build Scan. Prefer build scans when possible."
+    }
+  },
+  "required": [
+    "testsSummary",
+    "buildResult"
   ],
   "type": "object"
 }
@@ -3169,12 +1741,6 @@ WARNING: The response can be quite large. Prefer specifying a configuration and/
         "publishScan": {
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
-        },
-        "allAdditionalArguments": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -3268,12 +1834,6 @@ The configuration.  Works by executing the `dependencyInsight` task of the given
         "publishScan": {
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
-        },
-        "allAdditionalArguments": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -3352,12 +1912,6 @@ Gets the Gradle build dependencies of a Gradle project, as well as some informat
         "publishScan": {
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
-        },
-        "allAdditionalArguments": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -3434,12 +1988,6 @@ Gets all resolvable configurations of a Gradle project.  Works by executing the 
         "publishScan": {
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
-        },
-        "allAdditionalArguments": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -3516,12 +2064,6 @@ Gets all available Java/JVM toolchains for a Gradle project. Also includes wheth
         "publishScan": {
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
-        },
-        "allAdditionalArguments": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -3598,12 +2140,6 @@ Gets all properties of a Gradle project. WARNING: may return sensitive informati
         "publishScan": {
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
-        },
-        "allAdditionalArguments": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -3680,12 +2216,6 @@ Gets all artifact transforms of a Gradle project.  Works by executing the `artif
         "publishScan": {
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
-        },
-        "allAdditionalArguments": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -3762,12 +2292,6 @@ Gets all outgoing variants of a Gradle project. These are configurations that ma
         "publishScan": {
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
-        },
-        "allAdditionalArguments": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       },
       "description": "Additional arguments to configure the Gradle process."
