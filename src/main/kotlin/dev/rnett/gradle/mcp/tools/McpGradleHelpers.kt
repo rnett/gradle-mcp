@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.tools
 
 import dev.rnett.gradle.mcp.gradle.BuildResult
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
+import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleResult
 import dev.rnett.gradle.mcp.mcp.McpContext

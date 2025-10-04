@@ -106,7 +106,7 @@ data class BuildResult(
             buildId: BuildId,
             console: String,
             scans: List<GradleBuildScan>,
-            testResults: GradleProvider.TestCollector.Results,
+            testResults: DefaultGradleProvider.TestCollector.Results,
             problems: List<ProblemAggregation>,
             exception: GradleConnectionException?
         ): BuildResult {
@@ -145,7 +145,7 @@ data class BuildResult(
         }
 
 
-        private fun GradleProvider.TestCollector.Result.toModel(indexer: FailureIndexer): BuildResult.TestResult {
+        private fun DefaultGradleProvider.TestCollector.Result.toModel(indexer: FailureIndexer): BuildResult.TestResult {
             return BuildResult.TestResult(
                 testName,
                 output,

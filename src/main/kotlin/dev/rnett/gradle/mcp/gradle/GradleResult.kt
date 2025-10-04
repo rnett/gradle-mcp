@@ -12,7 +12,7 @@ data class GradleResult<out T>(
             console: String,
             scans: List<GradleBuildScan>,
             problems: List<ProblemAggregation>,
-            results: GradleProvider.TestCollector.Results,
+            results: DefaultGradleProvider.TestCollector.Results,
             exception: GradleConnectionException?,
             outcome: Result<T>
         ): GradleResult<T> {

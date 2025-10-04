@@ -51,11 +51,44 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 import kotlin.time.toJavaDuration
 
-class GradleProvider(
+interface GradleProvider {
+
+    suspend fun <T : Model> getBuildModel(
+        projectRoot: GradleProjectRoot,
+        kClass: KClass<T>,
+        args: GradleInvocationArguments,
+        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
+        additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
+        stdoutLineHandler: ((String) -> Unit)? = null,
+        stderrLineHandler: ((String) -> Unit)? = null,
+        requiresGradleProject: Boolean = true
+    ): GradleResult<T>
+
+    suspend fun runBuild(
+        projectRoot: GradleProjectRoot,
+        args: GradleInvocationArguments,
+        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
+        additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
+        stdoutLineHandler: ((String) -> Unit)? = null,
+        stderrLineHandler: ((String) -> Unit)? = null,
+    ): GradleResult<Unit>
+
+    suspend fun runTests(
+        projectRoot: GradleProjectRoot,
+        testPatterns: Map<String, Set<String>>,
+        args: GradleInvocationArguments,
+        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
+        additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
+        stdoutLineHandler: ((String) -> Unit)? = null,
+        stderrLineHandler: ((String) -> Unit)? = null,
+    ): GradleResult<Unit>
+}
+
+class DefaultGradleProvider(
     val config: GradleConfiguration
-) {
+): GradleProvider {
     companion object {
-        private val LOGGER = LoggerFactory.getLogger(GradleProvider::class.java)
+        private val LOGGER = LoggerFactory.getLogger(DefaultGradleProvider::class.java)
     }
 
     private val connectionCache = Caffeine.newBuilder()
@@ -301,15 +334,15 @@ class GradleProvider(
     }
 
     @OptIn(ExperimentalTime::class)
-    suspend fun <T : Model> getBuildModel(
+    override suspend fun <T : Model> getBuildModel(
         projectRoot: GradleProjectRoot,
         kClass: KClass<T>,
         args: GradleInvocationArguments,
         tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
-        additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
-        stdoutLineHandler: ((String) -> Unit)? = null,
-        stderrLineHandler: ((String) -> Unit)? = null,
-        requiresGradleProject: Boolean = true
+        additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
+        stdoutLineHandler: ((String) -> Unit)?,
+        stderrLineHandler: ((String) -> Unit)?,
+        requiresGradleProject: Boolean
     ): GradleResult<T> {
         val connection = validateAndGetConnection(projectRoot, requiresGradleProject)
         val builder = connection.model(kClass.java)
@@ -327,13 +360,13 @@ class GradleProvider(
 
 
     @OptIn(ExperimentalTime::class)
-    suspend fun runBuild(
+    override suspend fun runBuild(
         projectRoot: GradleProjectRoot,
         args: GradleInvocationArguments,
         tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
-        additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
-        stdoutLineHandler: ((String) -> Unit)? = null,
-        stderrLineHandler: ((String) -> Unit)? = null,
+        additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
+        stdoutLineHandler: ((String) -> Unit)?,
+        stderrLineHandler: ((String) -> Unit)?,
     ): GradleResult<Unit> {
         val connection = validateAndGetConnection(projectRoot)
         val builder = connection.newBuild()
@@ -353,14 +386,14 @@ class GradleProvider(
      * [testPatterns] is a map of task path -> test patterns
      */
     @OptIn(ExperimentalTime::class)
-    suspend fun runTests(
+    override suspend fun runTests(
         projectRoot: GradleProjectRoot,
         testPatterns: Map<String, Set<String>>,
         args: GradleInvocationArguments,
         tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
-        additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
-        stdoutLineHandler: ((String) -> Unit)? = null,
-        stderrLineHandler: ((String) -> Unit)? = null,
+        additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
+        stdoutLineHandler: ((String) -> Unit)?,
+        stderrLineHandler: ((String) -> Unit)?,
     ): GradleResult<Unit> {
         val connection = validateAndGetConnection(projectRoot)
         val builder = connection.newTestLauncher()

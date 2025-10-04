@@ -1,6 +1,9 @@
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kotlin.power.assert)
     alias(libs.plugins.ktor)
     `maven-publish`
     alias(libs.plugins.buildconfig)
@@ -62,6 +65,10 @@ dependencies {
     implementation(libs.logback.classic)
 
     testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.kotest.assertions.core)
+    testImplementation(libs.kotest.runner.junit5)
 }
 
 ktor {
@@ -77,6 +84,27 @@ kotlin {
             "-Xcontext-parameters"
         )
     }
+}
+
+@OptIn(ExperimentalKotlinGradlePluginApi::class)
+powerAssert {
+    functions = listOf(
+        "kotlin.assert",
+        // kotlin.test
+        "kotlin.test.assertTrue",
+        "kotlin.test.assertEquals",
+        "kotlin.test.assertNotEquals",
+        "kotlin.test.assertNull",
+        "kotlin.test.assertNotNull",
+        "kotlin.test.assertFails",
+        "kotlin.test.assertFailsWith",
+        "kotlin.test.assertContains",
+        "kotlin.test.assertContentEquals",
+        "kotlin.test.assertIs",
+        "kotlin.test.assertIsNot",
+        "kotlin.test.assertSame",
+        "kotlin.test.assertNotSame",
+    )
 }
 
 tasks.test {

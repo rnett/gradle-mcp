@@ -1,7 +1,7 @@
 package dev.rnett.gradle.mcp
 
 import dev.rnett.gradle.mcp.gradle.GradleConfiguration
-import dev.rnett.gradle.mcp.gradle.GradleProvider
+import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.mcp.McpServer
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.mcp.add
@@ -44,7 +44,7 @@ class Application(val args: Array<String>) {
 
     val gradleConfig = appConfig.property("gradle").getAs<GradleConfiguration>()
 
-    val provider = GradleProvider(gradleConfig)
+    val provider = DefaultGradleProvider(gradleConfig)
 
     val components: List<McpServerComponent> = listOf(
         RelatedTools(),
