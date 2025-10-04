@@ -1156,7 +1156,7 @@ Can publish a Develocity Build Scan if requested. This is the preferred way to d
 
 </details>
 
-### run_tests
+### run_tests_with_gradle
 
 Runs a single test task, with an option to filter which tests to run.
 The console output is included in the result. Show this to the user, as if they had ran the command themselves.
@@ -1559,7 +1559,7 @@ If there are more than 1000 tests, the results will be truncated.  Use `lookup_b
 
 </details>
 
-### run_many_test_tasks
+### run_many_test_tasks_with_gradle
 
 Runs may test tasks, each with their own test filters. To run a single test task, use the `run_test_task` tool.
 Note that the test tasks passed must be absolute paths (i.e. including the project paths).

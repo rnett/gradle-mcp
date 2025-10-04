@@ -86,7 +86,7 @@ class GradleExecutionTools(
 
     @OptIn(ExperimentalTime::class)
     val runSingleTest by tool<ExecuteSingleTestArgs, TestResultOutput>(
-        "run_tests",
+        "run_tests_with_gradle",
         """
             |Runs a single test task, with an option to filter which tests to run.
             |The console output is included in the result. Show this to the user, as if they had ran the command themselves.
@@ -121,7 +121,7 @@ class GradleExecutionTools(
 
     @OptIn(ExperimentalTime::class)
     val runTests by tool<ExecuteManyTestsArgs, TestResultOutput>(
-        "run_many_test_tasks",
+        "run_many_test_tasks_with_gradle",
         """
             |Runs may test tasks, each with their own test filters. To run a single test task, use the `run_test_task` tool.
             |Note that the test tasks passed must be absolute paths (i.e. including the project paths).
