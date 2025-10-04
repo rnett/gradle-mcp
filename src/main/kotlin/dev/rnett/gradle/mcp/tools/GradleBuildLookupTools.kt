@@ -137,7 +137,7 @@ class GradleBuildLookupTools : McpServerComponent() {
     ) {
         val build = BuildResults.require(it.buildId)
         val testResults = build.testResults
-        testResults.toSummary()
+        testResults.toSummary(null)
     }
 
     val lookupBuildSummary by tool<BuildIdArgs, BuildResultSummary>(

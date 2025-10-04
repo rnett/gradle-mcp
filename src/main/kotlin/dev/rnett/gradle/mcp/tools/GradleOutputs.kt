@@ -69,22 +69,44 @@ fun Map<ProblemSeverity, List<ProblemAggregation>>.toSummary(): ProblemsSummary 
     )
 }
 
-fun BuildResult.TestResults.toSummary() = TestResultsSummary(
+fun BuildResult.TestResults.toSummary(maxResults: Int?) = TestResultsSummary(
     passed.map { it.testName },
     failed.map { it.testName },
-    skipped.map { it.testName }
-)
+    skipped.map { it.testName },
+    passed.size,
+    failed.size,
+    skipped.size,
+).truncate(maxResults)
 
 @Serializable
 data class TestResultsSummary(
-    val passed: List<String>,
-    val failed: List<String>,
-    val skipped: List<String>
+    val passed: List<String>?,
+    val failed: List<String>?,
+    val skipped: List<String>?,
+    val totalPassed: Int,
+    val totalFailed: Int,
+    val totalSkipped: Int,
 ) {
 
-    val totalPassed: Int = passed.size
-    val totalFailed: Int = failed.size
-    val totalSkipped: Int = skipped.size
+    fun truncate(maxResults: Int?): TestResultsSummary {
+        if (maxResults == null) return this
+        var taken = 0
+
+        val failed = this.failed?.take(maxResults - taken)?.also { taken += it.size }?.takeIf { it.size == this.failed.size }
+            ?: return TestResultsSummary(null, null, null, totalPassed, totalFailed, totalSkipped)
+
+        val skipped = this.skipped?.take(maxResults - taken)?.also { taken += it.size }?.takeIf { it.size == this.skipped.size }
+            ?: return TestResultsSummary(null, failed, null, totalPassed, totalFailed, totalSkipped)
+
+        val passed = this.passed?.take(maxResults - taken)?.also { taken += it.size }?.takeIf { it.size == this.passed.size }
+            ?: return TestResultsSummary(null, failed, skipped, totalPassed, totalFailed, totalSkipped)
+
+        return TestResultsSummary(passed, failed, skipped, totalPassed, totalFailed, totalSkipped)
+
+    }
+
+    val wasTruncated: Boolean = passed == null || failed == null || skipped == null
+
     val total: Int = totalPassed + totalFailed + totalSkipped
 }
 

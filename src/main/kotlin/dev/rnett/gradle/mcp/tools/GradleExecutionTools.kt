@@ -73,25 +73,27 @@ class GradleExecutionTools(
         val invocationArguments: GradleInvocationArguments = GradleInvocationArguments.DEFAULT
     )
 
+    //TODO may need to truncate even the test name list in this.
     @Serializable
     data class TestResultOutput(
         val testsSummary: TestResultsSummary,
         val buildResult: BuildResultSummary
     )
 
-    private fun BuildResult.toTestResultOutput() = TestResultOutput(
-        this.testResults?.toSummary() ?: error("No tests were ran"),
+    private fun BuildResult.toTestResultOutput(maxResults: Int = 1000) = TestResultOutput(
+        this.testResults.toSummary(maxResults),
         this.toSummary()
     )
 
     @OptIn(ExperimentalTime::class)
     val runSingleTest by tool<ExecuteSingleTestArgs, TestResultOutput>(
-        "run_test_task",
+        "run_tests",
         """
             |Runs a single test task, with an option to filter which tests to run.
             |The console output is included in the result. Show this to the user, as if they had ran the command themselves.
             |Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues and test failures, using something like the Develocity MCP server.
             |The typical test task is `test`.  At least one task is required. A task with no patterns will run all tests.
+            |If there are more than 1000 tests, the results will be truncated.  Use `lookup_build_tests_summary` or `lookup_build_test_details` to get the results you care about.
         """.trimMargin(),
     ) {
         val result = gradle.doTests(
@@ -128,6 +130,7 @@ class GradleExecutionTools(
             |Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues and test failures, using something like the Develocity MCP server.
             |The `tests` parameter is REQUIRED, and is simply a map (i.e. JSON object) of each test task to run (e.g. `:test`, `:project-a:sub-b:test`), to the test patterns for the tests to run for that task (e.g. `com.example.*`, `*MyTest*`).  
             |The typical test task is `:test`.  At least one task is required. A task with no patterns will run all tests.
+            |If there are more than 1000 tests, the results will be truncated.  Use `lookup_build_tests_summary` or `lookup_build_test_details` to get the results you care about.
         """.trimMargin(),
     ) {
         if (it.testsExecutions.isEmpty()) {
