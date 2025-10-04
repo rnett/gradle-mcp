@@ -3,7 +3,6 @@ package dev.rnett.gradle.mcp.tools
 import dev.rnett.gradle.mcp.gradle.BuildResult
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleResult
-import dev.rnett.gradle.mcp.gradle.GradleScanTosAcceptRequest
 import dev.rnett.gradle.mcp.mcp.McpContext
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import io.github.smiley4.schemakenerator.core.annotations.Example
@@ -81,12 +80,6 @@ value class GradleProjectPath(private val projectPath: String) {
     }
 }
 
-//TODO have a "remember acceptance" option?
-@PublishedApi
-context(ctx: McpContext)
-internal suspend fun askForScansTos(tosAcceptRequest: GradleScanTosAcceptRequest): Boolean {
-    return ctx.elicitUnit(tosAcceptRequest.fullMessage, GradleScanTosAcceptRequest.TIMEOUT).isAccepted
-}
 
 context(ctx: McpContext)
 suspend inline fun <reified T : Model> GradleProvider.getBuildModel(
@@ -98,7 +91,7 @@ suspend inline fun <reified T : Model> GradleProvider.getBuildModel(
         projectRoot,
         T::class,
         invocationArgs,
-        { askForScansTos(it) },
+        { ScansTosManager.askForScansTos(projectRoot, it) },
         stdoutLineHandler = {
             ctx.emitLoggingNotification("gradle-build", LoggingLevel.notice, it)
             ctx.emitProgressNotification(0.0, 0.0, it)
@@ -117,7 +110,7 @@ suspend inline fun GradleProvider.doBuild(
     return runBuild(
         projectRoot,
         invocationArgs,
-        { askForScansTos(it) },
+        { ScansTosManager.askForScansTos(projectRoot, it) },
         stdoutLineHandler = {
             ctx.emitLoggingNotification("gradle-build", LoggingLevel.notice, it)
             ctx.emitProgressNotification(0.0, 0.0, it)
@@ -138,7 +131,7 @@ suspend inline fun GradleProvider.doTests(
         projectRoot,
         testPatterns,
         invocationArgs,
-        { askForScansTos(it) },
+        { ScansTosManager.askForScansTos(projectRoot, it) },
         stdoutLineHandler = {
             ctx.emitLoggingNotification("gradle-build", LoggingLevel.notice, it)
             ctx.emitProgressNotification(0.0, 0.0, it)
