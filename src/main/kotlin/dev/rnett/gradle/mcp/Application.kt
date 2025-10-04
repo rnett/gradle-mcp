@@ -1,7 +1,8 @@
 package dev.rnett.gradle.mcp
 
-import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
+import dev.rnett.gradle.mcp.gradle.GradleConfiguration
+import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.mcp.McpServer
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.mcp.add
@@ -33,49 +34,18 @@ class Application(val args: Array<String>) {
 
     private val config = CommandLineConfig(args)
 
-    private val json = Json {
-        isLenient = true
-        coerceInputValues = true
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-    }
-
     val appConfig = config.rootConfig.environment.config
 
     val gradleConfig = appConfig.property("gradle").getAs<GradleConfiguration>()
 
     val provider = DefaultGradleProvider(gradleConfig)
 
-    val components: List<McpServerComponent> = listOf(
-        RelatedTools(),
-        GradleIntrospectionTools(provider),
-        GradleExecutionTools(provider),
-        GradleTaskWrapperTools(provider),
-        GradleBuildLookupTools(),
-    )
-
-    fun createServer(): McpServer {
-        return McpServer(
-            Implementation("gradle-mcp", BuildConfig.APP_VERSION),
-            ServerOptions(
-                ServerCapabilities(
-                    logging = EmptyJsonObject,
-                    tools = ServerCapabilities.Tools(false)
-                ),
-                enforceStrictCapabilities = false
-            ),
-            json
-        ).apply {
-            components.forEach { add(it) }
-        }
-    }
-
     fun startStdio() = runBlocking {
         val transport = StdioServerTransport(
             System.`in`.asSource().buffered(),
             System.out.asSink().buffered()
         )
-        createServer().apply {
+        createServer(provider).apply {
             connect(transport)
             suspendCoroutine {
                 onClose { it.resume(Unit) }
@@ -91,7 +61,7 @@ class Application(val args: Array<String>) {
             }
 
             mcp {
-                createServer()
+                createServer(provider)
             }
         }
 
@@ -99,6 +69,39 @@ class Application(val args: Array<String>) {
     }
 
     companion object {
+
+        private val json = Json {
+            isLenient = true
+            coerceInputValues = true
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+        }
+
+        fun components(provider: GradleProvider): List<McpServerComponent> = listOf(
+            RelatedTools(),
+            GradleIntrospectionTools(provider),
+            GradleExecutionTools(provider),
+            GradleTaskWrapperTools(provider),
+            GradleBuildLookupTools(),
+        )
+
+        fun createServer(provider: GradleProvider): McpServer {
+            return McpServer(
+                Implementation("gradle-mcp", BuildConfig.APP_VERSION),
+                ServerOptions(
+                    ServerCapabilities(
+                        logging = EmptyJsonObject,
+                        tools = ServerCapabilities.Tools(false)
+                    ),
+                    enforceStrictCapabilities = false
+                ),
+                json
+            ).apply {
+                components(provider).forEach { add(it) }
+            }
+        }
+
+
         @JvmStatic
         fun stdio(args: Array<String>) {
             System.err.println("Starting Gradle MCP server with STDIO transport...")

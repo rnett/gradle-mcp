@@ -38,7 +38,43 @@ object UpdateTools {
         val file = args.getOrNull(0)
         val verify = args.contains("--verify")
 
-        val server = Application(args).createServer()
+        val server = Application.createServer(object : dev.rnett.gradle.mcp.gradle.GradleProvider {
+            override suspend fun <T : org.gradle.tooling.model.Model> getBuildModel(
+                projectRoot: dev.rnett.gradle.mcp.gradle.GradleProjectRoot,
+                kClass: kotlin.reflect.KClass<T>,
+                args: dev.rnett.gradle.mcp.gradle.GradleInvocationArguments,
+                tosAccepter: suspend (dev.rnett.gradle.mcp.gradle.GradleScanTosAcceptRequest) -> Boolean,
+                additionalProgressListeners: Map<org.gradle.tooling.events.ProgressListener, Set<org.gradle.tooling.events.OperationType>>,
+                stdoutLineHandler: ((String) -> Unit)?,
+                stderrLineHandler: ((String) -> Unit)?,
+                requiresGradleProject: Boolean
+            ): dev.rnett.gradle.mcp.gradle.GradleResult<T> {
+                throw UnsupportedOperationException("Not used for tool listing")
+            }
+
+            override suspend fun runBuild(
+                projectRoot: dev.rnett.gradle.mcp.gradle.GradleProjectRoot,
+                args: dev.rnett.gradle.mcp.gradle.GradleInvocationArguments,
+                tosAccepter: suspend (dev.rnett.gradle.mcp.gradle.GradleScanTosAcceptRequest) -> Boolean,
+                additionalProgressListeners: Map<org.gradle.tooling.events.ProgressListener, Set<org.gradle.tooling.events.OperationType>>,
+                stdoutLineHandler: ((String) -> Unit)?,
+                stderrLineHandler: ((String) -> Unit)?,
+            ): dev.rnett.gradle.mcp.gradle.GradleResult<Unit> {
+                throw UnsupportedOperationException("Not used for tool listing")
+            }
+
+            override suspend fun runTests(
+                projectRoot: dev.rnett.gradle.mcp.gradle.GradleProjectRoot,
+                testPatterns: Map<String, Set<String>>,
+                args: dev.rnett.gradle.mcp.gradle.GradleInvocationArguments,
+                tosAccepter: suspend (dev.rnett.gradle.mcp.gradle.GradleScanTosAcceptRequest) -> Boolean,
+                additionalProgressListeners: Map<org.gradle.tooling.events.ProgressListener, Set<org.gradle.tooling.events.OperationType>>,
+                stdoutLineHandler: ((String) -> Unit)?,
+                stderrLineHandler: ((String) -> Unit)?,
+            ): dev.rnett.gradle.mcp.gradle.GradleResult<Unit> {
+                throw UnsupportedOperationException("Not used for tool listing")
+            }
+        })
 
         val text = buildString {
             server.tools.forEach {

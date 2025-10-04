@@ -67,8 +67,7 @@ dependencies {
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.junit.jupiter)
-    testImplementation(libs.kotest.assertions.core)
-    testImplementation(libs.kotest.runner.junit5)
+    testImplementation(libs.mockk)
 }
 
 ktor {

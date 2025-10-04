@@ -49,11 +49,6 @@ class McpServer(
                 updateRootsList()
             }
         }
-        onInitialized {
-            scope.launch {
-                updateRootsList()
-            }
-        }
         onClose {
             scope.cancel("Server closing")
         }
