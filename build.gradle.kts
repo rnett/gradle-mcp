@@ -108,6 +108,8 @@ powerAssert {
 
 tasks.test {
     useJUnitPlatform()
+    systemProperty("junit.jupiter.execution.parallel.enabled", "true")
+    systemProperty("junit.jupiter.execution.parallel.mode.classes.default", "concurrent")
 }
 
 tasks.named<UpdateDaemonJvm>("updateDaemonJvm") {
