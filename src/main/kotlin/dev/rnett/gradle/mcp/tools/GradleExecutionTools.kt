@@ -100,8 +100,6 @@ class GradleExecutionTools(
             GradleInvocationArguments(publishScan = it.scan) + it.invocationArguments
         )
 
-        addAdditionalContent(TextContent(result.consoleOutput, Annotations(listOf(Role.user), null, 1.0)))
-
         if (!result.isSuccessful) {
             isError = true
         }
@@ -141,8 +139,6 @@ class GradleExecutionTools(
             it.testsExecutions.mapValues { it.value.map { it.pattern }.toSet().ifEmpty { setOf("*") } },
             GradleInvocationArguments(publishScan = it.scan) + it.invocationArguments,
         )
-
-        addAdditionalContent(TextContent(result.consoleOutput, Annotations(listOf(Role.user), null, 1.0)))
 
         if (!result.isSuccessful) {
             isError = true
