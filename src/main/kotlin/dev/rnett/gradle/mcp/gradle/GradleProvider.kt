@@ -177,7 +177,7 @@ class GradleProvider(
             setEnvironmentVariables(System.getenv() + args.additionalEnvVars)
             @Suppress("UNCHECKED_CAST")
             withSystemProperties((System.getProperties().toMap() as Map<String, String>) + args.additionalSystemProps)
-            addJvmArguments(args.additionalJvmArgs)
+            addJvmArguments(args.additionalJvmArgs + "-Dscan.tag.MCP")
             withDetailedFailure()
             withArguments(args.allAdditionalArguments)
             setColorOutput(false)
