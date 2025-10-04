@@ -1,13 +1,12 @@
 package dev.rnett.gradle.mcp.tools
 
 import dev.rnett.gradle.mcp.gradle.BuildResult
+import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
+import dev.rnett.gradle.mcp.gradle.GradleProjectPath
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import io.github.smiley4.schemakenerator.core.annotations.Example
-import io.modelcontextprotocol.kotlin.sdk.Annotations
-import io.modelcontextprotocol.kotlin.sdk.Role
-import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.serialization.Serializable
 import kotlin.time.ExperimentalTime
 
@@ -16,7 +15,7 @@ class GradleExecutionTools(
 ) : McpServerComponent() {
     @Serializable
     data class ExecuteCommandArgs(
-        val projectRoot: GradleProjectRoot,
+        val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
         @Description("The Gradle command to run. Will be ran as if it had been passed directly to './gradlew'")
         val commandLine: List<String>,
         @Description("Whether to run with the --scan argument to publish a build scan. Requires a configured Develocity instance. Publishing a scan and using it to diagnose issues (e.g. using the Develocity MCP server) is recommended over `includeFailureInformation` when possible. Defaults to false.")
@@ -62,7 +61,7 @@ class GradleExecutionTools(
 
     @Serializable
     data class ExecuteSingleTestArgs(
-        val projectRoot: GradleProjectRoot,
+        val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
         val projectPath: GradleProjectPath = GradleProjectPath.DEFAULT,
         @Description("The Gradle task to run. REAUIRED. Must be a test task. The usual test task is `test`, but THIS IS NOT USED AS A DEFAULT AND MUST BE SPECIFIED.")
         val taskName: String,
@@ -112,7 +111,7 @@ class GradleExecutionTools(
 
     @Serializable
     data class ExecuteManyTestsArgs(
-        val projectRoot: GradleProjectRoot,
+        val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
         @Description("A map (i.e. JSON object) of each absolute task paths of the test tasks to run (e.g. `:test`, `:project-a:sub-b:test`) to the test patterns for the tests to run for that task (e.g. `com.example.*`, `*MyTest*`).  The typical test task is `:test`.  At least one task is required. A task with no patterns will run all tests in that task.")
         val testsExecutions: Map<String, Set<TestPattern>>,
         @Description("Whether to run with the --scan argument to publish a build scan. Requires a configured Develocity instance. Publishing a scan and using it to diagnose issues (e.g. using the Develocity MCP server) is recommended over `includeFailureInformation` when possible. Defaults to false.")

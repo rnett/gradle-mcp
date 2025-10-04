@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.tools
 
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.Expiry
+import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.GradleScanTosAcceptRequest
 import dev.rnett.gradle.mcp.mcp.ElicitationResult
 import dev.rnett.gradle.mcp.mcp.McpContext

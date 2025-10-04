@@ -178,7 +178,7 @@ Get the environment used to execute Gradle for the given project, including the 
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal."
+      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
     },
     "invocationArgs": {
       "type": "object",
@@ -220,9 +220,7 @@ Get the environment used to execute Gradle for the given project, including the 
       "description": "Additional arguments to configure the Gradle process."
     }
   },
-  "required": [
-    "projectRoot"
-  ],
+  "required": [],
   "type": "object"
 }
 ```
@@ -312,7 +310,7 @@ Describes a Gradle project or subproject. Includes the tasks and child projects.
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal."
+      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
     },
     "projectPath": {
       "type": "string",
@@ -363,9 +361,7 @@ Describes a Gradle project or subproject. Includes the tasks and child projects.
       "description": "Additional arguments to configure the Gradle process."
     }
   },
-  "required": [
-    "projectRoot"
-  ],
+  "required": [],
   "type": "object"
 }
 ```
@@ -484,7 +480,7 @@ Gets the included builds of a Gradle project.
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal."
+      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
     },
     "invocationArgs": {
       "type": "object",
@@ -526,9 +522,7 @@ Gets the included builds of a Gradle project.
       "description": "Additional arguments to configure the Gradle process."
     }
   },
-  "required": [
-    "projectRoot"
-  ],
+  "required": [],
   "type": "object"
 }
 ```
@@ -599,7 +593,7 @@ Gets all publications (i.e. artifacts published that Gradle knows about) for the
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal."
+      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
     },
     "projectPath": {
       "type": "string",
@@ -650,9 +644,7 @@ Gets all publications (i.e. artifacts published that Gradle knows about) for the
       "description": "Additional arguments to configure the Gradle process."
     }
   },
-  "required": [
-    "projectRoot"
-  ],
+  "required": [],
   "type": "object"
 }
 ```
@@ -730,7 +722,7 @@ Gets source/test/resource directories for the project. Sometimes non-JVM source 
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal."
+      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
     },
     "projectPath": {
       "type": "string",
@@ -781,9 +773,7 @@ Gets source/test/resource directories for the project. Sometimes non-JVM source 
       "description": "Additional arguments to configure the Gradle process."
     }
   },
-  "required": [
-    "projectRoot"
-  ],
+  "required": [],
   "type": "object"
 }
 ```
@@ -877,7 +867,7 @@ Can publish a Develocity Build Scan if requested. This is the preferred way to d
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal."
+      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
     },
     "commandLine": {
       "type": "array",
@@ -931,7 +921,6 @@ Can publish a Develocity Build Scan if requested. This is the preferred way to d
     }
   },
   "required": [
-    "projectRoot",
     "commandLine"
   ],
   "type": "object"
@@ -1185,7 +1174,7 @@ If there are more than 1000 tests, the results will be truncated.  Use `lookup_b
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal."
+      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
     },
     "projectPath": {
       "type": "string",
@@ -1262,7 +1251,6 @@ If there are more than 1000 tests, the results will be truncated.  Use `lookup_b
     }
   },
   "required": [
-    "projectRoot",
     "taskName"
   ],
   "type": "object"
@@ -1591,7 +1579,7 @@ If there are more than 1000 tests, the results will be truncated.  Use `lookup_b
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal."
+      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
     },
     "testsExecutions": {
       "type": "object",
@@ -1659,7 +1647,6 @@ If there are more than 1000 tests, the results will be truncated.  Use `lookup_b
     }
   },
   "required": [
-    "projectRoot",
     "testsExecutions"
   ],
   "type": "object"
@@ -1985,7 +1972,7 @@ WARNING: The response can be quite large. Prefer specifying a configuration and/
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal."
+      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
     },
     "projectPath": {
       "type": "string",
@@ -2043,9 +2030,7 @@ WARNING: The response can be quite large. Prefer specifying a configuration and/
       "description": "Additional arguments to configure the Gradle process."
     }
   },
-  "required": [
-    "projectRoot"
-  ],
+  "required": [],
   "type": "object"
 }
 ```
@@ -2069,7 +2054,7 @@ The configuration.  Works by executing the `dependencyInsight` task of the given
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal."
+      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
     },
     "projectPath": {
       "type": "string",
@@ -2137,7 +2122,6 @@ The configuration.  Works by executing the `dependencyInsight` task of the given
     }
   },
   "required": [
-    "projectRoot",
     "configuration",
     "dependencyPrefix"
   ],
@@ -2163,7 +2147,7 @@ Gets the Gradle build dependencies of a Gradle project, as well as some informat
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal."
+      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
     },
     "projectPath": {
       "type": "string",
@@ -2214,9 +2198,7 @@ Gets the Gradle build dependencies of a Gradle project, as well as some informat
       "description": "Additional arguments to configure the Gradle process."
     }
   },
-  "required": [
-    "projectRoot"
-  ],
+  "required": [],
   "type": "object"
 }
 ```
@@ -2239,7 +2221,7 @@ Gets all resolvable configurations of a Gradle project.  Works by executing the 
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal."
+      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
     },
     "projectPath": {
       "type": "string",
@@ -2290,9 +2272,7 @@ Gets all resolvable configurations of a Gradle project.  Works by executing the 
       "description": "Additional arguments to configure the Gradle process."
     }
   },
-  "required": [
-    "projectRoot"
-  ],
+  "required": [],
   "type": "object"
 }
 ```
@@ -2315,7 +2295,7 @@ Gets all available Java/JVM toolchains for a Gradle project. Also includes wheth
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal."
+      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
     },
     "projectPath": {
       "type": "string",
@@ -2366,9 +2346,7 @@ Gets all available Java/JVM toolchains for a Gradle project. Also includes wheth
       "description": "Additional arguments to configure the Gradle process."
     }
   },
-  "required": [
-    "projectRoot"
-  ],
+  "required": [],
   "type": "object"
 }
 ```
@@ -2391,7 +2369,7 @@ Gets all properties of a Gradle project. WARNING: may return sensitive informati
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal."
+      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
     },
     "projectPath": {
       "type": "string",
@@ -2442,9 +2420,7 @@ Gets all properties of a Gradle project. WARNING: may return sensitive informati
       "description": "Additional arguments to configure the Gradle process."
     }
   },
-  "required": [
-    "projectRoot"
-  ],
+  "required": [],
   "type": "object"
 }
 ```
@@ -2467,7 +2443,7 @@ Gets all artifact transforms of a Gradle project.  Works by executing the `artif
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal."
+      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
     },
     "projectPath": {
       "type": "string",
@@ -2518,9 +2494,7 @@ Gets all artifact transforms of a Gradle project.  Works by executing the `artif
       "description": "Additional arguments to configure the Gradle process."
     }
   },
-  "required": [
-    "projectRoot"
-  ],
+  "required": [],
   "type": "object"
 }
 ```
@@ -2543,7 +2517,7 @@ Gets all outgoing variants of a Gradle project. These are configurations that ma
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal."
+      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
     },
     "projectPath": {
       "type": "string",
@@ -2594,9 +2568,7 @@ Gets all outgoing variants of a Gradle project. These are configurations that ma
       "description": "Additional arguments to configure the Gradle process."
     }
   },
-  "required": [
-    "projectRoot"
-  ],
+  "required": [],
   "type": "object"
 }
 ```

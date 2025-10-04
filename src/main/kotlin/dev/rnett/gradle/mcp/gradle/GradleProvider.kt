@@ -3,9 +3,7 @@ package dev.rnett.gradle.mcp.gradle
 import com.github.benmanes.caffeine.cache.Caffeine
 import dev.rnett.gradle.mcp.localSupervisorScope
 import dev.rnett.gradle.mcp.runCatchingExceptCancellation
-import dev.rnett.gradle.mcp.tools.GradleInvocationArguments
 import dev.rnett.gradle.mcp.tools.GradlePathUtils
-import dev.rnett.gradle.mcp.tools.GradleProjectRoot
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred

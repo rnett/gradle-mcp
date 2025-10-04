@@ -1,7 +1,10 @@
 package dev.rnett.gradle.mcp.tools
 
 import dev.rnett.gradle.mcp.gradle.BuildId
+import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
+import dev.rnett.gradle.mcp.gradle.GradleProjectPath
 import dev.rnett.gradle.mcp.gradle.GradleProvider
+import dev.rnett.gradle.mcp.gradle.matches
 import dev.rnett.gradle.mcp.gradle.throwFailure
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
@@ -47,7 +50,7 @@ class GradleIntrospectionTools(
 
     @Serializable
     data class GetEnvArguments(
-        val projectRoot: GradleProjectRoot,
+        val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
         val invocationArgs: GradleInvocationArguments = GradleInvocationArguments.DEFAULT,
     )
 
@@ -98,7 +101,7 @@ class GradleIntrospectionTools(
 
     @Serializable
     data class DescribeProjectArgs(
-        val projectRoot: GradleProjectRoot,
+        val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
         val projectPath: GradleProjectPath = GradleProjectPath.DEFAULT,
         val invocationArgs: GradleInvocationArguments = GradleInvocationArguments.DEFAULT
     )
@@ -140,7 +143,7 @@ class GradleIntrospectionTools(
 
     @Serializable
     data class IncludedBuildsArgs(
-        val projectRoot: GradleProjectRoot,
+        val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
         val invocationArgs: GradleInvocationArguments = GradleInvocationArguments.DEFAULT,
     )
 
@@ -180,7 +183,7 @@ class GradleIntrospectionTools(
 
     @Serializable
     data class ProjectPublicationsArgs(
-        val projectRoot: GradleProjectRoot,
+        val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
         val projectPath: GradleProjectPath = GradleProjectPath.DEFAULT,
         val invocationArgs: GradleInvocationArguments = GradleInvocationArguments.DEFAULT,
     )
@@ -194,8 +197,10 @@ class GradleIntrospectionTools(
             args.invocationArgs
         ).throwFailure()
 
+        val root = args.projectRoot.resolve()
+
         val publications = publicationsModel.publications
-            .filter { it.projectIdentifier.matches(args.projectRoot, args.projectPath) }
+            .filter { it.projectIdentifier.matches(root, args.projectPath) }
             .map { Publication(it.id.group, it.id.name, it.id.version) }
             .toSet()
 
@@ -240,7 +245,7 @@ class GradleIntrospectionTools(
 
     @Serializable
     data class ProjectSourceDirectoriesArgs(
-        val projectRoot: GradleProjectRoot,
+        val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
         val projectPath: GradleProjectPath = GradleProjectPath.DEFAULT,
         val invocationArgs: GradleInvocationArguments = GradleInvocationArguments.DEFAULT,
     )
@@ -261,11 +266,13 @@ class GradleIntrospectionTools(
             args.invocationArgs
         ).throwFailure()
 
+        val root = args.projectRoot.resolve()
+
         ProjectSourceDirectoriesResult(
             id,
             ideaProject.modules
                 .asSequence()
-                .filter { it.projectIdentifier.matches(args.projectRoot, args.projectPath) }
+                .filter { it.projectIdentifier.matches(root, args.projectPath) }
                 .flatMap { module ->
                     module.javaLanguageSettings.languageLevel.majorVersion
                     module.contentRoots.asSequence().flatMap {

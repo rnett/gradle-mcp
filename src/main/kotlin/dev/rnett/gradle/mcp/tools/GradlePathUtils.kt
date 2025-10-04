@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.tools
 
+import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import kotlin.io.path.Path

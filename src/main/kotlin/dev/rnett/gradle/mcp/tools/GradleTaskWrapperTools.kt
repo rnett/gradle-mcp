@@ -1,5 +1,7 @@
 package dev.rnett.gradle.mcp.tools
 
+import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
+import dev.rnett.gradle.mcp.gradle.GradleProjectPath
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
@@ -11,14 +13,14 @@ class GradleTaskWrapperTools(
 ) : McpServerComponent() {
 
     interface BaseProjectInput {
-        val projectRoot: GradleProjectRoot
+        val projectRoot: GradleProjectRootInput
         val projectPath: GradleProjectPath
         val invocationArgs: GradleInvocationArguments
     }
 
     @Serializable
     data class ProjectInput(
-        override val projectRoot: GradleProjectRoot,
+        override val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
         override val projectPath: GradleProjectPath = GradleProjectPath.DEFAULT,
         override val invocationArgs: GradleInvocationArguments = GradleInvocationArguments.DEFAULT
     ) : BaseProjectInput
@@ -49,7 +51,7 @@ class GradleTaskWrapperTools(
 
     @Serializable
     data class DependenciesInput(
-        override val projectRoot: GradleProjectRoot,
+        override val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
         override val projectPath: GradleProjectPath = GradleProjectPath.DEFAULT,
         @Description("The configuration to get dependencies from.  Defaults to all.")
         val configuration: String? = null,
@@ -71,7 +73,7 @@ class GradleTaskWrapperTools(
 
     @Serializable
     data class DependenciesInsightInput(
-        override val projectRoot: GradleProjectRoot,
+        override val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
         override val projectPath: GradleProjectPath = GradleProjectPath.DEFAULT,
         @Description("The configuration that resolves the dependency. Required. Use `get_dependencies` to see which dependencies are present in which configurations, and `get_resolvable_configurations` to see all configurations.")
         val configuration: String,

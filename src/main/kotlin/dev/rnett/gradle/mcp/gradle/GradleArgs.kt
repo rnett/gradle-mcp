@@ -1,15 +1,10 @@
-package dev.rnett.gradle.mcp.tools
+package dev.rnett.gradle.mcp.gradle
 
-import dev.rnett.gradle.mcp.gradle.BuildResult
-import dev.rnett.gradle.mcp.gradle.GradleProvider
-import dev.rnett.gradle.mcp.gradle.GradleResult
-import dev.rnett.gradle.mcp.mcp.McpContext
+import dev.rnett.gradle.mcp.tools.GradlePathUtils
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import io.github.smiley4.schemakenerator.core.annotations.Example
-import io.modelcontextprotocol.kotlin.sdk.LoggingLevel
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import org.gradle.tooling.model.Model
 import org.gradle.tooling.model.ProjectIdentifier
 import kotlin.io.path.absolute
 
@@ -50,7 +45,7 @@ data class GradleInvocationArguments(
 
 @JvmInline
 @Serializable
-@Description("The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.  The MCP server will do its best to convert the path to the path inside the docker container, but if you can provide the path as the MCP server would see it, that's ideal.")
+@Description("The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located.")
 value class GradleProjectRoot(val projectRoot: String)
 
 @JvmInline
@@ -78,66 +73,4 @@ value class GradleProjectPath(private val projectPath: String) {
     override fun toString(): String {
         return path
     }
-}
-
-
-context(ctx: McpContext)
-suspend inline fun <reified T : Model> GradleProvider.getBuildModel(
-    projectRoot: GradleProjectRoot,
-    invocationArgs: GradleInvocationArguments,
-    requiresGradleProject: Boolean = true
-): GradleResult<T> {
-    return getBuildModel(
-        projectRoot,
-        T::class,
-        invocationArgs,
-        { ScansTosManager.askForScansTos(projectRoot, it) },
-        stdoutLineHandler = {
-            ctx.emitLoggingNotification("gradle-build", LoggingLevel.notice, it)
-            ctx.emitProgressNotification(0.0, 0.0, it)
-        },
-        stderrLineHandler = { ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it) },
-        requiresGradleProject = requiresGradleProject
-    )
-}
-
-
-context(ctx: McpContext)
-suspend inline fun GradleProvider.doBuild(
-    projectRoot: GradleProjectRoot,
-    invocationArgs: GradleInvocationArguments,
-): BuildResult {
-    return runBuild(
-        projectRoot,
-        invocationArgs,
-        { ScansTosManager.askForScansTos(projectRoot, it) },
-        stdoutLineHandler = {
-            ctx.emitLoggingNotification("gradle-build", LoggingLevel.notice, it)
-            ctx.emitProgressNotification(0.0, 0.0, it)
-        },
-        stderrLineHandler = {
-            ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it)
-        }
-    ).buildResult
-}
-
-context(ctx: McpContext)
-suspend inline fun GradleProvider.doTests(
-    projectRoot: GradleProjectRoot,
-    testPatterns: Map<String, Set<String>>,
-    invocationArgs: GradleInvocationArguments,
-): BuildResult {
-    return runTests(
-        projectRoot,
-        testPatterns,
-        invocationArgs,
-        { ScansTosManager.askForScansTos(projectRoot, it) },
-        stdoutLineHandler = {
-            ctx.emitLoggingNotification("gradle-build", LoggingLevel.notice, it)
-            ctx.emitProgressNotification(0.0, 0.0, it)
-        },
-        stderrLineHandler = {
-            ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it)
-        }
-    ).buildResult
 }

@@ -6,21 +6,63 @@ import io.modelcontextprotocol.kotlin.sdk.LoggingLevel
 import io.modelcontextprotocol.kotlin.sdk.LoggingMessageNotification
 import io.modelcontextprotocol.kotlin.sdk.Method
 import io.modelcontextprotocol.kotlin.sdk.Notification
+import io.modelcontextprotocol.kotlin.sdk.Root
+import io.modelcontextprotocol.kotlin.sdk.RootsListChangedNotification
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import org.slf4j.LoggerFactory
 
 class McpServer(
     serverInfo: Implementation,
     options: ServerOptions,
     val json: Json
 ) : Server(serverInfo, options) {
+    private val LOGGER = LoggerFactory.getLogger(McpServer::class.java)
+    val scope = CoroutineScope(Dispatchers.Default + SupervisorJob() + CoroutineExceptionHandler { ctx, e ->
+        val name = ctx[CoroutineName]
+        LOGGER.error("Error in MCP server job {}", name?.name ?: "unnamed", e)
+    })
     private var logLevel: LoggingLevel = LoggingLevel.info
+
+    private val _roots = MutableStateFlow<Set<Root>?>(null)
+    val roots: StateFlow<Set<Root>?> = _roots.asStateFlow()
 
     init {
         setRequestHandler<LoggingMessageNotification.SetLevelRequest>(Method.Defined.LoggingSetLevel) { it, _ ->
             logLevel = it.level
             EmptyRequestResult()
+        }
+        setNotificationHandler<RootsListChangedNotification>(Method.Defined.NotificationsRootsListChanged) { it ->
+            scope.async {
+                updateRootsList()
+            }
+        }
+        onInitialized {
+            scope.launch {
+                updateRootsList()
+            }
+        }
+        onClose {
+            scope.cancel("Server closing")
+        }
+    }
+
+    private suspend fun updateRootsList() {
+        if (clientCapabilities?.roots != null) {
+            val roots = listRoots()
+            _roots.value = roots.roots.toSet()
         }
     }
 
