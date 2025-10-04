@@ -28,8 +28,8 @@ import org.gradle.tooling.TestExecutionException
 import org.gradle.tooling.events.OperationType
 import org.gradle.tooling.events.ProgressEvent
 import org.gradle.tooling.events.ProgressListener
-import org.gradle.tooling.events.problems.ProblemAggregation
 import org.gradle.tooling.events.problems.ProblemAggregationEvent
+import org.gradle.tooling.events.problems.SingleProblemEvent
 import org.gradle.tooling.events.test.Destination
 import org.gradle.tooling.events.test.JvmTestOperationDescriptor
 import org.gradle.tooling.events.test.TestFailureResult
@@ -197,11 +197,13 @@ class GradleProvider(
             addProgressListener(testResultCollector, testResultCollector.operations)
 
 
-            val problems = mutableListOf<ProblemAggregation>()
+            val problems = ProblemsAccumulator()
             addProgressListener(object : ProgressListener {
                 override fun statusChanged(event: ProgressEvent) {
                     if (event is ProblemAggregationEvent)
                         problems.add(event.problemAggregation)
+                    if (event is SingleProblemEvent)
+                        problems.add(event.problem)
                 }
             }, OperationType.PROBLEMS)
 
@@ -227,7 +229,7 @@ class GradleProvider(
                     charset = StandardCharsets.UTF_8
                     bufferSize = 80
                     writer = object : GradleStdoutWriter(config.allowPublicScansPublishing, {
-                        consoleOutput.append(it)
+                        consoleOutput.appendLine(it)
                         stdoutLineHandler?.invoke(it)
                         LOGGER.makeLoggingEventBuilder(Level.INFO)
                             .addKeyValue("buildId", buildId)
@@ -261,7 +263,7 @@ class GradleProvider(
                     charset = StandardCharsets.UTF_8
                     bufferSize = 80
                     writer = LineEmittingWriter {
-                        consoleOutput.append("ERR: $it")
+                        consoleOutput.appendLine("ERR: $it")
                         stderrLineHandler?.invoke(it)
                         LOGGER.makeLoggingEventBuilder(Level.INFO)
                             .addKeyValue("buildId", buildId)
@@ -290,7 +292,7 @@ class GradleProvider(
                 buildId,
                 consoleOutput.toString(),
                 scans,
-                problems,
+                problems.aggregate(),
                 testResultCollector.results(),
                 exception,
                 outcome

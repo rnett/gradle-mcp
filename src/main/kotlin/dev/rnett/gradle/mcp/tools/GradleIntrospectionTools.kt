@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.tools
 
+import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.throwFailure
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
@@ -14,10 +15,14 @@ class GradleIntrospectionTools(
     val gradle: GradleProvider,
 ) : McpServerComponent() {
 
-    //TODO should return build IDs?
+    companion object {
+        const val BUILD_ID_DESCRIPTION = "The build ID of the build used to query this information."
+    }
 
     @Serializable
     data class GradleBuildEnvironment(
+        @Description(BUILD_ID_DESCRIPTION)
+        val buildId: BuildId?,
         @Description("Information about the Gradle build environment")
         val gradleInformation: GradleInfo,
         @Description("Information about the JVM used to execute Gradle in the build environment")
@@ -54,8 +59,9 @@ class GradleIntrospectionTools(
             it.projectRoot,
             it.invocationArgs,
             requiresGradleProject = false
-        ).throwFailure().let {
+        ).throwFailure().let { (id, it) ->
             GradleBuildEnvironment(
+                id,
                 GradleBuildEnvironment.GradleInfo(it.gradle.gradleUserHome.absolutePath, it.gradle.gradleVersion),
                 GradleBuildEnvironment.JavaInfo(it.java.javaHome.absolutePath, it.java.jvmArguments)
             )
@@ -64,6 +70,8 @@ class GradleIntrospectionTools(
 
     @Serializable
     data class GradleProjectInfo(
+        @Description(BUILD_ID_DESCRIPTION)
+        val buildId: BuildId?,
         @Description("The Gradle project's path, e.g. :project-a")
         val path: String,
         @Description("The name of the project - not related to the path.")
@@ -99,9 +107,10 @@ class GradleIntrospectionTools(
         "describe_project",
         "Describes a Gradle project or subproject. Includes the tasks and child projects. Can be used to query available tasks."
     ) { args ->
-        gradle.getBuildModel<GradleProject>(args.projectRoot, args.invocationArgs).throwFailure().let {
+        gradle.getBuildModel<GradleProject>(args.projectRoot, args.invocationArgs).throwFailure().let { (id, it) ->
             val project = it.findByPath(args.projectPath.path) ?: throw IllegalArgumentException("Project with project path \"${args.projectPath}\" not found")
             GradleProjectInfo(
+                id,
                 project.path,
                 project.name,
                 project.description,
@@ -115,17 +124,19 @@ class GradleIntrospectionTools(
 
     @Serializable
     data class GradleIncludedBuilds(
+        @Description(BUILD_ID_DESCRIPTION)
+        val buildId: BuildId?,
         @Description("Builds added as included builds to this Gradle project. Defined in the settings.gradle(.kts) file.")
         val includedBuilds: List<IncludedBuild>
-    )
-
-    @Serializable
-    data class IncludedBuild(
-        @Description("The root project name of the included build. Used to reference it from the main build, e.g. ':included-build-root-project-name:included-build-subproject:task'.")
-        val rootProjectName: String,
-        @Description("The file system path of the included build's root project directory.")
-        val rootProjectDirectoryPath: String
-    )
+    ) {
+        @Serializable
+        data class IncludedBuild(
+            @Description("The root project name of the included build. Used to reference it from the main build, e.g. ':included-build-root-project-name:included-build-subproject:task'.")
+            val rootProjectName: String,
+            @Description("The file system path of the included build's root project directory.")
+            val rootProjectDirectoryPath: String
+        )
+    }
 
     @Serializable
     data class IncludedBuildsArgs(
@@ -137,10 +148,13 @@ class GradleIntrospectionTools(
         "get_included_builds",
         "Gets the included builds of a Gradle project."
     ) {
-        gradle.getBuildModel<GradleBuild>(it.projectRoot, it.invocationArgs).throwFailure().let {
-            GradleIncludedBuilds(it.editableBuilds.map {
-                IncludedBuild(it.rootProject.name, it.rootProject.projectDirectory.absolutePath)
-            })
+        gradle.getBuildModel<GradleBuild>(it.projectRoot, it.invocationArgs).throwFailure().let { (id, it) ->
+            GradleIncludedBuilds(
+                id,
+                it.editableBuilds.map {
+                    GradleIncludedBuilds.IncludedBuild(it.rootProject.name, it.rootProject.projectDirectory.absolutePath)
+                }
+            )
         }
     }
 
@@ -158,6 +172,8 @@ class GradleIntrospectionTools(
 
     @Serializable
     data class ProjectPublicationsResult(
+        @Description(BUILD_ID_DESCRIPTION)
+        val buildId: BuildId?,
         @Description("All publications that Gradle knows about for the project.")
         val publications: Set<Publication>
     )
@@ -173,7 +189,7 @@ class GradleIntrospectionTools(
         "get_project_publications",
         "Gets all publications (i.e. artifacts published that Gradle knows about) for the Gradle project."
     ) { args ->
-        val publicationsModel = gradle.getBuildModel<org.gradle.tooling.model.gradle.ProjectPublications>(
+        val (id, publicationsModel) = gradle.getBuildModel<org.gradle.tooling.model.gradle.ProjectPublications>(
             args.projectRoot,
             args.invocationArgs
         ).throwFailure()
@@ -183,7 +199,7 @@ class GradleIntrospectionTools(
             .map { Publication(it.id.group, it.id.name, it.id.version) }
             .toSet()
 
-        ProjectPublicationsResult(publications)
+        ProjectPublicationsResult(id, publications)
     }
 
     @Serializable
@@ -216,6 +232,8 @@ class GradleIntrospectionTools(
 
     @Serializable
     data class ProjectSourceDirectoriesResult(
+        @Description(BUILD_ID_DESCRIPTION)
+        val buildId: BuildId?,
         @Description("All source directories known by Gradle.")
         val directoriesByModulePath: List<SourceDirectoryEntry>
     )
@@ -238,12 +256,13 @@ class GradleIntrospectionTools(
         "get_project_source_directories",
         "Gets source/test/resource directories for the project. Sometimes non-JVM source directories will also exist that aren't known to Gradle. Note that the javaLanguageLevel setting does not necessarily mean the directory is a Java source set."
     ) { args ->
-        val ideaProject = gradle.getBuildModel<org.gradle.tooling.model.idea.BasicIdeaProject>(
+        val (id, ideaProject) = gradle.getBuildModel<org.gradle.tooling.model.idea.BasicIdeaProject>(
             args.projectRoot,
             args.invocationArgs
         ).throwFailure()
 
         ProjectSourceDirectoriesResult(
+            id,
             ideaProject.modules
                 .asSequence()
                 .filter { it.projectIdentifier.matches(args.projectRoot, args.projectPath) }

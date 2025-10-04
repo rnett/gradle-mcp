@@ -1,7 +1,6 @@
 package dev.rnett.gradle.mcp.gradle
 
 import org.gradle.tooling.GradleConnectionException
-import org.gradle.tooling.events.problems.ProblemAggregation
 
 data class GradleResult<out T>(
     val buildResult: BuildResult,
@@ -26,4 +25,4 @@ data class GradleResult<out T>(
 }
 
 
-fun <T> GradleResult<T>.throwFailure(): T = value.getOrThrow()
+fun <T> GradleResult<T>.throwFailure(): Pair<BuildId, T> = value.getOrThrow().let { buildResult.id to it }

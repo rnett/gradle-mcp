@@ -239,6 +239,13 @@ Get the environment used to execute Gradle for the given project, including the 
 ```json
 {
   "properties": {
+    "buildId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The build ID of the build used to query this information."
+    },
     "gradleInformation": {
       "type": "object",
       "required": [
@@ -280,6 +287,7 @@ Get the environment used to execute Gradle for the given project, including the 
     }
   },
   "required": [
+    "buildId",
     "gradleInformation",
     "javaInformation"
   ],
@@ -374,6 +382,13 @@ Describes a Gradle project or subproject. Includes the tasks and child projects.
 ```json
 {
   "properties": {
+    "buildId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The build ID of the build used to query this information."
+    },
     "path": {
       "type": "string",
       "description": "The Gradle project's path, e.g. :project-a"
@@ -439,6 +454,7 @@ Describes a Gradle project or subproject. Includes the tasks and child projects.
     }
   },
   "required": [
+    "buildId",
     "path",
     "name",
     "description",
@@ -529,6 +545,13 @@ Gets the included builds of a Gradle project.
 ```json
 {
   "properties": {
+    "buildId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The build ID of the build used to query this information."
+    },
     "includedBuilds": {
       "type": "array",
       "items": {
@@ -552,6 +575,7 @@ Gets the included builds of a Gradle project.
     }
   },
   "required": [
+    "buildId",
     "includedBuilds"
   ],
   "type": "object"
@@ -645,6 +669,13 @@ Gets all publications (i.e. artifacts published that Gradle knows about) for the
 ```json
 {
   "properties": {
+    "buildId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The build ID of the build used to query this information."
+    },
     "publications": {
       "type": "array",
       "items": {
@@ -675,6 +706,7 @@ Gets all publications (i.e. artifacts published that Gradle knows about) for the
     }
   },
   "required": [
+    "buildId",
     "publications"
   ],
   "type": "object"
@@ -768,6 +800,13 @@ Gets source/test/resource directories for the project. Sometimes non-JVM source 
 ```json
 {
   "properties": {
+    "buildId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The build ID of the build used to query this information."
+    },
     "directoriesByModulePath": {
       "type": "array",
       "items": {
@@ -810,6 +849,7 @@ Gets source/test/resource directories for the project. Sometimes non-JVM source 
     }
   },
   "required": [
+    "buildId",
     "directoriesByModulePath"
   ],
   "type": "object"
@@ -849,10 +889,6 @@ Can publish a Develocity Build Scan if requested. This is the preferred way to d
     "scan": {
       "type": "boolean",
       "description": "Whether to run with the --scan argument to publish a build scan. Requires a configured Develocity instance. Publishing a scan and using it to diagnose issues (e.g. using the Develocity MCP server) is recommended over `includeFailureInformation` when possible. Defaults to false."
-    },
-    "includeFailureInformation": {
-      "type": "boolean",
-      "description": "Whether to include failure information in the result, if the build fails. Defaults to false. The information can be helpful in diagnosing failures, but is very verbose."
     },
     "invocationArguments": {
       "type": "object",
@@ -917,8 +953,12 @@ Can publish a Develocity Build Scan if requested. This is the preferred way to d
     "id": {
       "type": "string"
     },
-    "consoltOutput": {
-      "type": "string"
+    "consoleOutput": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The console output, if it was small enough. If it was too large, this field will be null and the output will be available via `lookup_build_console_output`."
     },
     "publishedScans": {
       "type": "array",
@@ -1008,39 +1048,111 @@ Can publish a Develocity Build Scan if requested. This is the preferred way to d
     "problemsSummary": {
       "type": "object",
       "required": [
-        "errorsCount",
-        "warningsCount",
-        "advicesCount",
-        "othersCount"
+        "errorCounts",
+        "warningCounts",
+        "adviceCounts",
+        "otherCounts"
       ],
       "properties": {
-        "errorsCount": {
-          "type": "integer",
-          "minimum": -2147483648,
-          "maximum": 2147483647
+        "errorCounts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "displayName",
+              "occurences"
+            ],
+            "properties": {
+              "displayName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "occurences": {
+                "type": "integer",
+                "minimum": -2147483648,
+                "maximum": 2147483647
+              }
+            }
+          }
         },
-        "warningsCount": {
-          "type": "integer",
-          "minimum": -2147483648,
-          "maximum": 2147483647
+        "warningCounts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "displayName",
+              "occurences"
+            ],
+            "properties": {
+              "displayName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "occurences": {
+                "type": "integer",
+                "minimum": -2147483648,
+                "maximum": 2147483647
+              }
+            }
+          }
         },
-        "advicesCount": {
-          "type": "integer",
-          "minimum": -2147483648,
-          "maximum": 2147483647
+        "adviceCounts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "displayName",
+              "occurences"
+            ],
+            "properties": {
+              "displayName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "occurences": {
+                "type": "integer",
+                "minimum": -2147483648,
+                "maximum": 2147483647
+              }
+            }
+          }
         },
-        "othersCount": {
-          "type": "integer",
-          "minimum": -2147483648,
-          "maximum": 2147483647
+        "otherCounts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "displayName",
+              "occurences"
+            ],
+            "properties": {
+              "displayName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "occurences": {
+                "type": "integer",
+                "minimum": -2147483648,
+                "maximum": 2147483647
+              }
+            }
+          }
         }
       },
-      "description": "A summary of all problems encountered during the build. More information can be looked up with the `lookup_build_problems_summary` tool."
+      "description": "A summary of all problems encountered during the build. The keys of the maps/objects are the problem IDs. More information can be looked up with the `lookup_build_problem_details` tool. Note that not all failures have coresponding problems."
     }
   },
   "required": [
     "id",
-    "consoltOutput",
+    "consoleOutput",
     "publishedScans",
     "wasSuccessful",
     "testsRan",
@@ -1220,7 +1332,7 @@ The typical test task is `test`.  At least one task is required. A task with no 
       "type": "object",
       "required": [
         "id",
-        "consoltOutput",
+        "consoleOutput",
         "publishedScans",
         "wasSuccessful",
         "testsRan",
@@ -1232,8 +1344,12 @@ The typical test task is `test`.  At least one task is required. A task with no 
         "id": {
           "type": "string"
         },
-        "consoltOutput": {
-          "type": "string"
+        "consoleOutput": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The console output, if it was small enough. If it was too large, this field will be null and the output will be available via `lookup_build_console_output`."
         },
         "publishedScans": {
           "type": "array",
@@ -1323,34 +1439,106 @@ The typical test task is `test`.  At least one task is required. A task with no 
         "problemsSummary": {
           "type": "object",
           "required": [
-            "errorsCount",
-            "warningsCount",
-            "advicesCount",
-            "othersCount"
+            "errorCounts",
+            "warningCounts",
+            "adviceCounts",
+            "otherCounts"
           ],
           "properties": {
-            "errorsCount": {
-              "type": "integer",
-              "minimum": -2147483648,
-              "maximum": 2147483647
+            "errorCounts": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "required": [
+                  "displayName",
+                  "occurences"
+                ],
+                "properties": {
+                  "displayName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "occurences": {
+                    "type": "integer",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  }
+                }
+              }
             },
-            "warningsCount": {
-              "type": "integer",
-              "minimum": -2147483648,
-              "maximum": 2147483647
+            "warningCounts": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "required": [
+                  "displayName",
+                  "occurences"
+                ],
+                "properties": {
+                  "displayName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "occurences": {
+                    "type": "integer",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  }
+                }
+              }
             },
-            "advicesCount": {
-              "type": "integer",
-              "minimum": -2147483648,
-              "maximum": 2147483647
+            "adviceCounts": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "required": [
+                  "displayName",
+                  "occurences"
+                ],
+                "properties": {
+                  "displayName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "occurences": {
+                    "type": "integer",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  }
+                }
+              }
             },
-            "othersCount": {
-              "type": "integer",
-              "minimum": -2147483648,
-              "maximum": 2147483647
+            "otherCounts": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "required": [
+                  "displayName",
+                  "occurences"
+                ],
+                "properties": {
+                  "displayName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "occurences": {
+                    "type": "integer",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  }
+                }
+              }
             }
           },
-          "description": "A summary of all problems encountered during the build. More information can be looked up with the `lookup_build_problems_summary` tool."
+          "description": "A summary of all problems encountered during the build. The keys of the maps/objects are the problem IDs. More information can be looked up with the `lookup_build_problem_details` tool. Note that not all failures have coresponding problems."
         }
       },
       "description": "A summary of the results of a Gradle build. More details can be obtained by using `lookup_build_*` tools or a Develocity Build Scan. Prefer build scans when possible."
@@ -1370,6 +1558,7 @@ The typical test task is `test`.  At least one task is required. A task with no 
 ### run_many_test_tasks
 
 Runs may test tasks, each with their own test filters. To run a single test task, use the `run_test_task` tool.
+Note that the test tasks passed must be absolute paths (i.e. including the project paths).
 The console output is included in the result. Show this to the user, as if they had ran the command themselves.
 Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues and test failures, using something like the Develocity MCP server.
 The `tests` parameter is REQUIRED, and is simply a map (i.e. JSON object) of each test task to run (e.g. `:test`, `:project-a:sub-b:test`), to the test patterns for the tests to run for that task (e.g. `com.example.*`, `*MyTest*`).  
@@ -1524,7 +1713,7 @@ The typical test task is `:test`.  At least one task is required. A task with no
       "type": "object",
       "required": [
         "id",
-        "consoltOutput",
+        "consoleOutput",
         "publishedScans",
         "wasSuccessful",
         "testsRan",
@@ -1536,8 +1725,12 @@ The typical test task is `:test`.  At least one task is required. A task with no
         "id": {
           "type": "string"
         },
-        "consoltOutput": {
-          "type": "string"
+        "consoleOutput": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The console output, if it was small enough. If it was too large, this field will be null and the output will be available via `lookup_build_console_output`."
         },
         "publishedScans": {
           "type": "array",
@@ -1627,34 +1820,106 @@ The typical test task is `:test`.  At least one task is required. A task with no
         "problemsSummary": {
           "type": "object",
           "required": [
-            "errorsCount",
-            "warningsCount",
-            "advicesCount",
-            "othersCount"
+            "errorCounts",
+            "warningCounts",
+            "adviceCounts",
+            "otherCounts"
           ],
           "properties": {
-            "errorsCount": {
-              "type": "integer",
-              "minimum": -2147483648,
-              "maximum": 2147483647
+            "errorCounts": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "required": [
+                  "displayName",
+                  "occurences"
+                ],
+                "properties": {
+                  "displayName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "occurences": {
+                    "type": "integer",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  }
+                }
+              }
             },
-            "warningsCount": {
-              "type": "integer",
-              "minimum": -2147483648,
-              "maximum": 2147483647
+            "warningCounts": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "required": [
+                  "displayName",
+                  "occurences"
+                ],
+                "properties": {
+                  "displayName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "occurences": {
+                    "type": "integer",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  }
+                }
+              }
             },
-            "advicesCount": {
-              "type": "integer",
-              "minimum": -2147483648,
-              "maximum": 2147483647
+            "adviceCounts": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "required": [
+                  "displayName",
+                  "occurences"
+                ],
+                "properties": {
+                  "displayName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "occurences": {
+                    "type": "integer",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  }
+                }
+              }
             },
-            "othersCount": {
-              "type": "integer",
-              "minimum": -2147483648,
-              "maximum": 2147483647
+            "otherCounts": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "required": [
+                  "displayName",
+                  "occurences"
+                ],
+                "properties": {
+                  "displayName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "occurences": {
+                    "type": "integer",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  }
+                }
+              }
             }
           },
-          "description": "A summary of all problems encountered during the build. More information can be looked up with the `lookup_build_problems_summary` tool."
+          "description": "A summary of all problems encountered during the build. The keys of the maps/objects are the problem IDs. More information can be looked up with the `lookup_build_problem_details` tool. Note that not all failures have coresponding problems."
         }
       },
       "description": "A summary of the results of a Gradle build. More details can be obtained by using `lookup_build_*` tools or a Develocity Build Scan. Prefer build scans when possible."
@@ -2308,6 +2573,338 @@ Gets all outgoing variants of a Gradle project. These are configurations that ma
 </details>
 
 
+### lookup_latest_builds
+
+Gets the latest builds ran by this MCP server.
+
+<details>
+
+<summary>Input schema</summary>
+
+
+```json
+{
+  "properties": {
+    "maxBuilds": {
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "description": "The maximum number of builds to return. Defaults to 5."
+    }
+  },
+  "required": [],
+  "type": "object"
+}
+```
+
+
+</details>
+
+
+<details>
+
+<summary>Output schema</summary>
+
+
+```json
+{
+  "properties": {
+    "latestBuilds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "buildId",
+          "occuredAt"
+        ],
+        "properties": {
+          "buildId": {
+            "type": "string"
+          },
+          "occuredAt": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "The latest builds ran by this MCP server, starting with the latest."
+    }
+  },
+  "required": [
+    "latestBuilds"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
+### lookup_latest_builds_summaries
+
+Gets the summaries the latest builds ran by this MCP server.
+
+<details>
+
+<summary>Input schema</summary>
+
+
+```json
+{
+  "properties": {
+    "maxBuilds": {
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "description": "The maximum number of builds to return. Defaults to 5."
+    }
+  },
+  "required": [],
+  "type": "object"
+}
+```
+
+
+</details>
+
+
+<details>
+
+<summary>Output schema</summary>
+
+
+```json
+{
+  "properties": {
+    "latestBuilds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "consoleOutput",
+          "publishedScans",
+          "wasSuccessful",
+          "testsRan",
+          "testsFailed",
+          "failureSummaries",
+          "problemsSummary"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "consoleOutput": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The console output, if it was small enough. If it was too large, this field will be null and the output will be available via `lookup_build_console_output`."
+          },
+          "publishedScans": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "url",
+                "id",
+                "develocityInstance"
+              ],
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "description": "The URL of the Build Scan. Can be used to view it."
+                },
+                "id": {
+                  "type": "string",
+                  "description": "The Build Scan's ID"
+                },
+                "develocityInstance": {
+                  "type": "string",
+                  "description": "The URL of the Develocity instance the Build Scan is located on"
+                }
+              },
+              "description": "A reference to a Develocity Build Scan"
+            }
+          },
+          "wasSuccessful": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "testsRan": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "testsFailed": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "failureSummaries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "message",
+                "description",
+                "causes"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "The ID of a Gradle failure, used to identify the failure when looking up more information."
+                },
+                "message": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "A short description of the failure."
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "A description of the failure, with more details."
+                },
+                "causes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "description": "The ID of a Gradle failure, used to identify the failure when looking up more information."
+                  },
+                  "uniqueItems": true,
+                  "description": "A set of IDs of the causes of this failure."
+                }
+              },
+              "description": "A summary of a single failure. Details can be looked up using the `lookup_build_failure_details` tool."
+            },
+            "description": "Summaries of all failures encountered during the build. Does not include test failures. Details can be looked up using the `lookup_build_failure_details` tool."
+          },
+          "problemsSummary": {
+            "type": "object",
+            "required": [
+              "errorCounts",
+              "warningCounts",
+              "adviceCounts",
+              "otherCounts"
+            ],
+            "properties": {
+              "errorCounts": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "required": [
+                    "displayName",
+                    "occurences"
+                  ],
+                  "properties": {
+                    "displayName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "occurences": {
+                      "type": "integer",
+                      "minimum": -2147483648,
+                      "maximum": 2147483647
+                    }
+                  }
+                }
+              },
+              "warningCounts": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "required": [
+                    "displayName",
+                    "occurences"
+                  ],
+                  "properties": {
+                    "displayName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "occurences": {
+                      "type": "integer",
+                      "minimum": -2147483648,
+                      "maximum": 2147483647
+                    }
+                  }
+                }
+              },
+              "adviceCounts": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "required": [
+                    "displayName",
+                    "occurences"
+                  ],
+                  "properties": {
+                    "displayName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "occurences": {
+                      "type": "integer",
+                      "minimum": -2147483648,
+                      "maximum": 2147483647
+                    }
+                  }
+                }
+              },
+              "otherCounts": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "required": [
+                    "displayName",
+                    "occurences"
+                  ],
+                  "properties": {
+                    "displayName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "occurences": {
+                      "type": "integer",
+                      "minimum": -2147483648,
+                      "maximum": 2147483647
+                    }
+                  }
+                }
+              }
+            },
+            "description": "A summary of all problems encountered during the build. The keys of the maps/objects are the problem IDs. More information can be looked up with the `lookup_build_problem_details` tool. Note that not all failures have coresponding problems."
+          }
+        },
+        "description": "A summary of the results of a Gradle build. More details can be obtained by using `lookup_build_*` tools or a Develocity Build Scan. Prefer build scans when possible."
+      },
+      "description": "The latest builds ran by this MCP server, starting with the latest."
+    }
+  },
+  "required": [
+    "latestBuilds"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
 ### lookup_build_test_details
 
 For a given build, gets the details of test executions matching the prefix.
@@ -2321,8 +2918,11 @@ For a given build, gets the details of test executions matching the prefix.
 {
   "properties": {
     "buildId": {
-      "type": "string",
-      "description": "The build ID to look up."
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
     },
     "testNamePrefix": {
       "type": "string",
@@ -2330,7 +2930,6 @@ For a given build, gets the details of test executions matching the prefix.
     }
   },
   "required": [
-    "buildId",
     "testNamePrefix"
   ],
   "type": "object"
@@ -2444,13 +3043,14 @@ For a given build, gets the summary of all test executions.
 {
   "properties": {
     "buildId": {
-      "type": "string",
-      "description": "The build ID to look up information for."
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
     }
   },
-  "required": [
-    "buildId"
-  ],
+  "required": [],
   "type": "object"
 }
 ```
@@ -2531,13 +3131,14 @@ Takes a build ID; returns a summary of tests for that build.
 {
   "properties": {
     "buildId": {
-      "type": "string",
-      "description": "The build ID to look up information for."
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
     }
   },
-  "required": [
-    "buildId"
-  ],
+  "required": [],
   "type": "object"
 }
 ```
@@ -2557,8 +3158,12 @@ Takes a build ID; returns a summary of tests for that build.
     "id": {
       "type": "string"
     },
-    "consoltOutput": {
-      "type": "string"
+    "consoleOutput": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The console output, if it was small enough. If it was too large, this field will be null and the output will be available via `lookup_build_console_output`."
     },
     "publishedScans": {
       "type": "array",
@@ -2648,39 +3253,111 @@ Takes a build ID; returns a summary of tests for that build.
     "problemsSummary": {
       "type": "object",
       "required": [
-        "errorsCount",
-        "warningsCount",
-        "advicesCount",
-        "othersCount"
+        "errorCounts",
+        "warningCounts",
+        "adviceCounts",
+        "otherCounts"
       ],
       "properties": {
-        "errorsCount": {
-          "type": "integer",
-          "minimum": -2147483648,
-          "maximum": 2147483647
+        "errorCounts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "displayName",
+              "occurences"
+            ],
+            "properties": {
+              "displayName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "occurences": {
+                "type": "integer",
+                "minimum": -2147483648,
+                "maximum": 2147483647
+              }
+            }
+          }
         },
-        "warningsCount": {
-          "type": "integer",
-          "minimum": -2147483648,
-          "maximum": 2147483647
+        "warningCounts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "displayName",
+              "occurences"
+            ],
+            "properties": {
+              "displayName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "occurences": {
+                "type": "integer",
+                "minimum": -2147483648,
+                "maximum": 2147483647
+              }
+            }
+          }
         },
-        "advicesCount": {
-          "type": "integer",
-          "minimum": -2147483648,
-          "maximum": 2147483647
+        "adviceCounts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "displayName",
+              "occurences"
+            ],
+            "properties": {
+              "displayName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "occurences": {
+                "type": "integer",
+                "minimum": -2147483648,
+                "maximum": 2147483647
+              }
+            }
+          }
         },
-        "othersCount": {
-          "type": "integer",
-          "minimum": -2147483648,
-          "maximum": 2147483647
+        "otherCounts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "displayName",
+              "occurences"
+            ],
+            "properties": {
+              "displayName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "occurences": {
+                "type": "integer",
+                "minimum": -2147483648,
+                "maximum": 2147483647
+              }
+            }
+          }
         }
       },
-      "description": "A summary of all problems encountered during the build. More information can be looked up with the `lookup_build_problems_summary` tool."
+      "description": "A summary of all problems encountered during the build. The keys of the maps/objects are the problem IDs. More information can be looked up with the `lookup_build_problem_details` tool. Note that not all failures have coresponding problems."
     }
   },
   "required": [
     "id",
-    "consoltOutput",
+    "consoleOutput",
     "publishedScans",
     "wasSuccessful",
     "testsRan",
@@ -2708,13 +3385,14 @@ For a given build, gets the summary of all failures (including build and test fa
 {
   "properties": {
     "buildId": {
-      "type": "string",
-      "description": "The build ID to look up information for."
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
     }
   },
-  "required": [
-    "buildId"
-  ],
+  "required": [],
   "type": "object"
 }
 ```
@@ -2798,8 +3476,11 @@ For a given build, gets the details of a failure with the given ID. Use `lookup_
 {
   "properties": {
     "buildId": {
-      "type": "string",
-      "description": "The build ID to look up."
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
     },
     "failureId": {
       "type": "string",
@@ -2807,7 +3488,6 @@ For a given build, gets the details of a failure with the given ID. Use `lookup_
     }
   },
   "required": [
-    "buildId",
     "failureId"
   ],
   "type": "object"
@@ -2929,13 +3609,14 @@ For a given build, get summaries for all problems attached to failures in the bu
 {
   "properties": {
     "buildId": {
-      "type": "string",
-      "description": "The build ID to look up information for."
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
     }
   },
-  "required": [
-    "buildId"
-  ],
+  "required": [],
   "type": "object"
 }
 ```
@@ -2969,7 +3650,10 @@ For a given build, get summaries for all problems attached to failures in the bu
             "description": "The identifier of a problem. Use with `lookup_build_problem_details`. Note that the same problem may occur in different places in the build."
           },
           "displayName": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "severity": {
             "enum": [
@@ -3011,7 +3695,10 @@ For a given build, get summaries for all problems attached to failures in the bu
             "description": "The identifier of a problem. Use with `lookup_build_problem_details`. Note that the same problem may occur in different places in the build."
           },
           "displayName": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "severity": {
             "enum": [
@@ -3053,7 +3740,10 @@ For a given build, get summaries for all problems attached to failures in the bu
             "description": "The identifier of a problem. Use with `lookup_build_problem_details`. Note that the same problem may occur in different places in the build."
           },
           "displayName": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "severity": {
             "enum": [
@@ -3095,7 +3785,10 @@ For a given build, get summaries for all problems attached to failures in the bu
             "description": "The identifier of a problem. Use with `lookup_build_problem_details`. Note that the same problem may occur in different places in the build."
           },
           "displayName": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "severity": {
             "enum": [
@@ -3147,8 +3840,11 @@ For a given build, gets the details of all occurences of the problem with the gi
 {
   "properties": {
     "buildId": {
-      "type": "string",
-      "description": "The build ID to look up."
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
     },
     "problemId": {
       "type": "string",
@@ -3156,7 +3852,6 @@ For a given build, gets the details of all occurences of the problem with the gi
     }
   },
   "required": [
-    "buildId",
     "problemId"
   ],
   "type": "object"
@@ -3175,27 +3870,41 @@ For a given build, gets the details of all occurences of the problem with the gi
 ```json
 {
   "properties": {
-    "id": {
-      "type": "string",
-      "description": "The identifier of a problem. Use with `lookup_build_problem_details`. Note that the same problem may occur in different places in the build."
-    },
-    "displayName": {
-      "type": "string"
-    },
-    "severity": {
-      "enum": [
-        "ADVICE",
-        "WARNING",
-        "ERROR",
-        "OTHER"
+    "definition": {
+      "type": "object",
+      "required": [
+        "id",
+        "displayName",
+        "severity",
+        "documentationLink"
       ],
-      "description": "The severity of the problem. ERROR will fail a build."
-    },
-    "documentationLink": {
-      "type": [
-        "string",
-        "null"
-      ]
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The identifier of a problem. Use with `lookup_build_problem_details`. Note that the same problem may occur in different places in the build."
+        },
+        "displayName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "severity": {
+          "enum": [
+            "ADVICE",
+            "WARNING",
+            "ERROR",
+            "OTHER"
+          ],
+          "description": "The severity of the problem. ERROR will fail a build."
+        },
+        "documentationLink": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
     },
     "occurences": {
       "type": "array",
@@ -3244,11 +3953,86 @@ For a given build, gets the details of all occurences of the problem with the gi
     }
   },
   "required": [
-    "id",
-    "displayName",
-    "severity",
-    "documentationLink",
+    "definition",
     "occurences"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
+### lookup_build_console_output
+
+Gets up to `limitLines` of the console output for a given build, starting at a given offset `offsetLines`. Can read from the tail instead of the head. Repeatedly call this tool using the `nextOffset` in the response to get all console output.
+
+<details>
+
+<summary>Input schema</summary>
+
+
+```json
+{
+  "properties": {
+    "buildId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
+    },
+    "offsetLines": {
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "description": "The offset to start returning output from, in lines. Required."
+    },
+    "limitLines": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "description": "The maximum lines of output to return. Defaults to 100. Null means no limit."
+    },
+    "tail": {
+      "type": "boolean",
+      "description": "If true, starts returning output from the end instead of the beginning (and offsetLines is from the end). Defaults to false."
+    }
+  },
+  "required": [
+    "offsetLines"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
+
+<details>
+
+<summary>Output schema</summary>
+
+
+```json
+{
+  "properties": {
+    "nextOffset": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "description": "The offset to use for the next lookup_build_console_output call. Null if there is no more output to get."
+    }
+  },
+  "required": [
+    "nextOffset"
   ],
   "type": "object"
 }

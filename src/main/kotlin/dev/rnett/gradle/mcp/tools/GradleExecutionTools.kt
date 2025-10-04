@@ -21,8 +21,6 @@ class GradleExecutionTools(
         val commandLine: List<String>,
         @Description("Whether to run with the --scan argument to publish a build scan. Requires a configured Develocity instance. Publishing a scan and using it to diagnose issues (e.g. using the Develocity MCP server) is recommended over `includeFailureInformation` when possible. Defaults to false.")
         val scan: Boolean = false,
-        @Description("Whether to include failure information in the result, if the build fails. Defaults to false. The information can be helpful in diagnosing failures, but is very verbose.")
-        val includeFailureInformation: Boolean = false,
         val invocationArguments: GradleInvocationArguments = GradleInvocationArguments.DEFAULT
     )
 
@@ -127,6 +125,7 @@ class GradleExecutionTools(
         "run_many_test_tasks",
         """
             |Runs may test tasks, each with their own test filters. To run a single test task, use the `run_test_task` tool.
+            |Note that the test tasks passed must be absolute paths (i.e. including the project paths).
             |The console output is included in the result. Show this to the user, as if they had ran the command themselves.
             |Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues and test failures, using something like the Develocity MCP server.
             |The `tests` parameter is REQUIRED, and is simply a map (i.e. JSON object) of each test task to run (e.g. `:test`, `:project-a:sub-b:test`), to the test patterns for the tests to run for that task (e.g. `com.example.*`, `*MyTest*`).  

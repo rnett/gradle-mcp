@@ -4,6 +4,8 @@ import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.BuildResult
 import dev.rnett.gradle.mcp.gradle.FailureId
 import dev.rnett.gradle.mcp.gradle.GradleBuildScan
+import dev.rnett.gradle.mcp.gradle.ProblemAggregation
+import dev.rnett.gradle.mcp.gradle.ProblemId
 import dev.rnett.gradle.mcp.gradle.ProblemSeverity
 import dev.rnett.gradle.mcp.mapToSet
 import io.github.smiley4.schemakenerator.core.annotations.Description
@@ -13,14 +15,15 @@ import kotlinx.serialization.Serializable
 @Description("A summary of the results of a Gradle build. More details can be obtained by using `lookup_build_*` tools or a Develocity Build Scan. Prefer build scans when possible.")
 data class BuildResultSummary(
     val id: BuildId,
-    val consoltOutput: String,
+    @Description("The console output, if it was small enough. If it was too large, this field will be null and the output will be available via `lookup_build_console_output`.")
+    val consoleOutput: String?,
     val publishedScans: List<GradleBuildScan>,
     val wasSuccessful: Boolean?,
     val testsRan: Int,
     val testsFailed: Int,
     @Description("Summaries of all failures encountered during the build. Does not include test failures. Details can be looked up using the `lookup_build_failure_details` tool.")
     val failureSummaries: List<FailureSummary>,
-    @Description("A summary of all problems encountered during the build. More information can be looked up with the `lookup_build_problems_summary` tool.")
+    @Description("A summary of all problems encountered during the build. The keys of the maps/objects are the problem IDs. More information can be looked up with the `lookup_build_problem_details` tool. Note that not all failures have coresponding problems.")
     val problemsSummary: ProblemsSummary,
 ) {
 
@@ -46,19 +49,25 @@ fun BuildResult.Failure.toSummary(): BuildResultSummary.FailureSummary = BuildRe
 
 fun BuildResult.toSummary() = BuildResultSummary(
     id,
-    consoleOutput,
+    consoleOutput.takeIf { it.length < 10_000 },
     publishedScans,
     isSuccessful,
-    testResults?.totalCount ?: 0,
-    testResults?.failed?.size ?: 0,
+    testResults.totalCount,
+    testResults.failed.size,
     allBuildFailures.values.map { it.toSummary() },
-    ProblemsSummary(
-        errorsCount = problems[ProblemSeverity.ERROR]?.size ?: 0,
-        warningsCount = problems[ProblemSeverity.WARNING]?.size ?: 0,
-        advicesCount = problems[ProblemSeverity.ADVICE]?.size ?: 0,
-        othersCount = problems[ProblemSeverity.OTHER]?.size ?: 0,
-    )
+    problems.toSummary()
+
 )
+
+fun Map<ProblemSeverity, List<ProblemAggregation>>.toSummary(): ProblemsSummary {
+    fun counts(severity: ProblemSeverity) = this[severity].orEmpty().associate { it.definition.id to ProblemsSummary.ProblemSummary(it.definition.displayName, it.numberOfOccurrences) }
+    return ProblemsSummary(
+        errorCounts = counts(ProblemSeverity.ERROR),
+        warningCounts = counts(ProblemSeverity.WARNING),
+        adviceCounts = counts(ProblemSeverity.ADVICE),
+        otherCounts = counts(ProblemSeverity.OTHER),
+    )
+}
 
 fun BuildResult.TestResults.toSummary() = TestResultsSummary(
     passed.map { it.testName },
@@ -81,8 +90,14 @@ data class TestResultsSummary(
 
 @Serializable
 data class ProblemsSummary(
-    val errorsCount: Int,
-    val warningsCount: Int,
-    val advicesCount: Int,
-    val othersCount: Int,
-)
+    val errorCounts: Map<ProblemId, ProblemSummary>,
+    val warningCounts: Map<ProblemId, ProblemSummary>,
+    val adviceCounts: Map<ProblemId, ProblemSummary>,
+    val otherCounts: Map<ProblemId, ProblemSummary>,
+) {
+    @Serializable
+    data class ProblemSummary(
+        val displayName: String?,
+        val occurences: Int
+    )
+}

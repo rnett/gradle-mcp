@@ -39,6 +39,7 @@ data class BuildResult(
     val buildFailures: List<Failure>?,
     val problems: Map<ProblemSeverity, List<ProblemAggregation>>
 ) {
+    val consoleOutputLines by lazy { consoleOutput.lines() }
     val isSuccessful: Boolean = buildFailures == null
 
     val allTestFailures by lazy {
@@ -106,7 +107,7 @@ data class BuildResult(
             console: String,
             scans: List<GradleBuildScan>,
             testResults: GradleProvider.TestCollector.Results,
-            problems: List<org.gradle.tooling.events.problems.ProblemAggregation>,
+            problems: List<ProblemAggregation>,
             exception: GradleConnectionException?
         ): BuildResult {
 
@@ -128,7 +129,7 @@ data class BuildResult(
                 scans,
                 modelTestResults,
                 buildFailures?.toList(),
-                problems.asSequence().map { it.toModel() }.groupBy { it.severity }
+                problems.asSequence().groupBy { it.definition.severity }
             )
         }
 
