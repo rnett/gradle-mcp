@@ -15,3 +15,4 @@ Use the Gradle MCP to interact with Gradle whenever possible.
 * Use only the kotlin.test assertions configured with power-assert. Power-assert makes it unnecessary to use more complex assertions. Generally prefer to just use `kotlin.assert`.
 * Do not under any circumstances use reflection hacks for tests.
 * Always use `runTest` for suspending tests, not `runBlocking`.
+* Try to minimize how many tokens you use.

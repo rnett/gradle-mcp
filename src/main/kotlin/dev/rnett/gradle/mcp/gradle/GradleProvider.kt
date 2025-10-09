@@ -86,7 +86,7 @@ interface GradleProvider {
 
 class DefaultGradleProvider(
     val config: GradleConfiguration
-): GradleProvider {
+) : GradleProvider {
     companion object {
         private val LOGGER = LoggerFactory.getLogger(DefaultGradleProvider::class.java)
     }
@@ -205,9 +205,9 @@ class DefaultGradleProvider(
             setJavaHome(environment.java.javaHome)
             setJvmArguments(environment.java.jvmArguments)
 
-            setEnvironmentVariables(System.getenv() + args.additionalEnvVars)
+            setEnvironmentVariables(System.getenv().takeUnless { args.doNotInheritEnvVars }.orEmpty() + args.additionalEnvVars)
             @Suppress("UNCHECKED_CAST")
-            withSystemProperties((System.getProperties().toMap() as Map<String, String>) + args.additionalSystemProps)
+            withSystemProperties(args.additionalSystemProps)
             addJvmArguments(args.additionalJvmArgs + "-Dscan.tag.MCP")
             withDetailedFailure()
             withArguments(args.allAdditionalArguments)

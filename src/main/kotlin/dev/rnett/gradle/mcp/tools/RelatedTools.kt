@@ -74,5 +74,18 @@ class RelatedTools() : McpServerComponent() {
     }
 
     private fun docsUrl(version: String) = "https://docs.gradle.org/$version/userguide/userguide.html"
+
+    @Serializable
+    class EmptyInput()
+
+    @Serializable
+    data class CurrentEnvironment(val environment: Map<String, String>)
+
+    val getCurrentEnvironmentVariables by tool<EmptyInput, CurrentEnvironment>(
+        "get_current_environment_variables",
+        "Gets the current environment variables for the MCP server, as a map of variable name to value. These are the environment variables that will be used when executing Gradle tasks, plus any additional env vars from the invocation args."
+    ) {
+        CurrentEnvironment(System.getenv())
+    }
 }
 

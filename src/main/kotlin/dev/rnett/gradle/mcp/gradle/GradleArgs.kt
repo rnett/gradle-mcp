@@ -1,12 +1,10 @@
 package dev.rnett.gradle.mcp.gradle
 
-import dev.rnett.gradle.mcp.tools.GradlePathUtils
-import io.github.smiley4.schemakenerator.core.annotations.Description
-import io.github.smiley4.schemakenerator.core.annotations.Example
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
-import org.gradle.tooling.model.ProjectIdentifier
-import kotlin.io.path.absolute
+import dev.rnett.gradle.mcp.tools.*
+import io.github.smiley4.schemakenerator.core.annotations.*
+import kotlinx.serialization.*
+import org.gradle.tooling.model.*
+import kotlin.io.path.*
 
 fun ProjectIdentifier.matches(root: GradleProjectRoot, projectPath: GradleProjectPath): Boolean =
     buildIdentifier.rootDir.toPath().absolute() == GradlePathUtils.getRootProjectPath(root) && this.projectPath == projectPath.path
@@ -14,9 +12,9 @@ fun ProjectIdentifier.matches(root: GradleProjectRoot, projectPath: GradleProjec
 @Serializable
 @Description("Additional arguments to configure the Gradle process.")
 data class GradleInvocationArguments(
-    @Description("Additional environment variables to set for the Gradle process. Optional.")
+    @Description("Additional environment variables to set for the Gradle process. Optional. The process inherits the MCP server's env vars unless `doNotInheritEnvVars` is set to true. Note that the MCP server may not have the same env vars as the MCP Host - you may need to pass sone.")
     val additionalEnvVars: Map<String, String> = emptyMap(),
-    @Description("Additional system properties to set for the Gradle process. Optional.")
+    @Description("Additional system properties to set for the Gradle process. Optional. No system properties are inherited from the MCP server.")
     val additionalSystemProps: Map<String, String> = emptyMap(),
     @Description("Additional JVM arguments to set for the Gradle process. Optional.")
     val additionalJvmArgs: List<String> = emptyList(),
@@ -24,6 +22,8 @@ data class GradleInvocationArguments(
     val additionalArguments: List<String> = emptyList(),
     @Description("Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation.")
     val publishScan: Boolean = false,
+    @Description("Defaults to true. If false, will not inherit env vars from the MCP server.")
+    val doNotInheritEnvVars: Boolean = false,
 ) {
     operator fun plus(other: GradleInvocationArguments): GradleInvocationArguments {
         return GradleInvocationArguments(
