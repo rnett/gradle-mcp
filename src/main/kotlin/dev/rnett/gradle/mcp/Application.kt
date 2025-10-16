@@ -97,7 +97,7 @@ class Application(val args: Array<String>) {
                 ),
                 json
             ).apply {
-                components(provider).forEach { add(it) }
+                components.forEach { add(it) }
             }
         }
 
