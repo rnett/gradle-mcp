@@ -67,7 +67,7 @@ jobs:
             done
           fi
           
-      - name: Show current mike versions
+      - name: Show remaining mike versions
         run: |
           echo "Remaining mike versions:"
           mike list || echo "No docs site versions found (likely first deployment)"
