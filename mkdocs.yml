@@ -1,0 +1,79 @@
+site_name: Gradle MCP
+repo_name: Gradle MCP
+repo_url: https://github.com/rnett/gradle-mcp
+site_url: https://gradle-mcp.rnett.dev
+site_description: "A fully-featured MCP server for Gradle"
+site_author: Ryan Nett
+remote_branch: gh-pages
+
+copyright: 'Copyright &copy; 2025 Ryan Nett'
+
+theme:
+  name: 'material'
+  palette:
+    - media: '(prefers-color-scheme: light)'
+      scheme: default
+      primary: 'white'
+      accent: 'darkgreen'
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: '(prefers-color-scheme: dark)'
+      scheme: slate
+      primary: 'black'
+      accent: 'darkgreen'
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: 'Lato'
+    code: 'Fira Code'
+  features:
+    - content.code.copy
+    - content.code.select
+
+plugins:
+  - social
+  - search
+  - mike
+
+#extra_css:
+#  - 'css/app.css'
+
+extra:
+  version:
+    provider: mike
+
+markdown_extensions:
+  - smarty
+  - codehilite:
+      guess_lang: false
+  - meta
+  - toc:
+      permalink: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.inlinehilite
+  - pymdownx.magiclink
+  - pymdownx.smartsymbols
+  - pymdownx.superfences
+  - pymdownx.emoji
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - attr_list
+  - md_in_html
+  - nl2br
+  - admonitions
+  - admonition
+
+nav:
+  - 'Getting Started': index.md
+  - 'Tools':
+      - 'Utility': tools/UTILITY_TOOLS.md
+      - 'Introspection': tools/INTROSPECTION_TOOLS.md
+      - 'Report tasks': tools/TASK_WRAPPER_TOOLS.md
+      - 'Execution': tools/EXECUTION_TOOLS.md
+      - 'Detail lookup': tools/LOOKUP_TOOLS.md

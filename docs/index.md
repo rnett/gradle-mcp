@@ -95,11 +95,3 @@ Even if you don't have your build configured to publish build scans automaticall
 These will publish to the public https://scans.gradle.com instance unless you have a Develocity instance configured in your build.
 You will be prompted by your agent to accept the terms of service for publishing scans.
 If your agent does not support elicitation, you will not be able to publish scans.
-
-## Tools
-
-* [Utility tools](./tools/UTILITY_TOOLS.md)
-* [Introspection tools](./tools/INTROSPECTION_TOOLS.md)
-* [Report task tools](./tools/TASK_WRAPPER_TOOLS.md)
-* [Execution tools](./tools/EXECUTION_TOOLS.md)
-* [Lookup tools](./tools/LOOKUP_TOOLS.md)
