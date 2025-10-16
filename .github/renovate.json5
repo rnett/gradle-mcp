@@ -11,9 +11,4 @@
   ],
   automerge: true,
   "pruneStaleBranches": false,
-  enabledManagers: [
-    "gradle",
-    "gradle-wrapper",
-    "github-actions"
-  ],
 }
