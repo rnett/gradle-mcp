@@ -37,5 +37,12 @@ jobs:
         id: get-version
         run: echo "version=$(cat version.txt)" >> "$GITHUB_OUTPUT"
 
+      - name: Get current docs
+        run: git fetch origin gh-pages --depth=1
+
+      - name: Show current mike versions
+        run: |
+          echo "Current mike versions available:"
+          mike list || echo "No docs site versions found (likely first deployment)"
 
       - run: mike deploy --update-aliases --push ${{ steps.get-version.outputs.version }} snapshot
