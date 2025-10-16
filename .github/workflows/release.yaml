@@ -15,7 +15,7 @@ jobs:
 
   publishDocs:
     name: Publish docs
-    uses: ./.github/workflows/ci.yaml
+    uses: ./.github/workflows/docs.yaml
 
   release:
     needs: [ ci, publishDocs ]

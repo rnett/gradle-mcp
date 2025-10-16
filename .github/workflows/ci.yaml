@@ -80,5 +80,5 @@ jobs:
 
   publichSnapshotDocs:
     needs: publishSnapshot
-    uses: ./.github/workflows/ci.yaml
+    uses: ./.github/workflows/docs.yaml
     secrets: inherit
