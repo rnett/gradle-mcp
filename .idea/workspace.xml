@@ -1,0 +1,1231 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="NONE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="108350d1-0d3c-4f04-8776-26474edc892e" name="Changes" comment="Add index page redirecting to latest, and root 404 page">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+    </list>
+    <list id="ad4e1a6b-41e3-461d-8a2b-75ae2bf5b11b" name="Split test tools" comment="" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ExternalProjectsData">
+    <projectState path="$PROJECT_DIR$">
+      <ProjectState />
+    </projectState>
+  </component>
+  <component name="ExternalProjectsManager">
+    <system id="GRADLE">
+      <state>
+        <task path="$PROJECT_DIR$">
+          <activation />
+        </task>
+        <projects_view>
+          <tree_state>
+            <expand>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="gradle-mcp" type="f1a62948:ProjectNode" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="gradle-mcp" type="f1a62948:ProjectNode" />
+                <item name="Tasks" type="e4a08cd1:TasksNode" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="gradle-mcp" type="f1a62948:ProjectNode" />
+                <item name="Tasks" type="e4a08cd1:TasksNode" />
+                <item name="application" type="c8890929:TasksNode$1" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="gradle-mcp" type="f1a62948:ProjectNode" />
+                <item name="Tasks" type="e4a08cd1:TasksNode" />
+                <item name="build" type="c8890929:TasksNode$1" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="gradle-mcp" type="f1a62948:ProjectNode" />
+                <item name="Tasks" type="e4a08cd1:TasksNode" />
+                <item name="build setup" type="c8890929:TasksNode$1" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="gradle-mcp" type="f1a62948:ProjectNode" />
+                <item name="Tasks" type="e4a08cd1:TasksNode" />
+                <item name="buildconfig" type="c8890929:TasksNode$1" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="gradle-mcp" type="f1a62948:ProjectNode" />
+                <item name="Tasks" type="e4a08cd1:TasksNode" />
+                <item name="distribution" type="c8890929:TasksNode$1" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="gradle-mcp" type="f1a62948:ProjectNode" />
+                <item name="Tasks" type="e4a08cd1:TasksNode" />
+                <item name="documentation" type="c8890929:TasksNode$1" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="gradle-mcp" type="f1a62948:ProjectNode" />
+                <item name="Tasks" type="e4a08cd1:TasksNode" />
+                <item name="help" type="c8890929:TasksNode$1" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="gradle-mcp" type="f1a62948:ProjectNode" />
+                <item name="Tasks" type="e4a08cd1:TasksNode" />
+                <item name="other" type="c8890929:TasksNode$1" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="gradle-mcp" type="f1a62948:ProjectNode" />
+                <item name="Tasks" type="e4a08cd1:TasksNode" />
+                <item name="publishing" type="c8890929:TasksNode$1" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="gradle-mcp" type="f1a62948:ProjectNode" />
+                <item name="Tasks" type="e4a08cd1:TasksNode" />
+                <item name="signing" type="c8890929:TasksNode$1" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="gradle-mcp" type="f1a62948:ProjectNode" />
+                <item name="Tasks" type="e4a08cd1:TasksNode" />
+                <item name="validation" type="c8890929:TasksNode$1" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="gradle-mcp" type="f1a62948:ProjectNode" />
+                <item name="Tasks" type="e4a08cd1:TasksNode" />
+                <item name="verification" type="c8890929:TasksNode$1" />
+              </path>
+            </expand>
+            <select />
+          </tree_state>
+        </projects_view>
+      </state>
+    </system>
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="kotlin.jupyter.empty" />
+        <option value="Kotlin Object" />
+        <option value="Class" />
+        <option value="Kotlin Class" />
+        <option value="Kotlin File" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="main" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RESET_MODE" value="MIXED" />
+    <option name="UPDATE_TYPE" value="REBASE" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;rnett&quot;
+  }
+}</component>
+  <component name="GitToolBoxStore">
+    <option name="recentBranches">
+      <RecentBranches>
+        <option name="branchesForRepo">
+          <list>
+            <RecentBranchesForRepo>
+              <option name="branches">
+                <list>
+                  <RecentBranch>
+                    <option name="branchName" value="gh-pages" />
+                    <option name="lastUsedInstant" value="1760585974" />
+                  </RecentBranch>
+                  <RecentBranch>
+                    <option name="branchName" value="main" />
+                    <option name="lastUsedInstant" value="1760585973" />
+                  </RecentBranch>
+                </list>
+              </option>
+              <option name="repositoryRootUrl" value="file://$PROJECT_DIR$/tmp" />
+            </RecentBranchesForRepo>
+            <RecentBranchesForRepo>
+              <option name="branches">
+                <list>
+                  <RecentBranch>
+                    <option name="branchName" value="gh-pages" />
+                    <option name="lastUsedInstant" value="1760587366" />
+                  </RecentBranch>
+                  <RecentBranch>
+                    <option name="branchName" value="main" />
+                    <option name="lastUsedInstant" value="1760587239" />
+                  </RecentBranch>
+                </list>
+              </option>
+              <option name="repositoryRootUrl" value="file://$PROJECT_DIR$" />
+            </RecentBranchesForRepo>
+          </list>
+        </option>
+      </RecentBranches>
+    </option>
+  </component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/rnett/gradle-mcp.git&quot;,
+    &quot;accountId&quot;: &quot;97025005-7633-4131-a435-956df20d2ad6&quot;
+  }
+}</component>
+  <component name="GoLibraries">
+    <option name="indexEntireGoPath" value="true" />
+  </component>
+  <component name="GoVcsConfiguration">
+    <option name="GO_FMT" value="false" />
+  </component>
+  <component name="GradleScriptDefinitionsStorage" workingDir="$PROJECT_DIR$" gradleHome="C:\Users\rnett\.gradle\wrapper\dists\gradle-9.1.0-bin\9agqghryom9wkf8r80qlhnts3\gradle-9.1.0" javaHome="C:\Users\rnett\AppData\Local\Programs\IntelliJ IDEA Ultimate\jbr" gradleVersion="9.1.0" />
+  <component name="JvmLoggingSettingsStorage">
+    <option name="loggerId" value="Slf4j" />
+    <option name="loggerName" value="LOGGER" />
+  </component>
+  <component name="KubernetesApiPersistence">{}</component>
+  <component name="KubernetesApiProvider">{
+  &quot;isMigrated&quot;: true
+}</component>
+  <component name="LogFilters">
+    <option name="FILTER_ERRORS" value="false" />
+    <option name="FILTER_WARNINGS" value="false" />
+    <option name="FILTER_INFO" value="true" />
+    <option name="FILTER_DEBUG" value="true" />
+    <option name="CUSTOM_FILTER" />
+  </component>
+  <component name="MacroExpansionManager">
+    <option name="directoryName" value="hQHvpH2f" />
+  </component>
+  <component name="ProjectCodeStyleSettingsMigration">
+    <option name="version" value="2" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 7
+}</component>
+  <component name="ProjectId" id="33FpzKwyKZwXJDlKEYf4FwUFcrv" />
+  <component name="ProjectReloadState">
+    <option name="STATE" value="1" />
+  </component>
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Gradle.Build gradle-mcp.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Download Sources.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.GradleProviderTest.captures published build scans when enabled.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.McpServerBasicTest.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.McpToolWorkflowsTest.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.McpToolWorkflowsTest.scan TOS acceptance remembered across runs.executor&quot;: &quot;Debug&quot;,
+    &quot;Gradle.McpToolsBasicPresenceTest.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.NewRootPathConverterTest.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Run --continuous .executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Run docker.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Run.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Stdio .executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [--mcp start].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [--mcp].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [:dev.rnett.gradle.mcp.Application.main()].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [:dev.rnett.gradle.mcp.ApplicationKt.main()].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [:dev.rnett.gradle.mcp.gradle.GradleProviderKt.main()].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [:publishToMavenCentral].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [:updateDaemonJvm].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [:wrapper].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [artifactTransforms].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [assemble].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [bootRun].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [bootTestRun].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [buildEnvironment].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [buildImage].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [check].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [classes].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [dependencies].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [dependencyInsight --configuration implementation --dependency com.github.ben-manes.caffe].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [dependencyInsight --configuration runtime --dependency com.github.ben-manes.caffe].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [dependencyInsight --configuration runtimeClasspath --dependency com.github.ben-manes.caffe --single-path=false].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [dependencyInsight --configuration runtimeClasspath --dependency com.github.ben-manes.caffe].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [dependencyInsight].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [javaToolchains].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [javadocJar].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [jib --image test].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [jib].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [kotlinDslAccessorsReport].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [outgoingVariants].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [projects].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [properties].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [publishImageToLocalRegistry].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [publishImage].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [publishMavenPublicationToMavenLocal].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [publishShadowPublicationToMavenLocal].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [publishToMavenCentral].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [publishToMavenLocal].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [publish].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [resolvableConfigurations].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [runDocker].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [runShadow].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [run].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [shadowJar].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [tasks].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [updateDaemonJvm].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [updateToolsList].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [updateTools].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [verifyToolsList].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp [wrapper].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.gradle-mcp.executor&quot;: &quot;Run&quot;,
+    &quot;JUnit.Whole project.executor&quot;: &quot;Run&quot;,
+    &quot;Ktor.Application .executor&quot;: &quot;Debug&quot;,
+    &quot;Ktor.Application.executor&quot;: &quot;Run&quot;,
+    &quot;Ktor.ApplicationKt.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.go.formatter.settings.were.checked&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.go.migrated.go.modules.settings&quot;: &quot;true&quot;,
+    &quot;SHELLCHECK.PATH&quot;: &quot;C:\\Users\\rnett\\AppData\\Roaming\\JetBrains\\IntelliJIdea2025.2\\plugins\\Shell Script\\shellcheck.exe&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;gh-pages&quot;,
+    &quot;go.import.settings.migrated&quot;: &quot;true&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_directory_selection&quot;: &quot;C:/Users/rnett/Projects/Personal/gradle-mcp/src/main/kotlin/dev/rnett/gradle/mcp&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/rnett/Projects/Personal/gradle-mcp&quot;,
+    &quot;llm.McpServerEditPanel.switcher&quot;: &quot;1&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon&quot;: &quot;&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+    &quot;settings.build.tools.auto.reload&quot;: &quot;ALL&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.sourceCode&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  },
+  &quot;keyToStringList&quot;: {
+    &quot;com.intellij.ide.scratch.ScratchImplUtil$2/New Scratch File&quot;: [
+      &quot;Kotlin Notebook&quot;,
+      &quot;JSON&quot;
+    ]
+  }
+}</component>
+  <component name="ReactorSettings">
+    <option name="notificationShown" value="true" />
+  </component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\rnett\Projects\Personal\gradle-mcp" />
+      <recent name="C:\Users\rnett\Projects\Personal\gradle-mcp\docs" />
+      <recent name="C:\Users\rnett\Projects\Personal\gradle-mcp\src\main\resources" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\rnett\Projects\Personal\gradle-mcp" />
+    </key>
+    <key name="K2MoveDeclarationsDialog.RECENT_PACKAGE_KEY">
+      <recent name="dev.rnett.gradle.mcp.gradle" />
+      <recent name="dev.rnett.gradle.mcp.tools" />
+      <recent name="dev.rnett.gradle.mcp.mcp" />
+      <recent name="dev.rnett.gradle.mcp.dev.rnett.gradle.mcp" />
+      <recent name="dev.rnett.gradle.mcp" />
+    </key>
+  </component>
+  <component name="RunAnythingCache">
+    <option name="myCommands">
+      <command value="gradle updateDaemonJvm" />
+      <command value="gradle :wrapper" />
+      <command value="gradle :updateDaemonJvm" />
+      <command value="gradle --mcp" />
+      <command value="gradle --mcp start" />
+      <command value="gradle jib --image test" />
+      <command value="gradle --init-script ./mcp.init.gradle.kts --mcp" />
+      <command value="gradle --refresh-dependencies" />
+      <command value="gradle dependencyInsight --configuration implementation --dependency com.github.ben-manes.caffe" />
+      <command value="gradle dependencyInsight --configuration runtime --dependency com.github.ben-manes.caffe" />
+      <command value="gradle dependencyInsight --configuration runtimeClasspath --dependency com.github.ben-manes.caffe" />
+      <command value="gradle dependencyInsight --configuration runtimeClasspath --dependency com.github.ben-manes.caffe --single-path=false" />
+      <command value="gradle dependencyInsight --configuration runtimeClasspath --dependency com.github.ben-manes.caffe --single-path=false -q" />
+      <command value="gradle dependencyInsight --configuration runtimeClasspath --dependency com.github.ben-manes.caffe -q" />
+      <command value="gradle :publishToMavenCentral -x publishMavenPublicationToMavenCentralRepository" />
+      <command value="gradle assemble --scan" />
+    </option>
+  </component>
+  <component name="RunManager" selected="Gradle.gradle-mcp [updateToolsList]">
+    <configuration name="GradleProviderTest.captures published build scans when enabled" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" value="" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value=":test" />
+            <option value="--tests" />
+            <option value="&quot;dev.rnett.gradle.mcp.gradle.GradleProviderTest.captures published build scans when enabled&quot;" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>false</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>true</RunAsTest>
+      <method v="2" />
+    </configuration>
+    <configuration name="McpServerBasicTest" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" value="" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value=":test" />
+            <option value="--tests" />
+            <option value="&quot;dev.rnett.gradle.mcp.mcp.McpServerBasicTest&quot;" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>false</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>true</RunAsTest>
+      <method v="2" />
+    </configuration>
+    <configuration name="McpToolWorkflowsTest" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" value="" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value=":test" />
+            <option value="--tests" />
+            <option value="&quot;dev.rnett.gradle.mcp.mcp.McpToolWorkflowsTest&quot;" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>false</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>true</RunAsTest>
+      <method v="2" />
+    </configuration>
+    <configuration name="McpToolWorkflowsTest.scan TOS acceptance remembered across runs" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" value="" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value=":test" />
+            <option value="--tests" />
+            <option value="&quot;dev.rnett.gradle.mcp.mcp.McpToolWorkflowsTest.scan TOS acceptance remembered across runs&quot;" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>false</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>true</RunAsTest>
+      <method v="2" />
+    </configuration>
+    <configuration name="McpToolsBasicPresenceTest" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" value="" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value=":test" />
+            <option value="--tests" />
+            <option value="&quot;dev.rnett.gradle.mcp.mcp.McpToolsBasicPresenceTest&quot;" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>false</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>true</RunAsTest>
+      <method v="2" />
+    </configuration>
+    <configuration name="Run --continuous " type="GradleRunConfiguration" factoryName="Gradle">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" value="--continuous" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value="run" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>false</RunAsTest>
+      <method v="2" />
+    </configuration>
+    <configuration name="Run docker" type="GradleRunConfiguration" factoryName="Gradle">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" value="--no-configuration-cache --stacktrace" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value="runDocker" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>false</RunAsTest>
+      <method v="2" />
+    </configuration>
+    <configuration name="Run" type="GradleRunConfiguration" factoryName="Gradle">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" value="" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value="run" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>false</RunAsTest>
+      <method v="2" />
+    </configuration>
+    <configuration name="Stdio " type="GradleRunConfiguration" factoryName="Gradle">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" value="" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value=":dev.rnett.gradle.mcp.Application.main()" />
+            <option value="--args=&quot;stdio&quot;" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>false</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>false</RunAsTest>
+      <method v="2" />
+    </configuration>
+    <configuration name="gradle-mcp [check]" type="GradleRunConfiguration" factoryName="Gradle">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value="check" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>false</RunAsTest>
+      <method v="2" />
+    </configuration>
+    <configuration name="gradle-mcp [updateToolsList]" type="GradleRunConfiguration" factoryName="Gradle">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" value="" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value="updateToolsList" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>false</RunAsTest>
+      <method v="2" />
+    </configuration>
+    <configuration name="Application" type="KtorApplicationConfigurationType" factoryName="Ktor" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="dev.rnett.gradle.mcp.Application" />
+      <module name="gradle-mcp.main" />
+      <option name="alternativeJrePath" />
+      <option name="alternativeJrePathEnabled" value="false" />
+      <option name="includeProvidedScope" value="false" />
+      <option name="mainClass" value="dev.rnett.gradle.mcp.Application" />
+      <option name="passParentEnvs" value="true" />
+      <option name="programParameters" />
+      <option name="shortenCommandLine" />
+      <option name="vmParameters" />
+      <option name="workingDirectory" value="C:\Users\rnett\Projects\Personal\gradle-mcp" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Application" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="gradle-mcp.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="dev.rnett.gradle.mcp.Application" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="Gradle.Stdio " />
+      <item itemvalue="Gradle.Run" />
+      <item itemvalue="Gradle.Run --continuous " />
+      <item itemvalue="Gradle.Run docker" />
+      <item itemvalue="Gradle.gradle-mcp [check]" />
+      <item itemvalue="Gradle.gradle-mcp [updateToolsList]" />
+      <item itemvalue="Gradle.GradleProviderTest.captures published build scans when enabled" />
+      <item itemvalue="Gradle.McpServerBasicTest" />
+      <item itemvalue="Gradle.McpToolWorkflowsTest" />
+      <item itemvalue="Gradle.McpToolWorkflowsTest.scan TOS acceptance remembered across runs" />
+      <item itemvalue="Gradle.McpToolsBasicPresenceTest" />
+      <item itemvalue="Ktor.Application" />
+      <item itemvalue="Spring Boot.Application" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Gradle.McpToolsBasicPresenceTest" />
+        <item itemvalue="Gradle.McpToolWorkflowsTest.scan TOS acceptance remembered across runs" />
+        <item itemvalue="Gradle.McpToolWorkflowsTest" />
+        <item itemvalue="Gradle.McpServerBasicTest" />
+        <item itemvalue="Gradle.GradleProviderTest.captures published build scans when enabled" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="108350d1-0d3c-4f04-8776-26474edc892e" name="Changes" comment="" />
+      <changelist id="ad4e1a6b-41e3-461d-8a2b-75ae2bf5b11b" name="Split test tools" comment="" />
+      <created>1758922938258</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1758922938258</updated>
+      <workItem from="1758922939456" duration="3442000" />
+      <workItem from="1758926438653" duration="12540000" />
+      <workItem from="1758939117428" duration="49401000" />
+      <workItem from="1759089257304" duration="47212000" />
+      <workItem from="1759191440872" duration="798000" />
+      <workItem from="1759194758534" duration="24049000" />
+      <workItem from="1759444956946" duration="6979000" />
+      <workItem from="1759452733088" duration="1087000" />
+      <workItem from="1759454129695" duration="3820000" />
+      <workItem from="1759467577110" duration="1806000" />
+      <workItem from="1759513152252" duration="4511000" />
+      <workItem from="1759527719315" duration="49000" />
+      <workItem from="1759529878782" duration="13000" />
+      <workItem from="1759539556282" duration="390000" />
+      <workItem from="1759542522105" duration="1298000" />
+      <workItem from="1759553663846" duration="118000" />
+      <workItem from="1759598355582" duration="15958000" />
+      <workItem from="1759689410912" duration="1907000" />
+      <workItem from="1759692578434" duration="68000" />
+      <workItem from="1759715011736" duration="921000" />
+      <workItem from="1759865544083" duration="716000" />
+      <workItem from="1759880837964" duration="982000" />
+      <workItem from="1759887024547" duration="4252000" />
+      <workItem from="1759956342069" duration="4107000" />
+      <workItem from="1759981377681" duration="75000" />
+      <workItem from="1759981456214" duration="338000" />
+      <workItem from="1760054191123" duration="469000" />
+      <workItem from="1760576977388" duration="9101000" />
+      <workItem from="1760587371876" duration="78000" />
+    </task>
+    <task id="LOCAL-00051" summary="Try publishing 0.0.1 again">
+      <option name="closed" value="true" />
+      <created>1759370512991</created>
+      <option name="number" value="00051" />
+      <option name="presentableId" value="LOCAL-00051" />
+      <option name="project" value="LOCAL" />
+      <updated>1759370512991</updated>
+    </task>
+    <task id="LOCAL-00052" summary="Don't run assemble">
+      <option name="closed" value="true" />
+      <created>1759371157073</created>
+      <option name="number" value="00052" />
+      <option name="presentableId" value="LOCAL-00052" />
+      <option name="project" value="LOCAL" />
+      <updated>1759371157073</updated>
+    </task>
+    <task id="LOCAL-00053" summary="Stop setting version in script">
+      <option name="closed" value="true" />
+      <created>1759373095060</created>
+      <option name="number" value="00053" />
+      <option name="presentableId" value="LOCAL-00053" />
+      <option name="project" value="LOCAL" />
+      <updated>1759373095060</updated>
+    </task>
+    <task id="LOCAL-00054" summary="Don't exclude obsolete tasks">
+      <option name="closed" value="true" />
+      <created>1759373609873</created>
+      <option name="number" value="00054" />
+      <option name="presentableId" value="LOCAL-00054" />
+      <option name="project" value="LOCAL" />
+      <updated>1759373609873</updated>
+    </task>
+    <task id="LOCAL-00055" summary="Add sources and javadoc jars">
+      <option name="closed" value="true" />
+      <created>1759374023921</created>
+      <option name="number" value="00055" />
+      <option name="presentableId" value="LOCAL-00055" />
+      <option name="project" value="LOCAL" />
+      <updated>1759374023921</updated>
+    </task>
+    <task id="LOCAL-00056" summary="Bump version for real this time">
+      <option name="closed" value="true" />
+      <created>1759374239607</created>
+      <option name="number" value="00056" />
+      <option name="presentableId" value="LOCAL-00056" />
+      <option name="project" value="LOCAL" />
+      <updated>1759374239607</updated>
+    </task>
+    <task id="LOCAL-00057" summary="Try using smaller results and more tools">
+      <option name="closed" value="true" />
+      <created>1759461632279</created>
+      <option name="number" value="00057" />
+      <option name="presentableId" value="LOCAL-00057" />
+      <option name="project" value="LOCAL" />
+      <updated>1759461632280</updated>
+    </task>
+    <task id="LOCAL-00058" summary="Update tools list">
+      <option name="closed" value="true" />
+      <created>1759467682319</created>
+      <option name="number" value="00058" />
+      <option name="presentableId" value="LOCAL-00058" />
+      <option name="project" value="LOCAL" />
+      <updated>1759467682319</updated>
+    </task>
+    <task id="LOCAL-00059" summary="Register the new tools (oops)">
+      <option name="closed" value="true" />
+      <created>1759467982466</created>
+      <option name="number" value="00059" />
+      <option name="presentableId" value="LOCAL-00059" />
+      <option name="project" value="LOCAL" />
+      <updated>1759467982466</updated>
+    </task>
+    <task id="LOCAL-00060" summary="Make build ID optional for the lookup tools">
+      <option name="closed" value="true" />
+      <created>1759539650568</created>
+      <option name="number" value="00060" />
+      <option name="presentableId" value="LOCAL-00060" />
+      <option name="project" value="LOCAL" />
+      <updated>1759539650568</updated>
+    </task>
+    <task id="LOCAL-00061" summary="Add a build scan tag for the MCP server">
+      <option name="closed" value="true" />
+      <created>1759542803586</created>
+      <option name="number" value="00061" />
+      <option name="presentableId" value="LOCAL-00061" />
+      <option name="project" value="LOCAL" />
+      <updated>1759542803586</updated>
+    </task>
+    <task id="LOCAL-00062" summary="Allow remembering scans acceptance">
+      <option name="closed" value="true" />
+      <created>1759543818042</created>
+      <option name="number" value="00062" />
+      <option name="presentableId" value="LOCAL-00062" />
+      <option name="project" value="LOCAL" />
+      <updated>1759543818042</updated>
+    </task>
+    <task id="LOCAL-00063" summary="Remove extra output">
+      <option name="closed" value="true" />
+      <created>1759553706566</created>
+      <option name="number" value="00063" />
+      <option name="presentableId" value="LOCAL-00063" />
+      <option name="project" value="LOCAL" />
+      <updated>1759553706566</updated>
+    </task>
+    <task id="LOCAL-00064" summary="Truncate test results if there are too many">
+      <option name="closed" value="true" />
+      <created>1759598950599</created>
+      <option name="number" value="00064" />
+      <option name="presentableId" value="LOCAL-00064" />
+      <option name="project" value="LOCAL" />
+      <updated>1759598950599</updated>
+    </task>
+    <task id="LOCAL-00065" summary="Take MCP roots into account, and use as default project root if there is only one">
+      <option name="closed" value="true" />
+      <created>1759601303070</created>
+      <option name="number" value="00065" />
+      <option name="presentableId" value="LOCAL-00065" />
+      <option name="project" value="LOCAL" />
+      <updated>1759601303070</updated>
+    </task>
+    <task id="LOCAL-00066" summary="Update test tool names">
+      <option name="closed" value="true" />
+      <created>1759603859573</created>
+      <option name="number" value="00066" />
+      <option name="presentableId" value="LOCAL-00066" />
+      <option name="project" value="LOCAL" />
+      <updated>1759603859573</updated>
+    </task>
+    <task id="LOCAL-00067" summary="Add Gradle interop tests">
+      <option name="closed" value="true" />
+      <created>1759605450224</created>
+      <option name="number" value="00067" />
+      <option name="presentableId" value="LOCAL-00067" />
+      <option name="project" value="LOCAL" />
+      <updated>1759605450225</updated>
+    </task>
+    <task id="LOCAL-00068" summary="Add some basic MCP tests">
+      <option name="closed" value="true" />
+      <created>1759613608525</created>
+      <option name="number" value="00068" />
+      <option name="presentableId" value="LOCAL-00068" />
+      <option name="project" value="LOCAL" />
+      <updated>1759613608525</updated>
+    </task>
+    <task id="LOCAL-00069" summary="Run tests in parallel">
+      <option name="closed" value="true" />
+      <created>1759613720199</created>
+      <option name="number" value="00069" />
+      <option name="presentableId" value="LOCAL-00069" />
+      <option name="project" value="LOCAL" />
+      <updated>1759613720199</updated>
+    </task>
+    <task id="LOCAL-00070" summary="Docs improvements around env vars">
+      <option name="closed" value="true" />
+      <created>1759981762467</created>
+      <option name="number" value="00070" />
+      <option name="presentableId" value="LOCAL-00070" />
+      <option name="project" value="LOCAL" />
+      <updated>1759981762467</updated>
+    </task>
+    <task id="LOCAL-00071" summary="Massage some descriptions">
+      <option name="closed" value="true" />
+      <created>1760577672036</created>
+      <option name="number" value="00071" />
+      <option name="presentableId" value="LOCAL-00071" />
+      <option name="project" value="LOCAL" />
+      <updated>1760577672036</updated>
+    </task>
+    <task id="LOCAL-00072" summary="Restructure docs">
+      <option name="closed" value="true" />
+      <created>1760579640752</created>
+      <option name="number" value="00072" />
+      <option name="presentableId" value="LOCAL-00072" />
+      <option name="project" value="LOCAL" />
+      <updated>1760579640752</updated>
+    </task>
+    <task id="LOCAL-00073" summary="Use index file">
+      <option name="closed" value="true" />
+      <created>1760579892780</created>
+      <option name="number" value="00073" />
+      <option name="presentableId" value="LOCAL-00073" />
+      <option name="project" value="LOCAL" />
+      <updated>1760579892780</updated>
+    </task>
+    <task id="LOCAL-00074" summary="Lower-case index">
+      <option name="closed" value="true" />
+      <created>1760580018963</created>
+      <option name="number" value="00074" />
+      <option name="presentableId" value="LOCAL-00074" />
+      <option name="project" value="LOCAL" />
+      <updated>1760580018963</updated>
+    </task>
+    <task id="LOCAL-00075" summary="Replace Jekyll with mkdocs">
+      <option name="closed" value="true" />
+      <created>1760581153363</created>
+      <option name="number" value="00075" />
+      <option name="presentableId" value="LOCAL-00075" />
+      <option name="project" value="LOCAL" />
+      <updated>1760581153363</updated>
+    </task>
+    <task id="LOCAL-00076" summary="Replace Jekyll with mkdocs">
+      <option name="closed" value="true" />
+      <created>1760581192336</created>
+      <option name="number" value="00076" />
+      <option name="presentableId" value="LOCAL-00076" />
+      <option name="project" value="LOCAL" />
+      <updated>1760581192336</updated>
+    </task>
+    <task id="LOCAL-00077" summary="Replace Jekyll with mkdocs">
+      <option name="closed" value="true" />
+      <created>1760581201852</created>
+      <option name="number" value="00077" />
+      <option name="presentableId" value="LOCAL-00077" />
+      <option name="project" value="LOCAL" />
+      <updated>1760581201852</updated>
+    </task>
+    <task id="LOCAL-00078" summary="Fix admonition extension">
+      <option name="closed" value="true" />
+      <created>1760581271796</created>
+      <option name="number" value="00078" />
+      <option name="presentableId" value="LOCAL-00078" />
+      <option name="project" value="LOCAL" />
+      <updated>1760581271796</updated>
+    </task>
+    <task id="LOCAL-00079" summary="Limit plugins, install mike">
+      <option name="closed" value="true" />
+      <created>1760581857658</created>
+      <option name="number" value="00079" />
+      <option name="presentableId" value="LOCAL-00079" />
+      <option name="project" value="LOCAL" />
+      <updated>1760581857658</updated>
+    </task>
+    <task id="LOCAL-00080" summary="Remove social plugin">
+      <option name="closed" value="true" />
+      <created>1760581943465</created>
+      <option name="number" value="00080" />
+      <option name="presentableId" value="LOCAL-00080" />
+      <option name="project" value="LOCAL" />
+      <updated>1760581943465</updated>
+    </task>
+    <task id="LOCAL-00081" summary="Fix tool lists">
+      <option name="closed" value="true" />
+      <created>1760582105089</created>
+      <option name="number" value="00081" />
+      <option name="presentableId" value="LOCAL-00081" />
+      <option name="project" value="LOCAL" />
+      <updated>1760582105089</updated>
+    </task>
+    <task id="LOCAL-00082" summary="Use mike for deployments">
+      <option name="closed" value="true" />
+      <created>1760582404667</created>
+      <option name="number" value="00082" />
+      <option name="presentableId" value="LOCAL-00082" />
+      <option name="project" value="LOCAL" />
+      <updated>1760582404667</updated>
+    </task>
+    <task id="LOCAL-00083" summary="Fix mike setup">
+      <option name="closed" value="true" />
+      <created>1760582635187</created>
+      <option name="number" value="00083" />
+      <option name="presentableId" value="LOCAL-00083" />
+      <option name="project" value="LOCAL" />
+      <updated>1760582635187</updated>
+    </task>
+    <task id="LOCAL-00084" summary="Invoke docs publishing from other workflows">
+      <option name="closed" value="true" />
+      <created>1760583253552</created>
+      <option name="number" value="00084" />
+      <option name="presentableId" value="LOCAL-00084" />
+      <option name="project" value="LOCAL" />
+      <updated>1760583253552</updated>
+    </task>
+    <task id="LOCAL-00085" summary="Fix docs call from release, and limit its concurrency">
+      <option name="closed" value="true" />
+      <created>1760583384507</created>
+      <option name="number" value="00085" />
+      <option name="presentableId" value="LOCAL-00085" />
+      <option name="project" value="LOCAL" />
+      <updated>1760583384507</updated>
+    </task>
+    <task id="LOCAL-00086" summary="Call the correct workflow">
+      <option name="closed" value="true" />
+      <created>1760583491463</created>
+      <option name="number" value="00086" />
+      <option name="presentableId" value="LOCAL-00086" />
+      <option name="project" value="LOCAL" />
+      <updated>1760583491463</updated>
+    </task>
+    <task id="LOCAL-00087" summary="Fix permissions">
+      <option name="closed" value="true" />
+      <created>1760583578037</created>
+      <option name="number" value="00087" />
+      <option name="presentableId" value="LOCAL-00087" />
+      <option name="project" value="LOCAL" />
+      <updated>1760583578037</updated>
+    </task>
+    <task id="LOCAL-00088" summary="Better names and ordering">
+      <option name="closed" value="true" />
+      <created>1760583644985</created>
+      <option name="number" value="00088" />
+      <option name="presentableId" value="LOCAL-00088" />
+      <option name="project" value="LOCAL" />
+      <updated>1760583644985</updated>
+    </task>
+    <task id="LOCAL-00089" summary="Cache pip dependencies">
+      <option name="closed" value="true" />
+      <created>1760583827036</created>
+      <option name="number" value="00089" />
+      <option name="presentableId" value="LOCAL-00089" />
+      <option name="project" value="LOCAL" />
+      <updated>1760583827036</updated>
+    </task>
+    <task id="LOCAL-00090" summary="Expand nav">
+      <option name="closed" value="true" />
+      <created>1760583948759</created>
+      <option name="number" value="00090" />
+      <option name="presentableId" value="LOCAL-00090" />
+      <option name="project" value="LOCAL" />
+      <updated>1760583948759</updated>
+    </task>
+    <task id="LOCAL-00091" summary="Enable renovate automerge">
+      <option name="closed" value="true" />
+      <created>1760584121588</created>
+      <option name="number" value="00091" />
+      <option name="presentableId" value="LOCAL-00091" />
+      <option name="project" value="LOCAL" />
+      <updated>1760584121588</updated>
+    </task>
+    <task id="LOCAL-00092" summary="Better pip requirements management">
+      <option name="closed" value="true" />
+      <created>1760584586414</created>
+      <option name="number" value="00092" />
+      <option name="presentableId" value="LOCAL-00092" />
+      <option name="project" value="LOCAL" />
+      <updated>1760584586414</updated>
+    </task>
+    <task id="LOCAL-00093" summary="Set versions">
+      <option name="closed" value="true" />
+      <created>1760584980231</created>
+      <option name="number" value="00093" />
+      <option name="presentableId" value="LOCAL-00093" />
+      <option name="project" value="LOCAL" />
+      <updated>1760584980231</updated>
+    </task>
+    <task id="LOCAL-00094" summary="Nicer name">
+      <option name="closed" value="true" />
+      <created>1760585055326</created>
+      <option name="number" value="00094" />
+      <option name="presentableId" value="LOCAL-00094" />
+      <option name="project" value="LOCAL" />
+      <updated>1760585055326</updated>
+    </task>
+    <task id="LOCAL-00095" summary="Fix admonitions">
+      <option name="closed" value="true" />
+      <created>1760585351107</created>
+      <option name="number" value="00095" />
+      <option name="presentableId" value="LOCAL-00095" />
+      <option name="project" value="LOCAL" />
+      <updated>1760585351107</updated>
+    </task>
+    <task id="LOCAL-00096" summary="Change JDK admonition to a warning">
+      <option name="closed" value="true" />
+      <created>1760585497549</created>
+      <option name="number" value="00096" />
+      <option name="presentableId" value="LOCAL-00096" />
+      <option name="project" value="LOCAL" />
+      <updated>1760585497549</updated>
+    </task>
+    <task id="LOCAL-00097" summary="Remove existing docs">
+      <option name="closed" value="true" />
+      <created>1760586126494</created>
+      <option name="number" value="00097" />
+      <option name="presentableId" value="LOCAL-00097" />
+      <option name="project" value="LOCAL" />
+      <updated>1760586126494</updated>
+    </task>
+    <task id="LOCAL-00098" summary="Release 0.0.2">
+      <option name="closed" value="true" />
+      <created>1760586490068</created>
+      <option name="number" value="00098" />
+      <option name="presentableId" value="LOCAL-00098" />
+      <option name="project" value="LOCAL" />
+      <updated>1760586490068</updated>
+    </task>
+    <task id="LOCAL-00099" summary="Add index page redirecting to latest, and root 404 page">
+      <option name="closed" value="true" />
+      <created>1760587232706</created>
+      <option name="number" value="00099" />
+      <option name="presentableId" value="LOCAL-00099" />
+      <option name="project" value="LOCAL" />
+      <updated>1760587232706</updated>
+    </task>
+    <option name="localTasksCounter" value="100" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="HEAD" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
+    <option name="CHECK_NEW_TODO" value="false" />
+    <MESSAGE value="Use index file" />
+    <MESSAGE value="Lower-case index" />
+    <MESSAGE value="Replace Jekyll with mkdocs" />
+    <MESSAGE value="Fix admonition extension" />
+    <MESSAGE value="Limit plugins, install mike" />
+    <MESSAGE value="Remove social plugin" />
+    <MESSAGE value="Fix tool lists" />
+    <MESSAGE value="Use mike for deployments" />
+    <MESSAGE value="Fix mike setup" />
+    <MESSAGE value="Invoke docs publishing from other workflows" />
+    <MESSAGE value="Fix docs call from release, and limit its concurrency" />
+    <MESSAGE value="Call the correct workflow" />
+    <MESSAGE value="Fix permissions" />
+    <MESSAGE value="Better names and ordering" />
+    <MESSAGE value="Cache pip dependencies" />
+    <MESSAGE value="Expand nav" />
+    <MESSAGE value="Enable renovate automerge" />
+    <MESSAGE value="Better pip requirements management" />
+    <MESSAGE value="Set versions" />
+    <MESSAGE value="Nicer name" />
+    <MESSAGE value="Fix admonitions" />
+    <MESSAGE value="Change JDK admonition to a warning" />
+    <MESSAGE value="Remove existing docs" />
+    <MESSAGE value="Release 0.0.2" />
+    <MESSAGE value="Add index page redirecting to latest, and root 404 page" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add index page redirecting to latest, and root 404 page" />
+    <option name="OPTIMIZE_IMPORTS_BEFORE_PROJECT_COMMIT" value="true" />
+    <option name="REFORMAT_BEFORE_PROJECT_COMMIT" value="true" />
+    <option name="NON_MODAL_COMMIT_POSTPONE_SLOW_CHECKS" value="false" />
+  </component>
+  <component name="VgoProject">
+    <integration-enabled>false</integration-enabled>
+    <settings-migrated>true</settings-migrated>
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.modelcontextprotocol.sdk/mcp-core/0.13.1/d864eedb2498ef6d80688a815e296fe92f6894af/mcp-core-0.13.1-sources.jar!/io/modelcontextprotocol/server/McpAsyncServer.java</url>
+          <line>528</line>
+          <option name="timeStamp" value="3" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework.ai/spring-ai-autoconfigure-mcp-server-common/1.1.0-M2/8a58bbcac1aed862c00eef6fdee503b3b4d7770b/spring-ai-autoconfigure-mcp-server-common-1.1.0-M2-sources.jar!/org/springframework/ai/mcp/server/common/autoconfigure/McpServerAutoConfiguration.java</url>
+          <line>216</line>
+          <option name="timeStamp" value="4" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework/spring-beans/6.2.11/ae16c166c03cd2663012a2270c5cd95e01fcd59e/spring-beans-6.2.11-sources.jar!/org/springframework/beans/factory/support/DefaultListableBeanFactory.java</url>
+          <line>2533</line>
+          <option name="timeStamp" value="6" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework/spring-beans/6.2.11/ae16c166c03cd2663012a2270c5cd95e01fcd59e/spring-beans-6.2.11-sources.jar!/org/springframework/beans/factory/support/DefaultListableBeanFactory.java</url>
+          <line>2637</line>
+          <option name="timeStamp" value="8" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="kotlin-line">
+          <url>jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.ktor/ktor-server-core-jvm/3.3.0/f03341ea105468a0895dde4dcc2fc5da98ee687d/ktor-server-core-jvm-3.3.0-sources.jar!/commonMain/io/ktor/server/config/MapApplicationConfig.kt</url>
+          <line>100</line>
+          <option name="timeStamp" value="11" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="kotlin-line">
+          <condition expression="&quot;Publishing a Build Scan&quot; in String(cbuf, off, len)" language="kotlin" />
+          <url>file://$PROJECT_DIR$/src/main/kotlin/dev/rnett/gradle/mcp/gradle/LineEmittingWriter.kt</url>
+          <line>10</line>
+          <option name="timeStamp" value="40" />
+        </line-breakpoint>
+        <breakpoint enabled="true" type="java-exception">
+          <properties class="java.util.NoSuchElementException" package="java.util" />
+          <option name="timeStamp" value="13" />
+        </breakpoint>
+        <line-breakpoint enabled="true" type="kotlin-function">
+          <url>file://$PROJECT_DIR$/src/main/kotlin/dev/rnett/gradle/mcp/gradle/LineEmittingWriter.kt</url>
+          <line>35</line>
+          <properties class="dev.rnett.gradle.mcp.gradle.LineEmittingWriter">
+            <option name="EMULATED" value="true" />
+            <option name="WATCH_EXIT" value="false" />
+          </properties>
+          <option name="timeStamp" value="42" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+    <watches-manager>
+      <configuration name="GradleRunConfiguration">
+        <watch expression="String(cbuf, off, len)" language="kotlin" />
+      </configuration>
+    </watches-manager>
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
+  </component>
+</project>
