@@ -619,16 +619,18 @@
 Tools include introspecting projects, running tasks, and running tests.
 Also supports publishing Develocity Build Scans.</p>
 <h2 id="installation">Installation</h2>
-<blockquote>
-<p>[!IMPORTANT]
-JDK 17 or higher is required to run <code>gradle-mcp</code>.
+<div class="admonition info">
+<p class="admonition-title">JDK Requirement</p>
+<p>JDK 17 or higher is required to run <code>gradle-mcp</code>.
 You can use JBang to install JDKs too: <a href="https://www.jbang.dev/documentation/jbang/latest/javaversions.html">docs</a>.</p>
-</blockquote>
+</div>
 <p>Use <a href="https://www.jbang.dev/documentation/jbang/latest/installation.html">jbang</a>:</p>
 <div class="highlight"><pre><span></span><code>jbang<span class="w"> </span>run<span class="w"> </span>--fresh<span class="w"> </span>dev.rnett.gradle-mcp:gradle-mcp:+<span class="w"> </span>stdio
 </code></pre></div>
 <p>For snapshots:</p>
-<div class="highlight"><pre><span></span><code>jbang<span class="w"> </span>run<span class="w"> </span>--fresh<span class="w"> </span>--repos<span class="w"> </span><span class="nv">snapshots</span><span class="o">=</span>https://central.sonatype.com/repository/maven-snapshots/<span class="w"> </span>dev.rnett.gradle-mcp:gradle-mcp:+<span class="w"> </span>stdio
+<div class="highlight"><pre><span></span><code>jbang<span class="w"> </span>run<span class="w"> </span>--fresh<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--repos<span class="w"> </span><span class="nv">snapshots</span><span class="o">=</span>https://central.sonatype.com/repository/maven-snapshots/<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>dev.rnett.gradle-mcp:gradle-mcp:+<span class="w"> </span>stdio
 </code></pre></div>
 <p>You can add an alias to make invoking it easier:</p>
 <div class="highlight"><pre><span></span><code>jbang<span class="w"> </span><span class="nb">alias</span><span class="w"> </span>add<span class="w"> </span>dev.rnett.gradle-mcp:gradle-mcp:+
@@ -654,12 +656,12 @@ jbang<span class="w"> </span>app<span class="w"> </span>install<span class="w"> 
 <span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-<blockquote>
-<p>[!TIP]
-The server forwards any environment variables to Gradle.
-If your Gradle build relies on environment variables, e.g. for JDK detection, you may want to run the server in a shell rather than using <code>jbang</code> directly.
+<div class="admonition tip">
+<p class="admonition-title">Environment Variables</p>
+<p>The server forwards its environment variables to Gradle.
+If your Gradle build relies on environment variables, e.g. for JDK detection, you may want to run the server in a shell rather than using <code>jbang</code> directly in your MCP configuration.
 While MCP hosts <em>should</em> pass their environment to the server, this isn't always the case.</p>
-</blockquote>
+</div>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
 <span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;gradle&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
@@ -675,10 +677,10 @@ While MCP hosts <em>should</em> pass their environment to the server, this isn't
 <p>Run the server.
 It accepts a single argument, <code>stdio</code>, to run in STDIO mode.
 By default it runs as a server on port 47813.</p>
-<blockquote>
-<p>[!CAUTION]
-<strong>DO NOT EVER EXPOSE THIS SERVER TO THE INTERNET.</strong></p>
-</blockquote>
+<div class="admonition danger">
+<p class="admonition-title">Danger</p>
+<p><strong>DO NOT EVER EXPOSE THIS SERVER TO THE INTERNET.</strong></p>
+</div>
 <h2 id="publishing-build-scans">Publishing Build Scans</h2>
 <p>Even if you don't have your build configured to publish build scans automatically, you can still publish build scans - just ask your agent to publish a scan when invoking Gradle.
 These will publish to the public <a href="https://scans.gradle.com">https://scans.gradle.com</a> instance unless you have a Develocity instance configured in your build.
