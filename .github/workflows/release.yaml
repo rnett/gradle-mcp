@@ -56,6 +56,9 @@ jobs:
             exit 1
           fi
 
+      - name: Publish docs
+        uses: ./.github/workflows/ci.yaml
+
       - name: Publish to Maven Central
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.ORG_GRADLE_PROJECT_MAVENCENTRALUSERNAME }}

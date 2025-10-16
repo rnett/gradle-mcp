@@ -1,15 +1,11 @@
-name: ci
+name: publish-docs
 on:
-  workflow_dispatch:
-
-  push:
-    branches:
-      - master
-      - main
+  workflow_call: { }
 permissions:
   contents: write
 jobs:
-  deploy:
+  deploy-docs:
+    name: Deploy mkdocs docs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,10 +28,16 @@ jobs:
           restore-keys: |
             mkdocs-material-
       - run: pip install mkdocs-material mike
-
-      - name: Get version
-        id: get-version
-        run: echo "version=$(cat version.txt)" >> "$GITHUB_OUTPUT"
+      - name: Determine deploy alias
+        id: determine-alias
+        run: |
+          version=$(cat version.txt)
+          if [[ "$version" == *"-SNAPSHOT"* ]]; then
+            echo "alias=snapshot" >> $GITHUB_OUTPUT
+          else
+            echo "alias=latest" >> $GITHUB_OUTPUT
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Get current docs
         run: git fetch origin gh-pages --depth=1
@@ -45,4 +47,4 @@ jobs:
           echo "Current mike versions available:"
           mike list || echo "No docs site versions found (likely first deployment)"
 
-      - run: mike deploy --update-aliases --push ${{ steps.get-version.outputs.version }} snapshot
+      - run: mike deploy --update-aliases --push ${{ steps.determine-alias.outputs.version }} ${{ steps.determine-alias.outputs.alias }}
