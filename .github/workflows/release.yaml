@@ -16,6 +16,8 @@ jobs:
   publishDocs:
     name: Publish docs
     uses: ./.github/workflows/docs.yaml
+    permissions:
+      contents: write
 
   release:
     needs: [ ci, publishDocs ]

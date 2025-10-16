@@ -1,6 +1,10 @@
 name: CI
 run-name: CI
 on: [ push, workflow_call ]
+
+permissions:
+  contents: write
+
 jobs:
   buildAndTest:
     name: Build and test
@@ -82,3 +86,5 @@ jobs:
     needs: publishSnapshot
     uses: ./.github/workflows/docs.yaml
     secrets: inherit
+    permissions:
+      contents: write
