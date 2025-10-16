@@ -33,5 +33,9 @@ jobs:
             mkdocs-material-
       - run: pip install mkdocs-material mike
 
+      - name: Get version
+        id: get-version
+        run: echo "version=$(cat version.txt)" >> "$GITHUB_OUTPUT"
 
-      - run: mkdocs gh-deploy --force
+
+      - run: mike deploy --update-aliases --push ${{ steps.get-version.outputs.version }} snapshot
