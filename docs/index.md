@@ -12,7 +12,7 @@ Also supports publishing Develocity Build Scans.
 ## Installation
 
 [//]: # (@formatter:off)
-!!! info "JDK Requirement"
+!!! warning "JDK Requirement"
     JDK 17 or higher is required to run `gradle-mcp`.
     You can use JBang to install JDKs too: [docs](https://www.jbang.dev/documentation/jbang/latest/javaversions.html).
 [//]: # (@formatter:on)
