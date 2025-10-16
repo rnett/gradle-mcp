@@ -1,6 +1,7 @@
-name: publish-docs
+name: Publish Docs
 on:
   workflow_call: { }
+  workflow_dispatch: { }
 permissions:
   contents: write
 
