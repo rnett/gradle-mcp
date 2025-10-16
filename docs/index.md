@@ -11,9 +11,11 @@ Also supports publishing Develocity Build Scans.
 
 ## Installation
 
-> [!IMPORTANT]
-> JDK 17 or higher is required to run `gradle-mcp`.
-> You can use JBang to install JDKs too: [docs](https://www.jbang.dev/documentation/jbang/latest/javaversions.html).
+[//]: # (@formatter:off)
+!!! info "JDK Requirement"
+    JDK 17 or higher is required to run `gradle-mcp`.
+    You can use JBang to install JDKs too: [docs](https://www.jbang.dev/documentation/jbang/latest/javaversions.html).
+[//]: # (@formatter:on)
 
 Use [jbang](https://www.jbang.dev/documentation/jbang/latest/installation.html):
 
@@ -24,7 +26,9 @@ jbang run --fresh dev.rnett.gradle-mcp:gradle-mcp:+ stdio
 For snapshots:
 
 ```shell
-jbang run --fresh --repos snapshots=https://central.sonatype.com/repository/maven-snapshots/ dev.rnett.gradle-mcp:gradle-mcp:+ stdio
+jbang run --fresh \
+  --repos snapshots=https://central.sonatype.com/repository/maven-snapshots/ \
+  dev.rnett.gradle-mcp:gradle-mcp:+ stdio
 ```
 
 You can add an alias to make invoking it easier:
@@ -62,10 +66,12 @@ See [jbang documentation](https://www.jbang.dev/documentation/jbang/latest/insta
 }
 ```
 
-> [!TIP]
-> The server forwards any environment variables to Gradle.
-> If your Gradle build relies on environment variables, e.g. for JDK detection, you may want to run the server in a shell rather than using `jbang` directly.
-> While MCP hosts _should_ pass their environment to the server, this isn't always the case.
+[//]: # (@formatter:off)
+!!! tip "Environment Variables"
+    The server forwards its environment variables to Gradle.
+    If your Gradle build relies on environment variables, e.g. for JDK detection, you may want to run the server in a shell rather than using `jbang` directly in your MCP configuration.
+    While MCP hosts _should_ pass their environment to the server, this isn't always the case.
+[//]: # (@formatter:on)
 
 ```json
 {
@@ -86,8 +92,10 @@ Run the server.
 It accepts a single argument, `stdio`, to run in STDIO mode.
 By default it runs as a server on port 47813.
 
-> [!CAUTION]
-> **DO NOT EVER EXPOSE THIS SERVER TO THE INTERNET.**
+[//]: # (@formatter:off)
+!!! danger
+    **DO NOT EVER EXPOSE THIS SERVER TO THE INTERNET.**
+[//]: # (@formatter:on)
 
 ## Publishing Build Scans
 
