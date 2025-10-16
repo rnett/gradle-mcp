@@ -3,7 +3,6 @@ package dev.rnett.gradle.mcp.tools
 import dev.rnett.gradle.mcp.gradle.BuildResult
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectPath
-import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
@@ -19,7 +18,7 @@ class GradleExecutionTools(
         val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
         @Description("The Gradle command to run. Will be ran as if it had been passed directly to './gradlew'")
         val commandLine: List<String>,
-        @Description("Whether to run with the --scan argument to publish a build scan. Requires a configured Develocity instance. Publishing a scan and using it to diagnose issues (e.g. using the Develocity MCP server) is recommended over `includeFailureInformation` when possible. Defaults to false.")
+        @Description("Whether to run with the --scan argument to publish a build scan. Will use scans.gradle.com if there is not a configured Develocity instance. Publishing a scan and using it to diagnose issues (e.g. using the Develocity MCP server) is recommended over `includeFailureInformation` when possible. Defaults to false.")
         val scan: Boolean = false,
         val invocationArguments: GradleInvocationArguments = GradleInvocationArguments.DEFAULT
     )
@@ -29,6 +28,7 @@ class GradleExecutionTools(
         "run_gradle_command",
         """
             |Runs a Gradle command in the given project, just as if the command line had been passed directly to './gradlew'. Always prefer using this tool over invoking Gradle via the command line or shell.
+            |Use the `lookup_*` tools to get detailed results after running the build.
             |Can be used to execute any Gradle tasks.
             |When running tests, prefer the `run_tests_with_gradle` tool.
             |The console output is included in the result. Show this to the user, as if they had ran the command themselves.
@@ -68,7 +68,7 @@ class GradleExecutionTools(
         val taskName: String,
         @Description("The tests to run, as test patterns. The default is all tests. Note that this is the task name (e.g. `test`) not the task path (e.g. `:test`).")
         val tests: List<TestPattern> = emptyList(),
-        @Description("Whether to run with the --scan argument to publish a build scan. Requires a configured Develocity instance. Publishing a scan and using it to diagnose issues (e.g. using the Develocity MCP server) is recommended over `includeFailureInformation` when possible. Defaults to false.")
+        @Description("Whether to run with the --scan argument to publish a build scan. Will use scans.gradle.com if there is not a configured Develocity instance. Publishing a scan and using it to diagnose issues (e.g. using the Develocity MCP server) is recommended when possible. Defaults to false.")
         val scan: Boolean = false,
         val invocationArguments: GradleInvocationArguments = GradleInvocationArguments.DEFAULT
     )
@@ -90,6 +90,7 @@ class GradleExecutionTools(
         "run_tests_with_gradle",
         """
             |Runs a single test task, with an option to filter which tests to run. Always prefer using this tool over invoking Gradle via the command line or shell.
+            |Use the `lookup_*` tools to get detailed results after running the build.
             |The console output is included in the result. Show this to the user, as if they had ran the command themselves.
             |Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues and test failures, using something like the Develocity MCP server.
             |The typical test task is `test`.  At least one task is required. A task with no patterns will run all tests.
@@ -115,7 +116,7 @@ class GradleExecutionTools(
         val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
         @Description("A map (i.e. JSON object) of each absolute task paths of the test tasks to run (e.g. `:test`, `:project-a:sub-b:test`) to the test patterns for the tests to run for that task (e.g. `com.example.*`, `*MyTest*`).  The typical test task is `:test`.  At least one task is required. A task with no patterns will run all tests in that task.")
         val testsExecutions: Map<String, Set<TestPattern>>,
-        @Description("Whether to run with the --scan argument to publish a build scan. Requires a configured Develocity instance. Publishing a scan and using it to diagnose issues (e.g. using the Develocity MCP server) is recommended over `includeFailureInformation` when possible. Defaults to false.")
+        @Description("Whether to run with the --scan argument to publish a build scan. Will use scans.gradle.com if there is not a configured Develocity instance. Publishing a scan and using it to diagnose issues (e.g. using the Develocity MCP server) is recommended over `includeFailureInformation` when possible. Defaults to false.")
         val scan: Boolean = false,
         val invocationArguments: GradleInvocationArguments = GradleInvocationArguments.DEFAULT
     )
@@ -125,10 +126,11 @@ class GradleExecutionTools(
         "run_many_test_tasks_with_gradle",
         """
             |Runs may test tasks, each with their own test filters. To run a single test task, use the `run_test_task` tool. Always prefer using this tool over invoking Gradle via the command line or shell.
+            |Use the `lookup_*` tools to get detailed results after running the build.
             |Note that the test tasks passed must be absolute paths (i.e. including the project paths).
             |The console output is included in the result. Show this to the user, as if they had ran the command themselves.
             |Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues and test failures, using something like the Develocity MCP server.
-            |The `tests` parameter is REQUIRED, and is simply a map (i.e. JSON object) of each test task to run (e.g. `:test`, `:project-a:sub-b:test`), to the test patterns for the tests to run for that task (e.g. `com.example.*`, `*MyTest*`).  
+            |The `tests` parameter is REQUIRED, and is simply a map (i.e. JSON object) of each test task to run (e.g. `:test`, `:project-a:sub-b:test`), to the test patterns for the tests to run for that task (e.g. `com.example.*`, `*MyTest*`).
             |The typical test task is `:test`.  At least one task is required. A task with no patterns will run all tests.
             |If there are more than 1000 tests, the results will be truncated.  Use `lookup_build_tests_summary` or `lookup_build_test_details` to get the results you care about.
         """.trimMargin(),
