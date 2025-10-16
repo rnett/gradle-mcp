@@ -83,6 +83,7 @@ jobs:
         run: ./gradlew :publishToMavenCentral --no-configuration-cache
 
   publichSnapshotDocs:
+    name: Publish docs
     needs: publishSnapshot
     uses: ./.github/workflows/docs.yaml
     secrets: inherit
