@@ -45,14 +45,8 @@ extra:
     provider: mike
 
 markdown_extensions:
-  - smarty
   - codehilite:
       guess_lang: false
-  - meta
-  - toc:
-      permalink: true
-  - pymdownx.betterem:
-      smart_enable: all
   - pymdownx.caret
   - pymdownx.inlinehilite
   - pymdownx.magiclink
@@ -60,12 +54,6 @@ markdown_extensions:
   - pymdownx.superfences
   - pymdownx.emoji
   - pymdownx.details
-  - pymdownx.tabbed:
-      alternate_style: true
-  - admonition
-  - attr_list
-  - md_in_html
-  - nl2br
   - admonition
 
 nav:
