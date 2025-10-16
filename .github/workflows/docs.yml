@@ -3,6 +3,11 @@ on:
   workflow_call: { }
 permissions:
   contents: write
+
+concurrency:
+  group: docs
+  cancel-in-progress: false
+
 jobs:
   deploy-docs:
     name: Deploy mkdocs docs

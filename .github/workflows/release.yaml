@@ -13,8 +13,12 @@ jobs:
     uses: ./.github/workflows/ci.yaml
     secrets: inherit
 
+  publishDocs:
+    name: Publish docs
+    uses: ./.github/workflows/ci.yaml
+
   release:
-    needs: ci
+    needs: [ ci, publishDocs ]
     name: Release to Maven Central and tag
     runs-on: ubuntu-latest
     env:
@@ -55,9 +59,6 @@ jobs:
             echo "Version ${{ steps.get-version.outputs.version }} is a SNAPSHOT. Refusing to release." >&2
             exit 1
           fi
-
-      - name: Publish docs
-        uses: ./.github/workflows/ci.yaml
 
       - name: Publish to Maven Central
         env:
