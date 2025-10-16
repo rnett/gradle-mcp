@@ -51,7 +51,25 @@ jobs:
 
       - name: Show current mike versions
         run: |
-          echo "Current mike versions available:"
+          echo "Current mike versions:"
           mike list || echo "No docs site versions found (likely first deployment)"
 
+      - name: Delete snapshots
+        run: |
+          echo "Deleting snapshot versions (if any)..."
+          SNAPSHOTS=$(mike list 2>/dev/null | grep -Eo '[0-9A-Za-z._-]+-SNAPSHOT' | sort -u || true)
+          if [ -z "$SNAPSHOTS" ]; then
+            echo "No snapshot versions found."
+          else
+            for v in $SNAPSHOTS; do
+              echo "Deleting snapshot version: $v"
+              mike delete --push "$v" || echo "Warning: failed to delete $v (continuing)"
+            done
+          fi
+          
+      - name: Show current mike versions
+        run: |
+          echo "Remaining mike versions:"
+          mike list || echo "No docs site versions found (likely first deployment)"
       - run: mike deploy --update-aliases --push ${{ steps.determine-alias.outputs.version }} ${{ steps.determine-alias.outputs.alias }}
+      - run: mike set-default latest --push
