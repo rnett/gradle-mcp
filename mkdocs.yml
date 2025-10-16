@@ -33,7 +33,6 @@ theme:
     - content.code.select
 
 plugins:
-  - social
   - search
   - mike
 
