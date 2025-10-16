@@ -2,7 +2,6 @@ package dev.rnett.gradle.mcp.tools
 
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectPath
-import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
@@ -11,7 +10,7 @@ import kotlinx.serialization.Serializable
 
 class GradleTaskWrapperTools(
     val gradle: GradleProvider,
-) : McpServerComponent() {
+) : McpServerComponent("Task Wrapper Tools", "Tools that wrap Gradle's reporting tasks, e.g. :tasks.") {
 
     interface BaseProjectInput {
         val projectRoot: GradleProjectRootInput

@@ -11,7 +11,7 @@ import kotlin.io.path.name
 import kotlin.io.path.notExists
 import kotlin.io.path.relativeTo
 
-class RelatedTools() : McpServerComponent() {
+class UtilityTools() : McpServerComponent("Utility Tools", "Utility tools that don't run Gradle directly.") {
 
     @Serializable
     data class GetContainingProjectArgs(@Description(description = "The target file's path. Must be absolute.") val path: String)

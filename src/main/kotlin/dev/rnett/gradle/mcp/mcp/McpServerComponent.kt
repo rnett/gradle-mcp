@@ -17,7 +17,7 @@ fun McpServer.add(component: McpServerComponent) {
     component.register(this)
 }
 
-abstract class McpServerComponent {
+abstract class McpServerComponent(val name: String, val description: String) {
     fun register(server: McpServer) {
         _parts.forEach { it.register(server) }
     }

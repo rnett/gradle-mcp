@@ -30,13 +30,13 @@ application {
 val updateToolsList by tasks.registering(JavaExec::class) {
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("dev.rnett.gradle.mcp.UpdateTools")
-    args = listOf(project.rootDir.resolve("README.md").absolutePath)
+    args = listOf(project.rootDir.resolve("docs/tools").absolutePath)
 }
 
 val verifyToolsList by tasks.registering(JavaExec::class) {
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("dev.rnett.gradle.mcp.UpdateTools")
-    args = listOf(project.rootDir.resolve("README.md").absolutePath, "--verify")
+    args = listOf(project.rootDir.resolve("docs/tools").absolutePath, "--verify")
 }
 
 tasks.check {

@@ -12,7 +12,7 @@ import kotlin.time.ExperimentalTime
 
 class GradleExecutionTools(
     val gradle: GradleProvider,
-) : McpServerComponent() {
+) : McpServerComponent("Execution Tools", "Tools for executing Gradle tasks and running tests.") {
     @Serializable
     data class ExecuteCommandArgs(
         val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,

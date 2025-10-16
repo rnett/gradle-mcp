@@ -10,7 +10,7 @@ import dev.rnett.gradle.mcp.tools.GradleBuildLookupTools
 import dev.rnett.gradle.mcp.tools.GradleExecutionTools
 import dev.rnett.gradle.mcp.tools.GradleIntrospectionTools
 import dev.rnett.gradle.mcp.tools.GradleTaskWrapperTools
-import dev.rnett.gradle.mcp.tools.RelatedTools
+import dev.rnett.gradle.mcp.tools.UtilityTools
 import io.ktor.server.config.getAs
 import io.ktor.server.engine.CommandLineConfig
 import io.ktor.server.netty.EngineMain
@@ -78,14 +78,14 @@ class Application(val args: Array<String>) {
         }
 
         fun components(provider: GradleProvider): List<McpServerComponent> = listOf(
-            RelatedTools(),
+            UtilityTools(),
             GradleIntrospectionTools(provider),
             GradleExecutionTools(provider),
             GradleTaskWrapperTools(provider),
             GradleBuildLookupTools(),
         )
 
-        fun createServer(provider: GradleProvider): McpServer {
+        fun createServer(provider: GradleProvider, components: List<McpServerComponent> = components(provider)): McpServer {
             return McpServer(
                 Implementation("gradle-mcp", BuildConfig.APP_VERSION),
                 ServerOptions(
