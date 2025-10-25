@@ -135,7 +135,7 @@ mavenPublishing {
         name.set("Gradle MCP")
         description.set("A MCP server for Gradle.")
         inceptionYear.set("2025")
-        url.set("https://github.com/rnett/gradle-mcp/")
+        url.set("https://gradle-mcp.rnett.dev/")
         this.licenses {
             license {
                 name.set("The Apache License, Version 2.0")
