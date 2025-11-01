@@ -4,7 +4,6 @@ run-name: Manual release
 on:
   workflow_dispatch:
 
-
 permissions:
   contents: write
 
