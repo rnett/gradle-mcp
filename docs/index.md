@@ -37,7 +37,7 @@ You can add an alias to make invoking it easier:
 jbang alias add dev.rnett.gradle-mcp:gradle-mcp:+
 ```
 
-Then run it with `jbang gradle-mcp stdio`.
+Then run it with `jbang --fresh gradle-mcp stdio`.
 
 Or even install it as a command (`gradle-mcp`):
 
