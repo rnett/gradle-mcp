@@ -1,6 +1,6 @@
 [versions]
 kotlin = "2.2.21"
-ktor = "3.3.1"
+ktor = "3.3.2"
 logback = "1.5.20"
 caffeine = "3.2.3"
 commonsIo = "2.20.0"
