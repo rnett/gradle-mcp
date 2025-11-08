@@ -80,7 +80,7 @@ class GradleExecutionTools(
         val buildResult: BuildResultSummary
     )
 
-    private fun BuildResult.toTestResultOutput(maxResults: Int = 1000) = TestResultOutput(
+    private fun BuildResult.toTestResultOutput(maxResults: Int = 100) = TestResultOutput(
         this.testResults.toSummary(maxResults),
         this.toSummary()
     )

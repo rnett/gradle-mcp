@@ -7,6 +7,7 @@ Use the Gradle MCP to interact with Gradle whenever possible.
 ## Project structure notes
 
 * The `test` task should be used to run tests.
+  After making a change, make sure it passes.
 
 ## Code style notes
 

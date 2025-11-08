@@ -70,22 +70,20 @@ fun Map<ProblemSeverity, List<ProblemAggregation>>.toSummary(): ProblemsSummary 
 }
 
 fun BuildResult.TestResults.toSummary(maxResults: Int?) = TestResultsSummary(
-    passed.map { it.testName },
-    failed.map { it.testName },
-    skipped.map { it.testName },
-    passed.size,
-    failed.size,
-    skipped.size,
+    failed = failed.map { it.testName },
+    skipped = skipped.map { it.testName },
+    totalPassed = passed.size,
+    totalFailed = failed.size,
+    totalSkipped = skipped.size,
 ).truncate(maxResults)
 
 @Serializable
 data class TestResultsSummary(
-    val passed: List<String>?,
-    val failed: List<String>?,
-    val skipped: List<String>?,
     val totalPassed: Int,
     val totalFailed: Int,
     val totalSkipped: Int,
+    val failed: List<String>?,
+    val skipped: List<String>?,
 ) {
 
     fun truncate(maxResults: Int?): TestResultsSummary {
@@ -93,19 +91,16 @@ data class TestResultsSummary(
         var taken = 0
 
         val failed = this.failed?.take(maxResults - taken)?.also { taken += it.size }?.takeIf { it.size == this.failed.size }
-            ?: return TestResultsSummary(null, null, null, totalPassed, totalFailed, totalSkipped)
+            ?: return TestResultsSummary(totalPassed = totalPassed, totalFailed = totalFailed, totalSkipped = totalSkipped, failed = null, skipped = null)
 
         val skipped = this.skipped?.take(maxResults - taken)?.also { taken += it.size }?.takeIf { it.size == this.skipped.size }
-            ?: return TestResultsSummary(null, failed, null, totalPassed, totalFailed, totalSkipped)
+            ?: return TestResultsSummary(totalPassed = totalPassed, totalFailed = totalFailed, totalSkipped = totalSkipped, failed = failed, skipped = null)
 
-        val passed = this.passed?.take(maxResults - taken)?.also { taken += it.size }?.takeIf { it.size == this.passed.size }
-            ?: return TestResultsSummary(null, failed, skipped, totalPassed, totalFailed, totalSkipped)
-
-        return TestResultsSummary(passed, failed, skipped, totalPassed, totalFailed, totalSkipped)
-
+        return TestResultsSummary(totalPassed = totalPassed, totalFailed = totalFailed, totalSkipped = totalSkipped, failed = failed, skipped = skipped)
     }
 
-    val wasTruncated: Boolean = passed == null || failed == null || skipped == null
+    @Description("Whether the results were truncated. If true, use a lookup tool to get more detailed results.")
+    val wasTruncated: Boolean = failed == null || skipped == null
 
     val total: Int = totalPassed + totalFailed + totalSkipped
 }
