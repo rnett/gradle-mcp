@@ -437,22 +437,27 @@ If there are more than 1000 tests, the results will be truncated.  Use `lookup_b
     "testsSummary": {
       "type": "object",
       "required": [
-        "passed",
-        "failed",
-        "skipped",
         "totalPassed",
         "totalFailed",
-        "totalSkipped"
+        "totalSkipped",
+        "failed",
+        "skipped"
       ],
       "properties": {
-        "passed": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
+        "totalPassed": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "totalFailed": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "totalSkipped": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
         },
         "failed": {
           "type": [
@@ -472,23 +477,9 @@ If there are more than 1000 tests, the results will be truncated.  Use `lookup_b
             "type": "string"
           }
         },
-        "totalPassed": {
-          "type": "integer",
-          "minimum": -2147483648,
-          "maximum": 2147483647
-        },
-        "totalFailed": {
-          "type": "integer",
-          "minimum": -2147483648,
-          "maximum": 2147483647
-        },
-        "totalSkipped": {
-          "type": "integer",
-          "minimum": -2147483648,
-          "maximum": 2147483647
-        },
         "wasTruncated": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Whether the results were truncated. If true, use a lookup tool to get more detailed results."
         },
         "total": {
           "type": "integer",
@@ -838,22 +829,27 @@ If there are more than 1000 tests, the results will be truncated.  Use `lookup_b
     "testsSummary": {
       "type": "object",
       "required": [
-        "passed",
-        "failed",
-        "skipped",
         "totalPassed",
         "totalFailed",
-        "totalSkipped"
+        "totalSkipped",
+        "failed",
+        "skipped"
       ],
       "properties": {
-        "passed": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
+        "totalPassed": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "totalFailed": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "totalSkipped": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
         },
         "failed": {
           "type": [
@@ -873,23 +869,9 @@ If there are more than 1000 tests, the results will be truncated.  Use `lookup_b
             "type": "string"
           }
         },
-        "totalPassed": {
-          "type": "integer",
-          "minimum": -2147483648,
-          "maximum": 2147483647
-        },
-        "totalFailed": {
-          "type": "integer",
-          "minimum": -2147483648,
-          "maximum": 2147483647
-        },
-        "totalSkipped": {
-          "type": "integer",
-          "minimum": -2147483648,
-          "maximum": 2147483647
-        },
         "wasTruncated": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Whether the results were truncated. If true, use a lookup tool to get more detailed results."
         },
         "total": {
           "type": "integer",

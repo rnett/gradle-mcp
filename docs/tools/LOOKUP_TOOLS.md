@@ -498,14 +498,20 @@ For a given build, gets the summary of all test executions.
 ```json
 {
   "properties": {
-    "passed": {
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "type": "string"
-      }
+    "totalPassed": {
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647
+    },
+    "totalFailed": {
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647
+    },
+    "totalSkipped": {
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647
     },
     "failed": {
       "type": [
@@ -525,23 +531,9 @@ For a given build, gets the summary of all test executions.
         "type": "string"
       }
     },
-    "totalPassed": {
-      "type": "integer",
-      "minimum": -2147483648,
-      "maximum": 2147483647
-    },
-    "totalFailed": {
-      "type": "integer",
-      "minimum": -2147483648,
-      "maximum": 2147483647
-    },
-    "totalSkipped": {
-      "type": "integer",
-      "minimum": -2147483648,
-      "maximum": 2147483647
-    },
     "wasTruncated": {
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Whether the results were truncated. If true, use a lookup tool to get more detailed results."
     },
     "total": {
       "type": "integer",
@@ -550,12 +542,11 @@ For a given build, gets the summary of all test executions.
     }
   },
   "required": [
-    "passed",
-    "failed",
-    "skipped",
     "totalPassed",
     "totalFailed",
-    "totalSkipped"
+    "totalSkipped",
+    "failed",
+    "skipped"
   ],
   "type": "object"
 }
