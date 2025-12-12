@@ -12,7 +12,7 @@ gradleToolingApi = "9.2.0"
 buildconfig = "6.0.0"
 vanniktechPublish = "0.35.0"
 junit = "6.0.1"
-mockk = "1.14.6"
+mockk = "1.14.7"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
