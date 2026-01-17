@@ -11,7 +11,7 @@ mcpSdk = "0.7.2"
 gradleToolingApi = "9.3.0"
 buildconfig = "6.0.6"
 vanniktechPublish = "0.35.0"
-junit = "6.0.1"
+junit = "6.0.2"
 mockk = "1.14.7"
 
 [plugins]
