@@ -205,7 +205,7 @@ class DefaultGradleProvider(
             setJavaHome(environment.java.javaHome)
             setJvmArguments(environment.java.jvmArguments)
 
-            setEnvironmentVariables(System.getenv().takeUnless { args.doNotInheritEnvVars }.orEmpty() + args.additionalEnvVars)
+            setEnvironmentVariables(args.actualEnvVars)
             @Suppress("UNCHECKED_CAST")
             withSystemProperties(args.additionalSystemProps)
             addJvmArguments(args.additionalJvmArgs + "-Dscan.tag.MCP")
@@ -320,6 +320,7 @@ class DefaultGradleProvider(
             }
 
             GradleResult.build(
+                args,
                 buildId,
                 consoleOutput.toString(),
                 scans,

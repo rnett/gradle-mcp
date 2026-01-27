@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.gradle
 
+import dev.rnett.gradle.mcp.tools.toSummary
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -47,6 +48,7 @@ class GradleBuildScanTest {
 }
 
 class BuildResultTest {
+    private val args = GradleInvocationArguments.DEFAULT
 
     @Test
     fun `can create successful build result`() {
@@ -58,6 +60,7 @@ class BuildResultTest {
 
         val result = BuildResult(
             id = BuildId.newId(),
+            args = args,
             consoleOutput = "BUILD SUCCESSFUL",
             publishedScans = emptyList(),
             testResults = testResults,
@@ -88,6 +91,7 @@ class BuildResultTest {
 
         val result = BuildResult(
             id = BuildId.newId(),
+            args = args,
             consoleOutput = "BUILD FAILED",
             publishedScans = emptyList(),
             testResults = testResults,
@@ -102,14 +106,14 @@ class BuildResultTest {
     @Test
     fun `test results tracks counts correctly`() {
         val passed = setOf(
-            BuildResult.TestResult("test1", null, 100.milliseconds, null),
-            BuildResult.TestResult("test2", null, 200.milliseconds, null)
+            BuildResult.TestResult("test1", null, 100.milliseconds, null, TestOutcome.PASSED),
+            BuildResult.TestResult("test2", null, 200.milliseconds, null, TestOutcome.PASSED)
         )
         val skipped = setOf(
-            BuildResult.TestResult("test3", null, 0.milliseconds, null)
+            BuildResult.TestResult("test3", null, 0.milliseconds, null, TestOutcome.SKIPPED)
         )
         val failed = setOf(
-            BuildResult.TestResult("test4", "output", 150.milliseconds, emptyList())
+            BuildResult.TestResult("test4", "output", 150.milliseconds, emptyList(), TestOutcome.FAILED)
         )
 
         val testResults = BuildResult.TestResults(
@@ -140,13 +144,13 @@ class BuildResultTest {
     @Test
     fun `test results all sequence contains all tests`() {
         val passed = setOf(
-            BuildResult.TestResult("test1", null, 100.milliseconds, null)
+            BuildResult.TestResult("test1", null, 100.milliseconds, null, TestOutcome.PASSED)
         )
         val skipped = setOf(
-            BuildResult.TestResult("test2", null, 0.milliseconds, null)
+            BuildResult.TestResult("test2", null, 0.milliseconds, null, TestOutcome.SKIPPED)
         )
         val failed = setOf(
-            BuildResult.TestResult("test3", "output", 150.milliseconds, emptyList())
+            BuildResult.TestResult("test3", "output", 150.milliseconds, emptyList(), TestOutcome.FAILED)
         )
 
         val testResults = BuildResult.TestResults(
@@ -199,6 +203,7 @@ class BuildResultTest {
     fun `consoleOutputLines lazily splits console output`() {
         val result = BuildResult(
             id = BuildId.newId(),
+            args = args,
             consoleOutput = "Line 1\nLine 2\nLine 3",
             publishedScans = emptyList(),
             testResults = BuildResult.TestResults(emptySet(), emptySet(), emptySet()),
@@ -227,11 +232,13 @@ class BuildResultTest {
             testName = "failingTest",
             consoleOutput = null,
             executionDuration = 100.milliseconds,
-            failures = listOf(testFailure)
+            failures = listOf(testFailure),
+            status = TestOutcome.FAILED
         )
 
         val result = BuildResult(
             id = BuildId.newId(),
+            args = args,
             consoleOutput = "",
             publishedScans = emptyList(),
             testResults = BuildResult.TestResults(
@@ -269,11 +276,13 @@ class BuildResultTest {
             testName = "failingTest",
             consoleOutput = null,
             executionDuration = 100.milliseconds,
-            failures = listOf(testFailure)
+            failures = listOf(testFailure),
+            status = TestOutcome.FAILED
         )
 
         val result = BuildResult(
             id = BuildId.newId(),
+            args = args,
             consoleOutput = "",
             publishedScans = emptyList(),
             testResults = BuildResult.TestResults(
@@ -312,11 +321,13 @@ class BuildResultTest {
             testName = "failingTest",
             consoleOutput = null,
             executionDuration = 100.milliseconds,
-            failures = listOf(testFailure)
+            failures = listOf(testFailure),
+            status = TestOutcome.FAILED
         )
 
         val result = BuildResult(
             id = BuildId.newId(),
+            args = args,
             consoleOutput = "",
             publishedScans = emptyList(),
             testResults = BuildResult.TestResults(
@@ -332,14 +343,44 @@ class BuildResultTest {
         assertTrue(result.allFailures.containsKey(FailureId("test-failure")))
         assertTrue(result.allFailures.containsKey(FailureId("build-failure")))
     }
+
+    @Test
+    fun `problems toSummary correctly aggregates and calculates totalCount`() {
+        val problems = mapOf(
+            ProblemSeverity.ERROR to listOf(
+                ProblemAggregation(
+                    ProblemAggregation.ProblemDefinition(ProblemId("e1"), "Error 1", ProblemSeverity.ERROR, null),
+                    listOf(
+                        ProblemAggregation.ProblemOccurence("d1", emptyList(), emptyList(), emptyList()),
+                        ProblemAggregation.ProblemOccurence("d2", emptyList(), emptyList(), emptyList())
+                    )
+                )
+            ),
+            ProblemSeverity.WARNING to listOf(
+                ProblemAggregation(
+                    ProblemAggregation.ProblemDefinition(ProblemId("w1"), "Warning 1", ProblemSeverity.WARNING, null),
+                    listOf(
+                        ProblemAggregation.ProblemOccurence("d3", emptyList(), emptyList(), emptyList())
+                    )
+                )
+            )
+        )
+
+        val summary = problems.toSummary()
+        assertEquals(2, summary.errorCounts[ProblemId("e1")]?.occurences)
+        assertEquals(1, summary.warningCounts[ProblemId("w1")]?.occurences)
+        assertEquals(3, summary.totalCount)
+    }
 }
 
 class GradleResultTest {
+    private val args = GradleInvocationArguments.DEFAULT
 
     @Test
     fun `can create successful gradle result`() {
         val buildResult = BuildResult(
             id = BuildId.newId(),
+            args = args,
             consoleOutput = "BUILD SUCCESSFUL",
             publishedScans = emptyList(),
             testResults = BuildResult.TestResults(emptySet(), emptySet(), emptySet()),
@@ -361,6 +402,7 @@ class GradleResultTest {
     fun `can create failed gradle result`() {
         val buildResult = BuildResult(
             id = BuildId.newId(),
+            args = args,
             consoleOutput = "BUILD FAILED",
             publishedScans = emptyList(),
             testResults = BuildResult.TestResults(emptySet(), emptySet(), emptySet()),
@@ -382,6 +424,7 @@ class GradleResultTest {
     fun `throwFailure returns build id and value on success`() {
         val buildResult = BuildResult(
             id = BuildId.newId(),
+            args = args,
             consoleOutput = "",
             publishedScans = emptyList(),
             testResults = BuildResult.TestResults(emptySet(), emptySet(), emptySet()),

@@ -31,8 +31,15 @@ data class GradleBuildScan(
     }
 }
 
+@Serializable
+@Description("The outcome of a test.")
+enum class TestOutcome {
+    PASSED, FAILED, SKIPPED
+}
+
 data class BuildResult(
     val id: BuildId,
+    val args: GradleInvocationArguments,
     val consoleOutput: String,
     val publishedScans: List<GradleBuildScan>,
     val testResults: TestResults,
@@ -59,6 +66,21 @@ data class BuildResult(
             yield(this@Failure)
             yieldAll(causes.asSequence().flatMap { it.flatten() })
         }
+
+        fun writeFailureTree(sb: StringBuilder, prefix: String = "") {
+            sb.appendLine(prefix + "${id.id} - ${message ?: "No message"}")
+            description?.prependIndent("$prefix  ")?.let { sb.appendLine(it) }
+
+            if (problems.isNotEmpty()) {
+                sb.appendLine("$prefix  Problems:")
+                problems.forEach { sb.appendLine("$prefix    ${it.id}") }
+            }
+
+            if (causes.isNotEmpty()) {
+                sb.appendLine("$prefix  Causes:")
+                causes.forEach { it.writeFailureTree(sb, "$prefix    ") }
+            }
+        }
     }
 
     data class TestResults(
@@ -82,6 +104,7 @@ data class BuildResult(
         val consoleOutput: String?,
         val executionDuration: Duration,
         val failures: List<Failure>?,
+        val status: TestOutcome
     )
 
     private data class FailureContent(
@@ -103,6 +126,7 @@ data class BuildResult(
     companion object {
 
         fun build(
+            args: GradleInvocationArguments,
             buildId: BuildId,
             console: String,
             scans: List<GradleBuildScan>,
@@ -115,9 +139,9 @@ data class BuildResult(
 
             val modelTestResults = testResults.let {
                 BuildResult.TestResults(
-                    it.passed.mapToSet { it.toModel(indexer) },
-                    it.skipped.mapToSet { it.toModel(indexer) },
-                    it.failed.mapToSet { it.toModel(indexer) },
+                    it.passed.mapToSet { it.toModel(indexer, TestOutcome.PASSED) },
+                    it.skipped.mapToSet { it.toModel(indexer, TestOutcome.SKIPPED) },
+                    it.failed.mapToSet { it.toModel(indexer, TestOutcome.FAILED) },
                 )
             }
 
@@ -125,6 +149,7 @@ data class BuildResult(
 
             return BuildResult(
                 buildId,
+                args,
                 console,
                 scans,
                 modelTestResults,
@@ -145,12 +170,13 @@ data class BuildResult(
         }
 
 
-        private fun DefaultGradleProvider.TestCollector.Result.toModel(indexer: FailureIndexer): BuildResult.TestResult {
+        private fun DefaultGradleProvider.TestCollector.Result.toModel(indexer: FailureIndexer, status: TestOutcome): BuildResult.TestResult {
             return BuildResult.TestResult(
                 testName,
                 output,
                 duration,
                 failures?.map { indexer.withIndex(it.toContent()) },
+                status
             )
         }
     }

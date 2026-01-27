@@ -8,6 +8,7 @@ data class GradleResult<out T>(
 ) {
     companion object {
         fun <T> build(
+            args: GradleInvocationArguments,
             buildId: BuildId,
             console: String,
             scans: List<GradleBuildScan>,
@@ -17,7 +18,7 @@ data class GradleResult<out T>(
             outcome: Result<T>
         ): GradleResult<T> {
             return GradleResult(
-                BuildResult.build(buildId, console, scans, results, problems, exception),
+                BuildResult.build(args, buildId, console, scans, results, problems, exception),
                 outcome
             )
         }

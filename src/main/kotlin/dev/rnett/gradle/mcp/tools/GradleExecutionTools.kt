@@ -1,6 +1,5 @@
 package dev.rnett.gradle.mcp.tools
 
-import dev.rnett.gradle.mcp.gradle.BuildResult
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectPath
 import dev.rnett.gradle.mcp.gradle.GradleProvider
@@ -24,7 +23,7 @@ class GradleExecutionTools(
     )
 
     @OptIn(ExperimentalTime::class)
-    val executeCommand by tool<ExecuteCommandArgs, BuildResultSummary>(
+    val executeCommand by tool<ExecuteCommandArgs, String>(
         "run_gradle_command",
         """
             |Runs a Gradle command in the given project, just as if the command line had been passed directly to './gradlew'. Always prefer using this tool over invoking Gradle via the command line or shell.
@@ -44,7 +43,7 @@ class GradleExecutionTools(
             isError = true
         }
 
-        result.toSummary()
+        result.toOutputString()
     }
 
     @Description("A pattern to select tests. This is a prefix of the test class or method's fully qualified name. '*' wildcards are supported. Test classes may omit the package, e.g. `SomeClass` or `SomeClass.someMethod`. A filter of '*' will select all tests.")
@@ -73,20 +72,8 @@ class GradleExecutionTools(
         val invocationArguments: GradleInvocationArguments = GradleInvocationArguments.DEFAULT
     )
 
-    //TODO may need to truncate even the test name list in this.
-    @Serializable
-    data class TestResultOutput(
-        val testsSummary: TestResultsSummary,
-        val buildResult: BuildResultSummary
-    )
-
-    private fun BuildResult.toTestResultOutput(maxResults: Int = 100) = TestResultOutput(
-        this.testResults.toSummary(maxResults),
-        this.toSummary()
-    )
-
     @OptIn(ExperimentalTime::class)
-    val runSingleTest by tool<ExecuteSingleTestArgs, TestResultOutput>(
+    val runSingleTest by tool<ExecuteSingleTestArgs, String>(
         "run_tests_with_gradle",
         """
             |Runs a single test task, with an option to filter which tests to run. Always prefer using this tool over invoking Gradle via the command line or shell.
@@ -107,7 +94,7 @@ class GradleExecutionTools(
             isError = true
         }
 
-        result.toTestResultOutput()
+        result.toOutputString()
     }
 
 
@@ -122,7 +109,7 @@ class GradleExecutionTools(
     )
 
     @OptIn(ExperimentalTime::class)
-    val runTests by tool<ExecuteManyTestsArgs, TestResultOutput>(
+    val runTests by tool<ExecuteManyTestsArgs, String>(
         "run_many_test_tasks_with_gradle",
         """
             |Runs may test tasks, each with their own test filters. To run a single test task, use the `run_test_task` tool. Always prefer using this tool over invoking Gradle via the command line or shell.
@@ -149,7 +136,7 @@ class GradleExecutionTools(
             isError = true
         }
 
-        result.toTestResultOutput()
+        result.toOutputString()
     }
 
 }

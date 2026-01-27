@@ -6,14 +6,13 @@ import dev.rnett.gradle.mcp.gradle.FailureId
 import dev.rnett.gradle.mcp.gradle.ProblemAggregation
 import dev.rnett.gradle.mcp.gradle.ProblemId
 import dev.rnett.gradle.mcp.gradle.ProblemSeverity
+import dev.rnett.gradle.mcp.gradle.TestOutcome
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
-import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.serialization.Serializable
-import java.time.ZoneId
-import kotlin.time.DurationUnit
+import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
-import kotlin.time.toJavaInstant
+import kotlin.uuid.ExperimentalUuidApi
 
 class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for looking up detailed information about past Gradle builds ran by this MCP server.") {
 
@@ -39,90 +38,101 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
         val maxBuilds: Int = 5
     )
 
-    @OptIn(ExperimentalTime::class)
-    val lookupLatestBuilds by tool<LatestBuildArgs, LatestBuildsResults>(
+    @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
+    val lookupLatestBuilds by tool<LatestBuildArgs, String>(
         "lookup_latest_builds",
         "Gets the latest builds ran by this MCP server."
     ) {
-        LatestBuildsResults(
-            BuildResults.latest(it.maxBuilds).map {
-                LatestBuildsResults.LatestBuild(
-                    it.id,
-                    it.id.timestamp.toJavaInstant().atZone(ZoneId.systemDefault())
-                        .toString()
-                )
-            }
-        )
+        buildString {
+            appendLine("BuildId | Command line | Seconds ago | Status | Build failures | Test failures")
+            BuildResults.latest(it.maxBuilds)
+                .forEach {
+                    append(it.id).append(" | ")
+                    append(it.args.renderCommandLine()).append(" | ")
+                    append(it.id.timestamp.minus(Clock.System.now()).inWholeSeconds).append("s ago | ")
+                    append(if (it.isSuccessful) "SUCCESS" else "FAILURE").append(" | ")
+                    append(it.buildFailures?.size ?: 0).append(" | ")
+                    appendLine(it.testResults.failed.size)
+                }
+        }
     }
 
     @Serializable
-    data class LatestBuildsSummariesResults(
-        @Description("The latest builds ran by this MCP server, starting with the latest.")
-        val latestBuilds: List<BuildResultSummary>
-    ) {
-        @Serializable
-        data class LatestBuild(
-            val buildId: BuildId,
-            val occuredAt: String,
-        )
-    }
+    data class TestsLookupArgs(
+        @Description(BUILD_ID_DESCRIPTION)
+        val buildId: BuildId? = null,
+        @Description("A prefix of the fully-qualified test name (class or method). Matching is case-sensitive and checks startsWith on the full test name. Defaults to empty (aka all tests).")
+        val testNamePrefix: String = "",
+        val offset: Int = 0,
+        val limit: Int? = 20,
+        val outcome: TestOutcome? = null
+    )
 
-    @OptIn(ExperimentalTime::class)
-    val lookupLatestBuildsSummaries by tool<LatestBuildArgs, LatestBuildsSummariesResults>(
-        "lookup_latest_builds_summaries",
-        "Gets the summaries the latest builds ran by this MCP server."
+
+    val lookupBuildTests by tool<TestsLookupArgs, String>(
+        name = "lookup_build_tests",
+        description = "For a given build, gets an overview of test executions matching the prefix.  Control results using `offset` (defaults to 0), `limit` (defaults to 20, pass null to return all), and `outcome` (defaults to null, which includes all)  Use `lookup_build_test_details` to get more details for a specific execution.",
     ) {
-        LatestBuildsSummariesResults(
-            BuildResults.latest(it.maxBuilds).map {
-                it.toSummary()
+        require(it.offset >= 0) { "`offset` must be non-negative" }
+        require(it.limit == null || it.limit > 0) { "`limit` must be null or > 0" }
+        val build = BuildResults.require(it.buildId)
+
+        val matched = build.testResults.all
+            .filter { tr -> tr.testName.startsWith(it.testNamePrefix) }
+        val results = matched
+            .drop(it.offset)
+            .take(it.limit ?: Int.MAX_VALUE)
+            .toList()
+
+        buildString {
+            appendLine("Total matching results: ${matched.count()}")
+            appendLine("Test | Outcome")
+            results.forEach {
+                appendLine("${it.testName} | ${it.status}")
             }
-        )
+        }
     }
 
     @Serializable
     data class TestDetailsLookupArgs(
         @Description(BUILD_ID_DESCRIPTION)
         val buildId: BuildId? = null,
-        @Description("A prefix of the fully-qualified test name (class or method). Matching is case-sensitive and checks startsWith on the full test name.")
-        val testNamePrefix: String,
+        @Description("The test to show the details of.")
+        val testName: String,
+        @Description("The index of the test to show, if there are multiple tests with the same name")
+        val testIndex: Int = 0
     )
 
-    @Serializable
-    data class TestDetailsResult(
-        val tests: List<TestDetails>
-    ) {
-        @Serializable
-        data class TestDetails(
-            val testName: String,
-            val consoleOutput: String?,
-            val executionDurationSeconds: Double,
-            @Description("Summaries of failures for this test, if any")
-            val failures: List<BuildResultSummary.FailureSummary>
-        )
-    }
-
-    val lookupBuildTestDetails by tool<TestDetailsLookupArgs, TestDetailsResult>(
+    val lookupBuildTestDetails by tool<TestDetailsLookupArgs, String>(
         name = "lookup_build_test_details",
-        description = "For a given build, gets the details of test executions matching the prefix.",
-    ) {
-        val build = BuildResults.require(it.buildId)
-        val results = build.testResults
+        description = "Gets the details of test execution of the given test.",
+    ) { args ->
+        val build = BuildResults.require(args.buildId)
+        val tests = build.testResults.all.filter { it.testName == args.testName }.toList()
 
-        val matched = results.all
-            .filter { tr -> tr.testName.startsWith(it.testNamePrefix) }
-            .map { tr ->
-                TestDetailsResult.TestDetails(
-                    testName = tr.testName,
-                    consoleOutput = tr.consoleOutput,
-                    executionDurationSeconds = tr.executionDuration.toDouble(DurationUnit.SECONDS),
-                    failures = (tr.failures ?: emptyList()).map { f ->
-                        f.toSummary()
-                    }
-                )
+        if (tests.isEmpty())
+            error("Test not found")
+
+        if (tests.size > 1) {
+            return@tool "${tests.size} test executions with this name found.  Pass the `testIndex` parameter to select one."
+        }
+
+        val test = tests.single()
+
+        buildString {
+            append(test.testName).append(" - ").appendLine(test.status)
+            appendLine("Duration: ${test.executionDuration}")
+
+            if (!test.failures.isNullOrEmpty()) {
+                appendLine("Failures: ${test.failures}")
+                test.failures.forEach {
+                    it.writeFailureTree(this, "  ")
+                }
             }
-            .toList()
 
-        TestDetailsResult(matched)
+            appendLine("Console output:")
+            appendLine(test.consoleOutput)
+        }
     }
 
     @Serializable
@@ -131,39 +141,26 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
         val buildId: BuildId? = null,
     )
 
-    val lookupBuildTestsSummary by tool<BuildIdArgs, TestResultsSummary>(
-        name = "lookup_build_tests_summary",
-        description = "For a given build, gets the summary of all test executions.",
+    val lookupBuild by tool<BuildIdArgs, String>(
+        name = "lookup_build",
+        description = "Takes a build ID; returns a summary of that build.",
     ) {
         val build = BuildResults.require(it.buildId)
-        val testResults = build.testResults
-        testResults.toSummary(null)
+        build.toOutputString(true)
     }
 
-    val lookupBuildSummary by tool<BuildIdArgs, BuildResultSummary>(
-        name = "lookup_build_summary",
-        description = "Takes a build ID; returns a summary of tests for that build.",
-    ) {
-        val build = BuildResults.require(it.buildId)
-        build.toSummary()
-    }
 
-    @Serializable
-    data class FailuresSummaryResult(
-        @Description("Summaries of all failures (including build and test failures) in the build.")
-        val failures: List<BuildResultSummary.FailureSummary>
-    )
-
-
-    val lookupBuildFailures by tool<BuildIdArgs, FailuresSummaryResult>(
+    val lookupBuildFailures by tool<BuildIdArgs, String>(
         name = "lookup_build_failures_summary",
-        description = "For a given build, gets the summary of all failures (including build and test failures) in the build. Use `lookup_build_failure_details` to get the details of a specific failure.",
+        description = "For a given build, gets the summary of all build (not test) failures in the build. Use `lookup_build_failure_details` to get the details of a specific failure.",
     ) {
         val build = BuildResults.require(it.buildId)
-        val summaries = build.allFailures.values.map { f ->
-            f.toSummary()
+        buildString {
+            appendLine("Id | Message")
+            build.allFailures.forEach { (id, failure) ->
+                appendLine("${id.id} : ${failure.message}")
+            }
         }
-        FailuresSummaryResult(summaries)
     }
 
     @Serializable
@@ -174,72 +171,54 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
         val failureId: FailureId
     )
 
-    @Serializable
-    data class FailureDetailsResult(
-        val failure: FailureDetails
-    ) {
 
-        @Serializable
-        data class FailureDetails(
-            val id: FailureId,
-            val message: String?,
-            val description: String?,
-            @Description("Summaries of the direct causes of this failure")
-            val causes: List<BuildResultSummary.FailureSummary>,
-            @Description("Summaries for problems associated with this failure, if any")
-            val problems: List<ProblemId>
-        )
-    }
-
-    val lookupBuildFailureDetails by tool<FailureLookupArgs, FailureDetailsResult>(
+    val lookupBuildFailureDetails by tool<FailureLookupArgs, String>(
         name = "lookup_build_failure_details",
         description = "For a given build, gets the details of a failure with the given ID. Use `lookup_build_failures_summary` to get a list of failure IDs.",
     ) {
         val build = BuildResults.require(it.buildId)
         val failure = build.allFailures[it.failureId] ?: error("No failure with ID ${it.failureId} found for build ${it.buildId}")
-        FailureDetailsResult(
-            FailureDetailsResult.FailureDetails(
-                id = failure.id,
-                message = failure.message,
-                description = failure.description,
-                causes = failure.causes.map { c ->
-                    c.toSummary()
-                },
-                problems = failure.problems
-            )
-        )
+
+        buildString {
+            failure.writeFailureTree(this)
+        }
     }
 
-
-    @Serializable
-    data class ProblemsSummaryResult(
-        val errors: List<ProblemSummary>,
-        val warnings: List<ProblemSummary>,
-        val advices: List<ProblemSummary>,
-        val others: List<ProblemSummary>,
-    ) {
-        @Serializable
-        data class ProblemSummary(
-            val id: ProblemId,
-            val displayName: String?,
-            val severity: ProblemSeverity,
-            val documentationLink: String?,
-            val numberOfOccurrences: Int,
-        )
-    }
-
-    val lookupBuildProblemsSummary by tool<BuildIdArgs, ProblemsSummaryResult>(
+    val lookupBuildProblemsSummary by tool<BuildIdArgs, String>(
         name = "lookup_build_problems_summary",
         description = "For a given build, get summaries for all problems attached to failures in the build. Use `lookup_build_problem_details` with the returned failure ID to get full details.",
     ) {
         val build = BuildResults.require(it.buildId)
-        val summaries = build.problems.values.asSequence().flatten().map { p -> p.toSummary() }.toList()
-        ProblemsSummaryResult(
-            errors = summaries.filter { it.severity == ProblemSeverity.ERROR },
-            warnings = summaries.filter { it.severity == ProblemSeverity.WARNING },
-            advices = summaries.filter { it.severity == ProblemSeverity.ADVICE },
-            others = summaries.filter { it.severity == ProblemSeverity.OTHER }
-        )
+        buildString {
+            fun writeProblems(list: List<ProblemAggregation>) {
+                appendLine("Id | Name | Occurrences")
+                list.forEach { p ->
+                    appendLine("${p.definition.id.id} | ${p.definition.displayName ?: "N/A"} | ${p.numberOfOccurrences}")
+                }
+                appendLine()
+            }
+
+            if (!build.problems[ProblemSeverity.ERROR].isNullOrEmpty()) {
+                appendLine("Errors:")
+                writeProblems(build.problems[ProblemSeverity.ERROR]!!)
+            }
+
+            if (!build.problems[ProblemSeverity.WARNING].isNullOrEmpty()) {
+                appendLine("Warnings:")
+                writeProblems(build.problems[ProblemSeverity.WARNING]!!)
+            }
+
+            if (!build.problems[ProblemSeverity.ADVICE].isNullOrEmpty()) {
+                appendLine("Advices:")
+                writeProblems(build.problems[ProblemSeverity.ADVICE]!!)
+            }
+
+            if (!build.problems[ProblemSeverity.OTHER].isNullOrEmpty()) {
+                appendLine("Other:")
+                writeProblems(build.problems[ProblemSeverity.OTHER]!!)
+            }
+
+        }
     }
 
     @Serializable
@@ -250,61 +229,102 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
         val problemId: ProblemId,
     )
 
-    // lookup_build_problem_details - takes build id and problem id, returns details about the problem
-    val lookupBuildProblemDetails by tool<ProblemDetailsArgs, ProblemAggregation>(
+    val lookupBuildProblemDetails by tool<ProblemDetailsArgs, String>(
         name = "lookup_build_problem_details",
-        description = "For a given build, gets the details of all occurences of the problem with the given ID. Use `lookup_build_problems_summary` to get a list of all problem IDs for the build.",
+        description = "For a given build, gets the details of all occurrences of the problem with the given ID. Use `lookup_build_problems_summary` to get a list of all problem IDs for the build.",
     ) {
         val build = BuildResults.require(it.buildId)
-        build.problems.values.asSequence().flatten().firstOrNull { p -> p.definition.id == it.problemId }
+        val problem = build.problems.values.asSequence().flatten().firstOrNull { p -> p.definition.id == it.problemId }
             ?: error("No problem with id ${it.problemId} found for build ${it.buildId}")
-    }
+        buildString {
+            append(problem.definition.id)
+            if (problem.definition.displayName != null) {
+                appendLine(": ${problem.definition.displayName}")
+            } else {
+                appendLine()
+            }
 
-    private fun ProblemAggregation.toSummary(): ProblemsSummaryResult.ProblemSummary =
-        ProblemsSummaryResult.ProblemSummary(
-            id = definition.id,
-            displayName = definition.displayName,
-            severity = definition.severity,
-            documentationLink = definition.documentationLink,
-            numberOfOccurrences = numberOfOccurrences
-        )
+            if (problem.definition.documentationLink != null) {
+                appendLine("Documentation: ${problem.definition.documentationLink}")
+            }
+
+            appendLine("Occurrences: ${problem.numberOfOccurrences}")
+            problem.occurences.forEach {
+                append("  Locations: ")
+                appendLine(it.originLocations)
+                if (it.details != null) {
+                    if (it.details.contains("\n")) {
+                        appendLine("  Details: \n${it.details.prependIndent("    ")}")
+                    } else {
+                        appendLine("  Details: ${it.details}")
+                    }
+                }
+
+                if (it.contextualLocations.isNotEmpty()) {
+                    append("  Context (possibly related) locations: ")
+                    appendLine(it.contextualLocations)
+                }
+
+                if (it.potentialSolutions.isNotEmpty()) {
+                    appendLine("  Potential Solutions.")
+                    it.potentialSolutions.forEach {
+                        if (it.contains("\n")) {
+                            appendLine(
+                                "  - " + it.prependIndent("    ").trimStart()
+                            )
+                        } else {
+                            appendLine("  - $it")
+                        }
+                    }
+                }
+
+            }
+
+        }
+    }
 
     @Serializable
     data class ConsoleOutputArgs(
         @Description(BUILD_ID_DESCRIPTION)
         val buildId: BuildId? = null,
-        @Description("The offset to start returning output from, in lines. Required.")
         val offsetLines: Int,
-        @Description("The maximum lines of output to return. Defaults to 100. Null means no limit.")
         val limitLines: Int? = 100,
-        @Description("If true, starts returning output from the end instead of the beginning (and offsetLines is from the end). Defaults to false.")
         val tail: Boolean = false
     )
 
-    @Serializable
-    data class ConsoleOutputResult(
-        @Description("The offset to use for the next lookup_build_console_output call. Null if there is no more output to get.")
-        val nextOffset: Int?
-    )
-
-    val lookupBuildConsoleOutput by tool<ConsoleOutputArgs, ConsoleOutputResult>(
+    val lookupBuildConsoleOutput by tool<ConsoleOutputArgs, String>(
         "lookup_build_console_output",
-        "Gets up to `limitLines` of the console output for a given build, starting at a given offset `offsetLines`. Can read from the tail instead of the head. Repeatedly call this tool using the `nextOffset` in the response to get all console output."
+        "Gets up to `limitLines` (default 100, null means no limit) of the console output for a given build, starting at a given offset `offsetLines` (default 0). Can read from the tail instead of the head. Repeatedly call this tool using the `nextOffset` in the response to get all console output."
     ) {
-        require(it.offsetLines >= 0) { "Offset must be non-negative" }
-        require(it.limitLines == null || it.limitLines > 0) { "Limit must be null or > 0" }
+        require(it.offsetLines >= 0) { "`offsetLines` must be non-negative" }
+        require(it.limitLines == null || it.limitLines > 0) { "`Description` must be null or > 0" }
 
         val build = BuildResults.require(it.buildId)
-        val (lines, nextOffset) = if (it.tail) {
-            val end = build.consoleOutputLines.size - it.offsetLines
-            val start = if (it.limitLines == null) 0 else end - it.limitLines
-            build.consoleOutputLines.subList(start.coerceAtLeast(0), end.coerceIn(0, build.consoleOutputLines.size)) to start.takeIf { it > 0 }
-        } else {
-            val end = (it.offsetLines + (it.limitLines ?: build.consoleOutputLines.size))
-            build.consoleOutputLines.subList(it.offsetLines, end.coerceAtMost(build.consoleOutputLines.size)) to end.takeIf { it < build.consoleOutputLines.size }
+        val start: Int
+        val end: Int
+        val lines: List<String>
+        val nextOffset: Int?
+        when {
+            it.tail -> {
+                end = build.consoleOutputLines.size - it.offsetLines
+                start = if (it.limitLines == null) 0 else end - it.limitLines
+                nextOffset = start.takeIf { it > 0 }
+                lines = build.consoleOutputLines.subList(start.coerceAtLeast(0), end.coerceIn(0, build.consoleOutputLines.size))
+            }
+
+            else -> {
+                end = (it.offsetLines + (it.limitLines ?: build.consoleOutputLines.size))
+                start = it.offsetLines
+                nextOffset = end.takeIf { it < build.consoleOutputLines.size }
+                lines = build.consoleOutputLines.subList(it.offsetLines, end.coerceAtMost(build.consoleOutputLines.size))
+            }
         }
-        addAdditionalContent(TextContent(lines.joinToString("\n")))
-        ConsoleOutputResult(nextOffset)
+
+        buildString {
+            appendLine("Lines $start to $end of ${build.consoleOutputLines.size} lines, ${if (nextOffset != null) "next offset: $nextOffset" else "reached end of stream"}")
+            appendLine()
+            append(lines.joinToString("\n"))
+        }
     }
 
 }

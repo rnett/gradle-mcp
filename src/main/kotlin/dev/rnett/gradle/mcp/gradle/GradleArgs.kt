@@ -1,10 +1,12 @@
 package dev.rnett.gradle.mcp.gradle
 
-import dev.rnett.gradle.mcp.tools.*
-import io.github.smiley4.schemakenerator.core.annotations.*
-import kotlinx.serialization.*
-import org.gradle.tooling.model.*
-import kotlin.io.path.*
+import dev.rnett.gradle.mcp.tools.GradlePathUtils
+import io.github.smiley4.schemakenerator.core.annotations.Description
+import io.github.smiley4.schemakenerator.core.annotations.Example
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+import org.gradle.tooling.model.ProjectIdentifier
+import kotlin.io.path.absolute
 
 fun ProjectIdentifier.matches(root: GradleProjectRoot, projectPath: GradleProjectPath): Boolean =
     buildIdentifier.rootDir.toPath().absolute() == GradlePathUtils.getRootProjectPath(root) && this.projectPath == projectPath.path
@@ -34,6 +36,25 @@ data class GradleInvocationArguments(
             publishScan = publishScan || other.publishScan
         )
     }
+
+    fun renderCommandLine(): String = buildString {
+        actualEnvVars.forEach { (k, v) ->
+            append("$k=$v ")
+        }
+        append("java ")
+        additionalJvmArgs.forEach { a ->
+            append("$a ")
+        }
+        additionalSystemProps.forEach { (k, v) ->
+            append("-D$k=$v ")
+        }
+        append("gradle ")
+        allAdditionalArguments.forEach { a ->
+            append(a).append(" ")
+        }
+    }.trim()
+
+    val actualEnvVars: Map<String, String> get() = System.getenv().takeUnless { doNotInheritEnvVars }.orEmpty() + additionalEnvVars
 
     @Transient
     val allAdditionalArguments = additionalArguments + (if (publishScan && "--scan" !in additionalArguments) listOf("--scan") else emptyList())

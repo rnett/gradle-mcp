@@ -4,11 +4,13 @@ import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.BuildResult
 import dev.rnett.gradle.mcp.gradle.BuildResults
 import dev.rnett.gradle.mcp.gradle.FailureId
+import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.GradleResult
 import dev.rnett.gradle.mcp.gradle.ProblemAggregation
 import dev.rnett.gradle.mcp.gradle.ProblemId
 import dev.rnett.gradle.mcp.gradle.ProblemSeverity
+import dev.rnett.gradle.mcp.gradle.TestOutcome
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -27,6 +29,7 @@ import kotlin.time.Duration.Companion.seconds
 class McpToolWorkflowsTest : BaseMcpServerTest() {
 
     private fun syntheticBuildResult(): BuildResult {
+        val args = GradleInvocationArguments.DEFAULT
         val id = BuildId.newId()
         val console = buildString {
             appendLine("Starting build for ${id}")
@@ -36,7 +39,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         val scans = emptyList<dev.rnett.gradle.mcp.gradle.GradleBuildScan>()
         val testResults = BuildResult.TestResults(
             passed = setOf(
-                BuildResult.TestResult("com.example.HelloTest.passes", null, 0.1.seconds, failures = null)
+                BuildResult.TestResult("com.example.HelloTest.passes", null, 0.1.seconds, failures = null, status = TestOutcome.PASSED)
             ),
             skipped = emptySet(),
             failed = setOf(
@@ -52,7 +55,8 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
                             causes = emptyList(),
                             problems = emptyList()
                         )
-                    )
+                    ),
+                    status = TestOutcome.FAILED
                 )
             )
         )
@@ -76,7 +80,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
                 )
             )
         )
-        return BuildResult(id, console, scans, testResults, buildFailures = null, problems = problems)
+        return BuildResult(id, args, console, scans, testResults, buildFailures = null, problems = problems)
     }
 
     @Test
@@ -88,9 +92,9 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         val latestResult = server.client.callTool("lookup_latest_builds", mapOf("maxBuilds" to 1))
         assertTrue(latestResult != null)
 
-        // lookup_build_summary
+        // lookup_build
         val summary = server.client.callTool(
-            "lookup_build_summary",
+            "lookup_build",
             mapOf("buildId" to result.id.toString())
         )
         assertTrue(summary != null)
