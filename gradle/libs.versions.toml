@@ -10,7 +10,7 @@ coroutines = "1.10.2"
 mcpSdk = "0.7.2"
 gradleToolingApi = "9.3.0"
 buildconfig = "6.0.6"
-vanniktechPublish = "0.35.0"
+vanniktechPublish = "0.36.0"
 junit = "6.0.2"
 mockk = "1.14.9"
 
