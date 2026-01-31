@@ -6,7 +6,7 @@ Tools for looking up detailed information about past Gradle builds ran by this M
 
 ## lookup_latest_builds
 
-Gets the latest builds ran by this MCP server.
+Gets the latest builds (both background and completed) ran by this MCP server.
 
 <details>
 
@@ -21,6 +21,10 @@ Gets the latest builds ran by this MCP server.
       "minimum": -2147483648,
       "maximum": 2147483647,
       "description": "The maximum number of builds to return. Defaults to 5."
+    },
+    "onlyCompleted": {
+      "type": "boolean",
+      "description": "Whether to only show completed builds. Defaults to false."
     }
   },
   "required": [],

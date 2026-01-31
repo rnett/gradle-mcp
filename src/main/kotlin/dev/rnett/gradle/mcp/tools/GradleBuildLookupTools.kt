@@ -1,11 +1,14 @@
 package dev.rnett.gradle.mcp.tools
 
+import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
 import dev.rnett.gradle.mcp.gradle.BuildId
+import dev.rnett.gradle.mcp.gradle.BuildResult
 import dev.rnett.gradle.mcp.gradle.BuildResults
 import dev.rnett.gradle.mcp.gradle.FailureId
 import dev.rnett.gradle.mcp.gradle.ProblemAggregation
 import dev.rnett.gradle.mcp.gradle.ProblemId
 import dev.rnett.gradle.mcp.gradle.ProblemSeverity
+import dev.rnett.gradle.mcp.gradle.RunningBuild
 import dev.rnett.gradle.mcp.gradle.TestOutcome
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
@@ -20,40 +23,64 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
         const val BUILD_ID_DESCRIPTION = "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
     }
 
-    @Serializable
-    data class LatestBuildsResults(
-        @Description("The latest builds ran by this MCP server, starting with the latest.")
-        val latestBuilds: List<LatestBuild>
-    ) {
-        @Serializable
-        data class LatestBuild(
-            val buildId: BuildId,
-            val occuredAt: String,
-        )
-    }
 
     @Serializable
     data class LatestBuildArgs(
         @Description("The maximum number of builds to return. Defaults to 5.")
-        val maxBuilds: Int = 5
+        val maxBuilds: Int = 5,
+        @Description("Whether to only show completed builds. Defaults to false.")
+        val onlyCompleted: Boolean = false
     )
 
     @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
     val lookupLatestBuilds by tool<LatestBuildArgs, String>(
         "lookup_latest_builds",
-        "Gets the latest builds ran by this MCP server."
+        "Gets the latest builds (both background and completed) ran by this MCP server."
     ) {
+        val completed = BuildResults.latest(it.maxBuilds)
+        val active = if (it.onlyCompleted) emptyList() else BackgroundBuildManager.listBuilds()
+
+        val all = (completed.map { it to false } + active.map { it to true })
+            .sortedByDescending { (b, _) ->
+                when (b) {
+                    is BuildResult -> b.id.timestamp
+                    is RunningBuild<*> -> b.id.timestamp
+                    else -> error("Unknown build type")
+                }
+            }
+            .take(it.maxBuilds)
+
         buildString {
             appendLine("BuildId | Command line | Seconds ago | Status | Build failures | Test failures")
-            BuildResults.latest(it.maxBuilds)
-                .forEach {
-                    append(it.id).append(" | ")
-                    append(it.args.renderCommandLine()).append(" | ")
-                    append(it.id.timestamp.minus(Clock.System.now()).inWholeSeconds).append("s ago | ")
-                    append(if (it.isSuccessful) "SUCCESS" else "FAILURE").append(" | ")
-                    append(it.buildFailures?.size ?: 0).append(" | ")
-                    appendLine(it.testResults.failed.size)
+            all.forEach { (build, isActive) ->
+                val id = when (build) {
+                    is BuildResult -> build.id
+                    is RunningBuild<*> -> build.id
+                    else -> error("Unknown build type")
                 }
+                val commandLine = when (build) {
+                    is BuildResult -> build.args.renderCommandLine()
+                    is RunningBuild<*> -> build.args.renderCommandLine()
+                    else -> error("Unknown build type")
+                }
+                val secondsAgo = id.timestamp.minus(Clock.System.now()).inWholeSeconds
+
+                append(id).append(" | ")
+                append(commandLine).append(" | ")
+                append(secondsAgo).append("s ago | ")
+
+                if (isActive) {
+                    val rb = build as RunningBuild<*>
+                    append(rb.status).append(" | ")
+                    append("-").append(" | ")
+                    appendLine("-")
+                } else {
+                    val br = build as BuildResult
+                    append(if (br.isSuccessful) "SUCCESS" else "FAILURE").append(" | ")
+                    append(br.buildFailures?.size ?: 0).append(" | ")
+                    appendLine(br.testResults.failed.size)
+                }
+            }
         }
     }
 
@@ -75,6 +102,12 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
     ) {
         require(it.offset >= 0) { "`offset` must be non-negative" }
         require(it.limit == null || it.limit > 0) { "`limit` must be null or > 0" }
+        val buildId = it.buildId
+        val running = if (buildId != null) BackgroundBuildManager.getBuild(buildId) else null
+        if (running != null) {
+            return@tool "Build $buildId is still running. Use `background_build_get_status` to see progress, or wait for it to complete to use lookup tools."
+        }
+
         val build = BuildResults.require(it.buildId)
 
         val matched = build.testResults.all
@@ -107,6 +140,11 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
         name = "lookup_build_test_details",
         description = "Gets the details of test execution of the given test.",
     ) { args ->
+        val buildId = args.buildId
+        val running = if (buildId != null) BackgroundBuildManager.getBuild(buildId) else null
+        if (running != null) {
+            return@tool "Build $buildId is still running. Use `background_build_get_status` to see progress, or wait for it to complete to use lookup tools."
+        }
         val build = BuildResults.require(args.buildId)
         val tests = build.testResults.all.filter { it.testName == args.testName }.toList()
 
@@ -145,6 +183,11 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
         name = "lookup_build",
         description = "Takes a build ID; returns a summary of that build.",
     ) {
+        val buildId = it.buildId
+        val running = if (buildId != null) BackgroundBuildManager.getBuild(buildId) else null
+        if (running != null) {
+            return@tool "Build $buildId is still running. Use `background_build_get_status` to see progress, or wait for it to complete to use lookup tools."
+        }
         val build = BuildResults.require(it.buildId)
         build.toOutputString(true)
     }
@@ -154,6 +197,11 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
         name = "lookup_build_failures_summary",
         description = "For a given build, gets the summary of all build (not test) failures in the build. Use `lookup_build_failure_details` to get the details of a specific failure.",
     ) {
+        val buildId = it.buildId
+        val running = if (buildId != null) BackgroundBuildManager.getBuild(buildId) else null
+        if (running != null) {
+            return@tool "Build $buildId is still running. Use `background_build_get_status` to see progress, or wait for it to complete to use lookup tools."
+        }
         val build = BuildResults.require(it.buildId)
         buildString {
             appendLine("Id | Message")
@@ -176,6 +224,11 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
         name = "lookup_build_failure_details",
         description = "For a given build, gets the details of a failure with the given ID. Use `lookup_build_failures_summary` to get a list of failure IDs.",
     ) {
+        val buildId = it.buildId
+        val running = if (buildId != null) BackgroundBuildManager.getBuild(buildId) else null
+        if (running != null) {
+            return@tool "Build $buildId is still running. Use `background_build_get_status` to see progress, or wait for it to complete to use lookup tools."
+        }
         val build = BuildResults.require(it.buildId)
         val failure = build.allFailures[it.failureId] ?: error("No failure with ID ${it.failureId} found for build ${it.buildId}")
 
@@ -188,6 +241,11 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
         name = "lookup_build_problems_summary",
         description = "For a given build, get summaries for all problems attached to failures in the build. Use `lookup_build_problem_details` with the returned failure ID to get full details.",
     ) {
+        val buildId = it.buildId
+        val running = if (buildId != null) BackgroundBuildManager.getBuild(buildId) else null
+        if (running != null) {
+            return@tool "Build $buildId is still running. Use `background_build_get_status` to see progress, or wait for it to complete to use lookup tools."
+        }
         val build = BuildResults.require(it.buildId)
         buildString {
             fun writeProblems(list: List<ProblemAggregation>) {
@@ -233,6 +291,11 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
         name = "lookup_build_problem_details",
         description = "For a given build, gets the details of all occurrences of the problem with the given ID. Use `lookup_build_problems_summary` to get a list of all problem IDs for the build.",
     ) {
+        val buildId = it.buildId
+        val running = if (buildId != null) BackgroundBuildManager.getBuild(buildId) else null
+        if (running != null) {
+            return@tool "Build $buildId is still running. Use `background_build_get_status` to see progress, or wait for it to complete to use lookup tools."
+        }
         val build = BuildResults.require(it.buildId)
         val problem = build.problems.values.asSequence().flatten().firstOrNull { p -> p.definition.id == it.problemId }
             ?: error("No problem with id ${it.problemId} found for build ${it.buildId}")
@@ -299,6 +362,11 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
         require(it.offsetLines >= 0) { "`offsetLines` must be non-negative" }
         require(it.limitLines == null || it.limitLines > 0) { "`Description` must be null or > 0" }
 
+        val buildId = it.buildId
+        val running = if (buildId != null) BackgroundBuildManager.getBuild(buildId) else null
+        if (running != null) {
+            return@tool "Build $buildId is still running. Use `background_build_get_status` to see current progress, or wait for it to complete to use lookup tools."
+        }
         val build = BuildResults.require(it.buildId)
         val start: Int
         val end: Int

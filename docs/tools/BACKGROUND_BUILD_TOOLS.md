@@ -91,7 +91,7 @@ Once the build is complete, use the `lookup_*` tools to get detailed results, ju
 
 ## background_build_list
 
-Returns a list of all active and recently completed background builds.
+Returns a list of all active background builds.
 The returned BuildIds can be used with `background_build_get_status`, `background_build_stop`, and the `lookup_*` tools.
 
 <details>
@@ -109,98 +109,6 @@ The returned BuildIds can be used with `background_build_get_status`, `backgroun
 
 </details>
 
-
-<details>
-
-<summary>Output schema</summary>
-
-
-```json
-{
-  "properties": {
-    "active": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "buildId",
-          "commandLine",
-          "status",
-          "startTime"
-        ],
-        "properties": {
-          "buildId": {
-            "type": "string"
-          },
-          "commandLine": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "status": {
-            "enum": [
-              "RUNNING",
-              "SUCCESSFUL",
-              "FAILED",
-              "CANCELLED"
-            ]
-          },
-          "startTime": {
-            "type": "string"
-          }
-        }
-      }
-    },
-    "completed": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "buildId",
-          "commandLine",
-          "status",
-          "startTime",
-          "endTime"
-        ],
-        "properties": {
-          "buildId": {
-            "type": "string"
-          },
-          "commandLine": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "status": {
-            "enum": [
-              "RUNNING",
-              "SUCCESSFUL",
-              "FAILED",
-              "CANCELLED"
-            ]
-          },
-          "startTime": {
-            "type": "string"
-          },
-          "endTime": {
-            "type": "string"
-          }
-        }
-      }
-    }
-  },
-  "required": [
-    "active",
-    "completed"
-  ],
-  "type": "object"
-}
-```
-
-
-</details>
 
 ## background_build_get_status
 

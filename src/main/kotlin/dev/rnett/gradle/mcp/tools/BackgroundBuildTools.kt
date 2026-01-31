@@ -3,7 +3,6 @@ package dev.rnett.gradle.mcp.tools
 import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
 import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.BuildResults
-import dev.rnett.gradle.mcp.gradle.BuildStatus
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
@@ -31,56 +30,32 @@ class BackgroundBuildTools(
     }
 
     @Serializable
-    data class BuildList(
-        val active: List<ActiveBuild>,
-        val completed: List<CompletedBuild>
-    ) {
-        @Serializable
-        data class ActiveBuild(
-            val buildId: BuildId,
-            val commandLine: List<String>,
-            val status: BuildStatus,
-            val startTime: String
-        )
-
-        @Serializable
-        data class CompletedBuild(
-            val buildId: BuildId,
-            val commandLine: List<String>,
-            val status: BuildStatus,
-            val startTime: String,
-            val endTime: String
-        )
-    }
-
-    @Serializable
     class EmptyInput
 
-    val listBackgroundBuilds by tool<EmptyInput, BuildList>(
+    val listBackgroundBuilds by tool<EmptyInput, String>(
         "background_build_list",
         """
-            |Returns a list of all active and recently completed background builds.
+            |Returns a list of all active background builds.
             |The returned BuildIds can be used with `background_build_get_status`, `background_build_stop`, and the `lookup_*` tools.
         """.trimMargin()
     ) {
-        val active = BackgroundBuildManager.listBuilds().map {
-            BuildList.ActiveBuild(
-                it.id,
-                it.args.additionalArguments,
-                it.status,
-                it.startTime.toString()
-            )
+        val active = BackgroundBuildManager.listBuilds()
+            .sortedByDescending { it.id.timestamp }
+
+        if (active.isEmpty()) {
+            return@tool "No active background builds."
         }
-        val completed = BuildResults.latest(20).map {
-            BuildList.CompletedBuild(
-                it.id,
-                it.args.additionalArguments,
-                if (it.isSuccessful) BuildStatus.SUCCESSFUL else BuildStatus.FAILED,
-                it.id.timestamp.toString(),
-                it.id.timestamp.toString()
-            )
+
+        buildString {
+            appendLine("BuildId | Command line | Seconds ago | Status")
+            active.forEach {
+                val secondsAgo = it.id.timestamp.minus(Clock.System.now()).inWholeSeconds
+                append(it.id).append(" | ")
+                append(it.args.renderCommandLine()).append(" | ")
+                append(secondsAgo).append("s ago | ")
+                appendLine(it.status)
+            }
         }
-        BuildList(active, completed)
     }
 
     @Serializable

@@ -241,5 +241,24 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         val stopCall = server.client.callTool("background_build_stop", mapOf("buildId" to buildId.toString()))
         assertTrue(stopCall != null)
         coVerify { runningBuild.stop() }
+
+        // Step 3: Test that lookup_latest_builds shows background builds
+        val latestCall = server.client.callTool("lookup_latest_builds", mapOf("maxBuilds" to JsonPrimitive(5)))
+        assertTrue(latestCall != null)
+        val latestText = latestCall.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
+        assertTrue(latestText.contains(buildId.toString()))
+        assertTrue(latestText.contains("RUNNING"))
+
+        // Step 3: Test that lookup_latest_builds with onlyCompleted doesn't show background builds
+        val latestCompletedCall = server.client.callTool("lookup_latest_builds", mapOf("maxBuilds" to JsonPrimitive(5), "onlyCompleted" to JsonPrimitive(true)))
+        assertTrue(latestCompletedCall != null)
+        val latestCompletedText = latestCompletedCall.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
+        assertTrue(!latestCompletedText.contains(buildId.toString()))
+
+        // Step 3: Test that lookup_build shows "still running" message
+        val lookupCall = server.client.callTool("lookup_build", mapOf("buildId" to buildId.toString()))
+        assertTrue(lookupCall != null)
+        val lookupText = lookupCall.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
+        assertTrue(lookupText.contains("still running"))
     }
 }
