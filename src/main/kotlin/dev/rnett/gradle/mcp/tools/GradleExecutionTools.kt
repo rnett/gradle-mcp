@@ -39,11 +39,11 @@ class GradleExecutionTools(
             GradleInvocationArguments(additionalArguments = it.commandLine, publishScan = it.scan) + it.invocationArguments
         )
 
-        if (!result.isSuccessful) {
+        if (!result.buildResult.isSuccessful) {
             isError = true
         }
 
-        result.toOutputString()
+        result.buildResult.toOutputString()
     }
 
     @Description("A pattern to select tests. This is a prefix of the test class or method's fully qualified name. '*' wildcards are supported. Test classes may omit the package, e.g. `SomeClass` or `SomeClass.someMethod`. A filter of '*' will select all tests.")
@@ -90,11 +90,11 @@ class GradleExecutionTools(
             GradleInvocationArguments(publishScan = it.scan) + it.invocationArguments
         )
 
-        if (!result.isSuccessful) {
+        if (!result.buildResult.isSuccessful) {
             isError = true
         }
 
-        result.toOutputString()
+        result.buildResult.toOutputString()
     }
 
 
@@ -132,11 +132,11 @@ class GradleExecutionTools(
             GradleInvocationArguments(publishScan = it.scan) + it.invocationArguments,
         )
 
-        if (!result.isSuccessful) {
+        if (!result.buildResult.isSuccessful) {
             isError = true
         }
 
-        result.toOutputString()
+        result.buildResult.toOutputString()
     }
 
 }

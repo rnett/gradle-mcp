@@ -4,6 +4,7 @@ import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleScanTosAcceptRequest
+import dev.rnett.gradle.mcp.gradle.RunningBuild
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import kotlinx.serialization.json.Json
 import org.gradle.tooling.events.OperationType
@@ -138,7 +139,7 @@ object UpdateTools {
     }
 
     val throwingGradleProvider = object : GradleProvider {
-        override suspend fun <T : org.gradle.tooling.model.Model> getBuildModel(
+        override fun <T : org.gradle.tooling.model.Model> getBuildModel(
             projectRoot: GradleProjectRoot,
             kClass: kotlin.reflect.KClass<T>,
             args: GradleInvocationArguments,
@@ -147,22 +148,22 @@ object UpdateTools {
             stdoutLineHandler: ((String) -> Unit)?,
             stderrLineHandler: ((String) -> Unit)?,
             requiresGradleProject: Boolean
-        ): dev.rnett.gradle.mcp.gradle.GradleResult<T> {
+        ): RunningBuild<T> {
             throw UnsupportedOperationException("Not used for tool listing")
         }
 
-        override suspend fun runBuild(
+        override fun runBuild(
             projectRoot: GradleProjectRoot,
             args: GradleInvocationArguments,
             tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
             additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
             stdoutLineHandler: ((String) -> Unit)?,
             stderrLineHandler: ((String) -> Unit)?,
-        ): dev.rnett.gradle.mcp.gradle.GradleResult<Unit> {
+        ): RunningBuild<Unit> {
             throw UnsupportedOperationException("Not used for tool listing")
         }
 
-        override suspend fun runTests(
+        override fun runTests(
             projectRoot: GradleProjectRoot,
             testPatterns: Map<String, Set<String>>,
             args: GradleInvocationArguments,
@@ -170,8 +171,11 @@ object UpdateTools {
             additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
             stdoutLineHandler: ((String) -> Unit)?,
             stderrLineHandler: ((String) -> Unit)?,
-        ): dev.rnett.gradle.mcp.gradle.GradleResult<Unit> {
+        ): RunningBuild<Unit> {
             throw UnsupportedOperationException("Not used for tool listing")
+        }
+
+        override fun close() {
         }
     }
 }

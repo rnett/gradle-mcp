@@ -1,8 +1,6 @@
 package dev.rnett.gradle.mcp.tools
 
-import dev.rnett.gradle.mcp.gradle.BuildResult
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
-import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleResult
 import dev.rnett.gradle.mcp.mcp.McpContext
@@ -28,7 +26,7 @@ suspend inline fun <reified T : Model> GradleProvider.getBuildModel(
         },
         stderrLineHandler = { ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it) },
         requiresGradleProject = requiresGradleProject
-    )
+    ).awaitFinished()
 }
 
 
@@ -36,7 +34,7 @@ context(ctx: McpContext)
 suspend inline fun GradleProvider.doBuild(
     projectRoot: GradleProjectRootInput,
     invocationArgs: GradleInvocationArguments,
-): BuildResult {
+): GradleResult<Unit> {
     val root = projectRoot.resolve()
     return runBuild(
         root,
@@ -49,7 +47,7 @@ suspend inline fun GradleProvider.doBuild(
         stderrLineHandler = {
             ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it)
         }
-    ).buildResult
+    ).awaitFinished()
 }
 
 context(ctx: McpContext)
@@ -57,7 +55,7 @@ suspend inline fun GradleProvider.doTests(
     projectRoot: GradleProjectRootInput,
     testPatterns: Map<String, Set<String>>,
     invocationArgs: GradleInvocationArguments,
-): BuildResult {
+): GradleResult<Unit> {
     val root = projectRoot.resolve()
     return runTests(
         root,
@@ -71,5 +69,5 @@ suspend inline fun GradleProvider.doTests(
         stderrLineHandler = {
             ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it)
         }
-    ).buildResult
+    ).awaitFinished()
 }

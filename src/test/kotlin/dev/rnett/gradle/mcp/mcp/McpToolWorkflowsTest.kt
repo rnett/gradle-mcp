@@ -10,6 +10,7 @@ import dev.rnett.gradle.mcp.gradle.GradleResult
 import dev.rnett.gradle.mcp.gradle.ProblemAggregation
 import dev.rnett.gradle.mcp.gradle.ProblemId
 import dev.rnett.gradle.mcp.gradle.ProblemSeverity
+import dev.rnett.gradle.mcp.gradle.RunningBuild
 import dev.rnett.gradle.mcp.gradle.TestOutcome
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import io.mockk.coEvery
@@ -114,6 +115,11 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
 
     @Test
     fun `introspection works with MCP root name`() = runTest {
+        val result = syntheticBuildResult()
+        val runningBuild = mockk<RunningBuild<BuildEnvironment>> {
+            coEvery { awaitFinished() } returns GradleResult(result, Result.success(mockk()))
+            coEvery { id } returns result.id
+        }
         coEvery {
             provider.getBuildModel<BuildEnvironment>(
                 any(),
@@ -125,10 +131,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
                 any(),
                 any(),
             )
-        } returns GradleResult(
-            buildResult = syntheticBuildResult(),
-            value = Result.success(mockk())
-        )
+        } returns runningBuild
 
         server.setServerRoots(Root(name = "proj", uri = tempDir.toUri().toString()))
 
@@ -151,6 +154,11 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
 
     @Test
     fun `execution works with single MCP root and no projectRoot`() = runTest {
+        val result = syntheticBuildResult()
+        val runningBuild = mockk<RunningBuild<Unit>> {
+            coEvery { awaitFinished() } returns GradleResult(result, Result.success(Unit))
+            coEvery { id } returns result.id
+        }
         coEvery {
             provider.runBuild(
                 GradleProjectRoot(tempDir.absolutePathString()),
@@ -160,7 +168,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
                 any(),
                 any()
             )
-        } returns GradleResult(syntheticBuildResult(), Result.success(Unit))
+        } returns runningBuild
 
         // set single root with no name required
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
@@ -169,8 +177,8 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
             "commandLine" to JsonArray(listOf(JsonPrimitive("help"))),
             // projectRoot omitted
         )
-        val result = server.client.callTool("run_gradle_command", args)
-        assertTrue(result != null)
+        val call = server.client.callTool("run_gradle_command", args)
+        assertTrue(call != null)
 
         coVerify {
             provider.runBuild(

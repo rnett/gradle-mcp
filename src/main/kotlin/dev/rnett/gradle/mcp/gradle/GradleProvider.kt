@@ -8,19 +8,26 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.future.asDeferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.plus
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import org.apache.commons.io.output.WriterOutputStream
+import org.gradle.tooling.BuildCancelledException
 import org.gradle.tooling.BuildException
-import org.gradle.tooling.BuildLauncher
+import org.gradle.tooling.CancellationTokenSource
 import org.gradle.tooling.ConfigurableLauncher
 import org.gradle.tooling.Failure
 import org.gradle.tooling.GradleConnector
-import org.gradle.tooling.ModelBuilder
 import org.gradle.tooling.ProjectConnection
 import org.gradle.tooling.TestExecutionException
 import org.gradle.tooling.events.OperationType
@@ -44,16 +51,75 @@ import org.slf4j.event.Level
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
+import java.util.concurrent.ConcurrentLinkedQueue
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.reflect.KClass
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 import kotlin.time.toJavaDuration
 
-interface GradleProvider {
+@Serializable
+enum class BuildStatus {
+    RUNNING, SUCCESSFUL, FAILED, CANCELLED
+}
 
-    suspend fun <T : Model> getBuildModel(
+data class RunningBuild<T>(
+    val id: BuildId,
+    val args: GradleInvocationArguments,
+    val startTime: Instant,
+    val logBuffer: ConcurrentLinkedQueue<String> = ConcurrentLinkedQueue(),
+    @Transient val cancellationTokenSource: CancellationTokenSource,
+    val result: CompletableDeferred<GradleResult<T>> = CompletableDeferred()
+) {
+    val problems = ProblemsAccumulator()
+    val testResults = DefaultGradleProvider.TestCollector(true, true)
+    val scans = ConcurrentLinkedQueue<GradleBuildScan>()
+
+    var status: BuildStatus = BuildStatus.RUNNING
+        private set
+    var endTime: Instant? = null
+        private set
+
+    val consoleOutput get() = logBuffer.joinToString("\n")
+
+    suspend fun awaitFinished(): GradleResult<T> = result.await()
+
+    fun stop() {
+        cancellationTokenSource.cancel()
+    }
+
+    internal fun updateStatus(gradleResult: GradleResult<T>? = null, exception: Throwable? = null) {
+        if (gradleResult != null) {
+            val finalStatus = when {
+                gradleResult.value.exceptionOrNull() is BuildCancelledException -> BuildStatus.CANCELLED
+                gradleResult.buildResult.isSuccessful -> BuildStatus.SUCCESSFUL
+                else -> BuildStatus.FAILED
+            }
+            this.status = finalStatus
+            this.result.complete(gradleResult)
+        } else if (exception != null) {
+            val finalStatus = if (exception is BuildCancelledException) BuildStatus.CANCELLED else BuildStatus.FAILED
+            this.status = finalStatus
+            this.result.completeExceptionally(exception)
+        }
+
+        if (this.status != BuildStatus.RUNNING) {
+            this.endTime = kotlin.time.Clock.System.now()
+            BackgroundBuildManager.removeBuild(id)
+        }
+    }
+
+    internal fun addLogLine(line: String) {
+        logBuffer.add(line)
+    }
+}
+
+interface GradleProvider : AutoCloseable {
+
+    fun <T : Model> getBuildModel(
         projectRoot: GradleProjectRoot,
         kClass: KClass<T>,
         args: GradleInvocationArguments,
@@ -62,18 +128,18 @@ interface GradleProvider {
         stdoutLineHandler: ((String) -> Unit)? = null,
         stderrLineHandler: ((String) -> Unit)? = null,
         requiresGradleProject: Boolean = true
-    ): GradleResult<T>
+    ): RunningBuild<T>
 
-    suspend fun runBuild(
+    fun runBuild(
         projectRoot: GradleProjectRoot,
         args: GradleInvocationArguments,
         tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
         stdoutLineHandler: ((String) -> Unit)? = null,
         stderrLineHandler: ((String) -> Unit)? = null,
-    ): GradleResult<Unit>
+    ): RunningBuild<Unit>
 
-    suspend fun runTests(
+    fun runTests(
         projectRoot: GradleProjectRoot,
         testPatterns: Map<String, Set<String>>,
         args: GradleInvocationArguments,
@@ -81,7 +147,7 @@ interface GradleProvider {
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
         stdoutLineHandler: ((String) -> Unit)? = null,
         stderrLineHandler: ((String) -> Unit)? = null,
-    ): GradleResult<Unit>
+    ): RunningBuild<Unit>
 }
 
 class DefaultGradleProvider(
@@ -89,6 +155,13 @@ class DefaultGradleProvider(
 ) : GradleProvider {
     companion object {
         private val LOGGER = LoggerFactory.getLogger(DefaultGradleProvider::class.java)
+    }
+
+    private val scope = GlobalScope + SupervisorJob() + Dispatchers.IO
+
+    override fun close() {
+        BackgroundBuildManager.listBuilds().forEach { it.stop() }
+        scope.cancel()
     }
 
     private val connectionCache = Caffeine.newBuilder()
@@ -170,9 +243,9 @@ class DefaultGradleProvider(
         }
 
         fun results() = Results(
-            passed = passed.toSet(),
-            skipped = skipped.toSet(),
-            failed = failed.toSet()
+            passed = passed.toList().toSet(),
+            skipped = skipped.toList().toSet(),
+            failed = failed.toList().toSet()
         )
 
         val operations = buildSet {
@@ -183,17 +256,134 @@ class DefaultGradleProvider(
         }
     }
 
-    private suspend inline fun <I : ConfigurableLauncher<*>, R> I.invokeBuild(
+    private fun <I : ConfigurableLauncher<*>, R> startBuild(
+        args: GradleInvocationArguments,
+        additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
+        stdoutLineHandler: ((String) -> Unit)?,
+        stderrLineHandler: ((String) -> Unit)?,
+        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
+        launcherProvider: suspend (ProjectConnection) -> I,
+        invoker: (I) -> R,
+        requiresGradleProject: Boolean = true,
+        projectRoot: GradleProjectRoot,
+    ): RunningBuild<R> {
+        val buildId = BuildId.newId()
+        val cancellationTokenSource = GradleConnector.newCancellationTokenSource()
+        val runningBuild = RunningBuild<R>(
+            id = buildId,
+            args = args,
+            startTime = buildId.timestamp,
+            cancellationTokenSource = cancellationTokenSource
+        ).also { BackgroundBuildManager.registerBuild(it) }
+
+        scope.launch {
+            try {
+                val connection = validateAndGetConnection(projectRoot, requiresGradleProject)
+                val launcher = launcherProvider(connection)
+                launcher.invokeBuild(
+                    connection,
+                    args,
+                    additionalProgressListeners,
+                    stdoutLineHandler,
+                    stderrLineHandler,
+                    tosAccepter,
+                    buildId,
+                    runningBuild,
+                    invoker
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                runningBuild.updateStatus(exception = e)
+            }
+        }
+        return runningBuild
+    }
+
+    override fun <T : Model> getBuildModel(
+        projectRoot: GradleProjectRoot,
+        kClass: KClass<T>,
+        args: GradleInvocationArguments,
+        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
+        additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
+        stdoutLineHandler: ((String) -> Unit)?,
+        stderrLineHandler: ((String) -> Unit)?,
+        requiresGradleProject: Boolean
+    ): RunningBuild<T> {
+        return startBuild(
+            args = args,
+            additionalProgressListeners = additionalProgressListeners,
+            stdoutLineHandler = stdoutLineHandler,
+            stderrLineHandler = stderrLineHandler,
+            tosAccepter = tosAccepter,
+            launcherProvider = { it.model(kClass.java) },
+            invoker = { it.get() },
+            requiresGradleProject = requiresGradleProject,
+            projectRoot = projectRoot
+        )
+    }
+
+    override fun runBuild(
+        projectRoot: GradleProjectRoot,
+        args: GradleInvocationArguments,
+        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
+        additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
+        stdoutLineHandler: ((String) -> Unit)?,
+        stderrLineHandler: ((String) -> Unit)?,
+    ): RunningBuild<Unit> {
+        return startBuild(
+            args = args,
+            additionalProgressListeners = additionalProgressListeners,
+            stdoutLineHandler = stdoutLineHandler,
+            stderrLineHandler = stderrLineHandler,
+            tosAccepter = tosAccepter,
+            launcherProvider = { it.newBuild() },
+            invoker = { it.run() },
+            projectRoot = projectRoot
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    override fun runTests(
+        projectRoot: GradleProjectRoot,
+        testPatterns: Map<String, Set<String>>,
+        args: GradleInvocationArguments,
+        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
+        additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
+        stdoutLineHandler: ((String) -> Unit)?,
+        stderrLineHandler: ((String) -> Unit)?,
+    ): RunningBuild<Unit> {
+        return startBuild(
+            args = args,
+            additionalProgressListeners = additionalProgressListeners,
+            stdoutLineHandler = stdoutLineHandler,
+            stderrLineHandler = stderrLineHandler,
+            tosAccepter = tosAccepter,
+            launcherProvider = { connection ->
+                connection.newTestLauncher().apply {
+                    testPatterns.forEach { (task, patterns) ->
+                        withTestsFor { spec ->
+                            spec.forTaskPath(task).includePatterns(patterns)
+                        }
+                    }
+                }
+            },
+            invoker = { it.run() },
+            projectRoot = projectRoot
+        )
+    }
+
+    private suspend fun <I : ConfigurableLauncher<*>, R> I.invokeBuild(
         connection: ProjectConnection,
         args: GradleInvocationArguments,
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
-        noinline stdoutLineHandler: ((String) -> Unit)?,
-        noinline stderrLineHandler: ((String) -> Unit)?,
-        crossinline tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
-        crossinline invoker: (I) -> R,
-    ): GradleResult<R> = withContext(Dispatchers.IO) {
-        val buildId = BuildId.newId()
-        val testResultCollector = TestCollector(true, true)
+        stdoutLineHandler: ((String) -> Unit)?,
+        stderrLineHandler: ((String) -> Unit)?,
+        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
+        buildId: BuildId,
+        runningBuild: RunningBuild<R>,
+        invoker: (I) -> R,
+    ) {
         localSupervisorScope(exceptionHandler = {
             LOGGER.makeLoggingEventBuilder(Level.WARN)
                 .addKeyValue("buildId", buildId)
@@ -201,7 +391,6 @@ class DefaultGradleProvider(
         }) { scope ->
             val environment = connection.getModel(BuildEnvironment::class.java)
 
-            //TODO is this necessary?
             setJavaHome(environment.java.javaHome)
             setJvmArguments(environment.java.jvmArguments)
 
@@ -213,28 +402,25 @@ class DefaultGradleProvider(
             withArguments(args.allAdditionalArguments)
             setColorOutput(false)
 
-            val cancelationTokenSource = GradleConnector.newCancellationTokenSource()
-            withCancellationToken(cancelationTokenSource.token())
+            withCancellationToken(runningBuild.cancellationTokenSource.token())
 
             currentCoroutineContext()[Job]?.invokeOnCompletion {
                 if (it != null)
-                    cancelationTokenSource.cancel()
+                    runningBuild.stop()
             }
 
             additionalProgressListeners.forEach {
                 addProgressListener(it.key, it.value)
             }
 
-            addProgressListener(testResultCollector, testResultCollector.operations)
+            addProgressListener(runningBuild.testResults, runningBuild.testResults.operations)
 
-
-            val problems = ProblemsAccumulator()
             addProgressListener(object : ProgressListener {
                 override fun statusChanged(event: ProgressEvent) {
                     if (event is ProblemAggregationEvent)
-                        problems.add(event.problemAggregation)
+                        runningBuild.problems.add(event.problemAggregation)
                     if (event is SingleProblemEvent)
-                        problems.add(event.problem)
+                        runningBuild.problems.add(event.problem)
                 }
             }, OperationType.PROBLEMS)
 
@@ -251,16 +437,12 @@ class DefaultGradleProvider(
                 )
             })
 
-            val scans = mutableListOf<GradleBuildScan>()
-
-            val consoleOutput = StringBuilder()
-
             setStandardOutput(
                 WriterOutputStream.builder().apply {
                     charset = StandardCharsets.UTF_8
                     bufferSize = 80
                     writer = object : GradleStdoutWriter(config.allowPublicScansPublishing, {
-                        consoleOutput.appendLine(it)
+                        runningBuild.addLogLine(it)
                         stdoutLineHandler?.invoke(it)
                         LOGGER.makeLoggingEventBuilder(Level.INFO)
                             .addKeyValue("buildId", buildId)
@@ -282,7 +464,7 @@ class DefaultGradleProvider(
                         }
 
                         override fun onScanPublication(url: String) {
-                            scans += GradleBuildScan.fromUrl(url)
+                            runningBuild.scans += GradleBuildScan.fromUrl(url)
                         }
 
                     }
@@ -294,7 +476,7 @@ class DefaultGradleProvider(
                     charset = StandardCharsets.UTF_8
                     bufferSize = 80
                     writer = LineEmittingWriter {
-                        consoleOutput.appendLine("ERR: $it")
+                        runningBuild.addLogLine("ERR: $it")
                         stderrLineHandler?.invoke(it)
                         LOGGER.makeLoggingEventBuilder(Level.INFO)
                             .addKeyValue("buildId", buildId)
@@ -306,114 +488,32 @@ class DefaultGradleProvider(
             setStandardInput(inputStream)
 
             val outcome = runCatchingExceptCancellation {
-                scope.async {
+                withContext(scope.coroutineContext) {
                     invoker(this@invokeBuild)
-                }.await()
+                }
             }
 
             val exception = outcome.exceptionOrNull()?.let {
-                if (it is BuildException || it is TestExecutionException) {
+                if (it is BuildException || it is TestExecutionException || it is BuildCancelledException) {
                     it
                 } else {
                     throw it
                 }
             }
 
-            GradleResult.build(
+            @Suppress("UNCHECKED_CAST")
+            val result = GradleResult.build(
                 args,
                 buildId,
-                consoleOutput.toString(),
-                scans,
-                problems.aggregate(),
-                testResultCollector.results(),
+                runningBuild.consoleOutput,
+                runningBuild.scans.toList(),
+                runningBuild.problems.aggregate(),
+                runningBuild.testResults.results(),
                 exception,
                 outcome
             )
-        }.also {
-            BuildResults.storeResult(it.buildResult)
-        }
-    }
-
-    @OptIn(ExperimentalTime::class)
-    override suspend fun <T : Model> getBuildModel(
-        projectRoot: GradleProjectRoot,
-        kClass: KClass<T>,
-        args: GradleInvocationArguments,
-        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
-        additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
-        stdoutLineHandler: ((String) -> Unit)?,
-        stderrLineHandler: ((String) -> Unit)?,
-        requiresGradleProject: Boolean
-    ): GradleResult<T> {
-        val connection = validateAndGetConnection(projectRoot, requiresGradleProject)
-        val builder = connection.model(kClass.java)
-
-        return builder.invokeBuild(
-            connection,
-            args,
-            additionalProgressListeners,
-            stdoutLineHandler,
-            stderrLineHandler,
-            tosAccepter,
-            ModelBuilder<T>::get
-        )
-    }
-
-
-    @OptIn(ExperimentalTime::class)
-    override suspend fun runBuild(
-        projectRoot: GradleProjectRoot,
-        args: GradleInvocationArguments,
-        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
-        additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
-        stdoutLineHandler: ((String) -> Unit)?,
-        stderrLineHandler: ((String) -> Unit)?,
-    ): GradleResult<Unit> {
-        val connection = validateAndGetConnection(projectRoot)
-        val builder = connection.newBuild()
-
-        return builder.invokeBuild(
-            connection,
-            args,
-            additionalProgressListeners,
-            stdoutLineHandler,
-            stderrLineHandler,
-            tosAccepter,
-            BuildLauncher::run
-        )
-    }
-
-    /**
-     * [testPatterns] is a map of task path -> test patterns
-     */
-    @OptIn(ExperimentalTime::class)
-    override suspend fun runTests(
-        projectRoot: GradleProjectRoot,
-        testPatterns: Map<String, Set<String>>,
-        args: GradleInvocationArguments,
-        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
-        additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
-        stdoutLineHandler: ((String) -> Unit)?,
-        stderrLineHandler: ((String) -> Unit)?,
-    ): GradleResult<Unit> {
-        val connection = validateAndGetConnection(projectRoot)
-        val builder = connection.newTestLauncher()
-
-        builder.withTestsFor {
-            testPatterns.forEach { (taskPath, patterns) ->
-                it.forTaskPath(taskPath).includePatterns(patterns)
-            }
-        }
-
-        return builder.invokeBuild(
-            connection,
-            args,
-            additionalProgressListeners,
-            stdoutLineHandler,
-            stderrLineHandler,
-            tosAccepter
-        ) {
-            it.run()
+            BuildResults.storeResult(result.buildResult)
+            runningBuild.updateStatus(result)
         }
     }
 }
