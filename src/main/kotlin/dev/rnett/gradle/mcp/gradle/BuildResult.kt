@@ -40,7 +40,7 @@ enum class TestOutcome {
 data class BuildResult(
     val id: BuildId,
     val args: GradleInvocationArguments,
-    val consoleOutput: String,
+    val consoleOutput: CharSequence,
     val publishedScans: List<GradleBuildScan>,
     val testResults: TestResults,
     val buildFailures: List<Failure>?,
@@ -128,7 +128,7 @@ data class BuildResult(
         fun build(
             args: GradleInvocationArguments,
             buildId: BuildId,
-            console: String,
+            console: CharSequence,
             scans: List<GradleBuildScan>,
             testResults: DefaultGradleProvider.TestCollector.Results,
             problems: List<ProblemAggregation>,

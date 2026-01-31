@@ -41,12 +41,14 @@ data class GradleInvocationArguments(
         actualEnvVars.forEach { (k, v) ->
             append("$k=$v ")
         }
-        append("java ")
-        additionalJvmArgs.forEach { a ->
-            append("$a ")
-        }
-        additionalSystemProps.forEach { (k, v) ->
-            append("-D$k=$v ")
+        if (additionalJvmArgs.isNotEmpty() || additionalSystemProps.isNotEmpty()) {
+            append("java ")
+            additionalJvmArgs.forEach { a ->
+                append("$a ")
+            }
+            additionalSystemProps.forEach { (k, v) ->
+                append("-D$k=$v ")
+            }
         }
         append("gradle ")
         allAdditionalArguments.forEach { a ->

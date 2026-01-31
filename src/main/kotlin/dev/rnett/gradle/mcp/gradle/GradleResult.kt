@@ -10,7 +10,7 @@ data class GradleResult<out T>(
         fun <T> build(
             args: GradleInvocationArguments,
             buildId: BuildId,
-            console: String,
+            console: CharSequence,
             scans: List<GradleBuildScan>,
             problems: List<ProblemAggregation>,
             results: DefaultGradleProvider.TestCollector.Results,

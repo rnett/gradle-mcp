@@ -3,6 +3,7 @@ package dev.rnett.gradle.mcp.tools
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleResult
+import dev.rnett.gradle.mcp.gradle.RunningBuild
 import dev.rnett.gradle.mcp.mcp.McpContext
 import io.modelcontextprotocol.kotlin.sdk.LoggingLevel
 import org.gradle.tooling.model.Model
@@ -51,6 +52,19 @@ suspend inline fun GradleProvider.doBuild(
 }
 
 context(ctx: McpContext)
+inline fun GradleProvider.doBuildBackground(
+    projectRoot: GradleProjectRootInput,
+    invocationArgs: GradleInvocationArguments,
+): RunningBuild<Unit> {
+    val root = projectRoot.resolve()
+    return runBuild(
+        root,
+        invocationArgs,
+        { ScansTosManager.askForScansTos(root, it) }
+    )
+}
+
+context(ctx: McpContext)
 suspend inline fun GradleProvider.doTests(
     projectRoot: GradleProjectRootInput,
     testPatterns: Map<String, Set<String>>,
@@ -70,4 +84,19 @@ suspend inline fun GradleProvider.doTests(
             ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it)
         }
     ).awaitFinished()
+}
+
+context(ctx: McpContext)
+inline fun GradleProvider.doTestsBackground(
+    projectRoot: GradleProjectRootInput,
+    testPatterns: Map<String, Set<String>>,
+    invocationArgs: GradleInvocationArguments,
+): RunningBuild<Unit> {
+    val root = projectRoot.resolve()
+    return runTests(
+        root,
+        testPatterns,
+        invocationArgs,
+        { ScansTosManager.askForScansTos(root, it) }
+    )
 }

@@ -17,7 +17,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.future.asDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -70,7 +69,7 @@ data class RunningBuild<T>(
     val id: BuildId,
     val args: GradleInvocationArguments,
     val startTime: Instant,
-    val logBuffer: ConcurrentLinkedQueue<String> = ConcurrentLinkedQueue(),
+    val logBuffer: StringBuffer = StringBuffer(),
     @Transient val cancellationTokenSource: CancellationTokenSource,
     val result: CompletableDeferred<GradleResult<T>> = CompletableDeferred()
 ) {
@@ -83,7 +82,7 @@ data class RunningBuild<T>(
     var endTime: Instant? = null
         private set
 
-    val consoleOutput get() = logBuffer.joinToString("\n")
+    val consoleOutput: CharSequence get() = logBuffer
 
     suspend fun awaitFinished(): GradleResult<T> = result.await()
 
@@ -113,7 +112,7 @@ data class RunningBuild<T>(
     }
 
     internal fun addLogLine(line: String) {
-        logBuffer.add(line)
+        logBuffer.appendLine(line)
     }
 }
 
@@ -488,9 +487,9 @@ class DefaultGradleProvider(
             setStandardInput(inputStream)
 
             val outcome = runCatchingExceptCancellation {
-                withContext(scope.coroutineContext) {
+                scope.async {
                     invoker(this@invokeBuild)
-                }
+                }.await()
             }
 
             val exception = outcome.exceptionOrNull()?.let {

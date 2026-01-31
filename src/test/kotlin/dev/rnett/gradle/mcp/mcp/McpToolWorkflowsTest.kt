@@ -1,8 +1,10 @@
 package dev.rnett.gradle.mcp.mcp
 
+import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
 import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.BuildResult
 import dev.rnett.gradle.mcp.gradle.BuildResults
+import dev.rnett.gradle.mcp.gradle.BuildStatus
 import dev.rnett.gradle.mcp.gradle.FailureId
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
@@ -15,6 +17,7 @@ import dev.rnett.gradle.mcp.gradle.TestOutcome
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.Root
 import kotlinx.coroutines.test.runTest
@@ -25,6 +28,7 @@ import kotlin.io.path.absolutePathString
 import kotlin.io.path.pathString
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 
 class McpToolWorkflowsTest : BaseMcpServerTest() {
@@ -190,5 +194,52 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
                 any()
             )
         }
+    }
+
+    @Test
+    fun `background build workflows`() = runTest {
+        val buildId = BuildId.newId()
+        val runningBuild = mockk<RunningBuild<Unit>> {
+            every { id } returns buildId
+            every { status } returns BuildStatus.RUNNING
+            every { startTime } returns Clock.System.now()
+            every { args } returns GradleInvocationArguments(additionalArguments = listOf("help"))
+            every { logBuffer } returns StringBuffer("line1\nline2\n")
+            every { stop() } returns Unit
+        }
+
+        coEvery {
+            provider.runBuild(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+            )
+        } returns runningBuild
+
+        BackgroundBuildManager.registerBuild(runningBuild)
+        server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
+
+        // test background_run_gradle_command
+        val runCall = server.client.callTool("background_run_gradle_command", mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("help")))))
+        assertTrue(runCall != null)
+
+        // test background_build_list
+        val listCall = server.client.callTool("background_build_list", emptyMap())
+        assertTrue(listCall != null)
+
+        // test background_build_get_status
+        val statusCall = server.client.callTool("background_build_get_status", mapOf("buildId" to buildId.toString()))
+        assertTrue(statusCall != null)
+        val statusText = statusCall.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
+        assertTrue(statusText.contains("Status: RUNNING"))
+        assertTrue(statusText.contains("Duration: "))
+
+        // test background_build_stop
+        val stopCall = server.client.callTool("background_build_stop", mapOf("buildId" to buildId.toString()))
+        assertTrue(stopCall != null)
+        coVerify { runningBuild.stop() }
     }
 }

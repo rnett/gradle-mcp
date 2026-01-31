@@ -6,6 +6,7 @@ import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.mcp.McpServer
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.mcp.add
+import dev.rnett.gradle.mcp.tools.BackgroundBuildTools
 import dev.rnett.gradle.mcp.tools.GradleBuildLookupTools
 import dev.rnett.gradle.mcp.tools.GradleExecutionTools
 import dev.rnett.gradle.mcp.tools.GradleIntrospectionTools
@@ -38,7 +39,11 @@ class Application(val args: Array<String>) {
 
     val gradleConfig = appConfig.property("gradle").getAs<GradleConfiguration>()
 
-    val provider = DefaultGradleProvider(gradleConfig)
+    val provider = DefaultGradleProvider(gradleConfig).apply {
+        Runtime.getRuntime().addShutdownHook(Thread {
+            close()
+        })
+    }
 
     fun startStdio() = runBlocking {
         val transport = StdioServerTransport(
@@ -46,6 +51,7 @@ class Application(val args: Array<String>) {
             System.out.asSink().buffered()
         )
         createServer(provider).apply {
+            onClose { provider.close() }
             connect(transport)
             suspendCoroutine {
                 onClose { it.resume(Unit) }
@@ -61,7 +67,9 @@ class Application(val args: Array<String>) {
             }
 
             mcp {
-                createServer(provider)
+                val mcpServer = createServer(provider)
+                mcpServer.onClose { provider.close() }
+                mcpServer
             }
         }
 
@@ -81,6 +89,7 @@ class Application(val args: Array<String>) {
             UtilityTools(),
             GradleIntrospectionTools(provider),
             GradleExecutionTools(provider),
+            BackgroundBuildTools(provider),
             GradleTaskWrapperTools(provider),
             GradleBuildLookupTools(),
         )

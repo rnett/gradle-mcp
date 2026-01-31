@@ -3,6 +3,7 @@ package dev.rnett.gradle.mcp.gradle
 import dev.rnett.gradle.mcp.gradle.fixtures.testJavaProject
 import dev.rnett.gradle.mcp.gradle.fixtures.testKotlinProject
 import dev.rnett.gradle.mcp.gradle.fixtures.testMultiProjectBuild
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.test.runTest
 import org.gradle.tooling.model.build.BuildEnvironment
 import org.junit.jupiter.api.Assumptions
@@ -12,6 +13,32 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 class GradleProviderTest {
+
+    @Test
+    fun `closing provider stops background builds and cancels scope`() = runTest {
+        val provider = createTestProvider()
+        testJavaProject().use { project ->
+            val projectRoot = GradleProjectRoot(project.pathString())
+            val args = GradleInvocationArguments(additionalArguments = listOf("help"))
+
+            // Start a build
+            val runningBuild = provider.runBuild(
+                projectRoot = projectRoot,
+                args = args,
+                tosAccepter = { false }
+            )
+
+            // Close provider
+            provider.close()
+
+            // Internal scope should be cancelled
+            val scope = (provider as DefaultGradleProvider)::class.java.getDeclaredField("scope").let {
+                it.isAccessible = true
+                it.get(provider) as kotlinx.coroutines.CoroutineScope
+            }
+            assertTrue(!scope.coroutineContext[Job]!!.isActive)
+        }
+    }
 
     private fun createTestProvider(): DefaultGradleProvider {
         return DefaultGradleProvider(

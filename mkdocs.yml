@@ -63,4 +63,5 @@ nav:
       - 'Introspection': tools/INTROSPECTION_TOOLS.md
       - 'Report tasks': tools/TASK_WRAPPER_TOOLS.md
       - 'Execution': tools/EXECUTION_TOOLS.md
+      - 'Background Execution': tools/BACKGROUND_BUILD_TOOLS.md
       - 'Detail lookup': tools/LOOKUP_TOOLS.md
