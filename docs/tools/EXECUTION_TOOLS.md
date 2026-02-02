@@ -45,7 +45,7 @@ Can publish a Develocity Build Scan if requested. This is the preferred way to d
           "additionalProperties": {
             "type": "string"
           },
-          "description": "Additional environment variables to set for the Gradle process. Optional. The process inherits the MCP server's env vars unless `doNotInheritEnvVars` is set to true. Note that the MCP server may not have the same env vars as the MCP Host - you may need to pass sone."
+          "description": "Additional environment variables to set for the Gradle process. Optional."
         },
         "additionalSystemProps": {
           "type": "object",
@@ -72,9 +72,13 @@ Can publish a Develocity Build Scan if requested. This is the preferred way to d
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
         },
-        "doNotInheritEnvVars": {
-          "type": "boolean",
-          "description": "Defaults to true. If false, will not inherit env vars from the MCP server."
+        "envSource": {
+          "enum": [
+            "NONE",
+            "INHERIT",
+            "SHELL"
+          ],
+          "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -155,7 +159,7 @@ If there are more than 1000 tests, the results will be truncated.  Use `lookup_b
           "additionalProperties": {
             "type": "string"
           },
-          "description": "Additional environment variables to set for the Gradle process. Optional. The process inherits the MCP server's env vars unless `doNotInheritEnvVars` is set to true. Note that the MCP server may not have the same env vars as the MCP Host - you may need to pass sone."
+          "description": "Additional environment variables to set for the Gradle process. Optional."
         },
         "additionalSystemProps": {
           "type": "object",
@@ -182,9 +186,13 @@ If there are more than 1000 tests, the results will be truncated.  Use `lookup_b
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
         },
-        "doNotInheritEnvVars": {
-          "type": "boolean",
-          "description": "Defaults to true. If false, will not inherit env vars from the MCP server."
+        "envSource": {
+          "enum": [
+            "NONE",
+            "INHERIT",
+            "SHELL"
+          ],
+          "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -258,7 +266,7 @@ If there are more than 1000 tests, the results will be truncated.  Use `lookup_b
           "additionalProperties": {
             "type": "string"
           },
-          "description": "Additional environment variables to set for the Gradle process. Optional. The process inherits the MCP server's env vars unless `doNotInheritEnvVars` is set to true. Note that the MCP server may not have the same env vars as the MCP Host - you may need to pass sone."
+          "description": "Additional environment variables to set for the Gradle process. Optional."
         },
         "additionalSystemProps": {
           "type": "object",
@@ -285,9 +293,13 @@ If there are more than 1000 tests, the results will be truncated.  Use `lookup_b
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
         },
-        "doNotInheritEnvVars": {
-          "type": "boolean",
-          "description": "Defaults to true. If false, will not inherit env vars from the MCP server."
+        "envSource": {
+          "enum": [
+            "NONE",
+            "INHERIT",
+            "SHELL"
+          ],
+          "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
         }
       },
       "description": "Additional arguments to configure the Gradle process."

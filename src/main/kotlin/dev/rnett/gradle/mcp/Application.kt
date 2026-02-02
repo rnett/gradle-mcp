@@ -83,6 +83,7 @@ class Application(val args: Array<String>) {
             coerceInputValues = true
             ignoreUnknownKeys = true
             encodeDefaults = true
+            decodeEnumsCaseInsensitive = true
         }
 
         fun components(provider: GradleProvider): List<McpServerComponent> = listOf(

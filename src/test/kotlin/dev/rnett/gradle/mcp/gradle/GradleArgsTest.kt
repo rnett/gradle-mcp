@@ -1,5 +1,7 @@
 package dev.rnett.gradle.mcp.gradle
 
+import dev.rnett.gradle.mcp.utils.EnvProvider
+import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -100,14 +102,16 @@ class GradleInvocationArgumentsTest {
             additionalSystemProps = mapOf("prop1" to "value1"),
             additionalJvmArgs = listOf("-Xmx512m"),
             additionalArguments = listOf("--info"),
-            publishScan = false
+            publishScan = false,
+            envSource = EnvSource.NONE
         )
         val args2 = GradleInvocationArguments(
             additionalEnvVars = mapOf("KEY2" to "value2"),
             additionalSystemProps = mapOf("prop2" to "value2"),
             additionalJvmArgs = listOf("-Xms256m"),
             additionalArguments = listOf("--stacktrace"),
-            publishScan = true
+            publishScan = true,
+            envSource = EnvSource.SHELL
         )
 
         val combined = args1 + args2
@@ -129,6 +133,52 @@ class GradleInvocationArgumentsTest {
         assertTrue(combined.additionalArguments.contains("--stacktrace"))
 
         assertTrue(combined.publishScan)
+        assertEquals(EnvSource.SHELL, combined.envSource)
+    }
+
+    @Test
+    fun `plus operator preserves non-default envSource`() {
+        val args1 = GradleInvocationArguments(envSource = EnvSource.SHELL)
+        val args2 = GradleInvocationArguments(envSource = EnvSource.INHERIT)
+        assertEquals(EnvSource.SHELL, (args1 + args2).envSource)
+
+        val args3 = GradleInvocationArguments(envSource = EnvSource.INHERIT)
+        val args4 = GradleInvocationArguments(envSource = EnvSource.NONE)
+        assertEquals(EnvSource.NONE, (args3 + args4).envSource)
+    }
+
+    @Test
+    fun `actualEnvVars uses correct source`() = kotlinx.coroutines.test.runTest {
+        val inheritedEnv = mapOf("SOURCE_INHERITED" to "INHERITED")
+        val shellEnv = mapOf("SOURCE_SHELL" to "SHELL")
+
+        val testProvider = object : EnvProvider {
+            override fun getInheritedEnvironment() = inheritedEnv
+            override fun getShellEnvironment() = shellEnv
+        }
+
+        val inheritArgs = GradleInvocationArguments(envSource = EnvSource.INHERIT)
+        val actualInherit = inheritArgs.actualEnvVars(testProvider)
+        assertTrue(
+            inheritedEnv.all { (k, v) -> actualInherit[k] == v },
+            "Inherited env should contain all expected vars. Expected: $inheritedEnv, Actual: $actualInherit"
+        )
+
+        val shellArgs = GradleInvocationArguments(envSource = EnvSource.SHELL)
+        val actualShell = shellArgs.actualEnvVars(testProvider)
+        assertTrue(
+            shellEnv.all { (k, v) -> actualShell[k] == v },
+            "Shell env should contain all expected vars. Expected: $shellEnv, Actual: $actualShell"
+        )
+
+        val noneArgs = GradleInvocationArguments(envSource = EnvSource.NONE)
+        assertEquals(emptyMap(), noneArgs.actualEnvVars(testProvider))
+
+        val additionalArgs = GradleInvocationArguments(
+            envSource = EnvSource.NONE,
+            additionalEnvVars = mapOf("EXTRA" to "VAR")
+        )
+        assertEquals(mapOf("EXTRA" to "VAR"), additionalArgs.actualEnvVars(testProvider))
     }
 
     @Test
@@ -161,6 +211,16 @@ class GradleInvocationArgumentsTest {
         val args2 = GradleInvocationArguments(additionalSystemProps = mapOf("prop" to "value2"))
         val combined = args1 + args2
         assertEquals("value2", combined.additionalSystemProps["prop"])
+    }
+
+    @Test
+    fun `EnvSource serialization is case insensitive`() {
+        val json = Json { decodeEnumsCaseInsensitive = true }
+        assertEquals(EnvSource.SHELL, json.decodeFromString<EnvSource>("\"shell\""))
+        assertEquals(EnvSource.SHELL, json.decodeFromString<EnvSource>("\"SHELL\""))
+        assertEquals(EnvSource.SHELL, json.decodeFromString<EnvSource>("\"ShElL\""))
+        assertEquals(EnvSource.INHERIT, json.decodeFromString<EnvSource>("\"inherit\""))
+        assertEquals(EnvSource.NONE, json.decodeFromString<EnvSource>("\"none\""))
     }
 }
 

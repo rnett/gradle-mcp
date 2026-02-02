@@ -29,7 +29,7 @@ Get the environment used to execute Gradle for the given project, including the 
           "additionalProperties": {
             "type": "string"
           },
-          "description": "Additional environment variables to set for the Gradle process. Optional. The process inherits the MCP server's env vars unless `doNotInheritEnvVars` is set to true. Note that the MCP server may not have the same env vars as the MCP Host - you may need to pass sone."
+          "description": "Additional environment variables to set for the Gradle process. Optional."
         },
         "additionalSystemProps": {
           "type": "object",
@@ -56,9 +56,13 @@ Get the environment used to execute Gradle for the given project, including the 
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
         },
-        "doNotInheritEnvVars": {
-          "type": "boolean",
-          "description": "Defaults to true. If false, will not inherit env vars from the MCP server."
+        "envSource": {
+          "enum": [
+            "NONE",
+            "INHERIT",
+            "SHELL"
+          ],
+          "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -174,7 +178,7 @@ Describes a Gradle project or subproject. Includes the tasks and child projects.
           "additionalProperties": {
             "type": "string"
           },
-          "description": "Additional environment variables to set for the Gradle process. Optional. The process inherits the MCP server's env vars unless `doNotInheritEnvVars` is set to true. Note that the MCP server may not have the same env vars as the MCP Host - you may need to pass sone."
+          "description": "Additional environment variables to set for the Gradle process. Optional."
         },
         "additionalSystemProps": {
           "type": "object",
@@ -201,9 +205,13 @@ Describes a Gradle project or subproject. Includes the tasks and child projects.
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
         },
-        "doNotInheritEnvVars": {
-          "type": "boolean",
-          "description": "Defaults to true. If false, will not inherit env vars from the MCP server."
+        "envSource": {
+          "enum": [
+            "NONE",
+            "INHERIT",
+            "SHELL"
+          ],
+          "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -339,7 +347,7 @@ Gets the included builds of a Gradle project.
           "additionalProperties": {
             "type": "string"
           },
-          "description": "Additional environment variables to set for the Gradle process. Optional. The process inherits the MCP server's env vars unless `doNotInheritEnvVars` is set to true. Note that the MCP server may not have the same env vars as the MCP Host - you may need to pass sone."
+          "description": "Additional environment variables to set for the Gradle process. Optional."
         },
         "additionalSystemProps": {
           "type": "object",
@@ -366,9 +374,13 @@ Gets the included builds of a Gradle project.
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
         },
-        "doNotInheritEnvVars": {
-          "type": "boolean",
-          "description": "Defaults to true. If false, will not inherit env vars from the MCP server."
+        "envSource": {
+          "enum": [
+            "NONE",
+            "INHERIT",
+            "SHELL"
+          ],
+          "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -465,7 +477,7 @@ Gets all publications (i.e. artifacts published that Gradle knows about) for the
           "additionalProperties": {
             "type": "string"
           },
-          "description": "Additional environment variables to set for the Gradle process. Optional. The process inherits the MCP server's env vars unless `doNotInheritEnvVars` is set to true. Note that the MCP server may not have the same env vars as the MCP Host - you may need to pass sone."
+          "description": "Additional environment variables to set for the Gradle process. Optional."
         },
         "additionalSystemProps": {
           "type": "object",
@@ -492,9 +504,13 @@ Gets all publications (i.e. artifacts published that Gradle knows about) for the
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
         },
-        "doNotInheritEnvVars": {
-          "type": "boolean",
-          "description": "Defaults to true. If false, will not inherit env vars from the MCP server."
+        "envSource": {
+          "enum": [
+            "NONE",
+            "INHERIT",
+            "SHELL"
+          ],
+          "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -598,7 +614,7 @@ Gets source/test/resource directories for the project. Sometimes non-JVM source 
           "additionalProperties": {
             "type": "string"
           },
-          "description": "Additional environment variables to set for the Gradle process. Optional. The process inherits the MCP server's env vars unless `doNotInheritEnvVars` is set to true. Note that the MCP server may not have the same env vars as the MCP Host - you may need to pass sone."
+          "description": "Additional environment variables to set for the Gradle process. Optional."
         },
         "additionalSystemProps": {
           "type": "object",
@@ -625,9 +641,13 @@ Gets source/test/resource directories for the project. Sometimes non-JVM source 
           "type": "boolean",
           "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
         },
-        "doNotInheritEnvVars": {
-          "type": "boolean",
-          "description": "Defaults to true. If false, will not inherit env vars from the MCP server."
+        "envSource": {
+          "enum": [
+            "NONE",
+            "INHERIT",
+            "SHELL"
+          ],
+          "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
         }
       },
       "description": "Additional arguments to configure the Gradle process."

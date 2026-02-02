@@ -4,6 +4,8 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import dev.rnett.gradle.mcp.localSupervisorScope
 import dev.rnett.gradle.mcp.runCatchingExceptCancellation
 import dev.rnett.gradle.mcp.tools.GradlePathUtils
+import dev.rnett.gradle.mcp.utils.EnvHelper
+import dev.rnett.gradle.mcp.utils.EnvProvider
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
@@ -149,7 +151,8 @@ interface GradleProvider : AutoCloseable {
 }
 
 class DefaultGradleProvider(
-    val config: GradleConfiguration
+    val config: GradleConfiguration,
+    val envProvider: EnvProvider = EnvHelper,
 ) : GradleProvider {
     companion object {
         private val LOGGER = LoggerFactory.getLogger(DefaultGradleProvider::class.java)
@@ -387,7 +390,9 @@ class DefaultGradleProvider(
                 .addKeyValue("buildId", buildId)
                 .log("Error during job launched during build", it)
         }) { scope ->
-            setEnvironmentVariables(args.actualEnvVars)
+            val env = args.actualEnvVars(envProvider)
+            LOGGER.info("Setting environment variables for build: ${env.keys}")
+            setEnvironmentVariables(env)
             @Suppress("UNCHECKED_CAST")
             withSystemProperties(args.additionalSystemProps)
             addJvmArguments(args.additionalJvmArgs + "-Dscan.tag.MCP")

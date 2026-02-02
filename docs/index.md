@@ -7,7 +7,14 @@
 
 A MCP server for Gradle.
 Tools include introspecting projects, running tasks, and running tests.
-Also supports publishing Develocity Build Scans.
+
+##### Features
+
+* Token-efficient context use. Tools use token efficient formats (i.e. not JSON) and only include the minimum relevant information. Details are relegated to specialized lookup tools.
+* Supports publishing Develocity Build Scans, using elicitation to get permission to publish to [the public instance](https://scans.gradle.com).
+* Tools for running and managing Gradle builds in the background. Helpful for running dev servers, etc.
+* Customization of JVM args, environment variables, and system properties. Plus, the ability to source environment variables from the shell instead of inheriting them - useful on macOS where IntelliJ or Gradle may not start with the right
+  env vars.
 
 ## Installation
 
@@ -15,6 +22,7 @@ Also supports publishing Develocity Build Scans.
 !!! warning "JDK Requirement"
     JDK 17 or higher is required to run `gradle-mcp`.
     You can use JBang to install JDKs too: [docs](https://www.jbang.dev/documentation/jbang/latest/javaversions.html).
+
 [//]: # (@formatter:on)
 
 Use [jbang](https://www.jbang.dev/documentation/jbang/latest/installation.html):
@@ -65,13 +73,6 @@ See [jbang documentation](https://www.jbang.dev/documentation/jbang/latest/insta
   }
 }
 ```
-
-[//]: # (@formatter:off)
-!!! tip "Environment Variables"
-    The server forwards its environment variables to Gradle.
-    If your Gradle build relies on environment variables, e.g. for JDK detection, you may want to run the server in a shell rather than using `jbang` directly in your MCP configuration.
-    While MCP hosts _should_ pass their environment to the server, this isn't always the case.
-[//]: # (@formatter:on)
 
 ```json
 {

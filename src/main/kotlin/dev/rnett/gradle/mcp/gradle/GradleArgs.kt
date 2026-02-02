@@ -1,6 +1,8 @@
 package dev.rnett.gradle.mcp.gradle
 
 import dev.rnett.gradle.mcp.tools.GradlePathUtils
+import dev.rnett.gradle.mcp.utils.EnvHelper
+import dev.rnett.gradle.mcp.utils.EnvProvider
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import io.github.smiley4.schemakenerator.core.annotations.Example
 import kotlinx.serialization.Serializable
@@ -14,7 +16,7 @@ fun ProjectIdentifier.matches(root: GradleProjectRoot, projectPath: GradleProjec
 @Serializable
 @Description("Additional arguments to configure the Gradle process.")
 data class GradleInvocationArguments(
-    @Description("Additional environment variables to set for the Gradle process. Optional. The process inherits the MCP server's env vars unless `doNotInheritEnvVars` is set to true. Note that the MCP server may not have the same env vars as the MCP Host - you may need to pass sone.")
+    @Description("Additional environment variables to set for the Gradle process. Optional.")
     val additionalEnvVars: Map<String, String> = emptyMap(),
     @Description("Additional system properties to set for the Gradle process. Optional. No system properties are inherited from the MCP server.")
     val additionalSystemProps: Map<String, String> = emptyMap(),
@@ -24,8 +26,8 @@ data class GradleInvocationArguments(
     val additionalArguments: List<String> = emptyList(),
     @Description("Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation.")
     val publishScan: Boolean = false,
-    @Description("Defaults to true. If false, will not inherit env vars from the MCP server.")
-    val doNotInheritEnvVars: Boolean = false,
+    @Description("Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars.")
+    val envSource: EnvSource = EnvSource.INHERIT,
 ) {
     operator fun plus(other: GradleInvocationArguments): GradleInvocationArguments {
         return GradleInvocationArguments(
@@ -33,12 +35,13 @@ data class GradleInvocationArguments(
             additionalSystemProps = additionalSystemProps + other.additionalSystemProps,
             additionalJvmArgs = additionalJvmArgs + other.additionalJvmArgs,
             additionalArguments = additionalArguments + other.additionalArguments,
-            publishScan = publishScan || other.publishScan
+            publishScan = publishScan || other.publishScan,
+            envSource = if (other.envSource != EnvSource.INHERIT) other.envSource else envSource
         )
     }
 
-    fun renderCommandLine(): String = buildString {
-        actualEnvVars.forEach { (k, v) ->
+    fun renderCommandLine(envProvider: EnvProvider = EnvHelper): String = buildString {
+        actualEnvVars(envProvider).forEach { (k, v) ->
             append("$k=$v ")
         }
         if (additionalJvmArgs.isNotEmpty() || additionalSystemProps.isNotEmpty()) {
@@ -56,7 +59,27 @@ data class GradleInvocationArguments(
         }
     }.trim()
 
-    val actualEnvVars: Map<String, String> get() = System.getenv().takeUnless { doNotInheritEnvVars }.orEmpty() + additionalEnvVars
+    fun actualEnvVars(envProvider: EnvProvider = EnvHelper): Map<String, String> {
+        val base = when (envSource) {
+            EnvSource.NONE -> emptyMap()
+            EnvSource.INHERIT -> envProvider.getInheritedEnvironment()
+            EnvSource.SHELL -> envProvider.getShellEnvironment()
+        }
+        if (additionalEnvVars.isEmpty()) return base
+
+        val isWindows = System.getProperty("os.name").lowercase().contains("win")
+        if (!isWindows) return base + additionalEnvVars
+
+        val result = base.toMutableMap()
+        additionalEnvVars.forEach { (k, v) ->
+            val existingKey = result.keys.find { it.equals(k, ignoreCase = true) }
+            if (existingKey != null) {
+                result.remove(existingKey)
+            }
+            result[k] = v
+        }
+        return result
+    }
 
     @Transient
     val allAdditionalArguments = additionalArguments + (if (publishScan && "--scan" !in additionalArguments) listOf("--scan") else emptyList())
@@ -64,6 +87,13 @@ data class GradleInvocationArguments(
     companion object {
         val DEFAULT = GradleInvocationArguments()
     }
+}
+
+@Serializable
+enum class EnvSource {
+    NONE,
+    INHERIT,
+    SHELL
 }
 
 @JvmInline
