@@ -44,7 +44,6 @@ import org.gradle.tooling.events.test.TestSkippedResult
 import org.gradle.tooling.events.test.TestStartEvent
 import org.gradle.tooling.events.test.TestSuccessResult
 import org.gradle.tooling.model.Model
-import org.gradle.tooling.model.build.BuildEnvironment
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import java.io.ByteArrayInputStream
@@ -388,11 +387,6 @@ class DefaultGradleProvider(
                 .addKeyValue("buildId", buildId)
                 .log("Error during job launched during build", it)
         }) { scope ->
-            val environment = connection.getModel(BuildEnvironment::class.java)
-
-            setJavaHome(environment.java.javaHome)
-            setJvmArguments(environment.java.jvmArguments)
-
             setEnvironmentVariables(args.actualEnvVars)
             @Suppress("UNCHECKED_CAST")
             withSystemProperties(args.additionalSystemProps)
