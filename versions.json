@@ -1,12 +1,5 @@
 [
   {
-    "version": "0.0.6-SNAPSHOT",
-    "title": "0.0.6-SNAPSHOT",
-    "aliases": [
-      "snapshot"
-    ]
-  },
-  {
     "version": "0.0.5",
     "title": "0.0.5",
     "aliases": [
