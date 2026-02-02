@@ -451,48 +451,6 @@ class GradleProviderTest {
         }
     }
 
-    @Test
-    fun `build should use its own JVM, not necessarily the one running the MCP server`() = runTest(timeout = 120.seconds) {
-        testJavaProject(hasTests = false, additionalConfig = {
-            buildScript(
-                """
-                plugins {
-                    java
-                }
-                
-                repositories {
-                    mavenCentral()
-                }
-                
-                println("JAVA_HOME_IN_BUILD=" + System.getProperty("java.home"))
-            """.trimIndent()
-            )
-        }).use { project ->
-            val provider = createTestProvider()
-            val projectRoot = GradleProjectRoot(project.pathString())
-
-            val runningBuild = provider.runBuild(
-                projectRoot = projectRoot,
-                args = GradleInvocationArguments(
-                    additionalArguments = listOf("help", "-Dorg.gradle.java.home=C:\\Users\\rnett\\.jdks\\temurin-20.0.2")
-                ),
-                tosAccepter = { false }
-            )
-            val buildResult = runningBuild.awaitFinished()
-
-            val currentJavaHome = System.getProperty("java.home")
-            val buildJavaHome = buildResult.buildResult.consoleOutputLines
-                .find { it.contains("JAVA_HOME_IN_BUILD=") }
-                ?.substringAfter("JAVA_HOME_IN_BUILD=")
-
-            println("Current JAVA_HOME: $currentJavaHome")
-            println("Build JAVA_HOME: $buildJavaHome")
-
-            assertTrue(buildResult.buildResult.isSuccessful)
-            assertNotNull(buildJavaHome)
-            assertTrue(buildJavaHome.contains("20.0.2"), "Build should have used JDK 20, but used $buildJavaHome")
-        }
-    }
 
     @Test
     fun `build should use provisioned JVM via gradle-daemon-jvm properties`() = runTest(timeout = 120.seconds) {
