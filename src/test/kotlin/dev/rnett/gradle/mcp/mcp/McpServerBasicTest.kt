@@ -15,7 +15,7 @@ class McpServerBasicTest : BaseMcpServerTest() {
     fun `client can initialize and list tools`() = runTest {
         val tools = server.client.listTools()
         assertTrue(tools.tools.isNotEmpty())
-        assertContains(tools.tools.map { it.name }, "get_gradle_docs_link")
+        assertContains(tools.tools.map { it.name }, "run_tests_with_gradle")
     }
 
 }

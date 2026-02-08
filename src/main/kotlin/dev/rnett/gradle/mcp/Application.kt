@@ -10,7 +10,6 @@ import dev.rnett.gradle.mcp.tools.BackgroundBuildTools
 import dev.rnett.gradle.mcp.tools.GradleBuildLookupTools
 import dev.rnett.gradle.mcp.tools.GradleExecutionTools
 import dev.rnett.gradle.mcp.tools.GradleIntrospectionTools
-import dev.rnett.gradle.mcp.tools.UtilityTools
 import io.ktor.server.config.getAs
 import io.ktor.server.engine.CommandLineConfig
 import io.ktor.server.netty.EngineMain
@@ -86,7 +85,6 @@ class Application(val args: Array<String>) {
         }
 
         fun components(provider: GradleProvider): List<McpServerComponent> = listOf(
-            UtilityTools(),
             GradleIntrospectionTools(provider),
             GradleExecutionTools(provider),
             BackgroundBuildTools(provider),
