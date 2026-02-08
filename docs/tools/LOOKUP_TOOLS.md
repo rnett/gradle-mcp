@@ -38,7 +38,7 @@ Gets the latest builds (both background and completed) ran by this MCP server.
 
 ## lookup_build_tests
 
-For a given build, gets an overview of test executions matching the prefix.  Control results using `offset` (defaults to 0), `limit` (defaults to 20, pass null to return all), and `outcome` (defaults to null, which includes all)  Use `lookup_build_test_details` to get more details for a specific execution.
+For a given build, provides either a summary of test executions or detailed information for a specific test. If `details` is provided, detailed execution info (duration, failure details, and console output) for that test is returned. If `summary` is provided (or neither), returns a list of tests matching the provided filters. Only one of `summary` or `details` may be specified.
 
 <details>
 
@@ -55,74 +55,67 @@ For a given build, gets an overview of test executions matching the prefix.  Con
       ],
       "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
     },
-    "testNamePrefix": {
-      "type": "string",
-      "description": "A prefix of the fully-qualified test name (class or method). Matching is case-sensitive and checks startsWith on the full test name. Defaults to empty (aka all tests)."
-    },
-    "offset": {
-      "type": "integer",
-      "minimum": -2147483648,
-      "maximum": 2147483647
-    },
-    "limit": {
+    "summary": {
       "type": [
-        "integer",
+        "object",
         "null"
       ],
-      "minimum": -2147483648,
-      "maximum": 2147483647
+      "required": [],
+      "properties": {
+        "testNamePrefix": {
+          "type": "string",
+          "description": "A prefix of the fully-qualified test name (class or method). Matching is case-sensitive and checks startsWith on the full test name. Defaults to empty (aka all tests)."
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647,
+          "description": "The offset to start from in the results."
+        },
+        "limit": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": -2147483648,
+          "maximum": 2147483647,
+          "description": "The maximum number of results to return."
+        },
+        "outcome": {
+          "enum": [
+            "PASSED",
+            "FAILED",
+            "SKIPPED"
+          ],
+          "description": "Filter results by outcome."
+        }
+      },
+      "description": "Arguments for test summary mode. Only one of `summary` or `details` may be specified."
     },
-    "outcome": {
-      "enum": [
-        "PASSED",
-        "FAILED",
-        "SKIPPED"
+    "details": {
+      "type": [
+        "object",
+        "null"
       ],
-      "description": "The outcome of a test."
+      "required": [
+        "testName"
+      ],
+      "properties": {
+        "testName": {
+          "type": "string",
+          "description": "The full name of the test to show details for. If multiple tests have this name, use `testIndex` to select one."
+        },
+        "testIndex": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647,
+          "description": "The index of the test to show if multiple tests have the same name."
+        }
+      },
+      "description": "Arguments for test detail mode. Only one of `summary` or `details` may be specified."
     }
   },
   "required": [],
-  "type": "object"
-}
-```
-
-
-</details>
-
-
-## lookup_build_test_details
-
-Gets the details of test execution of the given test.
-
-<details>
-
-<summary>Input schema</summary>
-
-
-```json
-{
-  "properties": {
-    "buildId": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
-    },
-    "testName": {
-      "type": "string",
-      "description": "The test to show the details of."
-    },
-    "testIndex": {
-      "type": "integer",
-      "minimum": -2147483648,
-      "maximum": 2147483647,
-      "description": "The index of the test to show, if there are multiple tests with the same name"
-    }
-  },
-  "required": [
-    "testName"
-  ],
   "type": "object"
 }
 ```
@@ -160,38 +153,9 @@ Takes a build ID; returns a summary of that build.
 </details>
 
 
-## lookup_build_failures_summary
+## lookup_build_failures
 
-For a given build, gets the summary of all build (not test) failures in the build. Use `lookup_build_failure_details` to get the details of a specific failure.
-
-<details>
-
-<summary>Input schema</summary>
-
-
-```json
-{
-  "properties": {
-    "buildId": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
-    }
-  },
-  "required": [],
-  "type": "object"
-}
-```
-
-
-</details>
-
-
-## lookup_build_failure_details
-
-For a given build, gets the details of a failure with the given ID. Use `lookup_build_failures_summary` to get a list of failure IDs.
+Provides a summary of build failures (not including test failures) or details for a specific failure. If `details` is provided, detailed information (including causes and stack traces) for that failure is returned. If `summary` is provided (or neither), lists all build failures. Only one of `summary` or `details` may be specified.
 
 <details>
 
@@ -208,40 +172,30 @@ For a given build, gets the details of a failure with the given ID. Use `lookup_
       ],
       "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
     },
-    "failureId": {
-      "type": "string",
-      "description": "The failure ID to get details for."
-    }
-  },
-  "required": [
-    "failureId"
-  ],
-  "type": "object"
-}
-```
-
-
-</details>
-
-
-## lookup_build_problems_summary
-
-For a given build, get summaries for all problems attached to failures in the build. Use `lookup_build_problem_details` with the returned failure ID to get full details.
-
-<details>
-
-<summary>Input schema</summary>
-
-
-```json
-{
-  "properties": {
-    "buildId": {
+    "summary": {
       "type": [
-        "string",
+        "object",
         "null"
       ],
-      "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
+      "required": [],
+      "properties": {},
+      "description": "Arguments for failure summary mode. Only one of `summary` or `details` may be specified."
+    },
+    "details": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "failureId"
+      ],
+      "properties": {
+        "failureId": {
+          "type": "string",
+          "description": "The failure ID to get details for."
+        }
+      },
+      "description": "Arguments for failure detail mode. Only one of `summary` or `details` may be specified."
     }
   },
   "required": [],
@@ -253,9 +207,9 @@ For a given build, get summaries for all problems attached to failures in the bu
 </details>
 
 
-## lookup_build_problem_details
+## lookup_build_problems
 
-For a given build, gets the details of all occurrences of the problem with the given ID. Use `lookup_build_problems_summary` to get a list of all problem IDs for the build.
+Provides a summary of all problems reported during a build (errors, warnings, etc.) or details for a specific problem. If `details` is provided, detailed information (locations, details, and potential solutions) for that problem is returned. If `summary` is provided (or neither), returns a summary of all problems. Only one of `summary` or `details` may be specified.
 
 <details>
 
@@ -272,14 +226,33 @@ For a given build, gets the details of all occurrences of the problem with the g
       ],
       "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
     },
-    "problemId": {
-      "type": "string",
-      "description": "The ProblemId of the problem to look up. Obtain from `lookup_build_problems_summary`."
+    "summary": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [],
+      "properties": {},
+      "description": "Arguments for problem summary mode. Only one of `summary` or `details` may be specified."
+    },
+    "details": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "problemId"
+      ],
+      "properties": {
+        "problemId": {
+          "type": "string",
+          "description": "The ProblemId of the problem to look up."
+        }
+      },
+      "description": "Arguments for problem detail mode. Only one of `summary` or `details` may be specified."
     }
   },
-  "required": [
-    "problemId"
-  ],
+  "required": [],
   "type": "object"
 }
 ```

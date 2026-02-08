@@ -85,23 +85,42 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
     }
 
     @Serializable
+    data class TestSummaryArgs(
+        @Description("A prefix of the fully-qualified test name (class or method). Matching is case-sensitive and checks startsWith on the full test name. Defaults to empty (aka all tests).")
+        val testNamePrefix: String = "",
+        @Description("The offset to start from in the results.")
+        val offset: Int = 0,
+        @Description("The maximum number of results to return.")
+        val limit: Int? = 20,
+        @Description("Filter results by outcome.")
+        val outcome: TestOutcome? = null,
+    )
+
+    @Serializable
+    data class TestDetailArgs(
+        @Description("The full name of the test to show details for. If multiple tests have this name, use `testIndex` to select one.")
+        val testName: String,
+        @Description("The index of the test to show if multiple tests have the same name.")
+        val testIndex: Int = 0
+    )
+
+    @Serializable
     data class TestsLookupArgs(
         @Description(BUILD_ID_DESCRIPTION)
         val buildId: BuildId? = null,
-        @Description("A prefix of the fully-qualified test name (class or method). Matching is case-sensitive and checks startsWith on the full test name. Defaults to empty (aka all tests).")
-        val testNamePrefix: String = "",
-        val offset: Int = 0,
-        val limit: Int? = 20,
-        val outcome: TestOutcome? = null
+        @Description("Arguments for test summary mode. Only one of `summary` or `details` may be specified.")
+        val summary: TestSummaryArgs? = null,
+        @Description("Arguments for test detail mode. Only one of `summary` or `details` may be specified.")
+        val details: TestDetailArgs? = null
     )
 
 
     val lookupBuildTests by tool<TestsLookupArgs, String>(
         name = "lookup_build_tests",
-        description = "For a given build, gets an overview of test executions matching the prefix.  Control results using `offset` (defaults to 0), `limit` (defaults to 20, pass null to return all), and `outcome` (defaults to null, which includes all)  Use `lookup_build_test_details` to get more details for a specific execution.",
+        description = "For a given build, provides either a summary of test executions or detailed information for a specific test. If `details` is provided, detailed execution info (duration, failure details, and console output) for that test is returned. If `summary` is provided (or neither), returns a list of tests matching the provided filters. Only one of `summary` or `details` may be specified.",
     ) {
-        require(it.offset >= 0) { "`offset` must be non-negative" }
-        require(it.limit == null || it.limit > 0) { "`limit` must be null or > 0" }
+        require(it.summary == null || it.details == null) { "Only one of `summary` or `details` may be specified." }
+
         val buildId = it.buildId
         val running = if (buildId != null) BackgroundBuildManager.getBuild(buildId) else null
         if (running != null) {
@@ -110,66 +129,54 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
 
         val build = BuildResults.require(it.buildId)
 
+        if (it.details != null) {
+            val tests = build.testResults.all.filter { t -> t.testName == it.details.testName }.toList()
+
+            if (tests.isEmpty())
+                error("Test not found")
+
+            if (tests.size > 1 && it.details.testIndex >= tests.size) {
+                return@tool "${tests.size} test executions with this name found. Pass a valid `testIndex` (0 to ${tests.size - 1}) to select one."
+            }
+
+            val test = if (tests.size > 1) tests[it.details.testIndex] else tests.single()
+
+            return@tool buildString {
+                append(test.testName).append(" - ").appendLine(test.status)
+                appendLine("Duration: ${test.executionDuration}")
+
+                if (!test.failures.isNullOrEmpty()) {
+                    appendLine("Failures: ${test.failures}")
+                    test.failures.forEach { f ->
+                        f.writeFailureTree(this, "  ")
+                    }
+                }
+
+                appendLine("Console output:")
+                appendLine(test.consoleOutput)
+            }
+        }
+
+        val summary = it.summary ?: TestSummaryArgs()
+
+        require(summary.offset >= 0) { "`offset` must be non-negative" }
+        require(summary.limit == null || summary.limit > 0) { "`limit` must be null or > 0" }
+
         val matched = build.testResults.all
-            .filter { tr -> tr.testName.startsWith(it.testNamePrefix) }
+            .filter { tr -> tr.testName.startsWith(summary.testNamePrefix) }
+            .filter { tr -> summary.outcome == null || tr.status == summary.outcome }
+
         val results = matched
-            .drop(it.offset)
-            .take(it.limit ?: Int.MAX_VALUE)
+            .drop(summary.offset)
+            .take(summary.limit ?: Int.MAX_VALUE)
             .toList()
 
         buildString {
             appendLine("Total matching results: ${matched.count()}")
             appendLine("Test | Outcome")
-            results.forEach {
-                appendLine("${it.testName} | ${it.status}")
+            results.forEach { tr ->
+                appendLine("${tr.testName} | ${tr.status}")
             }
-        }
-    }
-
-    @Serializable
-    data class TestDetailsLookupArgs(
-        @Description(BUILD_ID_DESCRIPTION)
-        val buildId: BuildId? = null,
-        @Description("The test to show the details of.")
-        val testName: String,
-        @Description("The index of the test to show, if there are multiple tests with the same name")
-        val testIndex: Int = 0
-    )
-
-    val lookupBuildTestDetails by tool<TestDetailsLookupArgs, String>(
-        name = "lookup_build_test_details",
-        description = "Gets the details of test execution of the given test.",
-    ) { args ->
-        val buildId = args.buildId
-        val running = if (buildId != null) BackgroundBuildManager.getBuild(buildId) else null
-        if (running != null) {
-            return@tool "Build $buildId is still running. Use `background_build_get_status` to see progress, or wait for it to complete to use lookup tools."
-        }
-        val build = BuildResults.require(args.buildId)
-        val tests = build.testResults.all.filter { it.testName == args.testName }.toList()
-
-        if (tests.isEmpty())
-            error("Test not found")
-
-        if (tests.size > 1) {
-            return@tool "${tests.size} test executions with this name found.  Pass the `testIndex` parameter to select one."
-        }
-
-        val test = tests.single()
-
-        buildString {
-            append(test.testName).append(" - ").appendLine(test.status)
-            appendLine("Duration: ${test.executionDuration}")
-
-            if (!test.failures.isNullOrEmpty()) {
-                appendLine("Failures: ${test.failures}")
-                test.failures.forEach {
-                    it.writeFailureTree(this, "  ")
-                }
-            }
-
-            appendLine("Console output:")
-            appendLine(test.consoleOutput)
         }
     }
 
@@ -193,16 +200,48 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
     }
 
 
-    val lookupBuildFailures by tool<BuildIdArgs, String>(
-        name = "lookup_build_failures_summary",
-        description = "For a given build, gets the summary of all build (not test) failures in the build. Use `lookup_build_failure_details` to get the details of a specific failure.",
+    @Serializable
+    class FailureSummaryArgs
+
+    @Serializable
+    data class FailureDetailArgs(
+        @Description("The failure ID to get details for.")
+        val failureId: FailureId
+    )
+
+    @Serializable
+    data class FailureLookupArgs(
+        @Description(BUILD_ID_DESCRIPTION)
+        val buildId: BuildId? = null,
+        @Description("Arguments for failure summary mode. Only one of `summary` or `details` may be specified.")
+        val summary: FailureSummaryArgs? = null,
+        @Description("Arguments for failure detail mode. Only one of `summary` or `details` may be specified.")
+        val details: FailureDetailArgs? = null
+    )
+
+
+    val lookupBuildFailures by tool<FailureLookupArgs, String>(
+        name = "lookup_build_failures",
+        description = "Provides a summary of build failures (not including test failures) or details for a specific failure. If `details` is provided, detailed information (including causes and stack traces) for that failure is returned. If `summary` is provided (or neither), lists all build failures. Only one of `summary` or `details` may be specified.",
     ) {
+        require(it.summary == null || it.details == null) { "Only one of `summary` or `details` may be specified." }
+
         val buildId = it.buildId
         val running = if (buildId != null) BackgroundBuildManager.getBuild(buildId) else null
         if (running != null) {
             return@tool "Build $buildId is still running. Use `background_build_get_status` to see progress, or wait for it to complete to use lookup tools."
         }
         val build = BuildResults.require(it.buildId)
+
+        if (it.details != null) {
+            val failure = build.allFailures[it.details.failureId]
+                ?: error("No failure with ID ${it.details.failureId} found for build ${it.buildId}")
+
+            return@tool buildString {
+                failure.writeFailureTree(this)
+            }
+        }
+
         buildString {
             appendLine("Id | Message")
             build.allFailures.forEach { (id, failure) ->
@@ -212,41 +251,85 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
     }
 
     @Serializable
-    data class FailureLookupArgs(
-        @Description(BUILD_ID_DESCRIPTION)
-        val buildId: BuildId? = null,
-        @Description("The failure ID to get details for.")
-        val failureId: FailureId
+    class ProblemSummaryArgs
+
+    @Serializable
+    data class ProblemDetailArgs(
+        @Description("The ProblemId of the problem to look up.")
+        val problemId: ProblemId
     )
 
+    @Serializable
+    data class ProblemLookupArgs(
+        @Description(BUILD_ID_DESCRIPTION)
+        val buildId: BuildId? = null,
+        @Description("Arguments for problem summary mode. Only one of `summary` or `details` may be specified.")
+        val summary: ProblemSummaryArgs? = null,
+        @Description("Arguments for problem detail mode. Only one of `summary` or `details` may be specified.")
+        val details: ProblemDetailArgs? = null,
+    )
 
-    val lookupBuildFailureDetails by tool<FailureLookupArgs, String>(
-        name = "lookup_build_failure_details",
-        description = "For a given build, gets the details of a failure with the given ID. Use `lookup_build_failures_summary` to get a list of failure IDs.",
+    val lookupBuildProblems by tool<ProblemLookupArgs, String>(
+        name = "lookup_build_problems",
+        description = "Provides a summary of all problems reported during a build (errors, warnings, etc.) or details for a specific problem. If `details` is provided, detailed information (locations, details, and potential solutions) for that problem is returned. If `summary` is provided (or neither), returns a summary of all problems. Only one of `summary` or `details` may be specified.",
     ) {
+        require(it.summary == null || it.details == null) { "Only one of `summary` or `details` may be specified." }
+
         val buildId = it.buildId
         val running = if (buildId != null) BackgroundBuildManager.getBuild(buildId) else null
         if (running != null) {
             return@tool "Build $buildId is still running. Use `background_build_get_status` to see progress, or wait for it to complete to use lookup tools."
         }
         val build = BuildResults.require(it.buildId)
-        val failure = build.allFailures[it.failureId] ?: error("No failure with ID ${it.failureId} found for build ${it.buildId}")
 
-        buildString {
-            failure.writeFailureTree(this)
-        }
-    }
+        if (it.details != null) {
+            val problem = build.problems.values.asSequence().flatten().firstOrNull { p -> p.definition.id == it.details.problemId }
+                ?: error("No problem with id ${it.details.problemId} found for build ${it.buildId}")
+            return@tool buildString {
+                append(problem.definition.id)
+                if (problem.definition.displayName != null) {
+                    appendLine(": ${problem.definition.displayName}")
+                } else {
+                    appendLine()
+                }
 
-    val lookupBuildProblemsSummary by tool<BuildIdArgs, String>(
-        name = "lookup_build_problems_summary",
-        description = "For a given build, get summaries for all problems attached to failures in the build. Use `lookup_build_problem_details` with the returned failure ID to get full details.",
-    ) {
-        val buildId = it.buildId
-        val running = if (buildId != null) BackgroundBuildManager.getBuild(buildId) else null
-        if (running != null) {
-            return@tool "Build $buildId is still running. Use `background_build_get_status` to see progress, or wait for it to complete to use lookup tools."
+                if (problem.definition.documentationLink != null) {
+                    appendLine("Documentation: ${problem.definition.documentationLink}")
+                }
+
+                appendLine("Occurrences: ${problem.numberOfOccurrences}")
+                problem.occurences.forEach { o ->
+                    append("  Locations: ")
+                    appendLine(o.originLocations)
+                    if (o.details != null) {
+                        if (o.details.contains("\n")) {
+                            appendLine("  Details: \n${o.details.prependIndent("    ")}")
+                        } else {
+                            appendLine("  Details: ${o.details}")
+                        }
+                    }
+
+                    if (o.contextualLocations.isNotEmpty()) {
+                        append("  Context (possibly related) locations: ")
+                        appendLine(o.contextualLocations)
+                    }
+
+                    if (o.potentialSolutions.isNotEmpty()) {
+                        appendLine("  Potential Solutions.")
+                        o.potentialSolutions.forEach { s ->
+                            if (s.contains("\n")) {
+                                appendLine(
+                                    "  - " + s.prependIndent("    ").trimStart()
+                                )
+                            } else {
+                                appendLine("  - $s")
+                            }
+                        }
+                    }
+                }
+            }
         }
-        val build = BuildResults.require(it.buildId)
+
         buildString {
             fun writeProblems(list: List<ProblemAggregation>) {
                 appendLine("Id | Name | Occurrences")
@@ -275,74 +358,6 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
                 appendLine("Other:")
                 writeProblems(build.problems[ProblemSeverity.OTHER]!!)
             }
-
-        }
-    }
-
-    @Serializable
-    data class ProblemDetailsArgs(
-        @Description(BUILD_ID_DESCRIPTION)
-        val buildId: BuildId? = null,
-        @Description("The ProblemId of the problem to look up. Obtain from `lookup_build_problems_summary`.")
-        val problemId: ProblemId,
-    )
-
-    val lookupBuildProblemDetails by tool<ProblemDetailsArgs, String>(
-        name = "lookup_build_problem_details",
-        description = "For a given build, gets the details of all occurrences of the problem with the given ID. Use `lookup_build_problems_summary` to get a list of all problem IDs for the build.",
-    ) {
-        val buildId = it.buildId
-        val running = if (buildId != null) BackgroundBuildManager.getBuild(buildId) else null
-        if (running != null) {
-            return@tool "Build $buildId is still running. Use `background_build_get_status` to see progress, or wait for it to complete to use lookup tools."
-        }
-        val build = BuildResults.require(it.buildId)
-        val problem = build.problems.values.asSequence().flatten().firstOrNull { p -> p.definition.id == it.problemId }
-            ?: error("No problem with id ${it.problemId} found for build ${it.buildId}")
-        buildString {
-            append(problem.definition.id)
-            if (problem.definition.displayName != null) {
-                appendLine(": ${problem.definition.displayName}")
-            } else {
-                appendLine()
-            }
-
-            if (problem.definition.documentationLink != null) {
-                appendLine("Documentation: ${problem.definition.documentationLink}")
-            }
-
-            appendLine("Occurrences: ${problem.numberOfOccurrences}")
-            problem.occurences.forEach {
-                append("  Locations: ")
-                appendLine(it.originLocations)
-                if (it.details != null) {
-                    if (it.details.contains("\n")) {
-                        appendLine("  Details: \n${it.details.prependIndent("    ")}")
-                    } else {
-                        appendLine("  Details: ${it.details}")
-                    }
-                }
-
-                if (it.contextualLocations.isNotEmpty()) {
-                    append("  Context (possibly related) locations: ")
-                    appendLine(it.contextualLocations)
-                }
-
-                if (it.potentialSolutions.isNotEmpty()) {
-                    appendLine("  Potential Solutions.")
-                    it.potentialSolutions.forEach {
-                        if (it.contains("\n")) {
-                            appendLine(
-                                "  - " + it.prependIndent("    ").trimStart()
-                            )
-                        } else {
-                            appendLine("  - $it")
-                        }
-                    }
-                }
-
-            }
-
         }
     }
 

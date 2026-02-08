@@ -10,9 +10,7 @@ import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
 import org.gradle.tooling.model.GradleProject
-import org.gradle.tooling.model.build.BuildEnvironment
 import org.gradle.tooling.model.gradle.GradleBuild
-import org.gradle.tooling.model.idea.IdeaSourceDirectory
 
 class GradleIntrospectionTools(
     val gradle: GradleProvider,
@@ -20,55 +18,6 @@ class GradleIntrospectionTools(
 
     companion object {
         const val BUILD_ID_DESCRIPTION = "The build ID of the build used to query this information."
-    }
-
-    @Serializable
-    data class GradleBuildEnvironment(
-        @Description(BUILD_ID_DESCRIPTION)
-        val buildId: BuildId?,
-        @Description("Information about the Gradle build environment")
-        val gradleInformation: GradleInfo,
-        @Description("Information about the JVM used to execute Gradle in the build environment")
-        val javaInformation: JavaInfo,
-    ) {
-        @Serializable
-        data class GradleInfo(
-            @Description("The Gradle user home directory")
-            val gradleUserHome: String,
-            @Description("The Gradle version used by this project")
-            val gradleVersion: String
-        )
-
-        @Serializable
-        data class JavaInfo(
-            @Description("The path of the Java home used by this Gradle project")
-            val javaHome: String,
-            @Description("The JVM arguments used by this Gradle project")
-            val jvmArguments: List<String>
-        )
-    }
-
-    @Serializable
-    data class GetEnvArguments(
-        val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
-        val invocationArgs: GradleInvocationArguments = GradleInvocationArguments.DEFAULT,
-    )
-
-    val getEnv by tool<GetEnvArguments, GradleBuildEnvironment>(
-        "get_environment",
-        "Get the environment used to execute Gradle for the given project, including the Gradle version and JVM information."
-    ) {
-        gradle.getBuildModel<BuildEnvironment>(
-            it.projectRoot,
-            it.invocationArgs,
-            requiresGradleProject = false
-        ).throwFailure().let { (id, it) ->
-            GradleBuildEnvironment(
-                id,
-                GradleBuildEnvironment.GradleInfo(it.gradle.gradleUserHome.absolutePath, it.gradle.gradleVersion),
-                GradleBuildEnvironment.JavaInfo(it.java.javaHome.absolutePath, it.java.jvmArguments)
-            )
-        }
     }
 
     @Serializable
@@ -205,86 +154,6 @@ class GradleIntrospectionTools(
             .toSet()
 
         ProjectPublicationsResult(id, publications)
-    }
-
-    @Serializable
-    enum class SourceDirectoryType {
-        @Description("A source directory (main sources)")
-        SOURCE,
-
-        @Description("A test source directory")
-        TEST_SOURCE,
-
-        @Description("A resource directory (main resources)")
-        RESOURCE,
-
-        @Description("A test resource directory")
-        TEST_RESOURCE
-    }
-
-    @Serializable
-    @Description("A source directory in a Gradle project")
-    data class SourceDirectoryEntry(
-        @Description("Absolute path to the directory")
-        val path: String,
-        @Description("The type/category of this directory.")
-        val type: SourceDirectoryType,
-        @Description("Whether this directory is generated")
-        val isGenerated: Boolean,
-        @Description("The java language level for this directory. DOES NOT MEAN IT IS A JAVA SOURCE SET.")
-        val javaLanguageLevel: String?
-    )
-
-    @Serializable
-    data class ProjectSourceDirectoriesResult(
-        @Description(BUILD_ID_DESCRIPTION)
-        val buildId: BuildId?,
-        @Description("All source directories known by Gradle.")
-        val directoriesByModulePath: List<SourceDirectoryEntry>
-    )
-
-    @Serializable
-    data class ProjectSourceDirectoriesArgs(
-        val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
-        val projectPath: GradleProjectPath = GradleProjectPath.DEFAULT,
-        val invocationArgs: GradleInvocationArguments = GradleInvocationArguments.DEFAULT,
-    )
-
-    private fun IdeaSourceDirectory.toEntry(type: SourceDirectoryType, javaLanguageLevel: String?) = SourceDirectoryEntry(
-        directory.absolutePath,
-        type,
-        isGenerated,
-        javaLanguageLevel
-    )
-
-    val getProjectSourceDirectories by tool<ProjectSourceDirectoriesArgs, ProjectSourceDirectoriesResult>(
-        "get_project_source_directories",
-        "Gets source/test/resource directories for the project. Sometimes non-JVM source directories will also exist that aren't known to Gradle. Note that the javaLanguageLevel setting does not necessarily mean the directory is a Java source set."
-    ) { args ->
-        val (id, ideaProject) = gradle.getBuildModel<org.gradle.tooling.model.idea.BasicIdeaProject>(
-            args.projectRoot,
-            args.invocationArgs
-        ).throwFailure()
-
-        val root = args.projectRoot.resolve()
-
-        ProjectSourceDirectoriesResult(
-            id,
-            ideaProject.modules
-                .asSequence()
-                .filter { it.projectIdentifier.matches(root, args.projectPath) }
-                .flatMap { module ->
-                    module.javaLanguageSettings.languageLevel.majorVersion
-                    module.contentRoots.asSequence().flatMap {
-                        it.sourceDirectories?.map { it.toEntry(SourceDirectoryType.SOURCE, module.javaLanguageSettings?.languageLevel?.majorVersion) }.orEmpty() +
-                                it.resourceDirectories?.map { it.toEntry(SourceDirectoryType.RESOURCE, module.javaLanguageSettings?.languageLevel?.majorVersion) }.orEmpty() +
-                                it.testDirectories?.map { it.toEntry(SourceDirectoryType.TEST_SOURCE, module.javaLanguageSettings?.languageLevel?.majorVersion) }.orEmpty() +
-                                it.testResourceDirectories?.map { it.toEntry(SourceDirectoryType.TEST_RESOURCE, module.javaLanguageSettings?.languageLevel?.majorVersion) }.orEmpty()
-                    }
-                }
-                .distinct()
-                .toList()
-        )
     }
 
 }

@@ -22,10 +22,9 @@ import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.Root
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import org.gradle.tooling.model.build.BuildEnvironment
 import kotlin.io.path.absolutePathString
-import kotlin.io.path.pathString
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlin.time.Clock
@@ -115,45 +114,26 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
             )
         )
         assertTrue(page1 != null)
-    }
 
-    @Test
-    fun `introspection works with MCP root name`() = runTest {
-        val result = syntheticBuildResult()
-        val runningBuild = mockk<RunningBuild<BuildEnvironment>> {
-            coEvery { awaitFinished() } returns GradleResult(result, Result.success(mockk()))
-            coEvery { id } returns result.id
-        }
-        coEvery {
-            provider.getBuildModel<BuildEnvironment>(
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
+        // lookup_build_tests summary
+        val testsSummary = server.client.callTool(
+            "lookup_build_tests",
+            mapOf(
+                "buildId" to result.id.toString(),
+                "summary" to JsonObject(mapOf("limit" to JsonPrimitive(10)))
             )
-        } returns runningBuild
+        )
+        assertTrue(testsSummary != null)
 
-        server.setServerRoots(Root(name = "proj", uri = tempDir.toUri().toString()))
-
-        val call = server.client.callTool("get_environment", mapOf("projectRoot" to "proj"))
-        assertTrue(call != null)
-
-        coVerify {
-            provider.getBuildModel<BuildEnvironment>(
-                GradleProjectRoot(tempDir.pathString),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
+        // lookup_build_problems summary
+        val problemsSummary = server.client.callTool(
+            "lookup_build_problems",
+            mapOf(
+                "buildId" to result.id.toString(),
+                "summary" to JsonObject(emptyMap<String, JsonPrimitive>())
             )
-        }
+        )
+        assertTrue(problemsSummary != null)
     }
 
     @Test
