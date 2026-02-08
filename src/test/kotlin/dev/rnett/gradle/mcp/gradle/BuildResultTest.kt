@@ -371,6 +371,93 @@ class BuildResultTest {
         assertEquals(1, summary.warningCounts[ProblemId("w1")]?.occurences)
         assertEquals(3, summary.totalCount)
     }
+
+    @Test
+    fun `getTaskOutput extracts output for a specific task`() {
+        val consoleOutput = """
+            |> Task :help
+            |Welcome to Gradle 8.5.
+            |
+            |To run a build, run gradlew <task> ...
+            |
+            |To see a list of available tasks, run gradlew tasks
+            |
+            |To see more detail about a task, run gradlew help --task <task>
+            |
+            |To see a list of command-line options, run gradlew --help
+            |
+            |To get Gradle help, go to https://help.gradle.org
+            |
+            |BUILD SUCCESSFUL in 541ms
+            |1 actionable task: 1 executed
+        """.trimMargin()
+
+        val result = BuildResult(
+            id = BuildId.newId(),
+            args = args,
+            consoleOutput = consoleOutput,
+            publishedScans = emptyList(),
+            testResults = BuildResult.TestResults(emptySet(), emptySet(), emptySet()),
+            buildFailures = null,
+            problems = emptyMap()
+        )
+
+        val taskOutput = result.getTaskOutput(":help")
+        val expected = """
+            |Welcome to Gradle 8.5.
+            |
+            |To run a build, run gradlew <task> ...
+            |
+            |To see a list of available tasks, run gradlew tasks
+            |
+            |To see more detail about a task, run gradlew help --task <task>
+            |
+            |To see a list of command-line options, run gradlew --help
+            |
+            |To get Gradle help, go to https://help.gradle.org
+            |
+        """.trimMargin().trim()
+
+        assertEquals(expected, taskOutput?.trim())
+    }
+
+    @Test
+    fun `getTaskOutput extracts output when followed by another task`() {
+        val consoleOutput = """
+            |> Task :task1
+            |Output 1
+            |> Task :task2
+            |Output 2
+            |BUILD SUCCESSFUL
+        """.trimMargin()
+
+        val result = BuildResult(
+            id = BuildId.newId(),
+            args = args,
+            consoleOutput = consoleOutput,
+            publishedScans = emptyList(),
+            testResults = BuildResult.TestResults(emptySet(), emptySet(), emptySet()),
+            buildFailures = null,
+            problems = emptyMap()
+        )
+
+        assertEquals("Output 1", result.getTaskOutput(":task1")?.trim())
+        assertEquals("Output 2", result.getTaskOutput(":task2")?.trim())
+    }
+
+    @Test
+    fun `getTaskOutput returns null if task not found`() {
+        val result = BuildResult(
+            id = BuildId.newId(),
+            args = args,
+            consoleOutput = "BUILD SUCCESSFUL",
+            publishedScans = emptyList(),
+            testResults = BuildResult.TestResults(emptySet(), emptySet(), emptySet()),
+            buildFailures = null,
+            problems = emptyMap()
+        )
+        assertEquals(null, result.getTaskOutput(":nonexistent"))
+    }
 }
 
 class GradleResultTest {

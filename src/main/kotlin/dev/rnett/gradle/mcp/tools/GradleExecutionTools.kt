@@ -46,6 +46,65 @@ class GradleExecutionTools(
         result.buildResult.toOutputString()
     }
 
+    @Serializable
+    data class ExecuteSingleTaskArgs(
+        val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
+        @Description("The absolute path of the Gradle task to run (e.g. ':build', ':subproject:test')")
+        val taskPath: String,
+        @Description("Additional arguments to pass to the task.")
+        val arguments: List<String> = emptyList(),
+        @Description("Whether to force the task to rerun by adding --rerun. Defaults to false.")
+        val rerun: Boolean = false,
+        val invocationArguments: GradleInvocationArguments = GradleInvocationArguments.DEFAULT
+    )
+
+    @OptIn(ExperimentalTime::class)
+    val runSingleTaskAndGetOutput by tool<ExecuteSingleTaskArgs, String>(
+        "run_single_task_and_get_output",
+        """
+            |Runs a single Gradle task and returns its output.
+            |If the task fails, it will error and return the full build results's output.
+            |If it succeeds, it will extract the task's specific output from the console output.
+            |
+            |### Useful Gradle tasks:
+            |- `help`: Gets the Gradle version and shows other basic information
+            |- `help --task <task>`: Gets detailed information about a specific Gradle task, including its arguments.
+            |- `tasks`: Gets all available Gradle tasks
+            |- `dependencies`: Gets all dependencies of a Gradle project.
+            |  - Example: `run_single_task_and_get_output(taskPath=":my-project:dependencies")`
+            |- `resolvableConfigurations`: Gets all resolvable configurations (i.e. configurations that pull dependencies).
+            |- `dependencies --configuration <configuration name>`: Gets all dependencies of a specific configuration.
+            |  - Example: `run_single_task_and_get_output(taskPath=":my-project:dependencies", arguments=["--configuration", "runtimeClasspath"])`
+            |- `dependencyInsight --configuration <configuration name> --dependency <dependency prefix, of the dependency GAV slug>`: Gets detailed information about the resolution of specific dependencies.
+            |  - Example: `run_single_task_and_get_output(taskPath=":my-project:dependencyInsight", arguments=["--configuration", "runtimeClasspath", "--dependency", "org.jetbrains.kotlin"])`
+            |- `buildEnvironment`: Gets the Gradle build dependencies (plugins and buildscript dependencies) and JVM information.
+            |- `javaToolchains`: Gets all available Java/JVM toolchains.
+            |- `properties`: Gets all properties of a Gradle project. MAY CONTAIN SECRETS OR SENSITIVE INFORMATION.
+            |- `artifactTransforms`: Gets all artifact transforms of the project.
+            |- `outgoingVariants`: Gets all outgoing variants of the project (i.e. configurations that can be published or consumed from other projects).
+        """.trimMargin(),
+    ) {
+        val additionalArgs = buildList {
+            add(it.taskPath)
+            addAll(it.arguments)
+            if (it.rerun) {
+                add("--rerun")
+            }
+        }
+
+        val result = gradle.doBuild(
+            it.projectRoot,
+            GradleInvocationArguments(additionalArguments = additionalArgs) + it.invocationArguments
+        )
+
+        if (!result.buildResult.isSuccessful) {
+            isError = true
+            result.buildResult.toOutputString()
+        } else {
+            result.buildResult.getTaskOutput(it.taskPath) ?: "Task output not found in console output. Build result:\n${result.buildResult.toOutputString()}"
+        }
+    }
+
     @Description("A pattern to select tests. This is a prefix of the test class or method's fully qualified name. '*' wildcards are supported. Test classes may omit the package, e.g. `SomeClass` or `SomeClass.someMethod`. A filter of '*' will select all tests.")
     @Example("com.example.MyTestClass")
     @Example("com.example.MyTestClass.myTestMethod")

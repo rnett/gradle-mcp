@@ -95,6 +95,115 @@ Can publish a Develocity Build Scan if requested. This is the preferred way to d
 </details>
 
 
+## run_single_task_and_get_output
+
+Runs a single Gradle task and returns its output.
+If the task fails, it will error and return the full build results's output.
+If it succeeds, it will extract the task's specific output from the console output.
+
+### Useful Gradle tasks:
+- `help`: Gets the Gradle version and shows other basic information
+- `help --task <task>`: Gets detailed information about a specific Gradle task, including its arguments.
+- `tasks`: Gets all available Gradle tasks
+- `dependencies`: Gets all dependencies of a Gradle project.
+  - Example: `run_single_task_and_get_output(taskPath=":my-project:dependencies")`
+- `resolvableConfigurations`: Gets all resolvable configurations (i.e. configurations that pull dependencies).
+- `dependencies --configuration <configuration name>`: Gets all dependencies of a specific configuration.
+  - Example: `run_single_task_and_get_output(taskPath=":my-project:dependencies", arguments=["--configuration", "runtimeClasspath"])`
+- `dependencyInsight --configuration <configuration name> --dependency <dependency prefix, of the dependency GAV slug>`: Gets detailed information about the resolution of specific dependencies.
+  - Example: `run_single_task_and_get_output(taskPath=":my-project:dependencyInsight", arguments=["--configuration", "runtimeClasspath", "--dependency", "org.jetbrains.kotlin"])`
+- `buildEnvironment`: Gets the Gradle build dependencies (plugins and buildscript dependencies) and JVM information.
+- `javaToolchains`: Gets all available Java/JVM toolchains.
+- `properties`: Gets all properties of a Gradle project. MAY CONTAIN SECRETS OR SENSITIVE INFORMATION.
+- `artifactTransforms`: Gets all artifact transforms of the project.
+- `outgoingVariants`: Gets all outgoing variants of the project (i.e. configurations that can be published or consumed from other projects).
+
+<details>
+
+<summary>Input schema</summary>
+
+
+```json
+{
+  "properties": {
+    "projectRoot": {
+      "type": "string",
+      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
+    },
+    "taskPath": {
+      "type": "string",
+      "description": "The absolute path of the Gradle task to run (e.g. ':build', ':subproject:test')"
+    },
+    "arguments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Additional arguments to pass to the task."
+    },
+    "rerun": {
+      "type": "boolean",
+      "description": "Whether to force the task to rerun by adding --rerun. Defaults to false."
+    },
+    "invocationArguments": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "additionalEnvVars": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Additional environment variables to set for the Gradle process. Optional."
+        },
+        "additionalSystemProps": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Additional system properties to set for the Gradle process. Optional. No system properties are inherited from the MCP server."
+        },
+        "additionalJvmArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional JVM arguments to set for the Gradle process. Optional."
+        },
+        "additionalArguments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional arguments for the Gradle process. Optional."
+        },
+        "publishScan": {
+          "type": "boolean",
+          "description": "Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation."
+        },
+        "envSource": {
+          "enum": [
+            "NONE",
+            "INHERIT",
+            "SHELL"
+          ],
+          "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
+        }
+      },
+      "description": "Additional arguments to configure the Gradle process."
+    }
+  },
+  "required": [
+    "taskPath"
+  ],
+  "type": "object"
+}
+```
+
+
+</details>
+
+
 ## run_tests_with_gradle
 
 Runs a single test task, with an option to filter which tests to run. Always prefer using this tool over invoking Gradle via the command line or shell.

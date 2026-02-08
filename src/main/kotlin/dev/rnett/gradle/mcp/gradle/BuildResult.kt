@@ -54,6 +54,22 @@ data class BuildResult(
     }
     val allBuildFailures by lazy { buildFailures.orEmpty().asSequence().flatMap { it.flatten() }.associateBy { it.id }.minus(allTestFailures.keys) }
     val allFailures by lazy { allTestFailures + allBuildFailures }
+    fun getTaskOutput(taskPath: String): String? {
+        val lines = consoleOutputLines
+        val taskHeader = "> Task $taskPath"
+        val startIndex = lines.indexOfFirst { it.startsWith(taskHeader) }
+        if (startIndex == -1) return null
+
+        val buildEnd = lines.drop(startIndex + 1).indexOfFirst {
+            it.startsWith("> Task") || it.startsWith("BUILD SUCCESSFUL") || it.startsWith("BUILD FAILED") || it.startsWith("BUILD CANCELLED")
+        }
+
+        return if (buildEnd == -1) {
+            lines.drop(startIndex + 1).joinToString("\n")
+        } else {
+            lines.subList(startIndex + 1, startIndex + 1 + buildEnd).joinToString("\n")
+        }.trim()
+    }
 
     data class Failure(
         val id: FailureId,

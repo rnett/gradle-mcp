@@ -19,6 +19,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.modelcontextprotocol.kotlin.sdk.Root
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonArray
@@ -240,5 +241,38 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         assertTrue(lookupCall != null)
         val lookupText = lookupCall.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
         assertTrue(lookupText.contains("still running"))
+    }
+
+    @Test
+    fun `run_single_task_and_get_output uses arguments`() = runTest {
+        val result = syntheticBuildResult()
+        val runningBuild = mockk<RunningBuild<Unit>> {
+            coEvery { awaitFinished() } returns GradleResult(result, Result.success(Unit))
+            coEvery { id } returns result.id
+        }
+
+        val capturedArgs = slot<GradleInvocationArguments>()
+        coEvery {
+            provider.runBuild(
+                any(),
+                capture(capturedArgs),
+                any(),
+                any(),
+                any(),
+                any()
+            )
+        } returns runningBuild
+
+        server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
+
+        val args = mapOf(
+            "taskPath" to JsonPrimitive(":help"),
+            "arguments" to JsonArray(listOf(JsonPrimitive("--info"), JsonPrimitive("--stacktrace")))
+        )
+        server.client.callTool("run_single_task_and_get_output", args)
+
+        assertTrue(capturedArgs.captured.additionalArguments.contains(":help"))
+        assertTrue(capturedArgs.captured.additionalArguments.contains("--info"))
+        assertTrue(capturedArgs.captured.additionalArguments.contains("--stacktrace"))
     }
 }
