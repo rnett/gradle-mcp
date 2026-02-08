@@ -122,8 +122,12 @@ For completed builds, it returns a summary of the result.
 Arguments:
  - buildId: The build ID of the build to look up.
  - maxTailLines: The maximum number of lines of console output to return. Defaults to 20.
+ - wait: Wait for the build to complete or for the waitFor regex to be seen in the output, or for waitForTask to complete, for up to this many seconds.
+ - waitFor: A regex to wait for in the output. If seen, the wait will short-circuit, and all matching lines will be returned.
+ - waitForTask: A task path to wait for. If seen, the wait will short-circuit.
+ - afterCall: If true, only look for waitFor or waitForTask matches emitted after this call. Only applies if wait and (waitFor or waitForTask) are also provided.
 
-Use the other `lookup_*` tools for more detailed information about completed builds, such as test results or build failures.
+ Use the other `lookup_*` tools for more detailed information about completed builds, such as test results or build failures.
 
 <details>
 
@@ -146,6 +150,33 @@ Use the other `lookup_*` tools for more detailed information about completed bui
       ],
       "minimum": -2147483648,
       "maximum": 2147483647
+    },
+    "wait": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": -1.7976931348623157E308,
+      "maximum": 1.7976931348623157E308,
+      "description": "Wait for the build to complete or for the waitFor regex to be seen in the output, for up to this many seconds."
+    },
+    "waitFor": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "A regex to wait for in the output. If seen, the wait will short-circuit, and all matching lines will be returned."
+    },
+    "waitForTask": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "A task path to wait for. If seen, the wait will short-circuit."
+    },
+    "afterCall": {
+      "type": "boolean",
+      "description": "If true, only look for waitFor or waitForTask matches emitted after this call. Only applies if wait and (waitFor or waitForTask) are also provided."
     }
   },
   "required": [],

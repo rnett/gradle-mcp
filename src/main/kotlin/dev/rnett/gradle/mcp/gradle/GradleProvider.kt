@@ -16,6 +16,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.future.asDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
@@ -36,6 +39,7 @@ import org.gradle.tooling.events.ProgressEvent
 import org.gradle.tooling.events.ProgressListener
 import org.gradle.tooling.events.problems.ProblemAggregationEvent
 import org.gradle.tooling.events.problems.SingleProblemEvent
+import org.gradle.tooling.events.task.TaskFinishEvent
 import org.gradle.tooling.events.test.Destination
 import org.gradle.tooling.events.test.JvmTestOperationDescriptor
 import org.gradle.tooling.events.test.TestFailureResult
@@ -51,6 +55,8 @@ import org.slf4j.event.Level
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.reflect.KClass
@@ -77,6 +83,15 @@ data class RunningBuild<T>(
     val problems = ProblemsAccumulator()
     val testResults = DefaultGradleProvider.TestCollector(true, true)
     val scans = ConcurrentLinkedQueue<GradleBuildScan>()
+
+    private val _logLines = MutableSharedFlow<String>(replay = 1)
+    val logLines: SharedFlow<String> = _logLines.asSharedFlow()
+
+    private val _completedTasks = MutableSharedFlow<String>(replay = 1)
+    val completedTasks: SharedFlow<String> = _completedTasks.asSharedFlow()
+
+    private val _taskPaths: MutableSet<String> = Collections.newSetFromMap(ConcurrentHashMap())
+    val completedTaskPaths: Set<String> get() = _taskPaths.toSet()
 
     var status: BuildStatus = BuildStatus.RUNNING
         private set
@@ -114,6 +129,12 @@ data class RunningBuild<T>(
 
     internal fun addLogLine(line: String) {
         logBuffer.appendLine(line)
+        _logLines.tryEmit(line)
+    }
+
+    internal fun addTaskCompleted(taskPath: String) {
+        _taskPaths.add(taskPath)
+        _completedTasks.tryEmit(taskPath)
     }
 }
 
@@ -421,6 +442,12 @@ class DefaultGradleProvider(
                         runningBuild.problems.add(event.problem)
                 }
             }, OperationType.PROBLEMS)
+
+            addProgressListener({ event ->
+                if (event is TaskFinishEvent) {
+                    runningBuild.addTaskCompleted(event.descriptor.taskPath)
+                }
+            }, OperationType.TASK)
 
             // Build scan TOS acceptance
 

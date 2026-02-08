@@ -3,12 +3,22 @@ package dev.rnett.gradle.mcp.tools
 import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
 import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.BuildResults
+import dev.rnett.gradle.mcp.gradle.BuildStatus
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.onTimeout
+import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
 
 class BackgroundBuildTools(
     val gradle: GradleProvider,
@@ -67,9 +77,18 @@ class BackgroundBuildTools(
     @Serializable
     data class GetStatusArgs(
         val buildId: BuildId? = null,
-        val maxTailLines: Int? = 20
+        val maxTailLines: Int? = 20,
+        @Description("Wait for the build to complete or for the waitFor regex to be seen in the output, for up to this many seconds.")
+        val wait: Double? = null,
+        @Description("A regex to wait for in the output. If seen, the wait will short-circuit, and all matching lines will be returned.")
+        val waitFor: String? = null,
+        @Description("A task path to wait for. If seen, the wait will short-circuit.")
+        val waitForTask: String? = null,
+        @Description("If true, only look for waitFor or waitForTask matches emitted after this call. Only applies if wait and (waitFor or waitForTask) are also provided.")
+        val afterCall: Boolean = false
     )
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     val getBackgroundBuildStatus by tool<GetStatusArgs, String>(
         "background_build_get_status",
         """
@@ -79,13 +98,59 @@ class BackgroundBuildTools(
             |Arguments:
             | - buildId: The build ID of the build to look up.
             | - maxTailLines: The maximum number of lines of console output to return. Defaults to 20.
+            | - wait: Wait for the build to complete or for the waitFor regex to be seen in the output, or for waitForTask to complete, for up to this many seconds.
+            | - waitFor: A regex to wait for in the output. If seen, the wait will short-circuit, and all matching lines will be returned.
+            | - waitForTask: A task path to wait for. If seen, the wait will short-circuit.
+            | - afterCall: If true, only look for waitFor or waitForTask matches emitted after this call. Only applies if wait and (waitFor or waitForTask) are also provided.
             |
-            |Use the other `lookup_*` tools for more detailed information about completed builds, such as test results or build failures.
+            | Use the other `lookup_*` tools for more detailed information about completed builds, such as test results or build failures.
         """.trimMargin()
     ) {
         val buildId = it.buildId ?: throw IllegalArgumentException("buildId is required")
+
         val running = BackgroundBuildManager.getBuild(buildId)
-        if (running != null) {
+        val startLines = if (it.afterCall && running != null) running.consoleOutput.count { it == '\n' } else 0
+        if (it.wait != null) {
+            val waitForRegex = it.waitFor?.toRegex()
+            val waitForTask = it.waitForTask
+
+
+
+            withTimeoutOrNull(it.wait.seconds) {
+                if (running != null) {
+                    coroutineScope {
+                        select {
+                            onTimeout(it.wait.seconds) {}
+                            if (waitForRegex != null) {
+                                if (!it.afterCall && waitForRegex.containsMatchIn(running.logBuffer)) {
+                                    launch { }.onJoin {}
+                                } else {
+                                    async {
+                                        running.logLines.firstOrNull { line ->
+                                            waitForRegex.containsMatchIn(line)
+                                        }
+                                    }.onAwait { }
+                                }
+                            }
+                            if (waitForTask != null) {
+                                if (!it.afterCall && running.completedTaskPaths.contains(waitForTask)) {
+                                    launch { }.onJoin {}
+                                } else {
+                                    async {
+                                        running.completedTasks.firstOrNull { taskPath ->
+                                            taskPath == waitForTask
+                                        }
+                                    }.onAwait { }
+                                }
+                            }
+                            running.result.onJoin { }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (running != null && running.status == BuildStatus.RUNNING) {
             return@tool buildString {
                 appendLine("BUILD IN PROGRESS")
                 appendLine("Build ID: ${running.id}")
@@ -94,6 +159,19 @@ class BackgroundBuildTools(
                 appendLine("Duration: ${Clock.System.now() - running.startTime}")
                 appendLine("Command line: ${running.args.renderCommandLine()}")
                 appendLine()
+
+                val waitForRegex = it.waitFor?.toRegex()
+                if (waitForRegex != null) {
+                    val matchingLines = running.logBuffer.lines().drop(startLines).filter { line -> line.isNotBlank() && waitForRegex.containsMatchIn(line) }
+                    if (matchingLines.isNotEmpty()) {
+                        appendLine("Matching lines for '${it.waitFor}':")
+                        matchingLines.forEach { appendLine("    $it") }
+                        appendLine()
+                    } else {
+                        appendLine("No matched lines - build completed or wait timed out")
+                    }
+                }
+
                 val log = running.logBuffer
                 var lineCount = 0
                 var lastIndex = log.length
@@ -116,7 +194,19 @@ class BackgroundBuildTools(
         val completed = BuildResults.getResult(buildId)
             ?: throw IllegalArgumentException("Unknown or expired build ID: $buildId")
 
-        return@tool "BUILD COMPLETED\n" + completed.toOutputString()
+        return@tool buildString {
+            appendLine("BUILD COMPLETED")
+            val waitForRegex = it.waitFor?.toRegex()
+            if (waitForRegex != null) {
+                val matchingLines = completed.consoleOutput.lines().filter { waitForRegex.containsMatchIn(it) }
+                if (matchingLines.isNotEmpty()) {
+                    appendLine("Matching lines for '${it.waitFor}':")
+                    matchingLines.forEach { appendLine(it) }
+                    appendLine()
+                }
+            }
+            append(completed.toOutputString())
+        }
     }
 
     val stopBackgroundBuild by tool<BuildIdArgs, String>(
