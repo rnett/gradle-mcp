@@ -1,26 +1,17 @@
 package dev.rnett.gradle.mcp.gradle
 
-import dev.rnett.gradle.mcp.mapToSet
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
-import org.gradle.tooling.GradleConnectionException
-import kotlin.time.Duration
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
+import kotlin.time.Instant
 
 @Serializable
 @JvmInline
 @Description("The ID of a Gradle failure, used to identify the failure when looking up more information.")
 value class FailureId(val id: String)
 
-@Serializable
-@Description("A reference to a Develocity Build Scan")
 data class GradleBuildScan(
-    @Description("The URL of the Build Scan. Can be used to view it.")
     val url: String,
-    @Description("The Build Scan's ID")
     val id: String,
-    @Description("The URL of the Develocity instance the Build Scan is located on")
     val develocityInstance: String
 ) {
     companion object {
@@ -31,201 +22,29 @@ data class GradleBuildScan(
     }
 }
 
-@Serializable
-@Description("The outcome of a task.")
 enum class TaskOutcome {
     SUCCESS, FAILED, SKIPPED, UP_TO_DATE, FROM_CACHE, NO_SOURCE
 }
 
-@Serializable
-@Description("The outcome of a test.")
 enum class TestOutcome {
     PASSED, FAILED, SKIPPED
 }
 
 data class BuildResult(
-    val id: BuildId,
-    val args: GradleInvocationArguments,
-    val consoleOutput: CharSequence,
-    val publishedScans: List<GradleBuildScan>,
-    val testResults: TestResults,
-    val buildFailures: List<Failure>?,
-    val problems: Map<ProblemSeverity, List<ProblemAggregation>>,
-    val taskResults: Map<String, TaskResult> = emptyMap(),
-    val taskOutputs: Map<String, String> = emptyMap(),
-    val taskOutputCapturingFailed: Boolean = false
-) {
-    data class TaskResult(
-        val path: String,
-        val outcome: TaskOutcome,
-        val duration: Duration,
-        val consoleOutput: String?
-    )
-    val consoleOutputLines by lazy { consoleOutput.lines() }
-    val isSuccessful: Boolean = buildFailures == null
-
-    val allTestFailures by lazy {
-        testResults.failed.asSequence().flatMap { it.failures.orEmpty().asSequence() }.flatMap { it.flatten() }.associateBy { it.id }
-    }
-    val allBuildFailures by lazy { buildFailures.orEmpty().asSequence().flatMap { it.flatten() }.associateBy { it.id }.minus(allTestFailures.keys) }
-    val allFailures by lazy { allTestFailures + allBuildFailures }
-    fun getTaskOutput(taskPath: String, guess: Boolean = false): String? {
-        val taskResult = taskResults[taskPath]
-        if (taskResult?.consoleOutput != null) return taskResult.consoleOutput.trim()
-
-        val taskOutput = taskOutputs[taskPath]
-        if (taskOutput != null) return taskOutput.trim()
-
-        if (!guess && !taskOutputCapturingFailed) {
-            val hasCapturedSomething = taskResults.isNotEmpty() || taskOutputs.isNotEmpty()
-            if (hasCapturedSomething) return null
-        }
-
-        val lines = consoleOutputLines
-        val taskHeader = "> Task $taskPath"
-        val startIndex = lines.indexOfFirst { it.startsWith(taskHeader) }
-        if (startIndex == -1) return null
-
-        val buildEnd = lines.drop(startIndex + 1).indexOfFirst {
-            it.startsWith("> Task") || it.startsWith("BUILD SUCCESSFUL") || it.startsWith("BUILD FAILED") || it.startsWith("BUILD CANCELLED")
-        }
-
-        return if (buildEnd == -1) {
-            lines.drop(startIndex + 1).joinToString("\n")
-        } else {
-            lines.subList(startIndex + 1, startIndex + 1 + buildEnd).joinToString("\n")
-        }.trim()
-    }
-
-    data class Failure(
-        val id: FailureId,
-        val message: String?,
-        val description: String?,
-        val causes: List<Failure>,
-        val problems: List<ProblemId>,
-    ) {
-        fun flatten(): Sequence<Failure> = sequence {
-            yield(this@Failure)
-            yieldAll(causes.asSequence().flatMap { it.flatten() })
-        }
-
-        fun writeFailureTree(sb: StringBuilder, prefix: String = "") {
-            sb.appendLine(prefix + "${id.id} - ${message ?: "No message"}")
-            description?.prependIndent("$prefix  ")?.let { sb.appendLine(it) }
-
-            if (problems.isNotEmpty()) {
-                sb.appendLine("$prefix  Problems:")
-                problems.forEach { sb.appendLine("$prefix    ${it.id}") }
-            }
-
-            if (causes.isNotEmpty()) {
-                sb.appendLine("$prefix  Causes:")
-                causes.forEach { it.writeFailureTree(sb, "$prefix    ") }
-            }
-        }
-    }
-
-    data class TestResults(
-        val passed: Set<TestResult>,
-        val skipped: Set<TestResult>,
-        val failed: Set<TestResult>,
-    ) {
-        val totalCount = passed.size + skipped.size + failed.size
-        val isEmpty = totalCount == 0
-        val all by lazy {
-            sequence {
-                yieldAll(passed)
-                yieldAll(skipped)
-                yieldAll(failed)
-            }
-        }
-    }
-
-    data class TestResult(
-        val testName: String,
-        val consoleOutput: String?,
-        val executionDuration: Duration,
-        val failures: List<Failure>?,
-        val status: TestOutcome
-    )
-
-    private data class FailureContent(
-        val message: String?,
-        val description: String?,
-        val causes: Set<FailureContent>,
-        val problems: List<ProblemId>,
-    )
-
-    private class FailureIndexer {
-        private val indexes = mutableMapOf<FailureContent, FailureId>()
-
-        @OptIn(ExperimentalUuidApi::class)
-        fun index(content: FailureContent): FailureId = indexes.getOrPut(content) { FailureId(Uuid.random().toString()) }
-
-        fun withIndex(content: FailureContent): Failure = Failure(index(content), content.message, content.description, content.causes.map { withIndex(it) }, content.problems)
-    }
-
-    companion object {
-
-        fun build(
-            args: GradleInvocationArguments,
-            buildId: BuildId,
-            console: CharSequence,
-            scans: List<GradleBuildScan>,
-            taskOutputs: Map<String, String>,
-            testResults: DefaultGradleProvider.TestCollector.Results,
-            problems: List<ProblemAggregation>,
-            exception: GradleConnectionException?,
-            taskOutputCapturingFailed: Boolean = false,
-            taskResults: Map<String, TaskResult> = emptyMap(),
-        ): BuildResult {
-
-            val indexer = FailureIndexer()
-
-            val modelTestResults = testResults.let {
-                BuildResult.TestResults(
-                    it.passed.mapToSet { it.toModel(indexer, TestOutcome.PASSED) },
-                    it.skipped.mapToSet { it.toModel(indexer, TestOutcome.SKIPPED) },
-                    it.failed.mapToSet { it.toModel(indexer, TestOutcome.FAILED) },
-                )
-            }
-
-            val buildFailures = exception?.failures?.mapToSet { indexer.withIndex(it.toContent()) }
-
-            return BuildResult(
-                id = buildId,
-                args = args,
-                consoleOutput = console,
-                publishedScans = scans,
-                testResults = modelTestResults,
-                buildFailures = buildFailures?.toList(),
-                problems = problems.asSequence().groupBy { it.definition.severity },
-                taskOutputs = taskOutputs,
-                taskOutputCapturingFailed = taskOutputCapturingFailed,
-                taskResults = taskResults
-            )
-        }
-
-
-        @OptIn(ExperimentalUuidApi::class)
-        private fun org.gradle.tooling.Failure.toContent(): BuildResult.FailureContent {
-            return BuildResult.FailureContent(
-                message,
-                description,
-                causes.mapToSet { it.toContent() },
-                problems.map { it.definition.id.toId() }
-            )
-        }
-
-
-        private fun DefaultGradleProvider.TestCollector.Result.toModel(indexer: FailureIndexer, status: TestOutcome): BuildResult.TestResult {
-            return BuildResult.TestResult(
-                testName,
-                output,
-                duration,
-                failures?.map { indexer.withIndex(it.toContent()) },
-                status
-            )
-        }
-    }
+    override val id: BuildId,
+    override val args: GradleInvocationArguments,
+    override val consoleOutput: CharSequence,
+    override val publishedScans: List<GradleBuildScan>,
+    override val testResults: Build.TestResults,
+    override val buildFailures: List<Build.Failure>?,
+    override val problemAggregations: Map<ProblemSeverity, List<ProblemAggregation>>,
+    override val taskResults: Map<String, Build.TaskResult> = emptyMap(),
+    override val taskOutputs: Map<String, String> = emptyMap(),
+    override val taskOutputCapturingFailed: Boolean = false
+) : Build {
+    override val consoleOutputLines by lazy { consoleOutput.lines() }
+    override val startTime: Instant get() = id.timestamp
+    override val problems: List<ProblemAggregation> get() = problemAggregations.values.flatten()
+    override val isRunning: Boolean get() = false
+    override val isSuccessful: Boolean get() = buildFailures == null
 }

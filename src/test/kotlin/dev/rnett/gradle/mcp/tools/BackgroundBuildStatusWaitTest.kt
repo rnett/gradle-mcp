@@ -57,6 +57,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
                 every { id } returns buildId
                 every { args } returns GradleInvocationArguments(additionalArguments = listOf("help"))
                 every { isSuccessful } returns true
+                every { isRunning } returns false
                 every { consoleOutput } returns "SUCCESS"
                 every { consoleOutputLines } returns listOf("SUCCESS")
                 every { buildFailures } returns null
@@ -67,7 +68,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
                     every { skipped } returns emptySet()
                     every { failed } returns emptySet()
                 }
-                every { problems } returns emptyMap()
+                every { problems } returns emptyList()
                 every { publishedScans } returns emptyList()
             }
             dev.rnett.gradle.mcp.gradle.BuildResults.storeResult(mockBuildResult)

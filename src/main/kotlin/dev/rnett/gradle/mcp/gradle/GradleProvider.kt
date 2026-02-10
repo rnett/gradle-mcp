@@ -16,19 +16,13 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.future.asDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.withTimeout
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 import org.apache.commons.io.output.WriterOutputStream
 import org.gradle.tooling.BuildCancelledException
 import org.gradle.tooling.BuildException
-import org.gradle.tooling.CancellationTokenSource
 import org.gradle.tooling.ConfigurableLauncher
 import org.gradle.tooling.Failure
 import org.gradle.tooling.GradleConnector
@@ -59,103 +53,14 @@ import org.slf4j.event.Level
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
-import java.util.Collections
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CompletableFuture
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.reflect.KClass
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
 import kotlin.time.toJavaDuration
-
-@Serializable
-enum class BuildStatus {
-    RUNNING, SUCCESSFUL, FAILED, CANCELLED
-}
-
-data class RunningBuild<T>(
-    val id: BuildId,
-    val args: GradleInvocationArguments,
-    val startTime: Instant,
-    val logBuffer: StringBuffer = StringBuffer(),
-    @Transient val cancellationTokenSource: CancellationTokenSource,
-    val result: CompletableDeferred<GradleResult<T>> = CompletableDeferred()
-) {
-    val problems = ProblemsAccumulator()
-    val testResults = DefaultGradleProvider.TestCollector(true, true)
-    val scans = ConcurrentLinkedQueue<GradleBuildScan>()
-    val taskResults = ConcurrentHashMap<String, BuildResult.TaskResult>()
-    val taskOutputs = ConcurrentHashMap<String, StringBuilder>()
-    var taskOutputCapturingFailed: Boolean = false
-
-    private val _logLines = MutableSharedFlow<String>(replay = 1)
-    val logLines: SharedFlow<String> = _logLines.asSharedFlow()
-
-    private val _completedTasks = MutableSharedFlow<String>(replay = 1)
-    val completedTasks: SharedFlow<String> = _completedTasks.asSharedFlow()
-
-    private val _taskPaths: MutableSet<String> = Collections.newSetFromMap(ConcurrentHashMap())
-    val completedTaskPaths: Set<String> get() = _taskPaths.toSet()
-
-    var status: BuildStatus = BuildStatus.RUNNING
-        private set
-    var endTime: Instant? = null
-        private set
-
-    val consoleOutput: CharSequence get() = logBuffer
-
-    suspend fun awaitFinished(): GradleResult<T> = result.await()
-
-    fun stop() {
-        cancellationTokenSource.cancel()
-    }
-
-    internal fun updateStatus(gradleResult: GradleResult<T>? = null, exception: Throwable? = null) {
-        if (gradleResult != null) {
-            val finalStatus = when {
-                gradleResult.value.exceptionOrNull() is BuildCancelledException -> BuildStatus.CANCELLED
-                gradleResult.buildResult.isSuccessful -> BuildStatus.SUCCESSFUL
-                else -> BuildStatus.FAILED
-            }
-            this.status = finalStatus
-            this.result.complete(gradleResult)
-        } else if (exception != null) {
-            val finalStatus = if (exception is BuildCancelledException) BuildStatus.CANCELLED else BuildStatus.FAILED
-            this.status = finalStatus
-            this.result.completeExceptionally(exception)
-        }
-
-        if (this.status != BuildStatus.RUNNING) {
-            this.endTime = kotlin.time.Clock.System.now()
-            BackgroundBuildManager.removeBuild(id)
-        }
-    }
-
-    internal fun addLogLine(line: String) {
-        logBuffer.appendLine(line)
-        _logLines.tryEmit(line)
-    }
-
-    internal fun addTaskResult(taskPath: String, outcome: TaskOutcome, duration: Duration, consoleOutput: String?) {
-        taskResults[taskPath] = BuildResult.TaskResult(taskPath, outcome, duration, consoleOutput)
-        _taskPaths.add(taskPath)
-        _completedTasks.tryEmit(taskPath)
-    }
-
-    internal fun addTaskCompleted(taskPath: String) {
-        if (!taskResults.containsKey(taskPath)) {
-            _taskPaths.add(taskPath)
-            _completedTasks.tryEmit(taskPath)
-        }
-    }
-
-    internal fun addTaskOutput(taskPath: String, output: String) {
-        taskOutputs.getOrPut(taskPath) { StringBuilder() }.appendLine(output)
-    }
-}
 
 interface GradleProvider : AutoCloseable {
 
@@ -206,17 +111,17 @@ class DefaultGradleProvider(
 
     override fun close() {
         BackgroundBuildManager.listBuilds().forEach { it.stop() }
+        connectionCache.synchronous().asMap().values.forEach { it.close() }
         scope.cancel()
     }
 
     private val connectionCache = Caffeine.newBuilder()
         .expireAfterAccess(config.ttl.toJavaDuration())
         .maximumSize(config.maxConnections.toLong())
-        .evictionListener<Path, ProjectConnection> { k, v, _ ->
-            v?.close()
-        }
-        .buildAsync<Path, ProjectConnection> {
-            GradleConnector.newConnector().forProjectDirectory(it.toFile()).connect()
+        .buildAsync<Path, ProjectConnection> { path, executor ->
+            CompletableFuture.supplyAsync({
+                GradleConnector.newConnector().forProjectDirectory(path.toFile()).connect()
+            }, executor)
         }
 
     suspend fun getConnection(projectRoot: Path): ProjectConnection {
@@ -310,20 +215,22 @@ class DefaultGradleProvider(
         launcherProvider: suspend (ProjectConnection) -> I,
         invoker: (I) -> R,
         requiresGradleProject: Boolean = true,
-        projectRoot: GradleProjectRoot,
+        projectRootInput: GradleProjectRoot,
     ): RunningBuild<R> {
+        val projectRoot = GradlePathUtils.getRootProjectPath(projectRootInput, requiresGradleProject)
         val buildId = BuildId.newId()
         val cancellationTokenSource = GradleConnector.newCancellationTokenSource()
         val runningBuild = RunningBuild<R>(
             id = buildId,
             args = args,
             startTime = buildId.timestamp,
+            projectRoot = projectRoot,
             cancellationTokenSource = cancellationTokenSource
         ).also { BackgroundBuildManager.registerBuild(it) }
 
         scope.launch {
             try {
-                val connection = validateAndGetConnection(projectRoot, requiresGradleProject)
+                val connection = getConnection(projectRoot)
                 val launcher = launcherProvider(connection)
                 launcher.invokeBuild(
                     connection,
@@ -364,7 +271,7 @@ class DefaultGradleProvider(
             launcherProvider = { it.model(kClass.java) },
             invoker = { it.get() },
             requiresGradleProject = requiresGradleProject,
-            projectRoot = projectRoot
+            projectRootInput = projectRoot
         )
     }
 
@@ -384,7 +291,7 @@ class DefaultGradleProvider(
             tosAccepter = tosAccepter,
             launcherProvider = { it.newBuild() },
             invoker = { it.run() },
-            projectRoot = projectRoot
+            projectRootInput = projectRoot
         )
     }
 
@@ -414,7 +321,7 @@ class DefaultGradleProvider(
                 }
             },
             invoker = { it.run() },
-            projectRoot = projectRoot
+            projectRootInput = projectRoot
         )
     }
 
@@ -433,6 +340,7 @@ class DefaultGradleProvider(
             LOGGER.makeLoggingEventBuilder(Level.WARN)
                 .addKeyValue("buildId", buildId)
                 .log("Error during job launched during build", it)
+            cleanupConnectionIfOld(connection, runningBuild.projectRoot)
         }) { scope ->
             val env = args.actualEnvVars(envProvider)
             LOGGER.info("Setting environment variables for build: ${env.keys}")
@@ -456,14 +364,14 @@ class DefaultGradleProvider(
                 addProgressListener(it.key, it.value)
             }
 
-            addProgressListener(runningBuild.testResults, runningBuild.testResults.operations)
+            addProgressListener(runningBuild.testResultsInternal, runningBuild.testResultsInternal.operations)
 
             addProgressListener(object : ProgressListener {
                 override fun statusChanged(event: ProgressEvent) {
                     if (event is ProblemAggregationEvent)
-                        runningBuild.problems.add(event.problemAggregation)
+                        runningBuild.problemsAccumulator.add(event.problemAggregation)
                     if (event is SingleProblemEvent)
-                        runningBuild.problems.add(event.problem)
+                        runningBuild.problemsAccumulator.add(event.problem)
                 }
             }, OperationType.PROBLEMS)
 
@@ -490,7 +398,9 @@ class DefaultGradleProvider(
 
                             else -> TaskOutcome.SUCCESS
                         }
-                        val duration = (event.eventTime - event.result.startTime).milliseconds
+                        val startTime = result.startTime
+                        val endTime = event.eventTime
+                        val duration = if (startTime > 0) (endTime - startTime).milliseconds else 0.seconds
                         runningBuild.addTaskResult(taskPath, outcome, duration, runningBuild.taskOutputs[taskPath]?.toString())
                     } else {
                         runningBuild.addTaskCompleted(event.descriptor.displayName)
@@ -502,13 +412,18 @@ class DefaultGradleProvider(
 
             val tosHolder = CompletableDeferred<Deferred<Boolean>>()
             val inputStream = DeferredInputStream(GradleScanTosAcceptRequest.TIMEOUT + 30.seconds, scope.async(start = CoroutineStart.LAZY) {
-                val query = withTimeout(3.seconds) {
-                    tosHolder.await()
-                }
+                try {
+                    val query = withTimeout(3.seconds) {
+                        tosHolder.await()
+                    }
 
-                ByteArrayInputStream(
-                    (if (query.await()) "yes\n" else "no\n").encodeToByteArray()
-                )
+                    ByteArrayInputStream(
+                        (if (query.await()) "yes\n" else "no\n").encodeToByteArray()
+                    )
+                } catch (e: Exception) {
+                    LOGGER.debug("Error or timeout waiting for ToS holder", e)
+                    ByteArrayInputStream(byteArrayOf())
+                }
             })
 
             setStandardOutput(
@@ -553,7 +468,7 @@ class DefaultGradleProvider(
                         }
 
                         override fun onScanPublication(url: String) {
-                            runningBuild.scans += GradleBuildScan.fromUrl(url)
+                            runningBuild.publishedScans += GradleBuildScan.fromUrl(url)
                         }
 
                     }
@@ -602,30 +517,27 @@ class DefaultGradleProvider(
                 }
             }
 
-            @Suppress("UNCHECKED_CAST")
-            val finalTaskResults = runningBuild.taskResults.mapValues { (path, result) ->
-                if (result.consoleOutput == null) {
-                    result.copy(consoleOutput = runningBuild.taskOutputs[path]?.toString())
-                } else {
-                    result
-                }
-            }
-
-            val result = GradleResult.build(
-                args,
-                buildId,
-                runningBuild.consoleOutput,
-                runningBuild.scans.toList(),
-                runningBuild.taskOutputs.mapValues { it.value.toString() },
-                runningBuild.problems.aggregate(),
-                runningBuild.testResults.results(),
-                exception,
-                outcome as Result<R>,
-                runningBuild.taskOutputCapturingFailed,
-                finalTaskResults
+            val result = GradleResult(
+                runningBuild.toResult(exception),
+                outcome as Result<R>
             )
-            BuildResults.storeResult(result.buildResult)
             runningBuild.updateStatus(result)
+            BuildResults.storeResult(result.buildResult as BuildResult)
+
+            cleanupConnectionIfOld(connection, runningBuild.projectRoot)
+        }
+    }
+
+    private fun cleanupConnectionIfOld(connection: ProjectConnection, projectRoot: Path) {
+        val currentConnection = connectionCache.getIfPresent(projectRoot)?.asDeferred()
+        if (currentConnection?.isCompleted != true) return
+
+        if (currentConnection != connection) {
+            try {
+                connection.close()
+            } catch (e: Exception) {
+                LOGGER.error("Error closing Gradle connection", e)
+            }
         }
     }
 }

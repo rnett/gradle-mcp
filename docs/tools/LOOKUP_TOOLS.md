@@ -38,7 +38,7 @@ Gets the latest builds (both background and completed) ran by this MCP server.
 
 ## lookup_build_tests
 
-For a given build, provides either a summary of test executions or detailed information for a specific test. If `details` is provided, detailed execution info (duration, failure details, and console output) for that test is returned. If `summary` is provided (or neither), returns a list of tests matching the provided filters. Only one of `summary` or `details` may be specified.
+For a given build, provides either a summary of test executions or detailed information for a specific test. If `details` is provided, detailed execution info (duration, failure details, and console output) for that test is returned. If `summary` is provided (or neither), returns a list of tests matching the provided filters. Only one of `summary` or `details` may be specified. Works for in-progress builds.
 
 <details>
 
@@ -126,7 +126,7 @@ For a given build, provides either a summary of test executions or detailed info
 
 ## lookup_build_tasks
 
-For a given build, provides either a summary of task executions or detailed information for a specific task. If `details` is provided, detailed execution info (duration, outcome, and console output) for that task is returned. If `summary` is provided (or neither), returns a list of tasks matching the provided filters. Only one of `summary` or `details` may be specified.
+For a given build, provides either a summary of task executions or detailed information for a specific task. If `details` is provided, detailed execution info (duration, outcome, and console output) for that task is returned. If `summary` is provided (or neither), returns a list of tasks matching the provided filters. Only one of `summary` or `details` may be specified. Works for in-progress builds.
 
 <details>
 
@@ -211,7 +211,7 @@ For a given build, provides either a summary of task executions or detailed info
 
 ## lookup_build
 
-Takes a build ID; returns a summary of that build.
+Takes a build ID; returns a summary of that build. Works for in-progress builds.
 
 <details>
 
@@ -240,7 +240,7 @@ Takes a build ID; returns a summary of that build.
 
 ## lookup_build_failures
 
-Provides a summary of build failures (not including test failures) or details for a specific failure. If `details` is provided, detailed information (including causes and stack traces) for that failure is returned. If `summary` is provided (or neither), lists all build failures. Only one of `summary` or `details` may be specified.
+Provides a summary of build failures (including test failures) or details for a specific failure. If `details` is provided, detailed information (including causes and stack traces) for that failure is returned. If `summary` is provided (or neither), lists all build failures. Only one of `summary` or `details` may be specified. Works for in-progress builds, but may only show test failures.
 
 <details>
 
@@ -294,7 +294,7 @@ Provides a summary of build failures (not including test failures) or details fo
 
 ## lookup_build_problems
 
-Provides a summary of all problems reported during a build (errors, warnings, etc.) or details for a specific problem. If `details` is provided, detailed information (locations, details, and potential solutions) for that problem is returned. If `summary` is provided (or neither), returns a summary of all problems. Only one of `summary` or `details` may be specified.
+Provides a summary of all problems reported during a build (errors, warnings, etc.) or details for a specific problem. If `details` is provided, detailed information (locations, details, and potential solutions) for that problem is returned. If `summary` is provided (or neither), returns a summary of all problems. Only one of `summary` or `details` may be specified. Works for in-progress builds.
 
 <details>
 
@@ -348,7 +348,7 @@ Provides a summary of all problems reported during a build (errors, warnings, et
 
 ## lookup_build_console_output
 
-Gets up to `limitLines` (default 100, null means no limit) of the console output for a given build, starting at a given offset `offsetLines` (default 0). Can read from the tail instead of the head. Repeatedly call this tool using the `nextOffset` in the response to get all console output.
+Gets up to `limitLines` (default 100, null means no limit) of the console output for a given build, starting at a given offset `offsetLines` (default 0). Can read from the tail instead of the head. Repeatedly call this tool using the `nextOffset` in the response to get all console output. Works for in-progress builds.
 
 <details>
 

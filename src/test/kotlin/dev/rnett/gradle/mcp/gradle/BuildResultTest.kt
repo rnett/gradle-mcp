@@ -52,7 +52,7 @@ class BuildResultTest {
 
     @Test
     fun `can create successful build result`() {
-        val testResults = BuildResult.TestResults(
+        val testResults = Build.TestResults(
             passed = emptySet(),
             skipped = emptySet(),
             failed = emptySet()
@@ -65,28 +65,28 @@ class BuildResultTest {
             publishedScans = emptyList(),
             testResults = testResults,
             buildFailures = null,
-            problems = emptyMap()
+            problemAggregations = emptyMap()
         )
 
-        assertTrue(result.isSuccessful)
+        assertTrue(result.isSuccessful == true)
         assertEquals("BUILD SUCCESSFUL", result.consoleOutput)
         assertNotNull(result.id)
     }
 
     @Test
     fun `can create failed build result`() {
-        val testResults = BuildResult.TestResults(
+        val testResults = Build.TestResults(
             passed = emptySet(),
             skipped = emptySet(),
             failed = emptySet()
         )
 
-        val failure = BuildResult.Failure(
+        val failure = Build.Failure(
             id = FailureId("failure-1"),
             message = "Build failed",
             description = "Task execution failed",
             causes = emptyList(),
-            problems = emptyList()
+            problemAggregations = emptyMap()
         )
 
         val result = BuildResult(
@@ -96,7 +96,7 @@ class BuildResultTest {
             publishedScans = emptyList(),
             testResults = testResults,
             buildFailures = listOf(failure),
-            problems = emptyMap()
+            problemAggregations = emptyMap()
         )
 
         assertFalse(result.isSuccessful)
@@ -106,17 +106,17 @@ class BuildResultTest {
     @Test
     fun `test results tracks counts correctly`() {
         val passed = setOf(
-            BuildResult.TestResult("test1", null, 100.milliseconds, null, TestOutcome.PASSED),
-            BuildResult.TestResult("test2", null, 200.milliseconds, null, TestOutcome.PASSED)
+            Build.TestResult("test1", null, 100.milliseconds, null, TestOutcome.PASSED),
+            Build.TestResult("test2", null, 200.milliseconds, null, TestOutcome.PASSED)
         )
         val skipped = setOf(
-            BuildResult.TestResult("test3", null, 0.milliseconds, null, TestOutcome.SKIPPED)
+            Build.TestResult("test3", null, 0.milliseconds, null, TestOutcome.SKIPPED)
         )
         val failed = setOf(
-            BuildResult.TestResult("test4", "output", 150.milliseconds, emptyList(), TestOutcome.FAILED)
+            Build.TestResult("test4", "output", 150.milliseconds, emptyList(), TestOutcome.FAILED)
         )
 
-        val testResults = BuildResult.TestResults(
+        val testResults = Build.TestResults(
             passed = passed,
             skipped = skipped,
             failed = failed
@@ -131,7 +131,7 @@ class BuildResultTest {
 
     @Test
     fun `test results isEmpty is true when no tests`() {
-        val testResults = BuildResult.TestResults(
+        val testResults = Build.TestResults(
             passed = emptySet(),
             skipped = emptySet(),
             failed = emptySet()
@@ -144,16 +144,16 @@ class BuildResultTest {
     @Test
     fun `test results all sequence contains all tests`() {
         val passed = setOf(
-            BuildResult.TestResult("test1", null, 100.milliseconds, null, TestOutcome.PASSED)
+            Build.TestResult("test1", null, 100.milliseconds, null, TestOutcome.PASSED)
         )
         val skipped = setOf(
-            BuildResult.TestResult("test2", null, 0.milliseconds, null, TestOutcome.SKIPPED)
+            Build.TestResult("test2", null, 0.milliseconds, null, TestOutcome.SKIPPED)
         )
         val failed = setOf(
-            BuildResult.TestResult("test3", "output", 150.milliseconds, emptyList(), TestOutcome.FAILED)
+            Build.TestResult("test3", "output", 150.milliseconds, emptyList(), TestOutcome.FAILED)
         )
 
-        val testResults = BuildResult.TestResults(
+        val testResults = Build.TestResults(
             passed = passed,
             skipped = skipped,
             failed = failed
@@ -168,28 +168,28 @@ class BuildResultTest {
 
     @Test
     fun `failure can flatten nested causes`() {
-        val innerFailure = BuildResult.Failure(
+        val innerFailure = Build.Failure(
             id = FailureId("inner"),
             message = "Inner failure",
             description = null,
             causes = emptyList(),
-            problems = emptyList()
+            problemAggregations = emptyMap()
         )
 
-        val middleFailure = BuildResult.Failure(
+        val middleFailure = Build.Failure(
             id = FailureId("middle"),
             message = "Middle failure",
             description = null,
             causes = listOf(innerFailure),
-            problems = emptyList()
+            problemAggregations = emptyMap()
         )
 
-        val outerFailure = BuildResult.Failure(
+        val outerFailure = Build.Failure(
             id = FailureId("outer"),
             message = "Outer failure",
             description = null,
             causes = listOf(middleFailure),
-            problems = emptyList()
+            problemAggregations = emptyMap()
         )
 
         val flattened = outerFailure.flatten().toList()
@@ -206,9 +206,9 @@ class BuildResultTest {
             args = args,
             consoleOutput = "Line 1\nLine 2\nLine 3",
             publishedScans = emptyList(),
-            testResults = BuildResult.TestResults(emptySet(), emptySet(), emptySet()),
+            testResults = Build.TestResults(emptySet(), emptySet(), emptySet()),
             buildFailures = null,
-            problems = emptyMap()
+            problemAggregations = emptyMap()
         )
 
         val lines = result.consoleOutputLines
@@ -220,15 +220,15 @@ class BuildResultTest {
 
     @Test
     fun `allTestFailures extracts failures from test results`() {
-        val testFailure = BuildResult.Failure(
+        val testFailure = Build.Failure(
             id = FailureId("test-failure"),
             message = "Test failed",
             description = null,
             causes = emptyList(),
-            problems = emptyList()
+            problemAggregations = emptyMap()
         )
 
-        val testResult = BuildResult.TestResult(
+        val testResult = Build.TestResult(
             testName = "failingTest",
             consoleOutput = null,
             executionDuration = 100.milliseconds,
@@ -241,13 +241,13 @@ class BuildResultTest {
             args = args,
             consoleOutput = "",
             publishedScans = emptyList(),
-            testResults = BuildResult.TestResults(
+            testResults = Build.TestResults(
                 passed = emptySet(),
                 skipped = emptySet(),
                 failed = setOf(testResult)
             ),
             buildFailures = null,
-            problems = emptyMap()
+            problemAggregations = emptyMap()
         )
 
         assertEquals(1, result.allTestFailures.size)
@@ -256,23 +256,23 @@ class BuildResultTest {
 
     @Test
     fun `allBuildFailures excludes test failures`() {
-        val testFailure = BuildResult.Failure(
+        val testFailure = Build.Failure(
             id = FailureId("test-failure"),
             message = "Test failed",
             description = null,
             causes = emptyList(),
-            problems = emptyList()
+            problemAggregations = emptyMap()
         )
 
-        val buildFailure = BuildResult.Failure(
+        val buildFailure = Build.Failure(
             id = FailureId("build-failure"),
             message = "Build failed",
             description = null,
             causes = emptyList(),
-            problems = emptyList()
+            problemAggregations = emptyMap()
         )
 
-        val testResult = BuildResult.TestResult(
+        val testResult = Build.TestResult(
             testName = "failingTest",
             consoleOutput = null,
             executionDuration = 100.milliseconds,
@@ -285,13 +285,13 @@ class BuildResultTest {
             args = args,
             consoleOutput = "",
             publishedScans = emptyList(),
-            testResults = BuildResult.TestResults(
+            testResults = Build.TestResults(
                 passed = emptySet(),
                 skipped = emptySet(),
                 failed = setOf(testResult)
             ),
             buildFailures = listOf(buildFailure),
-            problems = emptyMap()
+            problemAggregations = emptyMap()
         )
 
         assertEquals(1, result.allBuildFailures.size)
@@ -301,23 +301,23 @@ class BuildResultTest {
 
     @Test
     fun `allFailures combines test and build failures`() {
-        val testFailure = BuildResult.Failure(
+        val testFailure = Build.Failure(
             id = FailureId("test-failure"),
             message = "Test failed",
             description = null,
             causes = emptyList(),
-            problems = emptyList()
+            problemAggregations = emptyMap()
         )
 
-        val buildFailure = BuildResult.Failure(
+        val buildFailure = Build.Failure(
             id = FailureId("build-failure"),
             message = "Build failed",
             description = null,
             causes = emptyList(),
-            problems = emptyList()
+            problemAggregations = emptyMap()
         )
 
-        val testResult = BuildResult.TestResult(
+        val testResult = Build.TestResult(
             testName = "failingTest",
             consoleOutput = null,
             executionDuration = 100.milliseconds,
@@ -330,13 +330,13 @@ class BuildResultTest {
             args = args,
             consoleOutput = "",
             publishedScans = emptyList(),
-            testResults = BuildResult.TestResults(
+            testResults = Build.TestResults(
                 passed = emptySet(),
                 skipped = emptySet(),
                 failed = setOf(testResult)
             ),
             buildFailures = listOf(buildFailure),
-            problems = emptyMap()
+            problemAggregations = emptyMap()
         )
 
         assertEquals(2, result.allFailures.size)
@@ -346,7 +346,7 @@ class BuildResultTest {
 
     @Test
     fun `problems toSummary correctly aggregates and calculates totalCount`() {
-        val problems = mapOf(
+        val problemAggregations = mapOf(
             ProblemSeverity.ERROR to listOf(
                 ProblemAggregation(
                     ProblemAggregation.ProblemDefinition(ProblemId("e1"), "Error 1", ProblemSeverity.ERROR, null),
@@ -366,7 +366,7 @@ class BuildResultTest {
             )
         )
 
-        val summary = problems.toSummary()
+        val summary = problemAggregations.values.flatten().toSummary()
         assertEquals(2, summary.errorCounts[ProblemId("e1")]?.occurences)
         assertEquals(1, summary.warningCounts[ProblemId("w1")]?.occurences)
         assertEquals(3, summary.totalCount)
@@ -397,9 +397,9 @@ class BuildResultTest {
             args = args,
             consoleOutput = consoleOutput,
             publishedScans = emptyList(),
-            testResults = BuildResult.TestResults(emptySet(), emptySet(), emptySet()),
+            testResults = Build.TestResults(emptySet(), emptySet(), emptySet()),
             buildFailures = null,
-            problems = emptyMap()
+            problemAggregations = emptyMap()
         )
 
         val taskOutput = result.getTaskOutput(":help")
@@ -436,9 +436,9 @@ class BuildResultTest {
             args = args,
             consoleOutput = consoleOutput,
             publishedScans = emptyList(),
-            testResults = BuildResult.TestResults(emptySet(), emptySet(), emptySet()),
+            testResults = Build.TestResults(emptySet(), emptySet(), emptySet()),
             buildFailures = null,
-            problems = emptyMap()
+            problemAggregations = emptyMap()
         )
 
         assertEquals("Output 1", result.getTaskOutput(":task1")?.trim())
@@ -452,9 +452,9 @@ class BuildResultTest {
             args = args,
             consoleOutput = "BUILD SUCCESSFUL",
             publishedScans = emptyList(),
-            testResults = BuildResult.TestResults(emptySet(), emptySet(), emptySet()),
+            testResults = Build.TestResults(emptySet(), emptySet(), emptySet()),
             buildFailures = null,
-            problems = emptyMap()
+            problemAggregations = emptyMap()
         )
         assertEquals(null, result.getTaskOutput(":nonexistent"))
     }
@@ -470,9 +470,9 @@ class GradleResultTest {
             args = args,
             consoleOutput = "BUILD SUCCESSFUL",
             publishedScans = emptyList(),
-            testResults = BuildResult.TestResults(emptySet(), emptySet(), emptySet()),
+            testResults = Build.TestResults(emptySet(), emptySet(), emptySet()),
             buildFailures = null,
-            problems = emptyMap()
+            problemAggregations = emptyMap()
         )
 
         val result = GradleResult<String>(
@@ -482,7 +482,7 @@ class GradleResultTest {
 
         assertTrue(result.value.isSuccess)
         assertEquals("test-value", result.value.getOrNull())
-        assertTrue(result.buildResult.isSuccessful)
+        assertTrue(result.buildResult.isSuccessful == true)
     }
 
     @Test
@@ -492,9 +492,9 @@ class GradleResultTest {
             args = args,
             consoleOutput = "BUILD FAILED",
             publishedScans = emptyList(),
-            testResults = BuildResult.TestResults(emptySet(), emptySet(), emptySet()),
+            testResults = Build.TestResults(emptySet(), emptySet(), emptySet()),
             buildFailures = emptyList(),
-            problems = emptyMap()
+            problemAggregations = emptyMap()
         )
 
         val exception = RuntimeException("Build failed")
@@ -514,9 +514,9 @@ class GradleResultTest {
             args = args,
             consoleOutput = "",
             publishedScans = emptyList(),
-            testResults = BuildResult.TestResults(emptySet(), emptySet(), emptySet()),
+            testResults = Build.TestResults(emptySet(), emptySet(), emptySet()),
             buildFailures = null,
-            problems = emptyMap()
+            problemAggregations = emptyMap()
         )
 
         val result = GradleResult<String>(

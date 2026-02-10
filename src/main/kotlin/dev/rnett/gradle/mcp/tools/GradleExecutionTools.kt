@@ -39,7 +39,7 @@ class GradleExecutionTools(
             GradleInvocationArguments(additionalArguments = it.commandLine, publishScan = it.scan) + it.invocationArguments
         )
 
-        if (!result.buildResult.isSuccessful) {
+        if (result.buildResult.isSuccessful == false) {
             isError = true
         }
 
@@ -97,7 +97,7 @@ class GradleExecutionTools(
             GradleInvocationArguments(additionalArguments = additionalArgs) + it.invocationArguments
         )
 
-        if (!result.buildResult.isSuccessful) {
+        if (result.buildResult.isSuccessful == false) {
             isError = true
             result.buildResult.toOutputString()
         } else {
@@ -155,7 +155,7 @@ class GradleExecutionTools(
             GradleInvocationArguments(publishScan = it.scan) + it.invocationArguments
         )
 
-        if (!result.buildResult.isSuccessful) {
+        if (result.buildResult.isSuccessful == false) {
             isError = true
         }
 
@@ -197,7 +197,7 @@ class GradleExecutionTools(
             GradleInvocationArguments(publishScan = it.scan) + it.invocationArguments,
         )
 
-        if (!result.buildResult.isSuccessful) {
+        if (result.buildResult.isSuccessful == false) {
             isError = true
         }
 

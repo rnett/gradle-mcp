@@ -20,7 +20,10 @@ class GradleProviderTest {
         val provider = createTestProvider()
         testJavaProject().use { project ->
             val projectRoot = GradleProjectRoot(project.pathString())
-            val args = GradleInvocationArguments(additionalArguments = listOf("help"))
+            val args = GradleInvocationArguments(
+                additionalArguments = listOf("help"),
+                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
+            )
 
             // Start a build
             val runningBuild = provider.runBuild(
@@ -42,12 +45,14 @@ class GradleProviderTest {
     }
 
     private fun createTestProvider(): DefaultGradleProvider {
+        val tempDir = java.nio.file.Files.createTempDirectory("gradle-mcp-test-init-")
         return DefaultGradleProvider(
             GradleConfiguration(
                 maxConnections = 5,
                 ttl = 60.seconds,
                 allowPublicScansPublishing = false
-            )
+            ),
+            initScriptProvider = InitScriptProvider(tempDir)
         )
     }
 
@@ -98,7 +103,8 @@ class GradleProviderTest {
             val provider = createTestProvider()
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
-                additionalArguments = listOf("help")
+                additionalArguments = listOf("help"),
+                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
             )
 
             val runningBuild = provider.runBuild(
@@ -109,7 +115,7 @@ class GradleProviderTest {
             val result = runningBuild.awaitFinished()
 
             assertTrue(runningBuild.status == BuildStatus.SUCCESSFUL)
-            assertTrue(result.buildResult.isSuccessful)
+            assertTrue(result.buildResult.isSuccessful == true)
             assertTrue(result.buildResult.consoleOutput.isNotEmpty())
         }
     }
@@ -120,7 +126,8 @@ class GradleProviderTest {
             val provider = createTestProvider()
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
-                additionalArguments = listOf("help", "-Pgradle-mcp.init-scripts.hello")
+                additionalArguments = listOf("help", "-Pgradle-mcp.init-scripts.hello"),
+                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
             )
 
             val runningBuild = provider.runBuild(
@@ -130,7 +137,7 @@ class GradleProviderTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assertTrue(result.buildResult.isSuccessful)
+            assertTrue(result.buildResult.isSuccessful == true)
             assertContains(result.buildResult.consoleOutput, "Gradle MCP init script task-out.init.gradle.kts loaded")
         }
     }
@@ -141,7 +148,8 @@ class GradleProviderTest {
             val provider = createTestProvider()
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
-                additionalArguments = listOf("compileJava")
+                additionalArguments = listOf("compileJava"),
+                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
             )
 
             val runningBuild = provider.runBuild(
@@ -152,7 +160,7 @@ class GradleProviderTest {
             val result = runningBuild.awaitFinished()
 
             assertTrue(runningBuild.status == BuildStatus.SUCCESSFUL)
-            assertTrue(result.buildResult.isSuccessful)
+            assertTrue(result.buildResult.isSuccessful == true)
             assertTrue(result.buildResult.consoleOutput.contains("BUILD SUCCESSFUL"))
         }
     }
@@ -180,7 +188,7 @@ class GradleProviderTest {
 
                 val buildResult = runningBuild.awaitFinished()
 
-                assertTrue(buildResult.buildResult.isSuccessful)
+                assertTrue(buildResult.buildResult.isSuccessful == true)
                 assertTrue(runningBuild.status == BuildStatus.SUCCESSFUL)
                 assertTrue(runningBuild.logBuffer.isNotEmpty())
 
@@ -207,7 +215,7 @@ class GradleProviderTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assertTrue(result.buildResult.isSuccessful)
+            assertTrue(result.buildResult.isSuccessful == true)
             assertTrue(result.buildResult.testResults.passed.isNotEmpty())
             assertTrue(result.buildResult.testResults.failed.isEmpty())
         }
@@ -230,7 +238,7 @@ class GradleProviderTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assertTrue(result.buildResult.isSuccessful)
+            assertTrue(result.buildResult.isSuccessful == true)
             assertTrue(result.buildResult.testResults.totalCount > 0)
         }
     }
@@ -252,7 +260,7 @@ class GradleProviderTest {
 
             val result = runningBuild.awaitFinished()
             assertTrue(result.buildResult.isSuccessful == false)
-            assertTrue(result.buildResult.buildFailures!!.isNotEmpty())
+            assertTrue((result.buildResult as BuildResult).buildFailures!!.isNotEmpty())
             assertTrue(runningBuild.status == BuildStatus.FAILED)
         }
     }
@@ -263,7 +271,8 @@ class GradleProviderTest {
             val provider = createTestProvider()
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
-                additionalArguments = listOf("help")
+                additionalArguments = listOf("help"),
+                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
             )
 
             val runningBuild = provider.runBuild(
@@ -273,7 +282,7 @@ class GradleProviderTest {
             )
             val buildResult = runningBuild.awaitFinished()
 
-            assertTrue(buildResult.buildResult.isSuccessful)
+            assertTrue(buildResult.buildResult.isSuccessful == true)
         }
     }
 
@@ -293,7 +302,7 @@ class GradleProviderTest {
             )
             val buildResult = runningBuild.awaitFinished()
 
-            assertTrue(buildResult.buildResult.isSuccessful)
+            assertTrue(buildResult.buildResult.isSuccessful == true)
             assertTrue(buildResult.buildResult.consoleOutput.contains("subproject-a"))
             assertTrue(buildResult.buildResult.consoleOutput.contains("subproject-b"))
         }
@@ -332,8 +341,8 @@ class GradleProviderTest {
                     val result1 = runningBuild1.awaitFinished()
                     val result2 = runningBuild2.awaitFinished()
 
-                    assertTrue(result1.buildResult.isSuccessful)
-                    assertTrue(result2.buildResult.isSuccessful)
+                    assertTrue(result1.buildResult.isSuccessful == true)
+                    assertTrue(result2.buildResult.isSuccessful == true)
                     assertTrue(runningBuild1.status == BuildStatus.SUCCESSFUL)
                     assertTrue(runningBuild2.status == BuildStatus.SUCCESSFUL)
 
@@ -374,7 +383,8 @@ class GradleProviderTest {
             val provider = createTestProvider()
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
-                additionalArguments = listOf("help")
+                additionalArguments = listOf("help"),
+                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
             )
 
             val capturedLines = mutableListOf<String>()
@@ -407,7 +417,7 @@ class GradleProviderTest {
             )
             val buildResult = runningBuild.awaitFinished()
 
-            assertTrue(buildResult.buildResult.isSuccessful)
+            assertTrue(buildResult.buildResult.isSuccessful == true)
         }
     }
 
@@ -428,7 +438,7 @@ class GradleProviderTest {
             )
             val buildResult = runningBuild.awaitFinished()
 
-            assertTrue(buildResult.buildResult.isSuccessful)
+            assertTrue(buildResult.buildResult.isSuccessful == true)
         }
     }
 
@@ -449,7 +459,7 @@ class GradleProviderTest {
             )
             val buildResult = runningBuild.awaitFinished()
 
-            assertTrue(buildResult.buildResult.isSuccessful)
+            assertTrue(buildResult.buildResult.isSuccessful == true)
         }
     }
 
@@ -459,7 +469,8 @@ class GradleProviderTest {
             val provider = createTestProvider()
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
-                additionalArguments = listOf("help")
+                additionalArguments = listOf("help"),
+                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
             )
 
             val runningBuild = provider.runBuild(
@@ -501,7 +512,8 @@ class GradleProviderTest {
             val runningBuild = provider.runBuild(
                 projectRoot = projectRoot,
                 args = GradleInvocationArguments(
-                    additionalArguments = listOf("help")
+                    additionalArguments = listOf("help"),
+                    additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
                 ),
                 tosAccepter = { false }
             )
@@ -513,7 +525,7 @@ class GradleProviderTest {
 
             println("Build JAVA version: $buildJavaVersion")
 
-            assertTrue(buildResult.buildResult.isSuccessful)
+            assertTrue(buildResult.buildResult.isSuccessful == true)
             assertNotNull(buildJavaVersion)
             assertTrue(buildJavaVersion.startsWith("21"), "Build should have used JDK 21, but used $buildJavaVersion")
         }
@@ -525,17 +537,20 @@ class GradleProviderTest {
         Assumptions.assumeTrue(System.getenv("CI") != null, "Only publish scans from CI")
 
         testJavaProject(hasTests = false).use { project ->
+            val tempDir = java.nio.file.Files.createTempDirectory("gradle-mcp-test-init-scans-")
             val provider = DefaultGradleProvider(
                 GradleConfiguration(
                     maxConnections = 2,
                     ttl = 60.seconds,
                     allowPublicScansPublishing = true
-                )
+                ),
+                initScriptProvider = InitScriptProvider(tempDir)
             )
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
                 additionalArguments = listOf("help"),
-                publishScan = true
+                publishScan = true,
+                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
             )
 
             val runningBuild = provider.runBuild(

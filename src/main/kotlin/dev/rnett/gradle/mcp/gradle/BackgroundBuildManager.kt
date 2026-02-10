@@ -21,6 +21,8 @@ object BackgroundBuildManager {
     fun listBuilds(): List<RunningBuild<*>> = builds.asMap().values.toList()
 
     internal fun removeBuild(id: BuildId) {
-        builds.invalidate(id)
+        builds.asMap().computeIfPresent(id) { _, build ->
+            if (build.status == BuildStatus.RUNNING) build else null
+        }
     }
 }

@@ -5,9 +5,7 @@ import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.BuildResult
 import dev.rnett.gradle.mcp.gradle.BuildResults
 import dev.rnett.gradle.mcp.gradle.FailureId
-import dev.rnett.gradle.mcp.gradle.ProblemAggregation
 import dev.rnett.gradle.mcp.gradle.ProblemId
-import dev.rnett.gradle.mcp.gradle.ProblemSeverity
 import dev.rnett.gradle.mcp.gradle.RunningBuild
 import dev.rnett.gradle.mcp.gradle.TaskOutcome
 import dev.rnett.gradle.mcp.gradle.TestOutcome
@@ -42,28 +40,14 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
         val active = if (it.onlyCompleted) emptyList() else BackgroundBuildManager.listBuilds()
 
         val all = (completed.map { it to false } + active.map { it to true })
-            .sortedByDescending { (b, _) ->
-                when (b) {
-                    is BuildResult -> b.id.timestamp
-                    is RunningBuild<*> -> b.id.timestamp
-                    else -> error("Unknown build type")
-                }
-            }
+            .sortedByDescending { (b, _) -> b.id.timestamp }
             .take(it.maxBuilds)
 
         buildString {
             appendLine("BuildId | Command line | Seconds ago | Status | Build failures | Test failures")
             all.forEach { (build, isActive) ->
-                val id = when (build) {
-                    is BuildResult -> build.id
-                    is RunningBuild<*> -> build.id
-                    else -> error("Unknown build type")
-                }
-                val commandLine = when (build) {
-                    is BuildResult -> build.args.renderCommandLine()
-                    is RunningBuild<*> -> build.args.renderCommandLine()
-                    else -> error("Unknown build type")
-                }
+                val id = build.id
+                val commandLine = build.args.renderCommandLine()
                 val secondsAgo = id.timestamp.minus(Clock.System.now()).inWholeSeconds
 
                 append(id).append(" | ")
@@ -77,7 +61,7 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
                     appendLine("-")
                 } else {
                     val br = build as BuildResult
-                    append(if (br.isSuccessful) "SUCCESS" else "FAILURE").append(" | ")
+                    append(if (br.isSuccessful == true) "SUCCESS" else "FAILURE").append(" | ")
                     append(br.buildFailures?.size ?: 0).append(" | ")
                     appendLine(br.testResults.failed.size)
                 }
@@ -118,23 +102,23 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
 
     val lookupBuildTests by tool<TestsLookupArgs, String>(
         name = "lookup_build_tests",
-        description = "For a given build, provides either a summary of test executions or detailed information for a specific test. If `details` is provided, detailed execution info (duration, failure details, and console output) for that test is returned. If `summary` is provided (or neither), returns a list of tests matching the provided filters. Only one of `summary` or `details` may be specified.",
+        description = "For a given build, provides either a summary of test executions or detailed information for a specific test. If `details` is provided, detailed execution info (duration, failure details, and console output) for that test is returned. If `summary` is provided (or neither), returns a list of tests matching the provided filters. Only one of `summary` or `details` may be specified. Works for in-progress builds.",
     ) {
         require(it.summary == null || it.details == null) { "Only one of `summary` or `details` may be specified." }
-
-        val buildId = it.buildId
-        val running = if (buildId != null) BackgroundBuildManager.getBuild(buildId) else null
-        if (running != null) {
-            return@tool "Build $buildId is still running. Use `background_build_get_status` to see progress, or wait for it to complete to use lookup tools."
-        }
 
         val build = BuildResults.require(it.buildId)
 
         if (it.details != null) {
             val tests = build.testResults.all.filter { t -> t.testName == it.details.testName }.toList()
 
-            if (tests.isEmpty())
-                error("Test not found")
+            if (tests.isEmpty()) {
+                val isRunning = build is RunningBuild<*> || build.isRunning
+                if (isRunning) {
+                    return@tool "Test not found. The build is still running, so it may not have been executed yet."
+                } else {
+                    error("Test not found")
+                }
+            }
 
             if (tests.size > 1 && it.details.testIndex >= tests.size) {
                 return@tool "${tests.size} test executions with this name found. Pass a valid `testIndex` (0 to ${tests.size - 1}) to select one."
@@ -147,7 +131,7 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
                 appendLine("Duration: ${test.executionDuration}")
 
                 if (!test.failures.isNullOrEmpty()) {
-                    appendLine("Failures: ${test.failures}")
+                    appendLine("Failures: ")
                     test.failures.forEach { f ->
                         f.writeFailureTree(this, "  ")
                     }
@@ -211,7 +195,7 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
 
     val lookupBuildTasks by tool<TaskLookupArgs, String>(
         "lookup_build_tasks",
-        "For a given build, provides either a summary of task executions or detailed information for a specific task. If `details` is provided, detailed execution info (duration, outcome, and console output) for that task is returned. If `summary` is provided (or neither), returns a list of tasks matching the provided filters. Only one of `summary` or `details` may be specified."
+        "For a given build, provides either a summary of task executions or detailed information for a specific task. If `details` is provided, detailed execution info (duration, outcome, and console output) for that task is returned. If `summary` is provided (or neither), returns a list of tasks matching the provided filters. Only one of `summary` or `details` may be specified. Works for in-progress builds."
     ) {
         val result = BuildResults.require(it.buildId)
         if (it.summary != null && it.details != null)
@@ -283,13 +267,8 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
 
     val lookupBuild by tool<BuildIdArgs, String>(
         name = "lookup_build",
-        description = "Takes a build ID; returns a summary of that build.",
+        description = "Takes a build ID; returns a summary of that build. Works for in-progress builds.",
     ) {
-        val buildId = it.buildId
-        val running = if (buildId != null) BackgroundBuildManager.getBuild(buildId) else null
-        if (running != null) {
-            return@tool "Build $buildId is still running. Use `background_build_get_status` to see progress, or wait for it to complete to use lookup tools."
-        }
         val build = BuildResults.require(it.buildId)
         build.toOutputString(true)
     }
@@ -317,20 +296,17 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
 
     val lookupBuildFailures by tool<FailureLookupArgs, String>(
         name = "lookup_build_failures",
-        description = "Provides a summary of build failures (not including test failures) or details for a specific failure. If `details` is provided, detailed information (including causes and stack traces) for that failure is returned. If `summary` is provided (or neither), lists all build failures. Only one of `summary` or `details` may be specified.",
+        description = "Provides a summary of build failures (including test failures) or details for a specific failure. If `details` is provided, detailed information (including causes and stack traces) for that failure is returned. If `summary` is provided (or neither), lists all build failures. Only one of `summary` or `details` may be specified. Works for in-progress builds, but may only show test failures.",
     ) {
         require(it.summary == null || it.details == null) { "Only one of `summary` or `details` may be specified." }
 
-        val buildId = it.buildId
-        val running = if (buildId != null) BackgroundBuildManager.getBuild(buildId) else null
-        if (running != null) {
-            return@tool "Build $buildId is still running. Use `background_build_get_status` to see progress, or wait for it to complete to use lookup tools."
-        }
         val build = BuildResults.require(it.buildId)
 
+        val failures = build.allFailures
+
         if (it.details != null) {
-            val failure = build.allFailures[it.details.failureId]
-                ?: error("No failure with ID ${it.details.failureId} found for build ${it.buildId}")
+            val failure = failures[it.details.failureId]
+                ?: error("No failure with ID ${it.details.failureId} found for build ${build.id}")
 
             return@tool buildString {
                 failure.writeFailureTree(this)
@@ -339,8 +315,11 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
 
         buildString {
             appendLine("Id | Message")
-            build.allFailures.forEach { (id, failure) ->
+            failures.forEach { (id, failure) ->
                 appendLine("${id.id} : ${failure.message}")
+            }
+            if (build.isRunning && failures.isEmpty()) {
+                appendLine("No failures found yet. The build is still running.")
             }
         }
     }
@@ -366,19 +345,14 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
 
     val lookupBuildProblems by tool<ProblemLookupArgs, String>(
         name = "lookup_build_problems",
-        description = "Provides a summary of all problems reported during a build (errors, warnings, etc.) or details for a specific problem. If `details` is provided, detailed information (locations, details, and potential solutions) for that problem is returned. If `summary` is provided (or neither), returns a summary of all problems. Only one of `summary` or `details` may be specified.",
+        description = "Provides a summary of all problems reported during a build (errors, warnings, etc.) or details for a specific problem. If `details` is provided, detailed information (locations, details, and potential solutions) for that problem is returned. If `summary` is provided (or neither), returns a summary of all problems. Only one of `summary` or `details` may be specified. Works for in-progress builds.",
     ) {
         require(it.summary == null || it.details == null) { "Only one of `summary` or `details` may be specified." }
 
-        val buildId = it.buildId
-        val running = if (buildId != null) BackgroundBuildManager.getBuild(buildId) else null
-        if (running != null) {
-            return@tool "Build $buildId is still running. Use `background_build_get_status` to see progress, or wait for it to complete to use lookup tools."
-        }
         val build = BuildResults.require(it.buildId)
 
         if (it.details != null) {
-            val problem = build.problems.values.asSequence().flatten().firstOrNull { p -> p.definition.id == it.details.problemId }
+            val problem = build.problems.firstOrNull { p -> p.definition.id == it.details.problemId }
                 ?: error("No problem with id ${it.details.problemId} found for build ${it.buildId}")
             return@tool buildString {
                 append(problem.definition.id)
@@ -405,53 +379,28 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
                     }
 
                     if (o.contextualLocations.isNotEmpty()) {
-                        append("  Context (possibly related) locations: ")
-                        appendLine(o.contextualLocations)
+                        appendLine("  Contextual Locations: ")
+                        o.contextualLocations.forEach { l -> appendLine("    $l") }
                     }
 
                     if (o.potentialSolutions.isNotEmpty()) {
-                        appendLine("  Potential Solutions.")
-                        o.potentialSolutions.forEach { s ->
-                            if (s.contains("\n")) {
-                                appendLine(
-                                    "  - " + s.prependIndent("    ").trimStart()
-                                )
-                            } else {
-                                appendLine("  - $s")
-                            }
-                        }
+                        appendLine("  Potential Solutions: ")
+                        o.potentialSolutions.forEach { s -> appendLine("    $s") }
                     }
                 }
             }
         }
 
         buildString {
-            fun writeProblems(list: List<ProblemAggregation>) {
-                appendLine("Id | Name | Occurrences")
-                list.forEach { p ->
-                    appendLine("${p.definition.id.id} | ${p.definition.displayName ?: "N/A"} | ${p.numberOfOccurrences}")
-                }
-                appendLine()
-            }
-
-            if (!build.problems[ProblemSeverity.ERROR].isNullOrEmpty()) {
-                appendLine("Errors:")
-                writeProblems(build.problems[ProblemSeverity.ERROR]!!)
-            }
-
-            if (!build.problems[ProblemSeverity.WARNING].isNullOrEmpty()) {
-                appendLine("Warnings:")
-                writeProblems(build.problems[ProblemSeverity.WARNING]!!)
-            }
-
-            if (!build.problems[ProblemSeverity.ADVICE].isNullOrEmpty()) {
-                appendLine("Advices:")
-                writeProblems(build.problems[ProblemSeverity.ADVICE]!!)
-            }
-
-            if (!build.problems[ProblemSeverity.OTHER].isNullOrEmpty()) {
-                appendLine("Other:")
-                writeProblems(build.problems[ProblemSeverity.OTHER]!!)
+            appendLine("Severity | Id | Display Name | Occurrences")
+            build.problems.sortedBy { it.definition.severity }.forEach {
+                append(it.definition.severity)
+                append(" | ")
+                append(it.definition.id)
+                append(" | ")
+                append(it.definition.displayName ?: "N/A")
+                append(" | ")
+                appendLine(it.numberOfOccurrences)
             }
         }
     }
@@ -467,16 +416,11 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
 
     val lookupBuildConsoleOutput by tool<ConsoleOutputArgs, String>(
         "lookup_build_console_output",
-        "Gets up to `limitLines` (default 100, null means no limit) of the console output for a given build, starting at a given offset `offsetLines` (default 0). Can read from the tail instead of the head. Repeatedly call this tool using the `nextOffset` in the response to get all console output."
+        "Gets up to `limitLines` (default 100, null means no limit) of the console output for a given build, starting at a given offset `offsetLines` (default 0). Can read from the tail instead of the head. Repeatedly call this tool using the `nextOffset` in the response to get all console output. Works for in-progress builds."
     ) {
         require(it.offsetLines >= 0) { "`offsetLines` must be non-negative" }
-        require(it.limitLines == null || it.limitLines > 0) { "`Description` must be null or > 0" }
+        require(it.limitLines == null || it.limitLines > 0) { "`limitLines` must be null or > 0" }
 
-        val buildId = it.buildId
-        val running = if (buildId != null) BackgroundBuildManager.getBuild(buildId) else null
-        if (running != null) {
-            return@tool "Build $buildId is still running. Use `background_build_get_status` to see current progress, or wait for it to complete to use lookup tools."
-        }
         val build = BuildResults.require(it.buildId)
         val start: Int
         val end: Int

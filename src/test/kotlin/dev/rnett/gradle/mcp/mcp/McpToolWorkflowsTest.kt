@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.mcp
 
 import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
+import dev.rnett.gradle.mcp.gradle.Build
 import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.BuildResult
 import dev.rnett.gradle.mcp.gradle.BuildResults
@@ -25,6 +26,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.io.path.absolutePathString
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -42,23 +44,23 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
             appendLine("BUILD SUCCESSFUL")
         }.trimEnd()
         val scans = emptyList<dev.rnett.gradle.mcp.gradle.GradleBuildScan>()
-        val testResults = BuildResult.TestResults(
+        val testResults = Build.TestResults(
             passed = setOf(
-                BuildResult.TestResult("com.example.HelloTest.passes", null, 0.1.seconds, failures = null, status = TestOutcome.PASSED)
+                Build.TestResult("com.example.HelloTest.passes", null, 0.1.seconds, failures = null, status = TestOutcome.PASSED)
             ),
             skipped = emptySet(),
             failed = setOf(
-                BuildResult.TestResult(
+                Build.TestResult(
                     "com.example.HelloTest.fails",
                     "Assertion failed",
                     0.2.seconds,
                     failures = listOf(
-                        BuildResult.Failure(
+                        Build.Failure(
                             FailureId("f1"),
                             message = "expected true to be false",
                             description = null,
                             causes = emptyList(),
-                            problems = emptyList()
+                            problemAggregations = emptyMap()
                         )
                     ),
                     status = TestOutcome.FAILED
@@ -85,7 +87,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
                 )
             )
         )
-        return BuildResult(id, args, console, scans, testResults, buildFailures = null, problems = problems)
+        return BuildResult(id, args, console, scans, testResults, buildFailures = null, problemAggregations = problems)
     }
 
     @Test
@@ -187,6 +189,13 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
             every { args } returns GradleInvocationArguments(additionalArguments = listOf("help"))
             every { logBuffer } returns StringBuffer("line1\nline2\n")
             every { stop() } returns Unit
+            every { isRunning } returns true
+            every { isSuccessful } returns null
+            every { problemAggregations } returns emptyMap()
+            every { testResults } returns Build.TestResults(emptySet(), emptySet(), emptySet())
+            every { publishedScans } returns ConcurrentLinkedQueue<dev.rnett.gradle.mcp.gradle.GradleBuildScan>()
+            every { consoleOutput } returns "line1\nline2\n"
+            every { problems } returns emptyList()
         }
 
         coEvery {

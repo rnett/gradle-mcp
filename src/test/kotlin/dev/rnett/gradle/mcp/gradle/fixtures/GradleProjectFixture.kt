@@ -40,6 +40,11 @@ class GradleProjectFixture private constructor(
     fun path(): Path = projectDir
 
     /**
+     * Returns the absolute path to the gradle user home.
+     */
+    fun gradleUserHome(): Path = projectDir.resolve("gradle-user-home")
+
+    /**
      * Returns the absolute path as a string.
      */
     fun pathString(): String = projectDir.toAbsolutePath().toString()
@@ -108,6 +113,10 @@ class GradleProjectBuilder(private val projectDir: Path) {
      * Builds the project structure on disk.
      */
     fun build() {
+        // Create gradle user home
+        val gradleUserHome = projectDir.resolve("gradle-user-home")
+        Files.createDirectories(gradleUserHome)
+
         // Create gradle wrapper
         createGradleWrapper()
 

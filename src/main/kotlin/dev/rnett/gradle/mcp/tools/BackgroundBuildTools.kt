@@ -103,7 +103,7 @@ class BackgroundBuildTools(
             | - waitForTask: A task path to wait for. If seen, the wait will short-circuit.
             | - afterCall: If true, only look for waitFor or waitForTask matches emitted after this call. Only applies if wait and (waitFor or waitForTask) are also provided.
             |
-            | Use the other `lookup_*` tools for more detailed information about completed builds, such as test results or build failures.
+            | Use the other `lookup_*` tools for more detailed information about both running and completed builds, such as test results or build failures.
         """.trimMargin()
     ) {
         val buildId = it.buildId ?: throw IllegalArgumentException("buildId is required")

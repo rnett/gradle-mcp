@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.tools
 
+import dev.rnett.gradle.mcp.gradle.Build
 import dev.rnett.gradle.mcp.gradle.BuildResult
 import dev.rnett.gradle.mcp.gradle.ProblemAggregation
 import dev.rnett.gradle.mcp.gradle.ProblemId
@@ -22,17 +23,30 @@ object OutputFormatter {
 }
 
 
-fun BuildResult.toOutputString(includeArgs: Boolean = true): String {
+fun Build.toOutputString(includeArgs: Boolean = true): String {
     return buildString {
         appendLine("Gradle MCP Build ID: $id")
         if (includeArgs) {
             appendLine("Command line: ${args.renderCommandLine()}")
         }
-        appendLine("Status: ${if (isSuccessful) "Success" else "Failure"}")
+        appendLine(
+            "Status: ${
+                when (isRunning) {
+                    true -> "Running (still running, some information may be incomplete)"
+                    false -> if (isSuccessful == true) "Success" else "Failure"
+                }
+            }"
+        )
 
         appendLine()
-        if (buildFailures != null) {
-            appendLine("Build Failures: ${buildFailures.size} - use `lookup_build_failures_summary` or `lookup_build_failure_details` tools for more details")
+        val buildFailures = if (this is BuildResult) {
+            this.buildFailures
+        } else {
+            testResults.failed.asSequence().flatMap { it.failures.orEmpty().asSequence() }.toList()
+        }
+
+        if (buildFailures != null && buildFailures.isNotEmpty()) {
+            appendLine("Failures: ${buildFailures.size} - use `lookup_build_failures` tool for more details")
             appendLine(OutputFormatter.listResults(buildFailures, 10) {
                 buildString {
                     append(it.id.id)
@@ -78,15 +92,15 @@ fun BuildResult.toOutputString(includeArgs: Boolean = true): String {
             it.testName
         })
 
-        appendLine("Console output: ${consoleOutputLines.size} lines, last 50 shown")
-        consoleOutputLines.takeLast(50).forEach { appendLine("  $it") }
+        val consoleLines = consoleOutput.lines()
+        appendLine("Console output: ${consoleLines.size} lines, last 50 shown")
+        consoleLines.takeLast(50).forEach { appendLine("  $it") }
     }
-
-
 }
 
-fun Map<ProblemSeverity, List<ProblemAggregation>>.toSummary(): ProblemsSummary {
-    fun counts(severity: ProblemSeverity) = this[severity].orEmpty().associate { it.definition.id to ProblemsSummary.ProblemSummary(it.definition.displayName, it.numberOfOccurrences) }
+fun List<ProblemAggregation>.toSummary(): ProblemsSummary {
+    val grouped = this.groupBy { it.definition.severity }
+    fun counts(severity: ProblemSeverity) = grouped[severity].orEmpty().associate { it.definition.id to ProblemsSummary.ProblemSummary(it.definition.displayName, it.numberOfOccurrences) }
     return ProblemsSummary(
         errorCounts = counts(ProblemSeverity.ERROR),
         warningCounts = counts(ProblemSeverity.WARNING),

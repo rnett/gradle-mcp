@@ -2,7 +2,9 @@ package dev.rnett.gradle.mcp.gradle
 
 import dev.rnett.gradle.mcp.BuildConfig
 import org.slf4j.LoggerFactory
+import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import kotlin.io.path.Path
 import kotlin.io.path.absolute
@@ -53,8 +55,20 @@ class InitScriptProvider(
                 val targetPath = initScriptsDir.resolve(targetFileName)
 
                 if (!targetPath.exists()) {
-                    targetPath.writeBytes(bytes)
-                    LOGGER.info("Extracted init script $resourceName to $targetPath")
+                    val tempPath = targetPath.resolveSibling("${targetPath.fileName}.tmp.${java.util.UUID.randomUUID()}")
+                    try {
+                        tempPath.writeBytes(bytes)
+                        Files.move(tempPath, targetPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+                        LOGGER.info("Extracted init script $resourceName to $targetPath")
+                    } catch (e: Exception) {
+                        if (targetPath.exists()) {
+                            LOGGER.debug("Init script {} already exists at {} (written by another process/thread)", resourceName, targetPath)
+                        } else {
+                            LOGGER.warn("Failed to extract init script $resourceName", e)
+                        }
+                    } finally {
+                        Files.deleteIfExists(tempPath)
+                    }
                 } else {
                     LOGGER.debug("Init script {} already exists at {}", resourceName, targetPath)
                 }

@@ -27,10 +27,10 @@ object BuildResults {
     }
 
     @OptIn(ExperimentalAtomicApi::class)
-    fun require(buildId: BuildId?): BuildResult {
+    fun require(buildId: BuildId?): Build {
         if(buildId == null)
-            return latest.load() ?: error("No latest result - this MCP server has not ran any builds in the last 10m")
-        return getResult(buildId) ?: throw IllegalArgumentException("Unknown or expired build ID: $buildId")
+            return latest.load() ?: error("No latest result - this MCP server has not ran any builds that completed in the last 10m")
+        return BackgroundBuildManager.getBuild(buildId) ?: getResult(buildId) ?: throw IllegalArgumentException("Unknown or expired build ID: $buildId")
     }
 
     @OptIn(ExperimentalTime::class, ExperimentalAtomicApi::class)

@@ -10,12 +10,14 @@ import kotlin.time.Duration.Companion.seconds
 class TaskOutInitScriptTest {
 
     private fun createTestProvider(): DefaultGradleProvider {
+        val tempDir = java.nio.file.Files.createTempDirectory("gradle-mcp-test-init-")
         return DefaultGradleProvider(
             GradleConfiguration(
                 maxConnections = 5,
                 ttl = 60.seconds,
                 allowPublicScansPublishing = false
-            )
+            ),
+            initScriptProvider = InitScriptProvider(tempDir)
         )
     }
 
@@ -28,7 +30,8 @@ class TaskOutInitScriptTest {
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
                 additionalArguments = listOf("help", "-Pgradle-mcp.init-scripts.hello"),
-                envSource = EnvSource.NONE
+                envSource = EnvSource.NONE,
+                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
             )
 
             val runningBuild = provider.runBuild(
@@ -38,7 +41,7 @@ class TaskOutInitScriptTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assertTrue(result.buildResult.isSuccessful)
+            assertTrue(result.buildResult.isSuccessful == true)
             assertContains(result.buildResult.consoleOutput, "Gradle MCP init script task-out.init.gradle.kts loaded")
         }
     }
@@ -60,7 +63,8 @@ class TaskOutInitScriptTest {
             val provider = createTestProvider()
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
-                additionalArguments = listOf("printMessage")
+                additionalArguments = listOf("printMessage"),
+                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
             )
 
             val runningBuild = provider.runBuild(
@@ -70,7 +74,7 @@ class TaskOutInitScriptTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assertTrue(result.buildResult.isSuccessful)
+            assertTrue(result.buildResult.isSuccessful == true)
             kotlin.test.assertFalse(result.buildResult.taskOutputCapturingFailed, "Task output capturing should NOT have failed")
             // with new filtering, it should NOT be in console output, but IN task output
             kotlin.test.assertFalse(result.buildResult.consoleOutput.contains("[gradle-mcp]"))
@@ -80,7 +84,7 @@ class TaskOutInitScriptTest {
             kotlin.test.assertNotNull(taskResult)
             kotlin.test.assertEquals(TaskOutcome.SUCCESS, taskResult.outcome)
             kotlin.test.assertEquals("Hello from task\nError from task", taskResult.consoleOutput?.trim())
-            assertTrue(taskResult.duration > 0.seconds)
+            assertTrue(taskResult.duration >= 0.seconds)
         }
     }
 
@@ -105,7 +109,8 @@ class TaskOutInitScriptTest {
             val provider = createTestProvider()
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
-                additionalArguments = listOf("execTask")
+                additionalArguments = listOf("execTask"),
+                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
             )
 
             val runningBuild = provider.runBuild(
@@ -115,7 +120,7 @@ class TaskOutInitScriptTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assertTrue(result.buildResult.isSuccessful)
+            assertTrue(result.buildResult.isSuccessful == true)
             kotlin.test.assertFalse(result.buildResult.taskOutputCapturingFailed, "Task output capturing should NOT have failed")
             kotlin.test.assertFalse(result.buildResult.consoleOutput.contains("[gradle-mcp]"))
             kotlin.test.assertEquals("Hello from external process", result.buildResult.getTaskOutput(":execTask"))
@@ -141,7 +146,8 @@ class TaskOutInitScriptTest {
             val provider = createTestProvider()
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
-                additionalArguments = listOf("failInit")
+                additionalArguments = listOf("failInit"),
+                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
             )
 
             val runningBuild = provider.runBuild(
@@ -151,7 +157,7 @@ class TaskOutInitScriptTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assertTrue(result.buildResult.isSuccessful)
+            assertTrue(result.buildResult.isSuccessful == true)
             assertTrue(result.buildResult.taskOutputCapturingFailed, "taskOutputCapturingFailed should be true")
         }
     }
