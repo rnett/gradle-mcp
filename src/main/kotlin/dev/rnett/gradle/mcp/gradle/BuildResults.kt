@@ -7,7 +7,7 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 import kotlin.time.toJavaDuration
 
-object BuildResults {
+class BuildResults(val backgroundBuildManager: BackgroundBuildManager) {
     @OptIn(ExperimentalAtomicApi::class)
     private val latest = AtomicReference<BuildResult?>(null)
     private val store = Caffeine.newBuilder()
@@ -30,7 +30,7 @@ object BuildResults {
     fun require(buildId: BuildId?): Build {
         if(buildId == null)
             return latest.load() ?: error("No latest result - this MCP server has not ran any builds that completed in the last 10m")
-        return BackgroundBuildManager.getBuild(buildId) ?: getResult(buildId) ?: throw IllegalArgumentException("Unknown or expired build ID: $buildId")
+        return backgroundBuildManager.getBuild(buildId) ?: getResult(buildId) ?: throw IllegalArgumentException("Unknown or expired build ID: $buildId")
     }
 
     @OptIn(ExperimentalTime::class, ExperimentalAtomicApi::class)

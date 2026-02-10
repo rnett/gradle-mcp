@@ -1,6 +1,5 @@
 package dev.rnett.gradle.mcp.tools
 
-import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
 import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.BuildResult
 import dev.rnett.gradle.mcp.gradle.BuildResults
@@ -16,7 +15,7 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
 
-class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for looking up detailed information about past Gradle builds ran by this MCP server.") {
+class GradleBuildLookupTools(val buildResults: BuildResults) : McpServerComponent("Lookup Tools", "Tools for looking up detailed information about past Gradle builds ran by this MCP server.") {
 
     companion object {
         const val BUILD_ID_DESCRIPTION = "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
@@ -36,8 +35,8 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
         "lookup_latest_builds",
         "Gets the latest builds (both background and completed) ran by this MCP server."
     ) {
-        val completed = BuildResults.latest(it.maxBuilds)
-        val active = if (it.onlyCompleted) emptyList() else BackgroundBuildManager.listBuilds()
+        val completed = buildResults.latest(it.maxBuilds)
+        val active = if (it.onlyCompleted) emptyList() else buildResults.backgroundBuildManager.listBuilds()
 
         val all = (completed.map { it to false } + active.map { it to true })
             .sortedByDescending { (b, _) -> b.id.timestamp }
@@ -106,7 +105,7 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
     ) {
         require(it.summary == null || it.details == null) { "Only one of `summary` or `details` may be specified." }
 
-        val build = BuildResults.require(it.buildId)
+        val build = buildResults.require(it.buildId)
 
         if (it.details != null) {
             val tests = build.testResults.all.filter { t -> t.testName == it.details.testName }.toList()
@@ -197,7 +196,7 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
         "lookup_build_tasks",
         "For a given build, provides either a summary of task executions or detailed information for a specific task. If `details` is provided, detailed execution info (duration, outcome, and console output) for that task is returned. If `summary` is provided (or neither), returns a list of tasks matching the provided filters. Only one of `summary` or `details` may be specified. Works for in-progress builds."
     ) {
-        val result = BuildResults.require(it.buildId)
+        val result = buildResults.require(it.buildId)
         if (it.summary != null && it.details != null)
             throw IllegalArgumentException("Only one of summary or details may be specified")
 
@@ -269,7 +268,7 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
         name = "lookup_build",
         description = "Takes a build ID; returns a summary of that build. Works for in-progress builds.",
     ) {
-        val build = BuildResults.require(it.buildId)
+        val build = buildResults.require(it.buildId)
         build.toOutputString(true)
     }
 
@@ -300,7 +299,7 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
     ) {
         require(it.summary == null || it.details == null) { "Only one of `summary` or `details` may be specified." }
 
-        val build = BuildResults.require(it.buildId)
+        val build = buildResults.require(it.buildId)
 
         val failures = build.allFailures
 
@@ -349,7 +348,7 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
     ) {
         require(it.summary == null || it.details == null) { "Only one of `summary` or `details` may be specified." }
 
-        val build = BuildResults.require(it.buildId)
+        val build = buildResults.require(it.buildId)
 
         if (it.details != null) {
             val problem = build.problems.firstOrNull { p -> p.definition.id == it.details.problemId }
@@ -421,7 +420,7 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
         require(it.offsetLines >= 0) { "`offsetLines` must be non-negative" }
         require(it.limitLines == null || it.limitLines > 0) { "`limitLines` must be null or > 0" }
 
-        val build = BuildResults.require(it.buildId)
+        val build = buildResults.require(it.buildId)
         val start: Int
         val end: Int
         val lines: List<String>

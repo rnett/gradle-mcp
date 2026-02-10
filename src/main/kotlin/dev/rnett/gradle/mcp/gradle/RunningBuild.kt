@@ -5,7 +5,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 import org.gradle.tooling.BuildCancelledException
 import org.gradle.tooling.CancellationTokenSource
 import java.nio.file.Path
@@ -26,7 +25,8 @@ data class RunningBuild<T>(
     override val startTime: Instant,
     val projectRoot: Path,
     val logBuffer: StringBuffer = StringBuffer(),
-    @Transient val cancellationTokenSource: CancellationTokenSource,
+    val cancellationTokenSource: CancellationTokenSource,
+    private val backgroundBuildManager: BackgroundBuildManager,
     val result: CompletableDeferred<GradleResult<T>> = CompletableDeferred()
 ) : Build {
     val problemsAccumulator = Build.ProblemsAccumulator()
@@ -116,13 +116,23 @@ data class RunningBuild<T>(
 
         if (this.status != BuildStatus.RUNNING) {
             this.endTime = kotlin.time.Clock.System.now()
-            BackgroundBuildManager.removeBuild(id)
+            backgroundBuildManager.removeBuild(id)
         }
     }
 
+    private var lastLine: String? = null
     internal fun addLogLine(line: String) {
-        logBuffer.appendLine(line)
+        lastLine = line
+        logBuffer.append(line).append(System.lineSeparator())
         _logLines.tryEmit(line)
+    }
+
+    internal fun replaceLastLogLine(oldLine: String, newLine: String) {
+        if (lastLine == oldLine || lastLine == "ERR: $oldLine") {
+            val toRemove = (lastLine ?: "") + System.lineSeparator()
+            logBuffer.setLength(logBuffer.length - toRemove.length)
+        }
+        addLogLine(newLine)
     }
 
     internal fun addTaskResult(taskPath: String, outcome: TaskOutcome, duration: Duration, consoleOutput: String?) {

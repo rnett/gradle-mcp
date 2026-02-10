@@ -184,7 +184,7 @@ class GradleProviderTest {
                 val buildId = runningBuild.id
 
                 // Verify it's in the manager WHILE it's running (or just after start)
-                assertNotNull(BackgroundBuildManager.getBuild(buildId))
+                assertNotNull(provider.backgroundBuildManager.getBuild(buildId))
 
                 val buildResult = runningBuild.awaitFinished()
 
@@ -193,7 +193,7 @@ class GradleProviderTest {
                 assertTrue(runningBuild.logBuffer.isNotEmpty())
 
                 // Verify it's removed from the manager after finish
-                kotlin.test.assertNull(BackgroundBuildManager.getBuild(buildId))
+                kotlin.test.assertNull(provider.backgroundBuildManager.getBuild(buildId))
             }
         }
     }
@@ -335,8 +335,8 @@ class GradleProviderTest {
                     assertNotNull(runningBuild2)
 
                     // Both should be in the manager
-                    assertNotNull(BackgroundBuildManager.getBuild(runningBuild1.id))
-                    assertNotNull(BackgroundBuildManager.getBuild(runningBuild2.id))
+                    assertNotNull(provider.backgroundBuildManager.getBuild(runningBuild1.id))
+                    assertNotNull(provider.backgroundBuildManager.getBuild(runningBuild2.id))
 
                     val result1 = runningBuild1.awaitFinished()
                     val result2 = runningBuild2.awaitFinished()
@@ -347,8 +347,8 @@ class GradleProviderTest {
                     assertTrue(runningBuild2.status == BuildStatus.SUCCESSFUL)
 
                     // Both should be removed from the manager
-                    kotlin.test.assertNull(BackgroundBuildManager.getBuild(runningBuild1.id))
-                    kotlin.test.assertNull(BackgroundBuildManager.getBuild(runningBuild2.id))
+                    kotlin.test.assertNull(provider.backgroundBuildManager.getBuild(runningBuild1.id))
+                    kotlin.test.assertNull(provider.backgroundBuildManager.getBuild(runningBuild2.id))
                 }
             }
         }
@@ -372,7 +372,7 @@ class GradleProviderTest {
 
                 val result = runningBuild.awaitFinished()
                 assertTrue(runningBuild.status == BuildStatus.CANCELLED)
-                kotlin.test.assertNull(BackgroundBuildManager.getBuild(runningBuild.id))
+                kotlin.test.assertNull(provider.backgroundBuildManager.getBuild(runningBuild.id))
             }
         }
     }

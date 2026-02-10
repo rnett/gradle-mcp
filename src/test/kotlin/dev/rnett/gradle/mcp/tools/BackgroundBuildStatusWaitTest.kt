@@ -1,6 +1,5 @@
 package dev.rnett.gradle.mcp.tools
 
-import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
 import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.BuildResult
 import dev.rnett.gradle.mcp.gradle.BuildStatus
@@ -32,7 +31,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         val buildId = BuildId.newId()
         val resultDeferred = CompletableDeferred<dev.rnett.gradle.mcp.gradle.GradleResult<Unit>>()
 
-        val runningBuild = mockk<RunningBuild<Unit>> {
+        val runningBuild = mockk<RunningBuild<Unit>>(relaxed = true) {
             every { id } returns buildId
             every { status } returns BuildStatus.RUNNING
             every { startTime } returns Clock.System.now()
@@ -47,7 +46,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { consoleOutput } returns "Started\n"
         }
 
-        BackgroundBuildManager.registerBuild(runningBuild)
+        backgroundBuildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         launch {
@@ -71,13 +70,13 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
                 every { problems } returns emptyList()
                 every { publishedScans } returns emptyList()
             }
-            dev.rnett.gradle.mcp.gradle.BuildResults.storeResult(mockBuildResult)
+            buildResults.storeResult(mockBuildResult)
             resultDeferred.complete(mockk {
                 every { buildResult } returns mockBuildResult
                 every { value } returns Result.success(Unit)
             })
             // In real app, updateStatus would remove it from BackgroundBuildManager, but here we'll just let it be or remove it manually
-            BackgroundBuildManager.removeBuild(buildId)
+            backgroundBuildManager.removeBuild(buildId)
         }
 
         val startTime = testScheduler.currentTime
@@ -102,7 +101,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         val logBuffer = StringBuffer("Started\n")
         val logLinesFlow = MutableSharedFlow<String>(replay = 1)
 
-        val runningBuild = mockk<RunningBuild<Unit>> {
+        val runningBuild = mockk<RunningBuild<Unit>>(relaxed = true) {
             every { id } returns buildId
             every { status } returns BuildStatus.RUNNING
             every { startTime } returns Clock.System.now()
@@ -114,10 +113,10 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { logLines } returns logLinesFlow.asSharedFlow()
             every { completedTasks } returns MutableSharedFlow<String>().asSharedFlow()
             every { completedTaskPaths } returns emptySet()
-            every { consoleOutput } returns "Started\n"
+            every { consoleOutput } returns logBuffer.toString()
         }
 
-        BackgroundBuildManager.registerBuild(runningBuild)
+        backgroundBuildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         launch {
@@ -155,7 +154,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         val logLinesFlow = MutableSharedFlow<String>(replay = 1)
         logLinesFlow.emit("Ready to go")
 
-        val runningBuild = mockk<RunningBuild<Unit>> {
+        val runningBuild = mockk<RunningBuild<Unit>>(relaxed = true) {
             every { id } returns buildId
             every { status } returns BuildStatus.RUNNING
             every { startTime } returns Clock.System.now()
@@ -167,10 +166,10 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { logLines } returns logLinesFlow.asSharedFlow()
             every { completedTasks } returns MutableSharedFlow<String>().asSharedFlow()
             every { completedTaskPaths } returns emptySet()
-            every { consoleOutput } returns "Started\nReady to go\n"
+            every { consoleOutput } returns logBuffer.toString()
         }
 
-        BackgroundBuildManager.registerBuild(runningBuild)
+        backgroundBuildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         val startTime = testScheduler.currentTime
@@ -198,7 +197,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         val resultDeferred = CompletableDeferred<dev.rnett.gradle.mcp.gradle.GradleResult<Unit>>()
         val completedTasksFlow = MutableSharedFlow<String>(replay = 1)
 
-        val runningBuild = mockk<RunningBuild<Unit>> {
+        val runningBuild = mockk<RunningBuild<Unit>>(relaxed = true) {
             every { id } returns buildId
             every { status } returns BuildStatus.RUNNING
             every { startTime } returns Clock.System.now()
@@ -213,7 +212,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { consoleOutput } returns "Started\n"
         }
 
-        BackgroundBuildManager.registerBuild(runningBuild)
+        backgroundBuildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         launch {
@@ -246,7 +245,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         val completedTasksFlow = MutableSharedFlow<String>(replay = 1)
         completedTasksFlow.emit(":help")
 
-        val runningBuild = mockk<RunningBuild<Unit>> {
+        val runningBuild = mockk<RunningBuild<Unit>>(relaxed = true) {
             every { id } returns buildId
             every { status } returns BuildStatus.RUNNING
             every { startTime } returns Clock.System.now()
@@ -261,7 +260,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { consoleOutput } returns "Started\n"
         }
 
-        BackgroundBuildManager.registerBuild(runningBuild)
+        backgroundBuildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         val startTime = testScheduler.currentTime
@@ -288,7 +287,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         val completedTasksFlow = MutableSharedFlow<String>(replay = 1)
         completedTasksFlow.emit(":preExisting")
 
-        val runningBuild = mockk<RunningBuild<Unit>> {
+        val runningBuild = mockk<RunningBuild<Unit>>(relaxed = true) {
             every { id } returns buildId
             every { status } returns BuildStatus.RUNNING
             every { startTime } returns Clock.System.now()
@@ -303,7 +302,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { consoleOutput } returns "Started\n"
         }
 
-        BackgroundBuildManager.registerBuild(runningBuild)
+        backgroundBuildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         launch {

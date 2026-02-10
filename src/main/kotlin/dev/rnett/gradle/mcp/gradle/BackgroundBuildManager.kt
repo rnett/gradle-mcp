@@ -2,7 +2,7 @@ package dev.rnett.gradle.mcp.gradle
 
 import com.github.benmanes.caffeine.cache.Caffeine
 
-object BackgroundBuildManager {
+class BackgroundBuildManager {
     private val builds = Caffeine.newBuilder()
         .maximumSize(1000)
         .evictionListener<BuildId, RunningBuild<*>> { key, value, cause ->

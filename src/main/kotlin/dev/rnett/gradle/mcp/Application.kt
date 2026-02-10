@@ -1,5 +1,7 @@
 package dev.rnett.gradle.mcp
 
+import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
+import dev.rnett.gradle.mcp.gradle.BuildResults
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProvider
@@ -35,12 +37,17 @@ class Application(val args: Array<String>) {
     private val config = CommandLineConfig(args)
 
     val appConfig = config.rootConfig.environment.config
-
     val gradleConfig = appConfig.property("gradle").getAs<GradleConfiguration>()
-
     val initScriptProvider = InitScriptProvider()
+    val backgroundBuildManager = BackgroundBuildManager()
+    val buildResults = BuildResults(backgroundBuildManager)
 
-    val provider = DefaultGradleProvider(gradleConfig, initScriptProvider = initScriptProvider).apply {
+    val provider = DefaultGradleProvider(
+        gradleConfig,
+        initScriptProvider = initScriptProvider,
+        backgroundBuildManager = backgroundBuildManager,
+        buildResults = buildResults
+    ).apply {
         Runtime.getRuntime().addShutdownHook(Thread {
             close()
         })
@@ -91,7 +98,7 @@ class Application(val args: Array<String>) {
             GradleIntrospectionTools(provider),
             GradleExecutionTools(provider),
             BackgroundBuildTools(provider),
-            GradleBuildLookupTools(),
+            GradleBuildLookupTools(provider.buildResults),
         )
 
         fun createServer(provider: GradleProvider, components: List<McpServerComponent> = components(provider)): McpServer {

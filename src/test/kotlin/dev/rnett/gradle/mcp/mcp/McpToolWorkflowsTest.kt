@@ -1,10 +1,8 @@
 package dev.rnett.gradle.mcp.mcp
 
-import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
 import dev.rnett.gradle.mcp.gradle.Build
 import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.BuildResult
-import dev.rnett.gradle.mcp.gradle.BuildResults
 import dev.rnett.gradle.mcp.gradle.BuildStatus
 import dev.rnett.gradle.mcp.gradle.FailureId
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
@@ -93,7 +91,13 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
     @Test
     fun `lookup tools can read stored build`() = runTest {
         val result = syntheticBuildResult()
-        BuildResults.storeResult(result)
+        every { provider.buildResults } returns mockk {
+            every { storeResult(any()) } returns Unit
+            every { latest(any()) } returns listOf(result)
+            every { require(result.id) } returns result
+            every { getResult(result.id) } returns result
+        }
+        buildResults.storeResult(result)
 
         // lookup_latest_builds
         val latestResult = server.client.callTool("lookup_latest_builds", mapOf("maxBuilds" to 1))
@@ -142,7 +146,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
     @Test
     fun `execution works with single MCP root and no projectRoot`() = runTest {
         val result = syntheticBuildResult()
-        val runningBuild = mockk<RunningBuild<Unit>> {
+        val runningBuild = mockk<RunningBuild<Unit>>(relaxed = true) {
             coEvery { awaitFinished() } returns GradleResult(result, Result.success(Unit))
             coEvery { id } returns result.id
         }
@@ -182,7 +186,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
     @Test
     fun `background build workflows`() = runTest {
         val buildId = BuildId.newId()
-        val runningBuild = mockk<RunningBuild<Unit>> {
+        val runningBuild = mockk<RunningBuild<Unit>>(relaxed = true) {
             every { id } returns buildId
             every { status } returns BuildStatus.RUNNING
             every { startTime } returns Clock.System.now()
@@ -209,7 +213,16 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
             )
         } returns runningBuild
 
-        BackgroundBuildManager.registerBuild(runningBuild)
+        every { provider.backgroundBuildManager } returns mockk {
+            every { registerBuild(any()) } returns Unit
+            every { listBuilds() } returns listOf(runningBuild)
+            every { getBuild(buildId) } returns runningBuild
+        }
+        every { provider.buildResults } returns mockk {
+            every { getResult(buildId) } returns null
+        }
+
+        backgroundBuildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         // test background_run_gradle_command
@@ -255,7 +268,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
     @Test
     fun `run_single_task_and_get_output uses arguments`() = runTest {
         val result = syntheticBuildResult()
-        val runningBuild = mockk<RunningBuild<Unit>> {
+        val runningBuild = mockk<RunningBuild<Unit>>(relaxed = true) {
             coEvery { awaitFinished() } returns GradleResult(result, Result.success(Unit))
             coEvery { id } returns result.id
         }

@@ -1,8 +1,6 @@
 package dev.rnett.gradle.mcp.tools
 
-import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
 import dev.rnett.gradle.mcp.gradle.BuildId
-import dev.rnett.gradle.mcp.gradle.BuildResults
 import dev.rnett.gradle.mcp.gradle.BuildStatus
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProvider
@@ -33,9 +31,10 @@ class BackgroundBuildTools(
             |Once the build is complete, use the `lookup_*` tools to get detailed results, just like a foreground build.
         """.trimMargin()
     ) {
-        gradle.doBuildBackground(
-            it.projectRoot,
+        gradle.runBuild(
+            it.projectRoot.resolve(),
             GradleInvocationArguments(additionalArguments = it.commandLine, publishScan = it.scan) + it.invocationArguments,
+            tosAccepter = { false }
         ).id
     }
 
@@ -49,7 +48,7 @@ class BackgroundBuildTools(
             |The returned BuildIds can be used with `background_build_get_status`, `background_build_stop`, and the `lookup_*` tools.
         """.trimMargin()
     ) {
-        val active = BackgroundBuildManager.listBuilds()
+        val active = gradle.backgroundBuildManager.listBuilds()
             .sortedByDescending { it.id.timestamp }
 
         if (active.isEmpty()) {
@@ -108,7 +107,7 @@ class BackgroundBuildTools(
     ) {
         val buildId = it.buildId ?: throw IllegalArgumentException("buildId is required")
 
-        val running = BackgroundBuildManager.getBuild(buildId)
+        val running = gradle.backgroundBuildManager.getBuild(buildId)
         val startLines = if (it.afterCall && running != null) running.consoleOutput.count { it == '\n' } else 0
         if (it.wait != null) {
             val waitForRegex = it.waitFor?.toRegex()
@@ -191,7 +190,7 @@ class BackgroundBuildTools(
             }
         }
 
-        val completed = BuildResults.getResult(buildId)
+        val completed = gradle.buildResults.getResult(buildId)
             ?: throw IllegalArgumentException("Unknown or expired build ID: $buildId")
 
         return@tool buildString {
@@ -214,7 +213,7 @@ class BackgroundBuildTools(
         "Requests that an active background build be stopped. Use `background_build_list` to see active builds."
     ) {
         val buildId = it.buildId ?: throw IllegalArgumentException("buildId is required")
-        val running = BackgroundBuildManager.getBuild(buildId)
+        val running = gradle.backgroundBuildManager.getBuild(buildId)
             ?: throw IllegalArgumentException("Build $buildId is not running or not found")
 
         running.stop()

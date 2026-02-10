@@ -7,10 +7,10 @@ import dev.rnett.gradle.mcp.tools.GradlePathUtils
 import dev.rnett.gradle.mcp.utils.EnvHelper
 import dev.rnett.gradle.mcp.utils.EnvProvider
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
@@ -18,7 +18,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.future.asDeferred
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.plus
 import kotlinx.coroutines.withTimeout
 import org.apache.commons.io.output.WriterOutputStream
 import org.gradle.tooling.BuildCancelledException
@@ -93,12 +92,17 @@ interface GradleProvider : AutoCloseable {
         stdoutLineHandler: ((String) -> Unit)? = null,
         stderrLineHandler: ((String) -> Unit)? = null,
     ): RunningBuild<Unit>
+
+    val backgroundBuildManager: BackgroundBuildManager
+    val buildResults: BuildResults
 }
 
 class DefaultGradleProvider(
     val config: GradleConfiguration,
     val envProvider: EnvProvider = EnvHelper,
-    val initScriptProvider: InitScriptProvider = InitScriptProvider()
+    val initScriptProvider: InitScriptProvider = InitScriptProvider(),
+    override val backgroundBuildManager: BackgroundBuildManager = BackgroundBuildManager(),
+    override val buildResults: BuildResults = BuildResults(backgroundBuildManager)
 ) : GradleProvider {
 
     private val initScripts by lazy { initScriptProvider.extractInitScripts() }
@@ -107,10 +111,10 @@ class DefaultGradleProvider(
         private val LOGGER = LoggerFactory.getLogger(DefaultGradleProvider::class.java)
     }
 
-    private val scope = GlobalScope + SupervisorJob() + Dispatchers.IO
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun close() {
-        BackgroundBuildManager.listBuilds().forEach { it.stop() }
+        backgroundBuildManager.listBuilds().forEach { it.stop() }
         connectionCache.synchronous().asMap().values.forEach { it.close() }
         scope.cancel()
     }
@@ -225,8 +229,9 @@ class DefaultGradleProvider(
             args = args,
             startTime = buildId.timestamp,
             projectRoot = projectRoot,
-            cancellationTokenSource = cancellationTokenSource
-        ).also { BackgroundBuildManager.registerBuild(it) }
+            cancellationTokenSource = cancellationTokenSource,
+            backgroundBuildManager = backgroundBuildManager
+        ).also { backgroundBuildManager.registerBuild(it) }
 
         scope.launch {
             try {
@@ -353,10 +358,11 @@ class DefaultGradleProvider(
             withArguments(allArguments)
             setColorOutput(false)
 
-            withCancellationToken(runningBuild.cancellationTokenSource.token())
+            val cancellationToken = runningBuild.cancellationTokenSource.token()
+            withCancellationToken(cancellationToken)
 
             currentCoroutineContext()[Job]?.invokeOnCompletion {
-                if (it != null)
+                if (it is CancellationException)
                     runningBuild.stop()
             }
 
@@ -434,24 +440,7 @@ class DefaultGradleProvider(
                         if (it.contains("Failed to set up gradle-mcp output capturing", ignoreCase = true)) {
                             runningBuild.taskOutputCapturingFailed = true
                         }
-                        if (it.startsWith("[gradle-mcp]")) {
-                            val match = Regex("\\[gradle-mcp] \\[(.+)] \\[(.+)]: (.*)").matchEntire(it)
-                            if (match != null) {
-                                val taskPath = match.groupValues[1]
-                                val text = match.groupValues[3]
-                                runningBuild.addTaskOutput(taskPath, text)
-                            } else {
-                                runningBuild.addLogLine(it)
-                                stdoutLineHandler?.invoke(it)
-                            }
-                        } else {
-                            runningBuild.addLogLine(it)
-                            stdoutLineHandler?.invoke(it)
-                            LOGGER.makeLoggingEventBuilder(Level.INFO)
-                                .addKeyValue("buildId", buildId)
-                                .log("Build stdout: $it")
-                        }
-
+                        processTaskOutput(it, runningBuild, false, buildId, stdoutLineHandler ?: {})
                     }) {
                         override fun onScansTosRequest(tosAcceptRequest: GradleScanTosAcceptRequest) {
                             if (tosHolder.isActive) {
@@ -480,23 +469,7 @@ class DefaultGradleProvider(
                     charset = StandardCharsets.UTF_8
                     bufferSize = 80
                     writer = LineEmittingWriter {
-                        if (it.startsWith("[gradle-mcp]")) {
-                            val match = Regex("\\[gradle-mcp] \\[(.+)] \\[(.+)]: (.*)").matchEntire(it)
-                            if (match != null) {
-                                val taskPath = match.groupValues[1]
-                                val text = match.groupValues[3]
-                                runningBuild.addTaskOutput(taskPath, text)
-                            } else {
-                                runningBuild.addLogLine("ERR: $it")
-                                stderrLineHandler?.invoke(it)
-                            }
-                        } else {
-                            runningBuild.addLogLine("ERR: $it")
-                            stderrLineHandler?.invoke(it)
-                            LOGGER.makeLoggingEventBuilder(Level.INFO)
-                                .addKeyValue("buildId", buildId)
-                                .log("Build stderr: $it")
-                        }
+                        processTaskOutput(it, runningBuild, true, buildId, stderrLineHandler ?: {})
                     }
                 }.get()
             )
@@ -522,7 +495,7 @@ class DefaultGradleProvider(
                 outcome as Result<R>
             )
             runningBuild.updateStatus(result)
-            BuildResults.storeResult(result.buildResult as BuildResult)
+            buildResults.storeResult(result.buildResult as BuildResult)
 
             cleanupConnectionIfOld(connection, runningBuild.projectRoot)
         }
@@ -538,6 +511,35 @@ class DefaultGradleProvider(
             } catch (e: Exception) {
                 LOGGER.error("Error closing Gradle connection", e)
             }
+        }
+    }
+
+    private val taskOutputRegex = Regex("\\[gradle-mcp] \\[(.+)] \\[(.+)]: (.*)")
+
+    private inline fun processTaskOutput(
+        line: String,
+        runningBuild: RunningBuild<*>,
+        isError: Boolean,
+        buildId: BuildId,
+        lineHandler: (String) -> Unit
+    ) {
+        val taskMatch = taskOutputRegex.matchEntire(line)
+        if (taskMatch != null) {
+            val taskPath = taskMatch.groupValues[1]
+            val category = taskMatch.groupValues[2]
+            val text = taskMatch.groupValues[3]
+            val type = if (category == "system.err") "ERR" else "OUT"
+            val formattedLine = "$taskPath $type $text"
+
+            runningBuild.addTaskOutput(taskPath, text)
+            runningBuild.replaceLastLogLine(text, formattedLine)
+        } else {
+            val logLine = if (isError) "ERR: $line" else line
+            runningBuild.addLogLine(logLine)
+            lineHandler.invoke(line)
+            LOGGER.makeLoggingEventBuilder(Level.INFO)
+                .addKeyValue("buildId", buildId)
+                .log("Build ${if (isError) "stderr" else "stdout"}: $line")
         }
     }
 }

@@ -1,5 +1,7 @@
 package dev.rnett.gradle.mcp
 
+import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
+import dev.rnett.gradle.mcp.gradle.BuildResults
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.GradleProvider
@@ -177,5 +179,8 @@ object UpdateTools {
 
         override fun close() {
         }
+
+        override val backgroundBuildManager = BackgroundBuildManager()
+        override val buildResults = BuildResults(backgroundBuildManager)
     }
 }
