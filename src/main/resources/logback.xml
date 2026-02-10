@@ -1,8 +1,8 @@
 <configuration>
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${user.home}/.gradle-mcp/gradle-mcp.log</file>
+        <file>${GRADLE_MCP_LOG_DIR:-${user.home}/.gradle-mcp}/gradle-mcp.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>gradle-mcp-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>${GRADLE_MCP_LOG_DIR:-${user.home}/.gradle-mcp}/gradle-mcp-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
             <maxHistory>20</maxHistory>
             <totalSizeCap>100MB</totalSizeCap>

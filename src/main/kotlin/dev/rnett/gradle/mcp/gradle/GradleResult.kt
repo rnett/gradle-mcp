@@ -12,13 +12,27 @@ data class GradleResult<out T>(
             buildId: BuildId,
             console: CharSequence,
             scans: List<GradleBuildScan>,
+            taskOutputs: Map<String, String>,
             problems: List<ProblemAggregation>,
             results: DefaultGradleProvider.TestCollector.Results,
             exception: GradleConnectionException?,
-            outcome: Result<T>
+            outcome: Result<T>,
+            taskOutputCapturingFailed: Boolean = false,
+            taskResults: Map<String, BuildResult.TaskResult> = emptyMap()
         ): GradleResult<T> {
             return GradleResult(
-                BuildResult.build(args, buildId, console, scans, results, problems, exception),
+                BuildResult.build(
+                    args = args,
+                    buildId = buildId,
+                    console = console,
+                    scans = scans,
+                    taskOutputs = taskOutputs,
+                    testResults = results,
+                    problems = problems,
+                    exception = exception,
+                    taskOutputCapturingFailed = taskOutputCapturingFailed,
+                    taskResults = taskResults
+                ),
                 outcome
             )
         }

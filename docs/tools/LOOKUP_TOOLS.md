@@ -124,6 +124,91 @@ For a given build, provides either a summary of test executions or detailed info
 </details>
 
 
+## lookup_build_tasks
+
+For a given build, provides either a summary of task executions or detailed information for a specific task. If `details` is provided, detailed execution info (duration, outcome, and console output) for that task is returned. If `summary` is provided (or neither), returns a list of tasks matching the provided filters. Only one of `summary` or `details` may be specified.
+
+<details>
+
+<summary>Input schema</summary>
+
+
+```json
+{
+  "properties": {
+    "buildId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
+    },
+    "summary": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [],
+      "properties": {
+        "taskPathPrefix": {
+          "type": "string",
+          "description": "A prefix of the task path (e.g. ':app:'). Matching is case-sensitive and checks startsWith on the task path. Defaults to empty (aka all tasks)."
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647,
+          "description": "The offset to start from in the results."
+        },
+        "limit": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": -2147483648,
+          "maximum": 2147483647,
+          "description": "The maximum number of results to return."
+        },
+        "outcome": {
+          "enum": [
+            "SUCCESS",
+            "FAILED",
+            "SKIPPED",
+            "UP_TO_DATE",
+            "FROM_CACHE",
+            "NO_SOURCE"
+          ],
+          "description": "Filter results by outcome."
+        }
+      },
+      "description": "Arguments for task summary mode. Only one of `summary` or `details` may be specified."
+    },
+    "details": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "taskPath"
+      ],
+      "properties": {
+        "taskPath": {
+          "type": "string",
+          "description": "The full path of the task to show details for."
+        }
+      },
+      "description": "Arguments for task detail mode. Only one of `summary` or `details` may be specified."
+    }
+  },
+  "required": [],
+  "type": "object"
+}
+```
+
+
+</details>
+
+
 ## lookup_build
 
 Takes a build ID; returns a summary of that build.

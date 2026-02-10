@@ -8,6 +8,7 @@ import kotlinx.coroutines.test.runTest
 import org.gradle.tooling.model.build.BuildEnvironment
 import org.junit.jupiter.api.Assumptions
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
@@ -110,6 +111,27 @@ class GradleProviderTest {
             assertTrue(runningBuild.status == BuildStatus.SUCCESSFUL)
             assertTrue(result.buildResult.isSuccessful)
             assertTrue(result.buildResult.consoleOutput.isNotEmpty())
+        }
+    }
+
+    @Test
+    fun `build applies task-out init script`() = runTest(timeout = 120.seconds) {
+        testJavaProject(hasTests = false).use { project ->
+            val provider = createTestProvider()
+            val projectRoot = GradleProjectRoot(project.pathString())
+            val args = GradleInvocationArguments(
+                additionalArguments = listOf("help", "-Pgradle-mcp.init-scripts.hello")
+            )
+
+            val runningBuild = provider.runBuild(
+                projectRoot = projectRoot,
+                args = args,
+                tosAccepter = { false }
+            )
+            val result = runningBuild.awaitFinished()
+
+            assertTrue(result.buildResult.isSuccessful)
+            assertContains(result.buildResult.consoleOutput, "Gradle MCP init script task-out.init.gradle.kts loaded")
         }
     }
 

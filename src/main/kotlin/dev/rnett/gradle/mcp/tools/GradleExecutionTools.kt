@@ -101,7 +101,13 @@ class GradleExecutionTools(
             isError = true
             result.buildResult.toOutputString()
         } else {
-            result.buildResult.getTaskOutput(it.taskPath) ?: "Task output not found in console output. Build result:\n${result.buildResult.toOutputString()}"
+            buildString {
+
+                if (result.buildResult.taskOutputCapturingFailed) {
+                    appendLine("Task output capturing failed. Task output may be incomplete or interleaved with other tasks.\n")
+                }
+                appendLine(result.buildResult.getTaskOutput(it.taskPath, true) ?: "Task output not found in console output. Build result:\n${result.buildResult.toOutputString()}")
+            }
         }
     }
 

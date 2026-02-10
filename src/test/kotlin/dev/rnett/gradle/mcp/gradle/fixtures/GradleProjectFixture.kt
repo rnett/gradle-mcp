@@ -49,7 +49,7 @@ class GradleProjectFixture private constructor(
  * Builder for creating test Gradle projects.
  */
 class GradleProjectBuilder(private val projectDir: Path) {
-    private var gradleVersion: String = "8.12"
+    private var gradleVersion: String = "9.3.1"
     private var settingsContent: String? = null
     private var buildScriptContent: String? = null
     private val subprojects = mutableListOf<SubprojectConfig>()
@@ -220,7 +220,8 @@ fun testJavaProject(
             }
             
             dependencies {
-                testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
+                testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
+                testRuntimeOnly("org.junit.platform:junit-platform-launcher")
             }
             
             tasks.test {
@@ -284,6 +285,7 @@ fun testKotlinProject(
             
             dependencies {
                 testImplementation(kotlin("test"))
+                testRuntimeOnly("org.junit.platform:junit-platform-launcher")
             }
             
             tasks.test {

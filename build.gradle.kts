@@ -110,6 +110,7 @@ tasks.test {
     useJUnitPlatform()
     systemProperty("junit.jupiter.execution.parallel.enabled", "true")
     systemProperty("junit.jupiter.execution.parallel.mode.classes.default", "concurrent")
+    systemProperty("GRADLE_MCP_LOG_DIR", "build/logs")
 }
 
 tasks.named<UpdateDaemonJvm>("updateDaemonJvm") {
@@ -119,6 +120,11 @@ tasks.named<UpdateDaemonJvm>("updateDaemonJvm") {
 buildConfig {
     packageName("dev.rnett.gradle.mcp")
     buildConfigField("APP_VERSION", provider { "${project.version}" })
+    buildConfigField("INIT_SCRIPTS", provider {
+        project.projectDir.resolve("src/main/resources/init-scripts")
+            .listFiles { file -> file.name.endsWith(".init.gradle.kts") }
+            ?.joinToString(",") { it.name } ?: ""
+    })
 }
 
 tasks.shadowJar {

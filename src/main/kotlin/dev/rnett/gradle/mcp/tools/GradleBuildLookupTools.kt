@@ -9,6 +9,7 @@ import dev.rnett.gradle.mcp.gradle.ProblemAggregation
 import dev.rnett.gradle.mcp.gradle.ProblemId
 import dev.rnett.gradle.mcp.gradle.ProblemSeverity
 import dev.rnett.gradle.mcp.gradle.RunningBuild
+import dev.rnett.gradle.mcp.gradle.TaskOutcome
 import dev.rnett.gradle.mcp.gradle.TestOutcome
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
@@ -176,6 +177,100 @@ class GradleBuildLookupTools : McpServerComponent("Lookup Tools", "Tools for loo
             appendLine("Test | Outcome")
             results.forEach { tr ->
                 appendLine("${tr.testName} | ${tr.status}")
+            }
+        }
+    }
+
+    @Serializable
+    data class TaskSummaryArgs(
+        @Description("A prefix of the task path (e.g. ':app:'). Matching is case-sensitive and checks startsWith on the task path. Defaults to empty (aka all tasks).")
+        val taskPathPrefix: String = "",
+        @Description("The offset to start from in the results.")
+        val offset: Int = 0,
+        @Description("The maximum number of results to return.")
+        val limit: Int? = 50,
+        @Description("Filter results by outcome.")
+        val outcome: TaskOutcome? = null,
+    )
+
+    @Serializable
+    data class TaskDetailArgs(
+        @Description("The full path of the task to show details for.")
+        val taskPath: String,
+    )
+
+    @Serializable
+    data class TaskLookupArgs(
+        @Description(BUILD_ID_DESCRIPTION)
+        val buildId: BuildId? = null,
+        @Description("Arguments for task summary mode. Only one of `summary` or `details` may be specified.")
+        val summary: TaskSummaryArgs? = null,
+        @Description("Arguments for task detail mode. Only one of `summary` or `details` may be specified.")
+        val details: TaskDetailArgs? = null
+    )
+
+    val lookupBuildTasks by tool<TaskLookupArgs, String>(
+        "lookup_build_tasks",
+        "For a given build, provides either a summary of task executions or detailed information for a specific task. If `details` is provided, detailed execution info (duration, outcome, and console output) for that task is returned. If `summary` is provided (or neither), returns a list of tasks matching the provided filters. Only one of `summary` or `details` may be specified."
+    ) {
+        val result = BuildResults.require(it.buildId)
+        if (it.summary != null && it.details != null)
+            throw IllegalArgumentException("Only one of summary or details may be specified")
+
+        if (it.details != null) {
+            val taskResult = result.taskResults[it.details.taskPath]
+                ?: throw IllegalArgumentException("Task not found in build ${result.id}: ${it.details.taskPath}")
+
+            buildString {
+                appendLine("Task: ${taskResult.path}")
+                appendLine("Outcome: ${taskResult.outcome}")
+                appendLine("Duration: ${taskResult.duration}")
+                appendLine()
+                if (result.taskOutputCapturingFailed) {
+                    appendLine("WARNING: Task output capturing failed for this build. Showing guessed output from console if available - may be incomplete or interleaved with other tasks.")
+                    val guessed = result.getTaskOutput(taskResult.path, true)
+                    if (guessed != null) {
+                        appendLine("Guessed Output:")
+                        appendLine(guessed)
+                    } else {
+                        appendLine("No output found for this task.")
+                    }
+                } else {
+                    if (taskResult.consoleOutput != null) {
+                        appendLine("Output:")
+                        appendLine(taskResult.consoleOutput)
+                    } else {
+                        appendLine("No output captured for this task.")
+                    }
+                }
+            }
+        } else {
+            val summary = it.summary ?: TaskSummaryArgs()
+            val tasks = result.taskResults.values
+                .asSequence()
+                .filter { it.path.startsWith(summary.taskPathPrefix) }
+                .filter { summary.outcome == null || it.outcome == summary.outcome }
+                .sortedBy { it.path }
+                .toList()
+
+            buildString {
+                if (result.taskOutputCapturingFailed) {
+                    appendLine("WARNING: Task output capturing failed for this build. Task outputs may be missing or incomplete.")
+                    appendLine()
+                }
+                appendLine("Task Path | Outcome | Duration")
+                tasks.asSequence().drop(summary.offset).let {
+                    if (summary.limit != null) it.take(summary.limit) else it
+                }.forEach { task ->
+                    append(task.path).append(" | ")
+                    append(task.outcome).append(" | ")
+                    appendLine(task.duration)
+                }
+
+                if (tasks.size > (summary.offset + (summary.limit ?: Int.MAX_VALUE))) {
+                    appendLine()
+                    appendLine("... and ${tasks.size - (summary.offset + (summary.limit ?: 0))} more tasks")
+                }
             }
         }
     }

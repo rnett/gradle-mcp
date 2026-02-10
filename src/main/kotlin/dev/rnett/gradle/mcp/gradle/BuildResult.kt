@@ -32,6 +32,12 @@ data class GradleBuildScan(
 }
 
 @Serializable
+@Description("The outcome of a task.")
+enum class TaskOutcome {
+    SUCCESS, FAILED, SKIPPED, UP_TO_DATE, FROM_CACHE, NO_SOURCE
+}
+
+@Serializable
 @Description("The outcome of a test.")
 enum class TestOutcome {
     PASSED, FAILED, SKIPPED
@@ -44,8 +50,17 @@ data class BuildResult(
     val publishedScans: List<GradleBuildScan>,
     val testResults: TestResults,
     val buildFailures: List<Failure>?,
-    val problems: Map<ProblemSeverity, List<ProblemAggregation>>
+    val problems: Map<ProblemSeverity, List<ProblemAggregation>>,
+    val taskResults: Map<String, TaskResult> = emptyMap(),
+    val taskOutputs: Map<String, String> = emptyMap(),
+    val taskOutputCapturingFailed: Boolean = false
 ) {
+    data class TaskResult(
+        val path: String,
+        val outcome: TaskOutcome,
+        val duration: Duration,
+        val consoleOutput: String?
+    )
     val consoleOutputLines by lazy { consoleOutput.lines() }
     val isSuccessful: Boolean = buildFailures == null
 
@@ -54,7 +69,18 @@ data class BuildResult(
     }
     val allBuildFailures by lazy { buildFailures.orEmpty().asSequence().flatMap { it.flatten() }.associateBy { it.id }.minus(allTestFailures.keys) }
     val allFailures by lazy { allTestFailures + allBuildFailures }
-    fun getTaskOutput(taskPath: String): String? {
+    fun getTaskOutput(taskPath: String, guess: Boolean = false): String? {
+        val taskResult = taskResults[taskPath]
+        if (taskResult?.consoleOutput != null) return taskResult.consoleOutput.trim()
+
+        val taskOutput = taskOutputs[taskPath]
+        if (taskOutput != null) return taskOutput.trim()
+
+        if (!guess && !taskOutputCapturingFailed) {
+            val hasCapturedSomething = taskResults.isNotEmpty() || taskOutputs.isNotEmpty()
+            if (hasCapturedSomething) return null
+        }
+
         val lines = consoleOutputLines
         val taskHeader = "> Task $taskPath"
         val startIndex = lines.indexOfFirst { it.startsWith(taskHeader) }
@@ -146,9 +172,12 @@ data class BuildResult(
             buildId: BuildId,
             console: CharSequence,
             scans: List<GradleBuildScan>,
+            taskOutputs: Map<String, String>,
             testResults: DefaultGradleProvider.TestCollector.Results,
             problems: List<ProblemAggregation>,
-            exception: GradleConnectionException?
+            exception: GradleConnectionException?,
+            taskOutputCapturingFailed: Boolean = false,
+            taskResults: Map<String, TaskResult> = emptyMap(),
         ): BuildResult {
 
             val indexer = FailureIndexer()
@@ -164,13 +193,16 @@ data class BuildResult(
             val buildFailures = exception?.failures?.mapToSet { indexer.withIndex(it.toContent()) }
 
             return BuildResult(
-                buildId,
-                args,
-                console,
-                scans,
-                modelTestResults,
-                buildFailures?.toList(),
-                problems.asSequence().groupBy { it.definition.severity }
+                id = buildId,
+                args = args,
+                consoleOutput = console,
+                publishedScans = scans,
+                testResults = modelTestResults,
+                buildFailures = buildFailures?.toList(),
+                problems = problems.asSequence().groupBy { it.definition.severity },
+                taskOutputs = taskOutputs,
+                taskOutputCapturingFailed = taskOutputCapturingFailed,
+                taskResults = taskResults
             )
         }
 
