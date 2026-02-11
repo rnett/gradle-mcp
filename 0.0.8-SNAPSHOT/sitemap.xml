@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://gradle-mcp.rnett.dev/0.0.8-SNAPSHOT/</loc>
+         <lastmod>2026-02-11</lastmod>
+    </url>
+    <url>
+         <loc>https://gradle-mcp.rnett.dev/0.0.8-SNAPSHOT/tools/BACKGROUND_BUILD_TOOLS/</loc>
+         <lastmod>2026-02-11</lastmod>
+    </url>
+    <url>
+         <loc>https://gradle-mcp.rnett.dev/0.0.8-SNAPSHOT/tools/EXECUTION_TOOLS/</loc>
+         <lastmod>2026-02-11</lastmod>
+    </url>
+    <url>
+         <loc>https://gradle-mcp.rnett.dev/0.0.8-SNAPSHOT/tools/INTROSPECTION_TOOLS/</loc>
+         <lastmod>2026-02-11</lastmod>
+    </url>
+    <url>
+         <loc>https://gradle-mcp.rnett.dev/0.0.8-SNAPSHOT/tools/LOOKUP_TOOLS/</loc>
+         <lastmod>2026-02-11</lastmod>
+    </url>
+</urlset>
