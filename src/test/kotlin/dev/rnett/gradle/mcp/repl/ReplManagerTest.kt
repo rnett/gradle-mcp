@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
+import java.util.zip.ZipOutputStream
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
@@ -54,8 +55,8 @@ class ReplManagerTest {
         compiler.run(null, null, null, sourceFile.toString())
 
         val classFile = tempDir.resolve("$className.class")
-        
-        java.util.zip.ZipOutputStream(path.toFile().outputStream()).use {
+
+        ZipOutputStream(path.toFile().outputStream()).use {
             val manifest = java.util.jar.Manifest()
             manifest.mainAttributes[java.util.jar.Attributes.Name.MANIFEST_VERSION] = "1.0"
             manifest.mainAttributes[java.util.jar.Attributes.Name.MAIN_CLASS] = className
@@ -228,23 +229,27 @@ class ReplManagerTest {
     fun `sendRequest communicates with process via RPC prefix`() = runTest {
         val jarPath = tempDir.resolve("repl-worker-rpc.jar")
         compileAndJar(
-            jarPath, "ReplWorker", """
+            jarPath, "ReplWorkerTest", """
             import java.util.Scanner;
-            public class ReplWorker {
+            public class ReplWorkerTest {
                 public static void main(String[] args) {
+                    System.out.println("Starting ReplWorkerTest");
                     Scanner scanner = new Scanner(System.in);
                     if (scanner.hasNextLine()) {
                         scanner.nextLine(); // read config
                     }
                     while (scanner.hasNextLine()) {
                         String line = scanner.nextLine();
-                        if (line.contains("print 1")) {
-                           System.out.println("${ReplResponse.RPC_PREFIX}{\"type\":\"dev.rnett.gradle.mcp.repl.ReplResponse.Output.Stdout\",\"data\":\"1\"}");
-                           System.out.flush();
-                        }
-                        if (line.contains("result 2")) {
-                           System.out.println("${ReplResponse.RPC_PREFIX}{\"type\":\"dev.rnett.gradle.mcp.repl.ReplResponse.Result.Success\",\"data\":{\"value\":\"2\",\"mime\":\"text/plain\"}}");
-                           System.out.flush();
+                        System.out.println("Received line: " + line);
+                        if (line.startsWith("${ReplResponse.RPC_PREFIX}")) {
+                           if (line.contains("print 1")) {
+                              System.out.println("${ReplResponse.RPC_PREFIX}{\"type\":\"dev.rnett.gradle.mcp.repl.ReplResponse.Output.Stdout\",\"data\":\"1\"}");
+                              System.out.flush();
+                           }
+                           if (line.contains("result 2")) {
+                              System.out.println("${ReplResponse.RPC_PREFIX}{\"type\":\"dev.rnett.gradle.mcp.repl.ReplResponse.Result.Success\",\"data\":{\"value\":\"2\",\"mime\":\"text/plain\"}}");
+                              System.out.flush();
+                           }
                         }
                     }
                 }

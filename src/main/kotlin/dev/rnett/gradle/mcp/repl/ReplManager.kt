@@ -168,12 +168,9 @@ class DefaultReplManager(
         )
 
         // Send config to worker's stdin
-        val configLine = Json.encodeToString(config)
-        process.outputStream.bufferedWriter().apply {
-            write(configLine)
-            newLine()
-            flush()
-        }
+        val configLine = Json.encodeToString(config) + "\n"
+        process.outputStream.write(configLine.encodeToByteArray())
+        process.outputStream.flush()
 
         return process
     }
@@ -205,12 +202,11 @@ class DefaultReplManager(
 
     override suspend fun sendRequest(sessionId: String, command: ReplRequest): Flow<ReplResponse> {
         val session = sessions[sessionId] ?: error("No active REPL session with ID $sessionId")
-        val requestId = java.util.UUID.randomUUID().toString()
-        val commandWithId = command.copy(id = requestId)
 
-        val json = Json.encodeToString(commandWithId)
+        val json = Json.encodeToString(command)
         withContext(Dispatchers.IO) {
             session.process.outputStream.bufferedWriter().apply {
+                write(ReplResponse.RPC_PREFIX)
                 write(json)
                 newLine()
                 flush()
@@ -220,11 +216,9 @@ class DefaultReplManager(
         return flow {
             session.responses
                 .collect {
-                    if (it.requestId == requestId) {
-                        emit(it)
-                        if (it is ReplResponse.Result) {
-                            throw CancellationException("Found result")
-                        }
+                    emit(it)
+                    if (it is ReplResponse.Result) {
+                        throw CancellationException("Found result")
                     }
                 }
         }.catch { e ->

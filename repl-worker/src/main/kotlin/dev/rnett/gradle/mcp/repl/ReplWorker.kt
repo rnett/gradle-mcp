@@ -9,21 +9,21 @@ class ReplWorker(val config: ReplConfig) {
 
     private val responder = object : Responder {
         override fun respond(value: Any?, mime: String?) {
-            val data = ResultRenderer.renderResult(value, mime).copy(requestId = currentRequestId)
+            val data = ResultRenderer.renderResult(value, mime)
             sendResponse(data)
         }
 
         override fun markdown(md: String) {
-            sendResponse(ReplResponse.Data(md, "text/markdown", requestId = currentRequestId))
+            sendResponse(ReplResponse.Data(md, "text/markdown"))
         }
 
         override fun html(fragment: String) {
-            sendResponse(ReplResponse.Data(fragment, "text/html", requestId = currentRequestId))
+            sendResponse(ReplResponse.Data(fragment, "text/html"))
         }
 
         override fun image(bytes: ByteArray, mime: String) {
             val base64 = Base64.getEncoder().encodeToString(bytes)
-            sendResponse(ReplResponse.Data(base64, mime, requestId = currentRequestId))
+            sendResponse(ReplResponse.Data(base64, mime))
         }
     }
 
@@ -31,7 +31,6 @@ class ReplWorker(val config: ReplConfig) {
 
     private val stdout = System.`out`
     private val stderr = System.err
-    private var currentRequestId: String? = null
 
     fun run() {
         val reader = System.`in`.bufferedReader()
@@ -40,21 +39,21 @@ class ReplWorker(val config: ReplConfig) {
         // and send them as JSON frames
         System.setOut(PrintStream(object : java.io.OutputStream() {
             override fun write(b: Int) {
-                sendResponse(ReplResponse.Output.Stdout(b.toChar().toString(), requestId = currentRequestId))
+                sendResponse(ReplResponse.Output.Stdout(b.toChar().toString()))
             }
 
             override fun write(b: ByteArray, off: Int, len: Int) {
-                sendResponse(ReplResponse.Output.Stdout(String(b, off, len), requestId = currentRequestId))
+                sendResponse(ReplResponse.Output.Stdout(String(b, off, len)))
             }
         }, true))
 
         System.setErr(PrintStream(object : java.io.OutputStream() {
             override fun write(b: Int) {
-                sendResponse(ReplResponse.Output.Stderr(b.toChar().toString(), requestId = currentRequestId))
+                sendResponse(ReplResponse.Output.Stderr(b.toChar().toString()))
             }
 
             override fun write(b: ByteArray, off: Int, len: Int) {
-                sendResponse(ReplResponse.Output.Stderr(String(b, off, len), requestId = currentRequestId))
+                sendResponse(ReplResponse.Output.Stderr(String(b, off, len)))
             }
         }, true))
 
@@ -62,15 +61,17 @@ class ReplWorker(val config: ReplConfig) {
             val line = reader.readLine() ?: break
             if (line.isBlank()) continue
 
+            if (!line.startsWith(ReplResponse.RPC_PREFIX)) {
+                continue
+            }
+
             try {
-                val request = json.decodeFromString<ReplRequest>(line)
-                currentRequestId = request.id
+                val jsonLine = line.removePrefix(ReplResponse.RPC_PREFIX)
+                val request = json.decodeFromString<ReplRequest>(jsonLine)
                 val result = evaluator.evaluate(request.code)
                 handleResult(result)
             } catch (e: Exception) {
-                sendResponse(ReplResponse.Result.RuntimeError(e.message ?: e.toString(), e.stackTraceToString(), requestId = currentRequestId))
-            } finally {
-                currentRequestId = null
+                sendResponse(ReplResponse.Result.RuntimeError(e.message ?: e.toString(), e.stackTraceToString()))
             }
         }
     }
@@ -78,15 +79,15 @@ class ReplWorker(val config: ReplConfig) {
     private fun handleResult(result: KotlinScriptEvaluator.EvalResult) {
         when (result) {
             is KotlinScriptEvaluator.EvalResult.Success -> {
-                sendResponse(ReplResponse.Result.Success(result.data.copy(requestId = currentRequestId), requestId = currentRequestId))
+                sendResponse(ReplResponse.Result.Success(result.data))
             }
 
             is KotlinScriptEvaluator.EvalResult.CompilationError -> {
-                sendResponse(ReplResponse.Result.CompilationError(result.message, requestId = currentRequestId))
+                sendResponse(ReplResponse.Result.CompilationError(result.message))
             }
 
             is KotlinScriptEvaluator.EvalResult.RuntimeError -> {
-                sendResponse(ReplResponse.Result.RuntimeError(result.message, result.stackTrace, requestId = currentRequestId))
+                sendResponse(ReplResponse.Result.RuntimeError(result.message, result.stackTrace))
             }
         }
     }

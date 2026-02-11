@@ -11,13 +11,11 @@ data class ReplConfig(
 
 @Serializable
 data class ReplRequest(
-    val code: String,
-    val id: String? = null
+    val code: String
 )
 
 @Serializable
 sealed class ReplResponse {
-    abstract val requestId: String?
     
     companion object {
         const val RPC_PREFIX = "[gradle-mcp-repl-rpc]"
@@ -28,32 +26,30 @@ sealed class ReplResponse {
         abstract val data: String
 
         @Serializable
-        data class Stdout(override val data: String, override val requestId: String? = null) : Output()
+        data class Stdout(override val data: String) : Output()
 
         @Serializable
-        data class Stderr(override val data: String, override val requestId: String? = null) : Output()
+        data class Stderr(override val data: String) : Output()
     }
 
     @Serializable
     data class Data(
         val value: String,
         val mime: String = "text/plain",
-        val meta: Map<String, String> = emptyMap(),
-        override val requestId: String? = null
+        val meta: Map<String, String> = emptyMap()
     ) : ReplResponse()
 
     @Serializable
     sealed class Result : ReplResponse() {
         @Serializable
         data class Success(
-            val data: Data,
-            override val requestId: String? = null
+            val data: Data
         ) : Result()
 
         @Serializable
-        data class CompilationError(val message: String, override val requestId: String? = null) : Result()
+        data class CompilationError(val message: String) : Result()
 
         @Serializable
-        data class RuntimeError(val message: String, val stackTrace: String? = null, override val requestId: String? = null) : Result()
+        data class RuntimeError(val message: String, val stackTrace: String? = null) : Result()
     }
 }
