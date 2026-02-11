@@ -203,5 +203,4 @@ class GradleExecutionTools(
 
         result.buildResult.toOutputString()
     }
-
 }

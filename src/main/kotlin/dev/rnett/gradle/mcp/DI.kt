@@ -18,6 +18,7 @@ import dev.rnett.gradle.mcp.tools.BackgroundBuildTools
 import dev.rnett.gradle.mcp.tools.GradleBuildLookupTools
 import dev.rnett.gradle.mcp.tools.GradleExecutionTools
 import dev.rnett.gradle.mcp.tools.GradleIntrospectionTools
+import dev.rnett.gradle.mcp.tools.ReplTools
 import io.ktor.server.config.ApplicationConfig
 import io.ktor.server.config.getAs
 import io.modelcontextprotocol.kotlin.sdk.EmptyJsonObject
@@ -57,9 +58,11 @@ object DI {
 
         single {
             val provider: GradleProvider = get()
+            val replManager: ReplManager = get()
             listOf(
                 GradleIntrospectionTools(provider),
                 GradleExecutionTools(provider),
+                ReplTools(provider, replManager),
                 BackgroundBuildTools(provider),
                 GradleBuildLookupTools(provider.buildResults),
             )
@@ -87,9 +90,10 @@ object DI {
         modules(createModule(config))
     }
 
-    fun components(provider: GradleProvider): List<McpServerComponent> = listOf(
+    fun components(provider: GradleProvider, replManager: ReplManager): List<McpServerComponent> = listOf(
         GradleIntrospectionTools(provider),
         GradleExecutionTools(provider),
+        ReplTools(provider, replManager),
         BackgroundBuildTools(provider),
         GradleBuildLookupTools(provider.buildResults),
     )

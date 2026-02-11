@@ -21,6 +21,7 @@ class Application(val args: Array<String>) {
     private val koinContext: org.koin.core.Koin = koinApp.koin
 
     val provider: GradleProvider = koinContext.get<GradleProvider>()
+    val replManager: dev.rnett.gradle.mcp.repl.ReplManager = koinContext.get<dev.rnett.gradle.mcp.repl.ReplManager>()
 
     fun startStdio() = runBlocking {
         val transport = StdioServerTransport(
@@ -29,7 +30,12 @@ class Application(val args: Array<String>) {
         )
         val mcpServer: McpServer = koinContext.get<McpServer>()
         mcpServer.apply {
-            onClose { provider.close() }
+            onClose {
+                provider.close()
+                runBlocking {
+                    replManager.closeAll()
+                }
+            }
             connect(transport)
             suspendCoroutine {
                 onClose { it.resume(Unit) }
@@ -42,7 +48,12 @@ class Application(val args: Array<String>) {
         server.application.apply {
             mcp {
                 val mcpServer: McpServer = koinContext.get<McpServer>()
-                mcpServer.onClose { provider.close() }
+                mcpServer.onClose {
+                    provider.close()
+                    runBlocking {
+                        replManager.closeAll()
+                    }
+                }
                 mcpServer
             }
         }

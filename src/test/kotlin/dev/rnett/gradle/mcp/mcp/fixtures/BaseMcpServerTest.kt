@@ -49,9 +49,11 @@ abstract class BaseMcpServerTest {
 
         single {
             val provider: GradleProvider = get()
+            val replManager: dev.rnett.gradle.mcp.repl.ReplManager = get()
             listOf(
                 GradleIntrospectionTools(provider),
                 GradleExecutionTools(provider),
+                dev.rnett.gradle.mcp.tools.ReplTools(provider, replManager),
                 BackgroundBuildTools(provider),
                 GradleBuildLookupTools(get()),
             )
@@ -64,7 +66,7 @@ abstract class BaseMcpServerTest {
     }
 
     @BeforeTest
-    fun setup() = runTest {
+    open fun setup() = runTest {
         server = McpServerFixture(koinModules = listOf(createTestModule()))
         server.start()
     }

@@ -60,7 +60,7 @@ object UpdateTools {
             throw IllegalArgumentException("Output directory must be a directory")
         }
 
-        val files = DI.components(throwingGradleProvider).mapNotNull {
+        val files = DI.components(throwingGradleProvider, throwingReplManager).mapNotNull {
             val file = directory?.resolve("${it.name.replace(" ", "_").uppercase()}.md")
             executeForComponent(it, file, verify)
             file
@@ -182,5 +182,26 @@ object UpdateTools {
 
         override val backgroundBuildManager = BackgroundBuildManager()
         override val buildResults = BuildResults(backgroundBuildManager)
+    }
+
+    val throwingReplManager = object : dev.rnett.gradle.mcp.repl.ReplManager {
+        override fun startSession(
+            sessionId: String,
+            config: dev.rnett.gradle.mcp.repl.ReplConfig,
+            javaExecutable: String
+        ): Process {
+            throw UnsupportedOperationException("Not used for tool listing")
+        }
+
+        override fun getSession(sessionId: String): dev.rnett.gradle.mcp.repl.ReplSession? {
+            throw UnsupportedOperationException("Not used for tool listing")
+        }
+
+        override suspend fun terminateSession(sessionId: String) {
+            throw UnsupportedOperationException("Not used for tool listing")
+        }
+
+        override suspend fun closeAll() {
+        }
     }
 }

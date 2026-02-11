@@ -88,13 +88,15 @@ abstract class McpServerComponent(val name: String, val description: String) {
 
                     if (it is String) {
                         return@fold CallToolResult(
-                            listOf(TextContent(it)) + aux.additionalResults
+                            listOf(TextContent(it)) + aux.additionalResults,
+                            isError = aux.isError
                         )
                     }
 
                     if (it is Unit) {
                         return@fold CallToolResult(
-                            listOf(TextContent("Done")) + aux.additionalResults
+                            listOf(TextContent("Done")) + aux.additionalResults,
+                            isError = aux.isError
                         )
                     }
 

@@ -51,17 +51,23 @@ Implement a manager class within the MCP server to handle worker lifecycles.
     - `terminateSession(sessionId)`: Kills the worker process.
     - Add a shutdown hook to clean up all active workers.
 
-#### 5. MCP Tool Implementation (`run_kotlin_snippet`)
+#### 5. MCP Tool Implementation (`repl`)
 
-Add the tool to `GradleExecutionTools.kt` or a new `ReplTools.kt`.
+Implement the `repl` tool in `ReplTools.kt`.
 
-- **Arguments**: `projectRoot`, `projectPath`, `sourceSet`, `code`, `sessionId`.
+- **Arguments**: `command` (start|stop|run), `projectPath`, `sourceSet`, `code`.
 - **Workflow**:
-    1. Resolve `projectRoot`.
-    2. Run the `resolveReplEnvironment` task using the init script via `GradleProvider`.
-    3. Parse the environment information from the task output.
-    4. Call `ReplManager.execute(sessionId, env, code)`.
-    5. Return `TextContent` containing the result or errors.
+    1. If `command` is `start`:
+        - Resolve `projectRoot`.
+        - Run the `resolveReplEnvironment` task using the init script via `GradleProvider`.
+        - Parse the environment information from the task output.
+        - Start a new session via `ReplManager.startSession` with a random `sessionId`.
+    2. If `command` is `stop`:
+        - Terminate the current session via `ReplManager.terminateSession`.
+    3. If `command` is `run`:
+        - Verify an active session exists.
+        - Send the `code` snippet to the worker (TODO).
+- **Session Management**: Maintain exactly one active session ID in `ReplTools`.
 
 #### 7. Verification & Testing
 
@@ -92,7 +98,7 @@ This section details how rich output is produced in the REPL worker and mapped o
         - `{"event":"display","kind":"text|html|markdown|image","mime":"…","data":"<base64 or text>","meta":{…}}`
         - `{"event":"stdout","data":"…"}` / `{"event":"stderr","data":"…"}`
         - `{"event":"result","type":"success|error","data":"…","renderKind":"text|html|markdown|image?","mime":"…"}`
-    - The worker may emit multiple `display` frames per snippet; exactly one `result` or `incomplete` frame is emitted at the end.
+  - The worker may emit multiple `display` frames per snippet; exactly one `result` frame is emitted at the end.
 
 - Display API available to snippets
     - Inject a small prelude at session start to expose:
