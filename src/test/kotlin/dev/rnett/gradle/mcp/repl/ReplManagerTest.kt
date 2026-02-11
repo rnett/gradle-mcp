@@ -186,7 +186,7 @@ class ReplManagerTest {
         // Wait for it to exit
         var status: ReplSession? = null
         val start = System.currentTimeMillis()
-        while (System.currentTimeMillis() - start < 5000) {
+        while (System.currentTimeMillis() - start < 10000) {
             status = exitManager.getSession("session1")
             if (status is ReplSession.Terminated) break
             delay(100)

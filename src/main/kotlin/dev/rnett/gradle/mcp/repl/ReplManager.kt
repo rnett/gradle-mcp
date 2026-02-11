@@ -90,11 +90,10 @@ class DefaultReplManager(
     override fun getSession(sessionId: String): ReplSession? {
         val session = sessions[sessionId] ?: return null
         if (!session.process.isAlive) {
+            sessions.remove(sessionId)
             val exitCode = session.process.exitValue()
             val output = session.outputBuffer.toList()
-            scope.launch {
-                terminateSession(sessionId)
-            }
+            cleanupSession(session)
             return ReplSession.Terminated(exitCode, output.joinToString("\n"))
         }
         // Keep lastActivity update for potential future use, but manager no longer enforces timeouts
@@ -200,25 +199,7 @@ class DefaultReplManager(
      */
     override suspend fun terminateSession(sessionId: String) {
         sessions.remove(sessionId)?.let {
-            if (!it.process.isAlive) return@let
             LOGGER.info("Terminating REPL worker for session $sessionId")
-
-            // Close all process streams to unblock any readers/writers
-            runCatching { it.process.outputStream.close() }
-            runCatching { it.process.inputStream.close() }
-            runCatching { it.process.errorStream.close() }
-
-            // Cancel log collection coroutines and wait briefly for them to finish to avoid hangs on blocked reads
-            it.logJobs.forEach { job ->
-                try {
-                    job.cancel()
-                    kotlinx.coroutines.withTimeout(500) { job.join() }
-                } catch (_: Exception) {
-                    // If they don't finish promptly, proceed with termination
-                }
-            }
-
-            // Attempt graceful termination, then force termination immediately to ensure timely shutdown in tests/environments
             it.process.destroy()
             withContext(Dispatchers.IO) {
                 // Also attempt to kill any child processes to avoid lingering process trees on Windows
@@ -232,6 +213,19 @@ class DefaultReplManager(
                 it.process.waitFor()
             }
             LOGGER.info("REPL worker for session $sessionId terminated with exit code ${it.process.exitValue()}")
+            cleanupSession(it)
+        }
+    }
+
+    private fun cleanupSession(session: ReplSessionState) {
+        // Close all process streams to unblock any readers/writers
+        runCatching { session.process.outputStream.close() }
+        runCatching { session.process.inputStream.close() }
+        runCatching { session.process.errorStream.close() }
+
+        // Cancel log collection coroutines and wait briefly for them to finish to avoid hangs on blocked reads
+        session.logJobs.forEach { job ->
+            job.cancel()
         }
     }
 
