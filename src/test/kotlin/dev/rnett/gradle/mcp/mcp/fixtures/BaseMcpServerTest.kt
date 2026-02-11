@@ -1,12 +1,24 @@
 package dev.rnett.gradle.mcp.mcp.fixtures
 
+import dev.rnett.gradle.mcp.DI
 import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
 import dev.rnett.gradle.mcp.gradle.BuildResults
+import dev.rnett.gradle.mcp.gradle.BundledJarProvider
+import dev.rnett.gradle.mcp.gradle.DefaultBundledJarProvider
+import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
+import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProvider
+import dev.rnett.gradle.mcp.gradle.InitScriptProvider
+import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import dev.rnett.gradle.mcp.tools.BackgroundBuildTools
+import dev.rnett.gradle.mcp.tools.GradleBuildLookupTools
+import dev.rnett.gradle.mcp.tools.GradleExecutionTools
+import dev.rnett.gradle.mcp.tools.GradleIntrospectionTools
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.io.TempDir
+import org.koin.dsl.module
 import java.nio.file.Path
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -19,14 +31,41 @@ abstract class BaseMcpServerTest {
     lateinit var server: McpServerFixture
     protected val provider = mockk<GradleProvider>(relaxed = true)
 
-    protected open val backgroundBuildManager: BackgroundBuildManager = BackgroundBuildManager()
-    protected open val buildResults: BuildResults = BuildResults(backgroundBuildManager)
+    protected open fun createTestModule(): org.koin.core.module.Module = module {
+        single { DI.json }
+        single<GradleConfiguration> {
+            GradleConfiguration(4, kotlin.time.Duration.parse("10m"), false)
+        }
+        single<InitScriptProvider> { DefaultInitScriptProvider(tempDir.resolve("init-scripts")) }
+        single<BundledJarProvider> { DefaultBundledJarProvider(tempDir.resolve("jars")) }
+        single { BackgroundBuildManager() }
+        single { BuildResults(get()) }
+        single<dev.rnett.gradle.mcp.repl.ReplManager> { dev.rnett.gradle.mcp.repl.DefaultReplManager(get()) }
+        single<GradleProvider> {
+            every { provider.backgroundBuildManager } returns get()
+            every { provider.buildResults } returns get()
+            provider
+        }
+
+        single {
+            val provider: GradleProvider = get()
+            listOf(
+                GradleIntrospectionTools(provider),
+                GradleExecutionTools(provider),
+                BackgroundBuildTools(provider),
+                GradleBuildLookupTools(get()),
+            )
+        }
+
+        single {
+            val components: List<McpServerComponent> = get()
+            DI.createServer(get(), components)
+        }
+    }
 
     @BeforeTest
     fun setup() = runTest {
-        every { provider.backgroundBuildManager } returns backgroundBuildManager
-        every { provider.buildResults } returns buildResults
-        server = McpServerFixture(provider)
+        server = McpServerFixture(koinModules = listOf(createTestModule()))
         server.start()
     }
 

@@ -18,7 +18,7 @@ class TaskOutInitScriptTest {
                 ttl = 60.seconds,
                 allowPublicScansPublishing = false
             ),
-            initScriptProvider = InitScriptProvider(tempDir)
+            initScriptProvider = DefaultInitScriptProvider(tempDir)
         )
     }
 
@@ -37,7 +37,7 @@ class TaskOutInitScriptTest {
                     ttl = 60.seconds,
                     allowPublicScansPublishing = false
                 ),
-                initScriptProvider = InitScriptProvider(tempDir),
+                initScriptProvider = DefaultInitScriptProvider(tempDir),
                 backgroundBuildManager = backgroundBuildManager,
                 buildResults = buildResults
             )
@@ -82,7 +82,7 @@ class TaskOutInitScriptTest {
                     ttl = 60.seconds,
                     allowPublicScansPublishing = false
                 ),
-                initScriptProvider = InitScriptProvider(),
+                initScriptProvider = DefaultInitScriptProvider(),
                 backgroundBuildManager = backgroundBuildManager,
                 buildResults = buildResults
             )
@@ -146,7 +146,7 @@ class TaskOutInitScriptTest {
                     ttl = 60.seconds,
                     allowPublicScansPublishing = false
                 ),
-                initScriptProvider = InitScriptProvider(),
+                initScriptProvider = DefaultInitScriptProvider(),
                 backgroundBuildManager = backgroundBuildManager,
                 buildResults = buildResults
             )
@@ -194,7 +194,7 @@ class TaskOutInitScriptTest {
                     ttl = 60.seconds,
                     allowPublicScansPublishing = false
                 ),
-                initScriptProvider = InitScriptProvider(),
+                initScriptProvider = DefaultInitScriptProvider(),
                 backgroundBuildManager = backgroundBuildManager,
                 buildResults = buildResults
             )

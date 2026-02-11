@@ -1,33 +1,15 @@
 package dev.rnett.gradle.mcp
 
-import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
-import dev.rnett.gradle.mcp.gradle.BuildResults
-import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
-import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProvider
-import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.mcp.McpServer
-import dev.rnett.gradle.mcp.mcp.McpServerComponent
-import dev.rnett.gradle.mcp.mcp.add
-import dev.rnett.gradle.mcp.tools.BackgroundBuildTools
-import dev.rnett.gradle.mcp.tools.GradleBuildLookupTools
-import dev.rnett.gradle.mcp.tools.GradleExecutionTools
-import dev.rnett.gradle.mcp.tools.GradleIntrospectionTools
-import io.ktor.server.config.getAs
 import io.ktor.server.engine.CommandLineConfig
 import io.ktor.server.netty.EngineMain
-import io.ktor.server.plugins.di.dependencies
-import io.modelcontextprotocol.kotlin.sdk.EmptyJsonObject
-import io.modelcontextprotocol.kotlin.sdk.Implementation
-import io.modelcontextprotocol.kotlin.sdk.ServerCapabilities
-import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
 import io.modelcontextprotocol.kotlin.sdk.server.mcp
 import kotlinx.coroutines.runBlocking
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
-import kotlinx.serialization.json.Json
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -35,30 +17,18 @@ import kotlin.coroutines.suspendCoroutine
 class Application(val args: Array<String>) {
 
     private val config = CommandLineConfig(args)
+    private val koinApp: org.koin.core.KoinApplication = DI.createKoin(config.rootConfig.environment.config)
+    private val koinContext: org.koin.core.Koin = koinApp.koin
 
-    val appConfig = config.rootConfig.environment.config
-    val gradleConfig = appConfig.property("gradle").getAs<GradleConfiguration>()
-    val initScriptProvider = InitScriptProvider()
-    val backgroundBuildManager = BackgroundBuildManager()
-    val buildResults = BuildResults(backgroundBuildManager)
-
-    val provider = DefaultGradleProvider(
-        gradleConfig,
-        initScriptProvider = initScriptProvider,
-        backgroundBuildManager = backgroundBuildManager,
-        buildResults = buildResults
-    ).apply {
-        Runtime.getRuntime().addShutdownHook(Thread {
-            close()
-        })
-    }
+    val provider: GradleProvider = koinContext.get<GradleProvider>()
 
     fun startStdio() = runBlocking {
         val transport = StdioServerTransport(
             System.`in`.asSource().buffered(),
             System.out.asSink().buffered()
         )
-        createServer(provider).apply {
+        val mcpServer: McpServer = koinContext.get<McpServer>()
+        mcpServer.apply {
             onClose { provider.close() }
             connect(transport)
             suspendCoroutine {
@@ -70,12 +40,8 @@ class Application(val args: Array<String>) {
     fun startServer() = runBlocking {
         val server = EngineMain.createServer(args)
         server.application.apply {
-            dependencies {
-                provide { json }
-            }
-
             mcp {
-                val mcpServer = createServer(provider)
+                val mcpServer: McpServer = koinContext.get<McpServer>()
                 mcpServer.onClose { provider.close() }
                 mcpServer
             }
@@ -85,38 +51,6 @@ class Application(val args: Array<String>) {
     }
 
     companion object {
-
-        private val json = Json {
-            isLenient = true
-            coerceInputValues = true
-            ignoreUnknownKeys = true
-            encodeDefaults = true
-            decodeEnumsCaseInsensitive = true
-        }
-
-        fun components(provider: GradleProvider): List<McpServerComponent> = listOf(
-            GradleIntrospectionTools(provider),
-            GradleExecutionTools(provider),
-            BackgroundBuildTools(provider),
-            GradleBuildLookupTools(provider.buildResults),
-        )
-
-        fun createServer(provider: GradleProvider, components: List<McpServerComponent> = components(provider)): McpServer {
-            return McpServer(
-                Implementation("gradle-mcp", BuildConfig.APP_VERSION),
-                ServerOptions(
-                    ServerCapabilities(
-                        logging = EmptyJsonObject,
-                        tools = ServerCapabilities.Tools(false)
-                    ),
-                    enforceStrictCapabilities = false
-                ),
-                json
-            ).apply {
-                components.forEach { add(it) }
-            }
-        }
-
 
         @JvmStatic
         fun stdio(args: Array<String>) {

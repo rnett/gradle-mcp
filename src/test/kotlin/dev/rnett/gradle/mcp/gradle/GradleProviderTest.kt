@@ -52,7 +52,7 @@ class GradleProviderTest {
                 ttl = 60.seconds,
                 allowPublicScansPublishing = false
             ),
-            initScriptProvider = InitScriptProvider(tempDir)
+            initScriptProvider = DefaultInitScriptProvider(tempDir)
         )
     }
 
@@ -544,7 +544,7 @@ class GradleProviderTest {
                     ttl = 60.seconds,
                     allowPublicScansPublishing = true
                 ),
-                initScriptProvider = InitScriptProvider(tempDir)
+                initScriptProvider = DefaultInitScriptProvider(tempDir)
             )
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(

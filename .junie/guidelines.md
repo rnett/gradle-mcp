@@ -17,3 +17,4 @@ Use the Gradle MCP to interact with Gradle whenever possible.
 * Do not under any circumstances use reflection hacks for tests.
 * Always use `runTest` for suspending tests, not `runBlocking`.
 * Most MCP tools should return text, not JSON.
+* Always use isolated Koin contexts; avoid global contexts.

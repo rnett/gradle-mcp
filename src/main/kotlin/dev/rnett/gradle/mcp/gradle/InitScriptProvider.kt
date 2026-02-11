@@ -1,26 +1,30 @@
 package dev.rnett.gradle.mcp.gradle
 
 import dev.rnett.gradle.mcp.BuildConfig
+import dev.rnett.gradle.mcp.hash
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
-import java.security.MessageDigest
 import kotlin.io.path.Path
 import kotlin.io.path.absolute
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.writeBytes
 
-class InitScriptProvider(
+interface InitScriptProvider {
+    fun extractInitScripts(): List<Path>
+}
+
+class DefaultInitScriptProvider(
     private val workingDir: Path = Path(System.getProperty("user.home"), ".gradle-mcp").absolute()
-) {
+) : InitScriptProvider {
 
 
     private val initScriptsDir = workingDir.resolve("init-scripts")
 
     companion object {
-        private val LOGGER = LoggerFactory.getLogger(InitScriptProvider::class.java)
+        private val LOGGER = LoggerFactory.getLogger(DefaultInitScriptProvider::class.java)
         private const val RESOURCE_PATH = "init-scripts"
     }
 
@@ -32,7 +36,7 @@ class InitScriptProvider(
      * Extracts all .init.gradle.kts files from resources to the working directory.
      * Returns a list of absolute paths to the extracted scripts.
      */
-    fun extractInitScripts(): List<Path> {
+    override fun extractInitScripts(): List<Path> {
         val scripts = mutableListOf<Path>()
         initScriptsDir.createDirectories()
 
@@ -76,11 +80,5 @@ class InitScriptProvider(
                 add(targetPath.absolute())
             }
         }
-    }
-
-    private fun ByteArray.hash(): String {
-        val md = MessageDigest.getInstance("SHA-256")
-        val digest = md.digest(this)
-        return digest.fold("") { str, it -> str + "%02x".format(it) }.take(8)
     }
 }

@@ -19,16 +19,30 @@ enum class BuildStatus {
     RUNNING, SUCCESSFUL, FAILED, CANCELLED
 }
 
+interface IRunningBuild<T> : Build {
+    val projectRoot: Path
+    val logBuffer: StringBuffer
+    val cancellationTokenSource: CancellationTokenSource
+    val result: CompletableDeferred<GradleResult<T>>
+    val logLines: SharedFlow<String>
+    val completedTasks: SharedFlow<String>
+    val completedTaskPaths: Set<String>
+    val status: BuildStatus
+    val endTime: Instant?
+
+    fun stop()
+}
+
 data class RunningBuild<T>(
     override val id: BuildId,
     override val args: GradleInvocationArguments,
     override val startTime: Instant,
-    val projectRoot: Path,
-    val logBuffer: StringBuffer = StringBuffer(),
-    val cancellationTokenSource: CancellationTokenSource,
+    override val projectRoot: Path,
+    override val logBuffer: StringBuffer = StringBuffer(),
+    override val cancellationTokenSource: CancellationTokenSource,
     private val backgroundBuildManager: BackgroundBuildManager,
-    val result: CompletableDeferred<GradleResult<T>> = CompletableDeferred()
-) : Build {
+    override val result: CompletableDeferred<GradleResult<T>> = CompletableDeferred()
+) : IRunningBuild<T> {
     val problemsAccumulator = Build.ProblemsAccumulator()
     override val problems: List<ProblemAggregation> get() = problemsAccumulator.aggregate()
     override val problemAggregations: Map<ProblemSeverity, List<ProblemAggregation>> get() = problemsAccumulator.aggregateBySeverity()
@@ -57,17 +71,17 @@ data class RunningBuild<T>(
         }
 
     private val _logLines = MutableSharedFlow<String>(replay = 1)
-    val logLines: SharedFlow<String> = _logLines.asSharedFlow()
+    override val logLines: SharedFlow<String> = _logLines.asSharedFlow()
 
     private val _completedTasks = MutableSharedFlow<String>(replay = 1)
-    val completedTasks: SharedFlow<String> = _completedTasks.asSharedFlow()
+    override val completedTasks: SharedFlow<String> = _completedTasks.asSharedFlow()
 
     private val _taskPaths: MutableSet<String> = Collections.newSetFromMap(ConcurrentHashMap())
-    val completedTaskPaths: Set<String> get() = _taskPaths.toSet()
+    override val completedTaskPaths: Set<String> get() = _taskPaths.toSet()
 
-    var status: BuildStatus = BuildStatus.RUNNING
+    override var status: BuildStatus = BuildStatus.RUNNING
         private set
-    var endTime: Instant? = null
+    override var endTime: Instant? = null
         private set
 
     override val consoleOutput: CharSequence get() = logBuffer
@@ -95,7 +109,7 @@ data class RunningBuild<T>(
 
     suspend fun awaitFinished(): GradleResult<T> = result.await()
 
-    fun stop() {
+    override fun stop() {
         cancellationTokenSource.cancel()
     }
 

@@ -1,7 +1,6 @@
 package dev.rnett.gradle.mcp.mcp.fixtures
 
-import dev.rnett.gradle.mcp.Application
-import dev.rnett.gradle.mcp.gradle.GradleProvider
+import dev.rnett.gradle.mcp.mcp.McpServer
 import io.modelcontextprotocol.kotlin.sdk.ClientCapabilities
 import io.modelcontextprotocol.kotlin.sdk.Implementation
 import io.modelcontextprotocol.kotlin.sdk.Root
@@ -16,12 +15,17 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
+import org.koin.core.module.Module
+import org.koin.dsl.koinApplication
 import org.slf4j.LoggerFactory
 
 /**
  * Test fixture that starts a real MCP server and a real MCP client connected over in-memory STDIO streams.
  */
-class McpServerFixture(private val provider: GradleProvider, private val clientSupportsElicitation: Boolean = true) {
+class McpServerFixture(
+    private val clientSupportsElicitation: Boolean = true,
+    private val koinModules: List<Module> = emptyList(),
+) {
     private val LOGGER = LoggerFactory.getLogger(McpServerFixture::class.java)
 
     val scope = CoroutineScope(Dispatchers.Default + SupervisorJob() + CoroutineExceptionHandler { _, it ->
@@ -30,7 +34,14 @@ class McpServerFixture(private val provider: GradleProvider, private val clientS
 
     private val transports = ChannelBasedInMemoryTransport.createLinkedPair(scope)
 
-    private val server = Application.createServer(provider)
+    val koinApp = koinApplication {
+        modules(koinModules)
+    }
+
+    val koin = koinApp.koin
+
+    val server = koin.get<McpServer>()
+    
     val client = Client(
         Implementation("gradle-mcp-test-client", "test"),
         ClientOptions(
@@ -68,6 +79,7 @@ class McpServerFixture(private val provider: GradleProvider, private val clientS
     suspend fun close() {
         runCatching { client.close() }
         runCatching { server.close() }
+        koinApp.close()
         scope.cancel("Test cleanup")
     }
 }

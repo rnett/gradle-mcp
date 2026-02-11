@@ -44,6 +44,7 @@ tasks.check {
 }
 
 dependencies {
+    implementation(project(":repl-shared"))
     implementation(libs.gradle.tooling.api)
 
     implementation(libs.caffeine)
@@ -57,6 +58,9 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.mcp.sdk)
+    implementation("io.insert-koin:koin-core-jvm:4.0.1")
+    implementation("io.insert-koin:koin-ktor:4.0.1")
+    implementation("io.insert-koin:koin-logger-slf4j:4.0.1")
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.di)
     implementation(libs.ktor.serialization.kotlinx.json)
@@ -125,6 +129,19 @@ buildConfig {
             .listFiles { file -> file.name.endsWith(".init.gradle.kts") }
             ?.joinToString(",") { it.name } ?: ""
     })
+    // need to manage manually
+    buildConfigField("REPL_WORKER_JAR", "repl-worker.jar")
+    buildConfigField("BUNDLED_JARS", "repl-worker.jar")
+// Ensure build is re-run if init scripts or bundled jars change
+    project.tasks.matching { it.name == "generateBuildConfig" }.configureEach {
+        inputs.dir("src/main/resources")
+    }
+}
+
+tasks.processResources {
+    from(project(":repl-worker").tasks.named("shadowJar")) {
+        rename { "repl-worker.jar" }
+    }
 }
 
 tasks.shadowJar {

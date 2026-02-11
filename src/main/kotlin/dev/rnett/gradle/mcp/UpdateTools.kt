@@ -60,7 +60,7 @@ object UpdateTools {
             throw IllegalArgumentException("Output directory must be a directory")
         }
 
-        val files = Application.components(throwingGradleProvider).mapNotNull {
+        val files = DI.components(throwingGradleProvider).mapNotNull {
             val file = directory?.resolve("${it.name.replace(" ", "_").uppercase()}.md")
             executeForComponent(it, file, verify)
             file
@@ -75,7 +75,7 @@ object UpdateTools {
     }
 
     fun executeForComponent(component: McpServerComponent, path: Path?, isVerify: Boolean) {
-        val server = Application.createServer(throwingGradleProvider, listOf(component))
+        val server = DI.createServer(DI.json, listOf(component))
 
         val text = buildString {
             appendLine("[//]: # (@formatter:off)")

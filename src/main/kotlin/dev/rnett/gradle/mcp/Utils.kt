@@ -6,6 +6,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
+import java.nio.file.Path
+import java.security.MessageDigest
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
@@ -32,4 +34,20 @@ suspend inline fun <R> localSupervisorScope(context: CoroutineContext = EmptyCor
 
 inline fun <T, R> Collection<T>.mapToSet(block: (T) -> R): Set<R> = buildSet(this.size) {
     this@mapToSet.mapTo(this, block)
+}
+
+fun String.expandPath(): String {
+    val path = if (this.startsWith("~")) {
+        val home = System.getProperty("user.home")
+        this.replaceFirst("~", home)
+    } else {
+        this
+    }
+    return Path.of(path).toAbsolutePath().normalize().toString()
+}
+
+fun ByteArray.hash(): String {
+    val md = MessageDigest.getInstance("SHA-256")
+    val digest = md.digest(this)
+    return digest.fold("") { str, it -> str + "%02x".format(it) }.take(8)
 }

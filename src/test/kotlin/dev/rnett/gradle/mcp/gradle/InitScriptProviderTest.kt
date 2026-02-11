@@ -13,7 +13,7 @@ class InitScriptProviderTest {
 
     @Test
     fun `extracting init scripts creates files in working dir`() {
-        val provider = InitScriptProvider(tempDir)
+        val provider = DefaultInitScriptProvider(tempDir)
         val scripts = provider.extractInitScripts()
 
         assertTrue(scripts.isNotEmpty(), "Should have extracted at least one script")
@@ -31,7 +31,7 @@ class InitScriptProviderTest {
 
     @Test
     fun `extracting twice returns the same paths and doesn't fail`() {
-        val provider = InitScriptProvider(tempDir)
+        val provider = DefaultInitScriptProvider(tempDir)
         val scripts1 = provider.extractInitScripts()
         val scripts2 = provider.extractInitScripts()
 

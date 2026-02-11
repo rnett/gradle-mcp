@@ -100,7 +100,7 @@ interface GradleProvider : AutoCloseable {
 class DefaultGradleProvider(
     val config: GradleConfiguration,
     val envProvider: EnvProvider = EnvHelper,
-    val initScriptProvider: InitScriptProvider = InitScriptProvider(),
+    val initScriptProvider: DefaultInitScriptProvider = DefaultInitScriptProvider(),
     override val backgroundBuildManager: BackgroundBuildManager = BackgroundBuildManager(),
     override val buildResults: BuildResults = BuildResults(backgroundBuildManager)
 ) : GradleProvider {

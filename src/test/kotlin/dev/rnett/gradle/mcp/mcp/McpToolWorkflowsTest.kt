@@ -1,8 +1,10 @@
 package dev.rnett.gradle.mcp.mcp
 
+import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
 import dev.rnett.gradle.mcp.gradle.Build
 import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.BuildResult
+import dev.rnett.gradle.mcp.gradle.BuildResults
 import dev.rnett.gradle.mcp.gradle.BuildStatus
 import dev.rnett.gradle.mcp.gradle.FailureId
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
@@ -91,12 +93,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
     @Test
     fun `lookup tools can read stored build`() = runTest {
         val result = syntheticBuildResult()
-        every { provider.buildResults } returns mockk {
-            every { storeResult(any()) } returns Unit
-            every { latest(any()) } returns listOf(result)
-            every { require(result.id) } returns result
-            every { getResult(result.id) } returns result
-        }
+        val buildResults = server.koin.get<BuildResults>()
         buildResults.storeResult(result)
 
         // lookup_latest_builds
@@ -222,6 +219,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
             every { getResult(buildId) } returns null
         }
 
+        val backgroundBuildManager = server.koin.get<BackgroundBuildManager>()
         backgroundBuildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
