@@ -61,14 +61,21 @@ class ReplTools(
             |### Execution and Output
             |- **stdout/stderr**: Captured and returned as text.
             |- **Last Expression**: The result of the last expression in your snippet is automatically rendered.
-            |- **Responder**: A `responder: Responder` is available for manual output. Use it to return multiple items or specific formats.
+            |- **Responder**: A `responder: dev.rnett.gradle.mcp.repl.Responder` property is available for manual output (no import necessary). Use it to return multiple items or specific formats.
+            |
+            |Methods on `Responder`:
+            |- `respond(value: Any?, mime: String? = null)`: Manually render a value. If `mime` is null, it is automatically detected.
+            |- `markdown(md: String)`: Render a markdown string.
+            |- `html(fragment: String)`: Render an HTML fragment.
+            |- `image(bytes: ByteArray, mime: String = "image/png")`: Render an image from bytes.
             |
             |### Automatic Rendering and Content Types
             |The tool returns a list of content items (text, images, etc.) in order of execution.
-            |- Common image types (`BufferedImage`, Compose `ImageBitmap`, Android `Bitmap`, or `ByteArray` with image headers) are automatically rendered as images.
+            |- Common image types (AWT `BufferedImage`, Compose `ImageBitmap`, Android `Bitmap`, or `ByteArray` with image headers) are automatically rendered as images.
             |- Markdown can be returned via `responder.markdown(md)`.
             |- HTML fragments can be returned via `responder.html(fragment)`.
             |- All other types are rendered via `toString()`.
+            |- Standard out and error is also included in the tool result.
             |
             |Example using `responder`:
             |```kotlin
