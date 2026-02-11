@@ -8,9 +8,6 @@ import kotlinx.coroutines.test.runTest
 import org.gradle.tooling.model.build.BuildEnvironment
 import org.junit.jupiter.api.Assumptions
 import kotlin.test.Test
-import kotlin.test.assertContains
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 class GradleProviderTest {
@@ -40,7 +37,7 @@ class GradleProviderTest {
                 it.isAccessible = true
                 it.get(provider) as kotlinx.coroutines.CoroutineScope
             }
-            assertTrue(!scope.coroutineContext[Job]!!.isActive)
+            assert(!scope.coroutineContext[Job]!!.isActive)
         }
     }
 
@@ -61,7 +58,7 @@ class GradleProviderTest {
         testJavaProject().use { project ->
             val provider = createTestProvider()
             val connection = provider.getConnection(project.path())
-            assertNotNull(connection)
+            assert(connection != null)
         }
     }
 
@@ -71,7 +68,7 @@ class GradleProviderTest {
             val provider = createTestProvider()
             val projectRoot = GradleProjectRoot(project.pathString())
             val connection = provider.validateAndGetConnection(projectRoot, requiresGradleProject = true)
-            assertNotNull(connection)
+            assert(connection != null)
         }
     }
 
@@ -90,10 +87,10 @@ class GradleProviderTest {
                 requiresGradleProject = true
             ).awaitFinished()
 
-            assertTrue(result.value.isSuccess)
+            assert(result.value.isSuccess)
             val buildEnv = result.value.getOrThrow()
-            assertNotNull(buildEnv)
-            assertNotNull(buildEnv.gradle)
+            assert(buildEnv != null)
+            assert(buildEnv.gradle != null)
         }
     }
 
@@ -114,9 +111,9 @@ class GradleProviderTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assertTrue(runningBuild.status == BuildStatus.SUCCESSFUL)
-            assertTrue(result.buildResult.isSuccessful == true)
-            assertTrue(result.buildResult.consoleOutput.isNotEmpty())
+            assert(runningBuild.status == BuildStatus.SUCCESSFUL)
+            assert(result.buildResult.isSuccessful == true)
+            assert(result.buildResult.consoleOutput.isNotEmpty())
         }
     }
 
@@ -137,8 +134,8 @@ class GradleProviderTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assertTrue(result.buildResult.isSuccessful == true)
-            assertContains(result.buildResult.consoleOutput, "Gradle MCP init script task-out.init.gradle.kts loaded")
+            assert(result.buildResult.isSuccessful == true)
+            assert(result.buildResult.consoleOutput.contains("Gradle MCP init script task-out.init.gradle.kts loaded"))
         }
     }
 
@@ -159,9 +156,9 @@ class GradleProviderTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assertTrue(runningBuild.status == BuildStatus.SUCCESSFUL)
-            assertTrue(result.buildResult.isSuccessful == true)
-            assertTrue(result.buildResult.consoleOutput.contains("BUILD SUCCESSFUL"))
+            assert(runningBuild.status == BuildStatus.SUCCESSFUL)
+            assert(result.buildResult.isSuccessful == true)
+            assert(result.buildResult.consoleOutput.contains("BUILD SUCCESSFUL"))
         }
     }
 
@@ -180,17 +177,17 @@ class GradleProviderTest {
                     tosAccepter = { false }
                 )
 
-                assertNotNull(runningBuild)
+                assert(runningBuild != null)
                 val buildId = runningBuild.id
 
                 // Verify it's in the manager WHILE it's running (or just after start)
-                assertNotNull(provider.backgroundBuildManager.getBuild(buildId))
+                assert(provider.backgroundBuildManager.getBuild(buildId) != null)
 
                 val buildResult = runningBuild.awaitFinished()
 
-                assertTrue(buildResult.buildResult.isSuccessful == true)
-                assertTrue(runningBuild.status == BuildStatus.SUCCESSFUL)
-                assertTrue(runningBuild.logBuffer.isNotEmpty())
+                assert(buildResult.buildResult.isSuccessful == true)
+                assert(runningBuild.status == BuildStatus.SUCCESSFUL)
+                assert(runningBuild.logBuffer.isNotEmpty())
 
                 // Verify it's removed from the manager after finish
                 kotlin.test.assertNull(provider.backgroundBuildManager.getBuild(buildId))
@@ -215,9 +212,9 @@ class GradleProviderTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assertTrue(result.buildResult.isSuccessful == true)
-            assertTrue(result.buildResult.testResults.passed.isNotEmpty())
-            assertTrue(result.buildResult.testResults.failed.isEmpty())
+            assert(result.buildResult.isSuccessful == true)
+            assert(result.buildResult.testResults.passed.isNotEmpty())
+            assert(result.buildResult.testResults.failed.isEmpty())
         }
     }
 
@@ -238,8 +235,8 @@ class GradleProviderTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assertTrue(result.buildResult.isSuccessful == true)
-            assertTrue(result.buildResult.testResults.totalCount > 0)
+            assert(result.buildResult.isSuccessful == true)
+            assert(result.buildResult.testResults.totalCount > 0)
         }
     }
 
@@ -259,9 +256,9 @@ class GradleProviderTest {
             )
 
             val result = runningBuild.awaitFinished()
-            assertTrue(result.buildResult.isSuccessful == false)
-            assertTrue((result.buildResult as BuildResult).buildFailures!!.isNotEmpty())
-            assertTrue(runningBuild.status == BuildStatus.FAILED)
+            assert(result.buildResult.isSuccessful == false)
+            assert((result.buildResult as BuildResult).buildFailures!!.isNotEmpty())
+            assert(runningBuild.status == BuildStatus.FAILED)
         }
     }
 
@@ -282,7 +279,7 @@ class GradleProviderTest {
             )
             val buildResult = runningBuild.awaitFinished()
 
-            assertTrue(buildResult.buildResult.isSuccessful == true)
+            assert(buildResult.buildResult.isSuccessful == true)
         }
     }
 
@@ -301,10 +298,9 @@ class GradleProviderTest {
                 tosAccepter = { false }
             )
             val buildResult = runningBuild.awaitFinished()
-
-            assertTrue(buildResult.buildResult.isSuccessful == true)
-            assertTrue(buildResult.buildResult.consoleOutput.contains("subproject-a"))
-            assertTrue(buildResult.buildResult.consoleOutput.contains("subproject-b"))
+            assert(buildResult.buildResult.isSuccessful == true)
+            assert(buildResult.buildResult.consoleOutput.contains("subproject-a"))
+            assert(buildResult.buildResult.consoleOutput.contains("subproject-b"))
         }
     }
 
@@ -331,20 +327,20 @@ class GradleProviderTest {
                         tosAccepter = { false }
                     )
 
-                    assertNotNull(runningBuild1)
-                    assertNotNull(runningBuild2)
+                    assert(runningBuild1 != null)
+                    assert(runningBuild2 != null)
 
                     // Both should be in the manager
-                    assertNotNull(provider.backgroundBuildManager.getBuild(runningBuild1.id))
-                    assertNotNull(provider.backgroundBuildManager.getBuild(runningBuild2.id))
+                    assert(provider.backgroundBuildManager.getBuild(runningBuild1.id) != null)
+                    assert(provider.backgroundBuildManager.getBuild(runningBuild2.id) != null)
 
                     val result1 = runningBuild1.awaitFinished()
                     val result2 = runningBuild2.awaitFinished()
 
-                    assertTrue(result1.buildResult.isSuccessful == true)
-                    assertTrue(result2.buildResult.isSuccessful == true)
-                    assertTrue(runningBuild1.status == BuildStatus.SUCCESSFUL)
-                    assertTrue(runningBuild2.status == BuildStatus.SUCCESSFUL)
+                    assert(result1.buildResult.isSuccessful == true)
+                    assert(result2.buildResult.isSuccessful == true)
+                    assert(runningBuild1.status == BuildStatus.SUCCESSFUL)
+                    assert(runningBuild2.status == BuildStatus.SUCCESSFUL)
 
                     // Both should be removed from the manager
                     kotlin.test.assertNull(provider.backgroundBuildManager.getBuild(runningBuild1.id))
@@ -367,11 +363,11 @@ class GradleProviderTest {
                     tosAccepter = { false }
                 )
 
-                assertNotNull(runningBuild)
+                assert(runningBuild != null)
                 runningBuild.stop()
 
                 val result = runningBuild.awaitFinished()
-                assertTrue(runningBuild.status == BuildStatus.CANCELLED)
+                assert(runningBuild.status == BuildStatus.CANCELLED)
                 kotlin.test.assertNull(provider.backgroundBuildManager.getBuild(runningBuild.id))
             }
         }
@@ -396,7 +392,7 @@ class GradleProviderTest {
             )
             runningBuild.awaitFinished()
 
-            assertTrue(capturedLines.isNotEmpty())
+            assert(capturedLines.isNotEmpty())
         }
     }
 
@@ -417,7 +413,7 @@ class GradleProviderTest {
             )
             val buildResult = runningBuild.awaitFinished()
 
-            assertTrue(buildResult.buildResult.isSuccessful == true)
+            assert(buildResult.buildResult.isSuccessful == true)
         }
     }
 
@@ -438,7 +434,7 @@ class GradleProviderTest {
             )
             val buildResult = runningBuild.awaitFinished()
 
-            assertTrue(buildResult.buildResult.isSuccessful == true)
+            assert(buildResult.buildResult.isSuccessful == true)
         }
     }
 
@@ -459,7 +455,7 @@ class GradleProviderTest {
             )
             val buildResult = runningBuild.awaitFinished()
 
-            assertTrue(buildResult.buildResult.isSuccessful == true)
+            assert(buildResult.buildResult.isSuccessful == true)
         }
     }
 
@@ -480,7 +476,7 @@ class GradleProviderTest {
             )
             val buildResult = runningBuild.awaitFinished()
 
-            assertNotNull(buildResult.buildResult.id)
+            assert(buildResult.buildResult.id != null)
         }
     }
 
@@ -525,9 +521,9 @@ class GradleProviderTest {
 
             println("Build JAVA version: $buildJavaVersion")
 
-            assertTrue(buildResult.buildResult.isSuccessful == true)
-            assertNotNull(buildJavaVersion)
-            assertTrue(buildJavaVersion.startsWith("21"), "Build should have used JDK 21, but used $buildJavaVersion")
+            assert(buildResult.buildResult.isSuccessful == true)
+            assert(buildJavaVersion != null)
+            assert(buildJavaVersion!!.startsWith("21"))
         }
     }
 
@@ -561,8 +557,8 @@ class GradleProviderTest {
             val buildResult = runningBuild.awaitFinished()
 
             val scans = buildResult.buildResult.publishedScans
-            assertTrue(scans.isNotEmpty())
-            assertTrue(scans.all { it.url.contains("https://scans.gradle.com/s/") || it.develocityInstance.isNotBlank() })
+            assert(scans.isNotEmpty())
+            assert(scans.all { it.url.contains("https://scans.gradle.com/s/") || it.develocityInstance.isNotBlank() })
         }
     }
 }

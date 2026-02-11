@@ -16,13 +16,26 @@ class BackgroundBuildManager {
         builds.put(build.id, build)
     }
 
-    fun getBuild(id: BuildId): IRunningBuild<*>? = builds.getIfPresent(id)
+    fun getBuild(id: BuildId): IRunningBuild<*>? {
+        val build = builds.getIfPresent(id)
+        if (build != null && build.status != BuildStatus.RUNNING) {
+            builds.invalidate(id)
+            return null
+        }
+        return build
+    }
 
-    fun listBuilds(): List<IRunningBuild<*>> = builds.asMap().values.toList()
+    fun listBuilds(): List<IRunningBuild<*>> {
+        val allBuilds = builds.asMap().values.toList()
+        allBuilds.forEach {
+            if (it.status != BuildStatus.RUNNING) {
+                builds.invalidate(it.id)
+            }
+        }
+        return allBuilds.filter { it.status == BuildStatus.RUNNING }
+    }
 
     internal fun removeBuild(id: BuildId) {
-        builds.asMap().computeIfPresent(id) { _, build ->
-            if (build.status == BuildStatus.RUNNING) build else null
-        }
+        builds.invalidate(id)
     }
 }

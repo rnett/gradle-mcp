@@ -29,7 +29,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.io.path.absolutePathString
 import kotlin.test.Test
-import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 
@@ -98,14 +97,14 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
 
         // lookup_latest_builds
         val latestResult = server.client.callTool("lookup_latest_builds", mapOf("maxBuilds" to 1))
-        assertTrue(latestResult != null)
+        assert(latestResult != null)
 
         // lookup_build
         val summary = server.client.callTool(
             "lookup_build",
             mapOf("buildId" to result.id.toString())
         )
-        assertTrue(summary != null)
+        assert(summary != null)
 
         // lookup_build_console_output pagination from head
         val page1 = server.client.callTool(
@@ -117,7 +116,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
                 "tail" to false
             )
         )
-        assertTrue(page1 != null)
+        assert(page1 != null)
 
         // lookup_build_tests summary
         val testsSummary = server.client.callTool(
@@ -127,7 +126,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
                 "summary" to JsonObject(mapOf("limit" to JsonPrimitive(10)))
             )
         )
-        assertTrue(testsSummary != null)
+        assert(testsSummary != null)
 
         // lookup_build_problems summary
         val problemsSummary = server.client.callTool(
@@ -137,7 +136,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
                 "summary" to JsonObject(emptyMap<String, JsonPrimitive>())
             )
         )
-        assertTrue(problemsSummary != null)
+        assert(problemsSummary != null)
     }
 
     @Test
@@ -166,7 +165,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
             // projectRoot omitted
         )
         val call = server.client.callTool("run_gradle_command", args)
-        assertTrue(call != null)
+        assert(call != null)
 
         coVerify {
             provider.runBuild(
@@ -225,42 +224,42 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
 
         // test background_run_gradle_command
         val runCall = server.client.callTool("background_run_gradle_command", mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("help")))))
-        assertTrue(runCall != null)
+        assert(runCall != null)
 
         // test background_build_list
         val listCall = server.client.callTool("background_build_list", emptyMap())
-        assertTrue(listCall != null)
+        assert(listCall != null)
 
         // test background_build_get_status
         val statusCall = server.client.callTool("background_build_get_status", mapOf("buildId" to buildId.toString()))
-        assertTrue(statusCall != null)
-        val statusText = statusCall.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
-        assertTrue(statusText.contains("Status: RUNNING"))
-        assertTrue(statusText.contains("Duration: "))
+        assert(statusCall != null)
+        val statusText = statusCall!!.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
+        assert(statusText.contains("Status: RUNNING"))
+        assert(statusText.contains("Duration: "))
 
         // test background_build_stop
         val stopCall = server.client.callTool("background_build_stop", mapOf("buildId" to buildId.toString()))
-        assertTrue(stopCall != null)
+        assert(stopCall != null)
         coVerify { runningBuild.stop() }
 
         // Step 3: Test that lookup_latest_builds shows background builds
         val latestCall = server.client.callTool("lookup_latest_builds", mapOf("maxBuilds" to JsonPrimitive(5)))
-        assertTrue(latestCall != null)
-        val latestText = latestCall.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
-        assertTrue(latestText.contains(buildId.toString()))
-        assertTrue(latestText.contains("RUNNING"))
+        assert(latestCall != null)
+        val latestText = latestCall!!.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
+        assert(latestText.contains(buildId.toString()))
+        assert(latestText.contains("RUNNING"))
 
         // Step 3: Test that lookup_latest_builds with onlyCompleted doesn't show background builds
         val latestCompletedCall = server.client.callTool("lookup_latest_builds", mapOf("maxBuilds" to JsonPrimitive(5), "onlyCompleted" to JsonPrimitive(true)))
-        assertTrue(latestCompletedCall != null)
-        val latestCompletedText = latestCompletedCall.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
-        assertTrue(!latestCompletedText.contains(buildId.toString()))
+        assert(latestCompletedCall != null)
+        val latestCompletedText = latestCompletedCall!!.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
+        assert(!latestCompletedText.contains(buildId.toString()))
 
         // Step 3: Test that lookup_build shows "still running" message
         val lookupCall = server.client.callTool("lookup_build", mapOf("buildId" to buildId.toString()))
-        assertTrue(lookupCall != null)
-        val lookupText = lookupCall.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
-        assertTrue(lookupText.contains("still running"))
+        assert(lookupCall != null)
+        val lookupText = lookupCall!!.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
+        assert(lookupText.contains("still running"))
     }
 
     @Test
@@ -291,8 +290,8 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         )
         server.client.callTool("run_single_task_and_get_output", args)
 
-        assertTrue(capturedArgs.captured.additionalArguments.contains(":help"))
-        assertTrue(capturedArgs.captured.additionalArguments.contains("--info"))
-        assertTrue(capturedArgs.captured.additionalArguments.contains("--stacktrace"))
+        assert(capturedArgs.captured.additionalArguments.contains(":help"))
+        assert(capturedArgs.captured.additionalArguments.contains("--info"))
+        assert(capturedArgs.captured.additionalArguments.contains("--stacktrace"))
     }
 }

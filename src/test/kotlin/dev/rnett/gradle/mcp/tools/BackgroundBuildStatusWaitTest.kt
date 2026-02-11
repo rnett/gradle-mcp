@@ -21,8 +21,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import org.gradle.tooling.CancellationTokenSource
 import kotlin.test.Test
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -92,10 +90,10 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         )
         val duration = testScheduler.currentTime - startTime
 
-        assertNotNull(statusCall)
-        assertTrue(duration >= 500, "Should have waited at least 500ms, took $duration ms")
-        val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
-        assertTrue(statusText.contains("BUILD COMPLETED"), "Status should be COMPLETED, was: $statusText")
+        assert(statusCall != null)
+        assert(duration >= 500)
+        val statusText = statusCall!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        assert(statusText.contains("BUILD COMPLETED"))
     }
 
     @Test
@@ -141,14 +139,14 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         )
         val duration = testScheduler.currentTime - startTime
 
-        assertNotNull(statusCall)
-        assertTrue(duration >= 500, "Should have waited at least 500ms, took $duration ms")
-        assertTrue(duration < 2000, "Should have short-circuited wait, took $duration ms")
+        assert(statusCall != null)
+        assert(duration >= 500)
+        assert(duration < 2000)
 
-        val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
-        assertTrue(statusText.contains("BUILD IN PROGRESS"), "Status should still be IN PROGRESS")
-        assertTrue(statusText.contains("Matching lines for 'Ready':"), "Should contain matching lines header")
-        assertTrue(statusText.contains("Ready to go"), "Should contain filter match")
+        val statusText = statusCall!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        assert(statusText.contains("BUILD IN PROGRESS"))
+        assert(statusText.contains("Matching lines for 'Ready':"))
+        assert(statusText.contains("Ready to go"))
     }
 
     @Test
@@ -188,13 +186,13 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         )
         val duration = testScheduler.currentTime - startTime
 
-        assertNotNull(statusCall)
-        assertTrue(duration < 100, "Should have returned immediately, took $duration ms")
+        assert(statusCall != null)
+        assert(duration < 100)
 
-        val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
-        assertTrue(statusText.contains("BUILD IN PROGRESS"), "Status should still be IN PROGRESS")
-        assertTrue(statusText.contains("Matching lines for 'Ready':"), "Should contain matching lines header")
-        assertTrue(statusText.contains("Ready to go"), "Should contain filter match")
+        val statusText = statusCall!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        assert(statusText.contains("BUILD IN PROGRESS"))
+        assert(statusText.contains("Matching lines for 'Ready':"))
+        assert(statusText.contains("Ready to go"))
     }
 
     @Test
@@ -239,10 +237,10 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         )
         val duration = testScheduler.currentTime - startTime
 
-        assertNotNull(statusCall)
-        assertTrue(duration >= 500, "Should have waited at least 500ms, took $duration ms")
-        val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
-        assertTrue(statusText.contains("BUILD IN PROGRESS"), "Status should be IN PROGRESS")
+        assert(statusCall != null)
+        assert(duration >= 500)
+        val statusText = statusCall!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        assert(statusText.contains("BUILD IN PROGRESS"))
     }
 
     @Test
@@ -282,10 +280,10 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         )
         val duration = testScheduler.currentTime - startTime
 
-        assertNotNull(statusCall)
-        assertTrue(duration < 100, "Should have returned immediately, took $duration ms")
-        val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
-        assertTrue(statusText.contains("BUILD IN PROGRESS"), "Status should be IN PROGRESS")
+        assert(statusCall != null)
+        assert(duration < 100)
+        val statusText = statusCall!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        assert(statusText.contains("BUILD IN PROGRESS"))
     }
 
     @Test
@@ -332,9 +330,9 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         )
         val duration = testScheduler.currentTime - startTime
 
-        assertNotNull(statusCall)
-        assertTrue(duration >= 500, "Should have waited for new task, took $duration ms")
-        val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
-        assertTrue(statusText.contains("BUILD IN PROGRESS"), "Status should be IN PROGRESS")
+        assert(statusCall != null)
+        assert(duration >= 500)
+        val statusText = statusCall!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        assert(statusText.contains("BUILD IN PROGRESS"))
     }
 }

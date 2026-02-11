@@ -3,20 +3,17 @@ package dev.rnett.gradle.mcp.gradle
 import dev.rnett.gradle.mcp.utils.EnvProvider
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 class GradleInvocationArgumentsTest {
 
     @Test
     fun `default arguments are empty`() {
         val args = GradleInvocationArguments.DEFAULT
-        assertTrue(args.additionalEnvVars.isEmpty())
-        assertTrue(args.additionalSystemProps.isEmpty())
-        assertTrue(args.additionalJvmArgs.isEmpty())
-        assertTrue(args.additionalArguments.isEmpty())
-        assertFalse(args.publishScan)
+        assert(args.additionalEnvVars.isEmpty())
+        assert(args.additionalSystemProps.isEmpty())
+        assert(args.additionalJvmArgs.isEmpty())
+        assert(args.additionalArguments.isEmpty())
+        assert(!args.publishScan)
     }
 
     @Test
@@ -24,9 +21,9 @@ class GradleInvocationArgumentsTest {
         val args = GradleInvocationArguments(
             additionalEnvVars = mapOf("KEY1" to "value1", "KEY2" to "value2")
         )
-        assertEquals(2, args.additionalEnvVars.size)
-        assertEquals("value1", args.additionalEnvVars["KEY1"])
-        assertEquals("value2", args.additionalEnvVars["KEY2"])
+        assert(args.additionalEnvVars.size == 2)
+        assert(args.additionalEnvVars["KEY1"] == "value1")
+        assert(args.additionalEnvVars["KEY2"] == "value2")
     }
 
     @Test
@@ -34,9 +31,9 @@ class GradleInvocationArgumentsTest {
         val args = GradleInvocationArguments(
             additionalSystemProps = mapOf("prop1" to "value1", "prop2" to "value2")
         )
-        assertEquals(2, args.additionalSystemProps.size)
-        assertEquals("value1", args.additionalSystemProps["prop1"])
-        assertEquals("value2", args.additionalSystemProps["prop2"])
+        assert(args.additionalSystemProps.size == 2)
+        assert(args.additionalSystemProps["prop1"] == "value1")
+        assert(args.additionalSystemProps["prop2"] == "value2")
     }
 
     @Test
@@ -44,9 +41,9 @@ class GradleInvocationArgumentsTest {
         val args = GradleInvocationArguments(
             additionalJvmArgs = listOf("-Xmx512m", "-Xms256m")
         )
-        assertEquals(2, args.additionalJvmArgs.size)
-        assertTrue(args.additionalJvmArgs.contains("-Xmx512m"))
-        assertTrue(args.additionalJvmArgs.contains("-Xms256m"))
+        assert(args.additionalJvmArgs.size == 2)
+        assert(args.additionalJvmArgs.contains("-Xmx512m"))
+        assert(args.additionalJvmArgs.contains("-Xms256m"))
     }
 
     @Test
@@ -54,15 +51,15 @@ class GradleInvocationArgumentsTest {
         val args = GradleInvocationArguments(
             additionalArguments = listOf("--info", "--stacktrace")
         )
-        assertEquals(2, args.additionalArguments.size)
-        assertTrue(args.additionalArguments.contains("--info"))
-        assertTrue(args.additionalArguments.contains("--stacktrace"))
+        assert(args.additionalArguments.size == 2)
+        assert(args.additionalArguments.contains("--info"))
+        assert(args.additionalArguments.contains("--stacktrace"))
     }
 
     @Test
     fun `publishScan flag can be set`() {
         val args = GradleInvocationArguments(publishScan = true)
-        assertTrue(args.publishScan)
+        assert(args.publishScan)
     }
 
     @Test
@@ -71,9 +68,9 @@ class GradleInvocationArgumentsTest {
             additionalArguments = listOf("--info"),
             publishScan = true
         )
-        assertTrue(args.allAdditionalArguments.contains("--scan"))
-        assertTrue(args.allAdditionalArguments.contains("--info"))
-        assertEquals(2, args.allAdditionalArguments.size)
+        assert(args.allAdditionalArguments.contains("--scan"))
+        assert(args.allAdditionalArguments.contains("--info"))
+        assert(args.allAdditionalArguments.size == 2)
     }
 
     @Test
@@ -82,7 +79,7 @@ class GradleInvocationArgumentsTest {
             additionalArguments = listOf("--scan", "--info"),
             publishScan = true
         )
-        assertEquals(1, args.allAdditionalArguments.count { it == "--scan" })
+        assert(args.allAdditionalArguments.count { it == "--scan" } == 1)
     }
 
     @Test
@@ -91,8 +88,8 @@ class GradleInvocationArgumentsTest {
             additionalArguments = listOf("--info"),
             publishScan = false
         )
-        assertFalse(args.allAdditionalArguments.contains("--scan"))
-        assertTrue(args.allAdditionalArguments.contains("--info"))
+        assert(!args.allAdditionalArguments.contains("--scan"))
+        assert(args.allAdditionalArguments.contains("--info"))
     }
 
     @Test
@@ -116,35 +113,35 @@ class GradleInvocationArgumentsTest {
 
         val combined = args1 + args2
 
-        assertEquals(2, combined.additionalEnvVars.size)
-        assertEquals("value1", combined.additionalEnvVars["KEY1"])
-        assertEquals("value2", combined.additionalEnvVars["KEY2"])
+        assert(combined.additionalEnvVars.size == 2)
+        assert(combined.additionalEnvVars["KEY1"] == "value1")
+        assert(combined.additionalEnvVars["KEY2"] == "value2")
 
-        assertEquals(2, combined.additionalSystemProps.size)
-        assertEquals("value1", combined.additionalSystemProps["prop1"])
-        assertEquals("value2", combined.additionalSystemProps["prop2"])
+        assert(combined.additionalSystemProps.size == 2)
+        assert(combined.additionalSystemProps["prop1"] == "value1")
+        assert(combined.additionalSystemProps["prop2"] == "value2")
 
-        assertEquals(2, combined.additionalJvmArgs.size)
-        assertTrue(combined.additionalJvmArgs.contains("-Xmx512m"))
-        assertTrue(combined.additionalJvmArgs.contains("-Xms256m"))
+        assert(combined.additionalJvmArgs.size == 2)
+        assert(combined.additionalJvmArgs.contains("-Xmx512m"))
+        assert(combined.additionalJvmArgs.contains("-Xms256m"))
 
-        assertEquals(2, combined.additionalArguments.size)
-        assertTrue(combined.additionalArguments.contains("--info"))
-        assertTrue(combined.additionalArguments.contains("--stacktrace"))
+        assert(combined.additionalArguments.size == 2)
+        assert(combined.additionalArguments.contains("--info"))
+        assert(combined.additionalArguments.contains("--stacktrace"))
 
-        assertTrue(combined.publishScan)
-        assertEquals(EnvSource.SHELL, combined.envSource)
+        assert(combined.publishScan)
+        assert(combined.envSource == EnvSource.SHELL)
     }
 
     @Test
     fun `plus operator preserves non-default envSource`() {
         val args1 = GradleInvocationArguments(envSource = EnvSource.SHELL)
         val args2 = GradleInvocationArguments(envSource = EnvSource.INHERIT)
-        assertEquals(EnvSource.SHELL, (args1 + args2).envSource)
+        assert((args1 + args2).envSource == EnvSource.SHELL)
 
         val args3 = GradleInvocationArguments(envSource = EnvSource.INHERIT)
         val args4 = GradleInvocationArguments(envSource = EnvSource.NONE)
-        assertEquals(EnvSource.NONE, (args3 + args4).envSource)
+        assert((args3 + args4).envSource == EnvSource.NONE)
     }
 
     @Test
@@ -159,42 +156,36 @@ class GradleInvocationArgumentsTest {
 
         val inheritArgs = GradleInvocationArguments(envSource = EnvSource.INHERIT)
         val actualInherit = inheritArgs.actualEnvVars(testProvider)
-        assertTrue(
-            inheritedEnv.all { (k, v) -> actualInherit[k] == v },
-            "Inherited env should contain all expected vars. Expected: $inheritedEnv, Actual: $actualInherit"
-        )
+        assert(inheritedEnv.all { (k, v) -> actualInherit[k] == v })
 
         val shellArgs = GradleInvocationArguments(envSource = EnvSource.SHELL)
         val actualShell = shellArgs.actualEnvVars(testProvider)
-        assertTrue(
-            shellEnv.all { (k, v) -> actualShell[k] == v },
-            "Shell env should contain all expected vars. Expected: $shellEnv, Actual: $actualShell"
-        )
+        assert(shellEnv.all { (k, v) -> actualShell[k] == v })
 
         val noneArgs = GradleInvocationArguments(envSource = EnvSource.NONE)
-        assertEquals(emptyMap(), noneArgs.actualEnvVars(testProvider))
+        assert(noneArgs.actualEnvVars(testProvider) == emptyMap<String, String>())
 
         val additionalArgs = GradleInvocationArguments(
             envSource = EnvSource.NONE,
             additionalEnvVars = mapOf("EXTRA" to "VAR")
         )
-        assertEquals(mapOf("EXTRA" to "VAR"), additionalArgs.actualEnvVars(testProvider))
+        assert(additionalArgs.actualEnvVars(testProvider) == mapOf("EXTRA" to "VAR"))
     }
 
     @Test
     fun `plus operator uses OR logic for publishScan`() {
         val args1 = GradleInvocationArguments(publishScan = false)
         val args2 = GradleInvocationArguments(publishScan = false)
-        assertFalse((args1 + args2).publishScan)
+        assert(!(args1 + args2).publishScan)
 
         val args3 = GradleInvocationArguments(publishScan = true)
         val args4 = GradleInvocationArguments(publishScan = false)
-        assertTrue((args3 + args4).publishScan)
-        assertTrue((args4 + args3).publishScan)
+        assert((args3 + args4).publishScan)
+        assert((args4 + args3).publishScan)
 
         val args5 = GradleInvocationArguments(publishScan = true)
         val args6 = GradleInvocationArguments(publishScan = true)
-        assertTrue((args5 + args6).publishScan)
+        assert((args5 + args6).publishScan)
     }
 
     @Test
@@ -202,7 +193,7 @@ class GradleInvocationArgumentsTest {
         val args1 = GradleInvocationArguments(additionalEnvVars = mapOf("KEY" to "value1"))
         val args2 = GradleInvocationArguments(additionalEnvVars = mapOf("KEY" to "value2"))
         val combined = args1 + args2
-        assertEquals("value2", combined.additionalEnvVars["KEY"])
+        assert(combined.additionalEnvVars["KEY"] == "value2")
     }
 
     @Test
@@ -210,17 +201,17 @@ class GradleInvocationArgumentsTest {
         val args1 = GradleInvocationArguments(additionalSystemProps = mapOf("prop" to "value1"))
         val args2 = GradleInvocationArguments(additionalSystemProps = mapOf("prop" to "value2"))
         val combined = args1 + args2
-        assertEquals("value2", combined.additionalSystemProps["prop"])
+        assert(combined.additionalSystemProps["prop"] == "value2")
     }
 
     @Test
     fun `EnvSource serialization is case insensitive`() {
         val json = Json { decodeEnumsCaseInsensitive = true }
-        assertEquals(EnvSource.SHELL, json.decodeFromString<EnvSource>("\"shell\""))
-        assertEquals(EnvSource.SHELL, json.decodeFromString<EnvSource>("\"SHELL\""))
-        assertEquals(EnvSource.SHELL, json.decodeFromString<EnvSource>("\"ShElL\""))
-        assertEquals(EnvSource.INHERIT, json.decodeFromString<EnvSource>("\"inherit\""))
-        assertEquals(EnvSource.NONE, json.decodeFromString<EnvSource>("\"none\""))
+        assert(json.decodeFromString<EnvSource>("\"shell\"") == EnvSource.SHELL)
+        assert(json.decodeFromString<EnvSource>("\"SHELL\"") == EnvSource.SHELL)
+        assert(json.decodeFromString<EnvSource>("\"ShElL\"") == EnvSource.SHELL)
+        assert(json.decodeFromString<EnvSource>("\"inherit\"") == EnvSource.INHERIT)
+        assert(json.decodeFromString<EnvSource>("\"none\"") == EnvSource.NONE)
     }
 }
 
@@ -229,14 +220,14 @@ class GradleProjectRootTest {
     @Test
     fun `can create project root from string`() {
         val root = GradleProjectRoot("/path/to/project")
-        assertEquals("/path/to/project", root.projectRoot)
+        assert(root.projectRoot == "/path/to/project")
     }
 
     @Test
     fun `project root preserves path exactly as given`() {
         val path = "C:\\Users\\test\\project"
         val root = GradleProjectRoot(path)
-        assertEquals(path, root.projectRoot)
+        assert(root.projectRoot == path)
     }
 }
 
@@ -245,95 +236,95 @@ class GradleProjectPathTest {
     @Test
     fun `default project path is root`() {
         val path = GradleProjectPath.DEFAULT
-        assertEquals(":", path.path)
-        assertTrue(path.isRootProject)
+        assert(path.path == ":")
+        assert(path.isRootProject)
     }
 
     @Test
     fun `can create root project path`() {
         val path = GradleProjectPath(":")
-        assertEquals(":", path.path)
-        assertTrue(path.isRootProject)
+        assert(path.path == ":")
+        assert(path.isRootProject)
     }
 
     @Test
     fun `empty string is treated as root project`() {
         val path = GradleProjectPath("")
-        assertEquals(":", path.path)
-        assertTrue(path.isRootProject)
+        assert(path.path == ":")
+        assert(path.isRootProject)
     }
 
     @Test
     fun `blank string is treated as root project`() {
         val path = GradleProjectPath("   ")
-        assertEquals(":   ", path.path)
-        assertTrue(path.isRootProject)
+        assert(path.path == ":   ")
+        assert(path.isRootProject)
     }
 
     @Test
     fun `can create subproject path`() {
         val path = GradleProjectPath("subproject")
-        assertEquals(":subproject", path.path)
-        assertFalse(path.isRootProject)
+        assert(path.path == ":subproject")
+        assert(!path.isRootProject)
     }
 
     @Test
     fun `can create nested subproject path`() {
         val path = GradleProjectPath("parent:child")
-        assertEquals(":parent:child", path.path)
-        assertFalse(path.isRootProject)
+        assert(path.path == ":parent:child")
+        assert(!path.isRootProject)
     }
 
     @Test
     fun `leading colon is normalized`() {
         val path = GradleProjectPath(":subproject")
-        assertEquals(":subproject", path.path)
-        assertFalse(path.isRootProject)
+        assert(path.path == ":subproject")
+        assert(!path.isRootProject)
     }
 
     @Test
     fun `multiple leading colons are normalized`() {
         val path = GradleProjectPath(":::subproject")
-        assertEquals(":subproject", path.path)
-        assertFalse(path.isRootProject)
+        assert(path.path == ":subproject")
+        assert(!path.isRootProject)
     }
 
     @Test
     fun `trailing colons are removed`() {
         val path = GradleProjectPath("subproject:")
-        assertEquals(":subproject", path.path)
-        assertFalse(path.isRootProject)
+        assert(path.path == ":subproject")
+        assert(!path.isRootProject)
     }
 
     @Test
     fun `taskPath creates proper task path for root project`() {
         val path = GradleProjectPath(":")
-        assertEquals(":help", path.taskPath("help"))
-        assertEquals(":build", path.taskPath("build"))
+        assert(path.taskPath("help") == ":help")
+        assert(path.taskPath("build") == ":build")
     }
 
     @Test
     fun `taskPath creates proper task path for subproject`() {
         val path = GradleProjectPath("subproject")
-        assertEquals(":subproject:help", path.taskPath("help"))
-        assertEquals(":subproject:build", path.taskPath("build"))
+        assert(path.taskPath("help") == ":subproject:help")
+        assert(path.taskPath("build") == ":subproject:build")
     }
 
     @Test
     fun `taskPath handles task with leading colon`() {
         val path = GradleProjectPath("subproject")
-        assertEquals(":subproject:help", path.taskPath(":help"))
+        assert(path.taskPath(":help") == ":subproject:help")
     }
 
     @Test
     fun `taskPath handles nested subproject`() {
         val path = GradleProjectPath("parent:child")
-        assertEquals(":parent:child:test", path.taskPath("test"))
+        assert(path.taskPath("test") == ":parent:child:test")
     }
 
     @Test
     fun `toString returns path`() {
         val path = GradleProjectPath("subproject")
-        assertEquals(":subproject", path.toString())
+        assert(path.toString() == ":subproject")
     }
 }

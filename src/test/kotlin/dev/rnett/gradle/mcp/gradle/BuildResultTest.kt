@@ -2,10 +2,6 @@ package dev.rnett.gradle.mcp.gradle
 
 import dev.rnett.gradle.mcp.tools.toSummary
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 
 class GradleBuildScanTest {
@@ -17,33 +13,33 @@ class GradleBuildScanTest {
             id = "abc123",
             develocityInstance = "https://scans.gradle.com"
         )
-        assertEquals("https://scans.gradle.com/s/abc123", scan.url)
-        assertEquals("abc123", scan.id)
-        assertEquals("https://scans.gradle.com", scan.develocityInstance)
+        assert(scan.url == "https://scans.gradle.com/s/abc123")
+        assert(scan.id == "abc123")
+        assert(scan.develocityInstance == "https://scans.gradle.com")
     }
 
     @Test
     fun `can parse build scan from scans gradle com URL`() {
         val scan = GradleBuildScan.fromUrl("https://scans.gradle.com/s/abc123")
-        assertEquals("https://scans.gradle.com/s/abc123", scan.url)
-        assertEquals("abc123", scan.id)
-        assertEquals("https://scans.gradle.com", scan.develocityInstance)
+        assert(scan.url == "https://scans.gradle.com/s/abc123")
+        assert(scan.id == "abc123")
+        assert(scan.develocityInstance == "https://scans.gradle.com")
     }
 
     @Test
     fun `can parse build scan from gradle com shortlink`() {
         val scan = GradleBuildScan.fromUrl("https://gradle.com/s/abc123")
-        assertEquals("https://scans.gradle.com/s/abc123", scan.url)
-        assertEquals("abc123", scan.id)
-        assertEquals("https://scans.gradle.com", scan.develocityInstance)
+        assert(scan.url == "https://scans.gradle.com/s/abc123")
+        assert(scan.id == "abc123")
+        assert(scan.develocityInstance == "https://scans.gradle.com")
     }
 
     @Test
     fun `can parse build scan from custom develocity instance`() {
         val scan = GradleBuildScan.fromUrl("https://ge.company.com/s/xyz789")
-        assertEquals("https://ge.company.com/s/xyz789", scan.url)
-        assertEquals("xyz789", scan.id)
-        assertEquals("https://ge.company.com", scan.develocityInstance)
+        assert(scan.url == "https://ge.company.com/s/xyz789")
+        assert(scan.id == "xyz789")
+        assert(scan.develocityInstance == "https://ge.company.com")
     }
 }
 
@@ -68,9 +64,9 @@ class BuildResultTest {
             problemAggregations = emptyMap()
         )
 
-        assertTrue(result.isSuccessful == true)
-        assertEquals("BUILD SUCCESSFUL", result.consoleOutput)
-        assertNotNull(result.id)
+        assert(result.isSuccessful == true)
+        assert(result.consoleOutput == "BUILD SUCCESSFUL")
+        assert(result.id != null)
     }
 
     @Test
@@ -99,8 +95,8 @@ class BuildResultTest {
             problemAggregations = emptyMap()
         )
 
-        assertFalse(result.isSuccessful)
-        assertEquals(1, result.buildFailures?.size)
+        assert(!(result.isSuccessful ?: true))
+        assert(result.buildFailures?.size == 1)
     }
 
     @Test
@@ -122,11 +118,11 @@ class BuildResultTest {
             failed = failed
         )
 
-        assertEquals(2, testResults.passed.size)
-        assertEquals(1, testResults.skipped.size)
-        assertEquals(1, testResults.failed.size)
-        assertEquals(4, testResults.totalCount)
-        assertFalse(testResults.isEmpty)
+        assert(testResults.passed.size == 2)
+        assert(testResults.skipped.size == 1)
+        assert(testResults.failed.size == 1)
+        assert(testResults.totalCount == 4)
+        assert(!testResults.isEmpty)
     }
 
     @Test
@@ -137,8 +133,8 @@ class BuildResultTest {
             failed = emptySet()
         )
 
-        assertTrue(testResults.isEmpty)
-        assertEquals(0, testResults.totalCount)
+        assert(testResults.isEmpty)
+        assert(testResults.totalCount == 0)
     }
 
     @Test
@@ -160,10 +156,10 @@ class BuildResultTest {
         )
 
         val allTests = testResults.all.toList()
-        assertEquals(3, allTests.size)
-        assertTrue(allTests.any { it.testName == "test1" })
-        assertTrue(allTests.any { it.testName == "test2" })
-        assertTrue(allTests.any { it.testName == "test3" })
+        assert(allTests.size == 3)
+        assert(allTests.any { it.testName == "test1" })
+        assert(allTests.any { it.testName == "test2" })
+        assert(allTests.any { it.testName == "test3" })
     }
 
     @Test
@@ -193,10 +189,10 @@ class BuildResultTest {
         )
 
         val flattened = outerFailure.flatten().toList()
-        assertEquals(3, flattened.size)
-        assertTrue(flattened.any { it.id.id == "outer" })
-        assertTrue(flattened.any { it.id.id == "middle" })
-        assertTrue(flattened.any { it.id.id == "inner" })
+        assert(flattened.size == 3)
+        assert(flattened.any { it.id.id == "outer" })
+        assert(flattened.any { it.id.id == "middle" })
+        assert(flattened.any { it.id.id == "inner" })
     }
 
     @Test
@@ -212,10 +208,10 @@ class BuildResultTest {
         )
 
         val lines = result.consoleOutputLines
-        assertEquals(3, lines.size)
-        assertEquals("Line 1", lines[0])
-        assertEquals("Line 2", lines[1])
-        assertEquals("Line 3", lines[2])
+        assert(lines.size == 3)
+        assert(lines[0] == "Line 1")
+        assert(lines[1] == "Line 2")
+        assert(lines[2] == "Line 3")
     }
 
     @Test
@@ -250,8 +246,8 @@ class BuildResultTest {
             problemAggregations = emptyMap()
         )
 
-        assertEquals(1, result.allTestFailures.size)
-        assertTrue(result.allTestFailures.containsKey(FailureId("test-failure")))
+        assert(result.allTestFailures.size == 1)
+        assert(result.allTestFailures.containsKey(FailureId("test-failure")))
     }
 
     @Test
@@ -294,9 +290,9 @@ class BuildResultTest {
             problemAggregations = emptyMap()
         )
 
-        assertEquals(1, result.allBuildFailures.size)
-        assertTrue(result.allBuildFailures.containsKey(FailureId("build-failure")))
-        assertFalse(result.allBuildFailures.containsKey(FailureId("test-failure")))
+        assert(result.allBuildFailures.size == 1)
+        assert(result.allBuildFailures.containsKey(FailureId("build-failure")))
+        assert(!result.allBuildFailures.containsKey(FailureId("test-failure")))
     }
 
     @Test
@@ -339,9 +335,9 @@ class BuildResultTest {
             problemAggregations = emptyMap()
         )
 
-        assertEquals(2, result.allFailures.size)
-        assertTrue(result.allFailures.containsKey(FailureId("test-failure")))
-        assertTrue(result.allFailures.containsKey(FailureId("build-failure")))
+        assert(result.allFailures.size == 2)
+        assert(result.allFailures.containsKey(FailureId("test-failure")))
+        assert(result.allFailures.containsKey(FailureId("build-failure")))
     }
 
     @Test
@@ -367,9 +363,9 @@ class BuildResultTest {
         )
 
         val summary = problemAggregations.values.flatten().toSummary()
-        assertEquals(2, summary.errorCounts[ProblemId("e1")]?.occurences)
-        assertEquals(1, summary.warningCounts[ProblemId("w1")]?.occurences)
-        assertEquals(3, summary.totalCount)
+        assert(summary.errorCounts[ProblemId("e1")]?.occurences == 2)
+        assert(summary.warningCounts[ProblemId("w1")]?.occurences == 1)
+        assert(summary.totalCount == 3)
     }
 
     @Test
@@ -418,7 +414,7 @@ class BuildResultTest {
             |
         """.trimMargin().trim()
 
-        assertEquals(expected, taskOutput?.trim())
+        assert(expected == taskOutput?.trim())
     }
 
     @Test
@@ -441,8 +437,8 @@ class BuildResultTest {
             problemAggregations = emptyMap()
         )
 
-        assertEquals("Output 1", result.getTaskOutput(":task1")?.trim())
-        assertEquals("Output 2", result.getTaskOutput(":task2")?.trim())
+        assert(result.getTaskOutput(":task1")?.trim() == "Output 1")
+        assert(result.getTaskOutput(":task2")?.trim() == "Output 2")
     }
 
     @Test
@@ -456,7 +452,7 @@ class BuildResultTest {
             buildFailures = null,
             problemAggregations = emptyMap()
         )
-        assertEquals(null, result.getTaskOutput(":nonexistent"))
+        assert(result.getTaskOutput(":nonexistent") == null)
     }
 }
 
@@ -480,9 +476,9 @@ class GradleResultTest {
             value = Result.success("test-value")
         )
 
-        assertTrue(result.value.isSuccess)
-        assertEquals("test-value", result.value.getOrNull())
-        assertTrue(result.buildResult.isSuccessful == true)
+        assert(result.value.isSuccess)
+        assert(result.value.getOrNull() == "test-value")
+        assert(result.buildResult.isSuccessful == true)
     }
 
     @Test
@@ -503,8 +499,8 @@ class GradleResultTest {
             value = Result.failure(exception)
         )
 
-        assertTrue(result.value.isFailure)
-        assertEquals(exception, result.value.exceptionOrNull())
+        assert(result.value.isFailure)
+        assert(result.value.exceptionOrNull() == exception)
     }
 
     @Test
@@ -525,7 +521,7 @@ class GradleResultTest {
         )
 
         val (id, value) = result.throwFailure()
-        assertEquals(buildResult.id, id)
-        assertEquals("test-value", value)
+        assert(id == buildResult.id)
+        assert(value == "test-value")
     }
 }

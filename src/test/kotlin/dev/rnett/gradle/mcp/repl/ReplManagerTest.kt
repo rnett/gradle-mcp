@@ -4,18 +4,11 @@ import dev.rnett.gradle.mcp.gradle.BundledJarProvider
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertIs
-import kotlin.test.assertNotNull
-import kotlin.test.assertNotSame
-import kotlin.test.assertNull
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -108,7 +101,7 @@ class ReplManagerTest {
             delay(50)
         }
 
-        assertFalse(process.isAlive, "Process should be terminated after timeout")
+        assert(!process.isAlive)
         manager.closeAll()
     }
 
@@ -118,7 +111,7 @@ class ReplManagerTest {
         val process = manager.startSession("session1", config1, "java")
 
         try {
-            assertNotNull(process)
+            assert(process != null)
         } finally {
             manager.closeAll()
         }
@@ -131,8 +124,8 @@ class ReplManagerTest {
         val status = manager.getSession("session1")
 
         try {
-            assertIs<ReplSession.Running>(status)
-            assertSame(process1, status.process)
+            assert(status is ReplSession.Running)
+            assert(process1 === (status as ReplSession.Running).process)
         } finally {
             manager.closeAll()
         }
@@ -145,8 +138,8 @@ class ReplManagerTest {
         val process2 = manager.startSession("session1", config2, "java")
 
         try {
-            assertNotSame(process1, process2)
-            assertFalse(process1.isAlive)
+            assert(process1 !== process2)
+            assert(!process1.isAlive)
         } finally {
             manager.closeAll()
         }
@@ -155,7 +148,7 @@ class ReplManagerTest {
     @Test
     fun `getSession returns null for non-existent session`() = runTest {
         val manager = createManager()
-        assertNull(manager.getSession("session1"))
+        assert(manager.getSession("session1") == null)
         manager.closeAll()
     }
 
@@ -165,7 +158,7 @@ class ReplManagerTest {
         val process = manager.startSession("session1", config1, "java")
 
         manager.terminateSession("session1")
-        assertFalse(process.isAlive)
+        assert(!process.isAlive)
     }
 
     @Test
@@ -176,8 +169,8 @@ class ReplManagerTest {
 
         manager.closeAll()
 
-        assertFalse(process1.isAlive)
-        assertFalse(process2.isAlive)
+        assert(!process1.isAlive)
+        assert(!process2.isAlive)
     }
 
     @Test
@@ -220,14 +213,63 @@ class ReplManagerTest {
             delay(100)
         }
 
-        assertIs<ReplSession.Terminated>(status)
-        assertEquals(0, status.exitCode)
-        assertTrue(status.output.contains("Hello from stdout"))
-        assertTrue(status.output.contains("Hello from stderr"))
+        assert(status is ReplSession.Terminated)
+        assert((status as ReplSession.Terminated).exitCode == 0)
+        assert(status.output.contains("Hello from stdout"))
+        assert(status.output.contains("Hello from stderr"))
 
         // Second call should return null as it should be removed from map
-        assertNull(exitManager.getSession("session1"))
+        assert(exitManager.getSession("session1") == null)
 
         exitManager.closeAll()
+    }
+
+    @Test
+    fun `sendRequest communicates with process via RPC prefix`() = runTest {
+        val jarPath = tempDir.resolve("repl-worker-rpc.jar")
+        compileAndJar(
+            jarPath, "ReplWorker", """
+            import java.util.Scanner;
+            public class ReplWorker {
+                public static void main(String[] args) {
+                    Scanner scanner = new Scanner(System.in);
+                    if (scanner.hasNextLine()) {
+                        scanner.nextLine(); // read config
+                    }
+                    while (scanner.hasNextLine()) {
+                        String line = scanner.nextLine();
+                        if (line.contains("print 1")) {
+                           System.out.println("${ReplResponse.RPC_PREFIX}{\"type\":\"dev.rnett.gradle.mcp.repl.ReplResponse.Output\",\"event\":\"stdout\",\"data\":\"1\"}");
+                           System.out.flush();
+                        }
+                        if (line.contains("result 2")) {
+                           System.out.println("${ReplResponse.RPC_PREFIX}{\"type\":\"dev.rnett.gradle.mcp.repl.ReplResponse.Result.Success\",\"data\":{\"value\":\"2\",\"mime\":\"text/plain\"}}");
+                           System.out.flush();
+                        }
+                    }
+                }
+            }
+        """.trimIndent()
+        )
+
+        val provider = mockk<BundledJarProvider>()
+        every { provider.extractJar(any()) } returns jarPath
+
+        val manager = DefaultReplManager(provider)
+        manager.startSession("session1", config1, "java")
+
+        val responses = manager.sendRequest("session1", ReplRequest("print 1\nresult 2")).toList()
+
+        assert(responses.size == 2)
+        assert(responses[0] is ReplResponse.Output)
+        val output = responses[0] as ReplResponse.Output
+        assert(output.event == "stdout")
+        assert(output.data == "1")
+
+        assert(responses[1] is ReplResponse.Result.Success)
+        val result = responses[1] as ReplResponse.Result.Success
+        assert(result.data.value == "2")
+
+        manager.closeAll()
     }
 }

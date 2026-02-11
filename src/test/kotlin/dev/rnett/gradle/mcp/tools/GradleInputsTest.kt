@@ -6,25 +6,23 @@ import io.mockk.every
 import io.mockk.mockk
 import java.nio.file.Path
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 
 class GradleInputsTest {
 
     @Test
     fun `expandPath expands tilde to home directory`() {
         val home = System.getProperty("user.home")
-        assertEquals(Path.of(home).toAbsolutePath().normalize().toString(), "~".expandPath())
-        assertEquals(Path.of(home, "test").toAbsolutePath().normalize().toString(), "~/test".expandPath())
+        assert(Path.of(home).toAbsolutePath().normalize().toString() == "~".expandPath())
+        assert(Path.of(home, "test").toAbsolutePath().normalize().toString() == "~/test".expandPath())
     }
 
     @Test
     fun `expandPath expands dot and double dot`() {
         val current = Path.of(".").toAbsolutePath().normalize().toString()
-        assertEquals(current, ".".expandPath())
+        assert(current == ".".expandPath())
 
         val parent = Path.of("..").toAbsolutePath().normalize().toString()
-        assertEquals(parent, "..".expandPath())
+        assert(parent == "..".expandPath())
     }
 
     @Test
@@ -35,7 +33,7 @@ class GradleInputsTest {
         val input = GradleProjectRootInput("..")
         val resolved = with(server) { input.resolveRoot() }
 
-        assertEquals(Path.of("..").toAbsolutePath().normalize().toString(), resolved.projectRoot)
+        assert(Path.of("..").toAbsolutePath().normalize().toString() == resolved.projectRoot)
     }
 
     @Test
@@ -49,8 +47,11 @@ class GradleInputsTest {
         every { server.roots.value } returns null
 
         val input = GradleProjectRootInput(null)
-        assertFailsWith<IllegalArgumentException> {
+        try {
             with(server) { input.resolveRoot() }
+            assert(false) { "Should have thrown IllegalArgumentException" }
+        } catch (e: IllegalArgumentException) {
+            // expected
         }
     }
 }

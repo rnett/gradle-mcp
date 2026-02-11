@@ -7,6 +7,8 @@ include("repl-worker", "repl-shared")
 dependencyResolutionManagement {
     repositories {
         mavenCentral()
+        google()
+        maven("https://maven.pkg.jetbrains.space/public/p/compose/companion")
     }
 }
 

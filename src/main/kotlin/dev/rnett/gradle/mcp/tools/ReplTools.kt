@@ -5,7 +5,13 @@ import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.repl.ReplConfig
 import dev.rnett.gradle.mcp.repl.ReplManager
+import dev.rnett.gradle.mcp.repl.ReplRequest
+import dev.rnett.gradle.mcp.repl.ReplResponse
 import io.github.smiley4.schemakenerator.core.annotations.Description
+import io.modelcontextprotocol.kotlin.sdk.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.ImageContent
+import io.modelcontextprotocol.kotlin.sdk.PromptMessageContent
+import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.serialization.Serializable
 import java.util.UUID
 import kotlin.time.ExperimentalTime
@@ -42,60 +48,75 @@ class ReplTools(
     private var currentReplSessionId: String? = null
 
     @OptIn(ExperimentalTime::class)
-    val repl by tool<ReplArgs, String>(
+    val repl by tool<ReplArgs, CallToolResult>(
         "repl",
         """
-            |Interacts with a Kotlin REPL session, using the classpath of a Gradle source set, along with its compilation configuration (compiler plugins and args).
+            |Interacts with a Kotlin REPL session. The REPL runs with the classpath and compiler configuration (plugins, args) of a Gradle source set.
             |
-            |Supported commands:
-            |- `start`: Starts (or replaces) a REPL session for the given project and source set. Requires `projectPath` and `sourceSet`.
-            |- `stop`: Stops the current REPL session.
-            |- `run`: Sends a Kotlin code snippet to the current REPL session to execute. Requires `code`.
+            |### Commands
+            |- `start`: Starts a new REPL session (replacing any existing one). Requires `projectPath` (e.g., `:app`) and `sourceSet` (e.g., `main`).
+            |- `stop`: Stops the currently active REPL session.
+            |- `run`: Executes a Kotlin code snippet in the current session. Requires `code`.
             |
-            |Only one REPL session can be active at a time. Each `start` command generates a new random session ID internally and replaces any currently running session.
+            |### Execution and Output
+            |- **stdout/stderr**: Captured and returned as text.
+            |- **Last Expression**: The result of the last expression in your snippet is automatically rendered.
+            |- **Responder**: A `responder: Responder` is available for manual output. Use it to return multiple items or specific formats.
+            |
+            |### Automatic Rendering and Content Types
+            |The tool returns a list of content items (text, images, etc.) in order of execution.
+            |- Common image types (`BufferedImage`, Compose `ImageBitmap`, Android `Bitmap`, or `ByteArray` with image headers) are automatically rendered as images.
+            |- Markdown can be returned via `responder.markdown(md)`.
+            |- HTML fragments can be returned via `responder.html(fragment)`.
+            |- All other types are rendered via `toString()`.
+            |
+            |Example using `responder`:
+            |```kotlin
+            |println("Generating plot...")
+            |responder.image(plotBytes, "image/png")
+            |println("Plot generated.")
+            |"Success" // Last expression
+            |```
         """.trimMargin()
     ) {
         when (it.command) {
-            ReplCommand.start -> startRepl(it)
+            ReplCommand.start -> startRepl(it, this)
             ReplCommand.stop -> stopRepl()
             ReplCommand.run -> runRepl(it)
         }
     }
 
-    private suspend fun McpToolContext.startRepl(args: ReplArgs): String {
+    private suspend fun startRepl(args: ReplArgs, context: McpToolContext): CallToolResult {
         val projectPath = args.projectPath
         val sourceSet = args.sourceSet
         if (projectPath == null || sourceSet == null) {
-            isError = true
-            return "projectPath and sourceSet are required for 'start' command"
+            return CallToolResult(listOf(TextContent("projectPath and sourceSet are required for 'start' command")), isError = true)
         }
 
-        val projectRoot = args.projectRoot.resolve()
+        val projectRoot = context.run { args.projectRoot.resolve() }
 
         val result = gradle.runBuild(
             projectRoot,
             GradleInvocationArguments(
                 additionalArguments = listOf("$projectPath:resolveReplEnvironment", "-Pgradle-mcp.repl.sourceSet=$sourceSet")
             ),
-            { ScansTosManager.askForScansTos(projectRoot, it) }
+            { context.run { ScansTosManager.askForScansTos(projectRoot, it) } }
         ).awaitFinished()
 
         if (result.buildResult.isSuccessful != true) {
-            isError = true
-            return "Failed to resolve REPL environment:\n${result.buildResult.toOutputString()}"
+            return CallToolResult(listOf(TextContent("Failed to resolve REPL environment because Gradle task failed:\n${result.buildResult.toOutputString()}")), isError = true)
         }
 
         val output = result.buildResult.consoleOutput.toString()
         val envLines = output.lines().filter { it.contains("[gradle-mcp-repl-env]") }
 
-        val classpath = envLines.find { it.contains("classpath=") }?.substringAfter("classpath=")?.split(";") ?: emptyList()
+        val classpath = envLines.find { it.contains("classpath=") }?.substringAfter("classpath=")?.split(";")?.filter { it.isNotBlank() } ?: emptyList()
         val javaExecutable = envLines.find { it.contains("javaExecutable=") }?.substringAfter("javaExecutable=")
-        val compilerPlugins = envLines.find { it.contains("compilerPlugins=") }?.substringAfter("compilerPlugins=")?.split(";") ?: emptyList()
-        val compilerArgs = envLines.find { it.contains("compilerArgs=") }?.substringAfter("compilerArgs=")?.split(";") ?: emptyList()
+        val compilerPlugins = envLines.find { it.contains("compilerPlugins=") }?.substringAfter("compilerPlugins=")?.split(";")?.filter { it.isNotBlank() } ?: emptyList()
+        val compilerArgs = envLines.find { it.contains("compilerArgs=") }?.substringAfter("compilerArgs=")?.split(";")?.filter { it.isNotBlank() } ?: emptyList()
 
         if (javaExecutable == null) {
-            isError = true
-            return "Failed to find javaExecutable in environment output"
+            return CallToolResult(listOf(TextContent("Failed to find javaExecutable in environment output")), isError = true)
         }
 
         val sessionId = UUID.randomUUID().toString()
@@ -107,27 +128,60 @@ class ReplTools(
 
         replManager.startSession(sessionId, config, javaExecutable)
         currentReplSessionId = sessionId
-        return "REPL session started with ID: $sessionId"
+        return CallToolResult(listOf(TextContent("REPL session started with ID: $sessionId")))
     }
 
-    private suspend fun stopRepl(): String {
+    private suspend fun stopRepl(): CallToolResult {
         return currentReplSessionId?.let {
             replManager.terminateSession(it)
             currentReplSessionId = null
-            "REPL session stopped."
-        } ?: "No active REPL session to stop."
+            CallToolResult(listOf(TextContent("REPL session stopped.")))
+        } ?: CallToolResult(listOf(TextContent("No active REPL session to stop.")))
     }
 
-    private suspend fun McpToolContext.runRepl(args: ReplArgs): String {
+    private suspend fun McpToolContext.runRepl(args: ReplArgs): CallToolResult {
         if (args.code == null) {
-            isError = true
-            return "code is required for 'run' command"
+            return CallToolResult(listOf(TextContent("code is required for 'run' command")), isError = true)
         }
-        if (currentReplSessionId == null) {
+        val sessionId = currentReplSessionId ?: return CallToolResult(
+            listOf(TextContent("No active REPL session. Start one with command 'start'.")),
             isError = true
-            return "No active REPL session. Start one with command 'start'."
-        } else {
-            TODO("Snippet execution not implemented yet")
+        )
+
+        val contents = mutableListOf<PromptMessageContent>()
+
+        fun handleData(data: ReplResponse.Data) {
+            if (data.mime.startsWith("image/")) {
+                contents.add(ImageContent(data.value, data.mime))
+            } else {
+                contents.add(TextContent(data.value))
+            }
         }
+
+        var isError = false
+        replManager.sendRequest(sessionId, ReplRequest(args.code)).collect {
+            when (it) {
+                is ReplResponse.Output -> contents.add(TextContent(it.data))
+                is ReplResponse.Data -> handleData(it)
+                is ReplResponse.Result.Success -> {
+                    if (it.data.mime != "text/plain") {
+                        handleData(it.data)
+                    } else if (it.data.value.isNotBlank()) {
+                        contents.add(TextContent(it.data.value))
+                    }
+                }
+
+                is ReplResponse.Result.CompilationError -> {
+                    isError = true
+                    contents.add(TextContent("\nCompilation Error:\n${it.message}"))
+                }
+
+                is ReplResponse.Result.RuntimeError -> {
+                    isError = true
+                    contents.add(TextContent("\nRuntime Error: ${it.message}${it.stackTrace?.let { "\n$it" } ?: ""}"))
+                }
+            }
+        }
+        return CallToolResult(contents, isError = isError)
     }
 }

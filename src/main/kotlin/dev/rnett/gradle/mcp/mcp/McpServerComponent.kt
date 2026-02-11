@@ -63,17 +63,21 @@ abstract class McpServerComponent(val name: String, val description: String) {
         crossinline handler: suspend McpToolContext.(I) -> O
     ) = register { server ->
         val inputSerializer = server.json.serializersModule.serializer<I>()
-        val outputSerializer = server.json.serializersModule.serializer<O>()
 
         val inputSchema = JsonSchemaFactory.generateSchema(inputSerializer, server.json.serializersModule)
-        val outputSchema = JsonSchemaFactory.generateSchema(outputSerializer, server.json.serializersModule)
+        val outputSchema = if (O::class == String::class || O::class == Unit::class || O::class == CallToolResult::class) {
+            null
+        } else {
+            val outputSerializer = server.json.serializersModule.serializer<O>()
+            JsonSchemaFactory.generateSchema(outputSerializer, server.json.serializersModule).toOutput()
+        }
         val tool = Tool(
             name = name,
             description = description,
             title = title,
             annotations = toolAnnotations,
             inputSchema = inputSchema.toInput(),
-            outputSchema = outputSchema.toOutput(),
+            outputSchema = outputSchema,
         )
 
         server.addTool(
@@ -104,6 +108,7 @@ abstract class McpServerComponent(val name: String, val description: String) {
                         return@fold it
                     }
 
+                    val outputSerializer = server.json.serializersModule.serializer<O>()
                     val structured = server.json.encodeToJsonElement(outputSerializer, it)
                     val text = server.json.encodeToString(structured)
                     CallToolResult(

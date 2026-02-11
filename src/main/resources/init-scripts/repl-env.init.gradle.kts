@@ -42,9 +42,11 @@ abstract class ResolveReplEnvironmentTask : DefaultTask() {
 
     @TaskAction
     fun resolve() {
+        val currentClasspathFiles = runtimeClasspath.files
+
         // Output format is recognized by the gradle-mcp client
         println("[gradle-mcp-repl-env] projectRoot=${projectRootPath.get()}")
-        println("[gradle-mcp-repl-env] classpath=${runtimeClasspath.files.joinToString(";") { it.absolutePath }}")
+        println("[gradle-mcp-repl-env] classpath=${currentClasspathFiles.joinToString(";") { it.absolutePath }}")
         println("[gradle-mcp-repl-env] javaExecutable=${javaExecutable.getOrElse(System.getProperty("java.home") + "/bin/java")}")
         println("[gradle-mcp-repl-env] compilerPlugins=${compilerPlugins.getOrElse(emptySet()).joinToString(";")}")
         println("[gradle-mcp-repl-env] compilerArgs=${compilerArgs.getOrElse(emptyList()).joinToString(";")}")

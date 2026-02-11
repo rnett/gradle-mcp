@@ -6,7 +6,6 @@ caffeine = "3.2.3"
 commonsIo = "2.21.0"
 schemaKenerator = "2.6.0"
 kotlinxSerializationJson = "1.10.0"
-kotlin-scripting = "2.3.10"
 coroutines = "1.10.2"
 mcpSdk = "0.7.2"
 gradleToolingApi = "9.3.1"
@@ -15,6 +14,7 @@ vanniktechPublish = "0.36.0"
 koin = "4.0.0"
 junit = "6.0.2"
 mockk = "1.14.9"
+jetbrains-compose = "1.7.0"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -44,9 +44,11 @@ koin-ktor = { module = "io.insert-koin:koin-ktor3", version.ref = "koin" }
 koin-logger-slf4j = { module = "io.insert-koin:koin-logger-slf4j", version.ref = "koin" }
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
-kotlin-scripting-jvm = { module = "org.jetbrains.kotlin:kotlin-scripting-jvm", version.ref = "kotlin-scripting" }
-kotlin-scripting-jvm-host = { module = "org.jetbrains.kotlin:kotlin-scripting-jvm-host", version.ref = "kotlin-scripting" }
-kotlin-compiler-embeddable = { module = "org.jetbrains.kotlin:kotlin-compiler-embeddable", version.ref = "kotlin-scripting" }
+kotlin-scripting-jvm = { module = "org.jetbrains.kotlin:kotlin-scripting-jvm", version.ref = "kotlin" }
+kotlin-scripting-jvm-host = { module = "org.jetbrains.kotlin:kotlin-scripting-jvm-host", version.ref = "kotlin" }
+kotlin-compiler-embeddable = { module = "org.jetbrains.kotlin:kotlin-compiler-embeddable", version.ref = "kotlin" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+compose-graphics = { module = "org.jetbrains.compose.ui:ui-graphics", version.ref = "jetbrains-compose" }
+compose-graphics-desktop = { module = "org.jetbrains.compose.ui:ui-graphics-desktop", version.ref = "jetbrains-compose" }

@@ -3,9 +3,6 @@ package dev.rnett.gradle.mcp.gradle
 import dev.rnett.gradle.mcp.gradle.fixtures.testGradleProject
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
-import kotlin.test.assertContains
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 class TaskOutInitScriptTest {
@@ -55,8 +52,8 @@ class TaskOutInitScriptTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assertEquals(result.buildResult.isSuccessful, true, "Build failed")
-            assertContains(result.buildResult.consoleOutput, "Gradle MCP init script task-out.init.gradle.kts loaded")
+            assert(result.buildResult.isSuccessful == true)
+            assert(result.buildResult.consoleOutput.contains("Gradle MCP init script task-out.init.gradle.kts loaded"))
         }
     }
 
@@ -99,24 +96,24 @@ class TaskOutInitScriptTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assertTrue(result.buildResult.isSuccessful == true)
-            kotlin.test.assertFalse(result.buildResult.taskOutputCapturingFailed, "Task output capturing should NOT have failed")
+            assert(result.buildResult.isSuccessful == true)
+            assert(!result.buildResult.taskOutputCapturingFailed)
 
-            assertContains(result.buildResult.consoleOutput, ":printMessage OUT Hello from task")
-            assertContains(result.buildResult.consoleOutput, ":printMessage ERR Error from task")
+            assert(result.buildResult.consoleOutput.contains(":printMessage OUT Hello from task"))
+            assert(result.buildResult.consoleOutput.contains(":printMessage ERR Error from task"))
 
             // Should NOT contain the original unprefixed lines (they should have been replaced)
             val lines = result.buildResult.consoleOutput.lines()
-            kotlin.test.assertFalse(lines.contains("Hello from task"), "Original 'Hello from task' should have been replaced")
-            kotlin.test.assertFalse(lines.contains("ERR: Error from task"), "Original 'ERR: Error from task' should have been replaced")
+            assert(!lines.contains("Hello from task"))
+            assert(!lines.contains("ERR: Error from task"))
 
-            kotlin.test.assertEquals("Hello from task\nError from task", result.buildResult.getTaskOutput(":printMessage"))
+            assert(result.buildResult.getTaskOutput(":printMessage") == "Hello from task\nError from task")
 
             val taskResult = result.buildResult.taskResults[":printMessage"]
-            kotlin.test.assertNotNull(taskResult)
-            kotlin.test.assertEquals(TaskOutcome.SUCCESS, taskResult.outcome)
-            kotlin.test.assertEquals("Hello from task\nError from task", taskResult.consoleOutput?.trim())
-            assertTrue(taskResult.duration >= 0.seconds)
+            assert(taskResult != null)
+            assert(taskResult!!.outcome == TaskOutcome.SUCCESS)
+            assert(taskResult.consoleOutput?.trim() == "Hello from task\nError from task")
+            assert(taskResult.duration >= 0.seconds)
         }
     }
 
@@ -163,10 +160,10 @@ class TaskOutInitScriptTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assertTrue(result.buildResult.isSuccessful == true)
-            kotlin.test.assertFalse(result.buildResult.taskOutputCapturingFailed, "Task output capturing should NOT have failed")
-            assertContains(result.buildResult.consoleOutput, ":execTask OUT Hello from external process")
-            kotlin.test.assertEquals("Hello from external process", result.buildResult.getTaskOutput(":execTask"))
+            assert(result.buildResult.isSuccessful == true)
+            assert(!result.buildResult.taskOutputCapturingFailed)
+            assert(result.buildResult.consoleOutput.contains(":execTask OUT Hello from external process"))
+            assert(result.buildResult.getTaskOutput(":execTask") == "Hello from external process")
         }
     }
 
@@ -211,8 +208,8 @@ class TaskOutInitScriptTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assertTrue(result.buildResult.isSuccessful == true)
-            assertTrue(result.buildResult.taskOutputCapturingFailed, "taskOutputCapturingFailed should be true")
+            assert(result.buildResult.isSuccessful == true)
+            assert(result.buildResult.taskOutputCapturingFailed)
         }
     }
 }

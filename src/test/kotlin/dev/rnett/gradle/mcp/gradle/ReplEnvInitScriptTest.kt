@@ -4,8 +4,6 @@ import dev.rnett.gradle.mcp.gradle.fixtures.testGradleProject
 import kotlinx.coroutines.test.runTest
 import java.nio.file.Files
 import kotlin.test.Test
-import kotlin.test.assertContains
-import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 class ReplEnvInitScriptTest {
@@ -36,13 +34,13 @@ class ReplEnvInitScriptTest {
         }.use { project ->
             val output = runResolveReplEnv(project, tempDir)
 
-            assertContains(output, "[gradle-mcp-repl-env] projectRoot=")
-            assertContains(output, "[gradle-mcp-repl-env] classpath=")
-            assertContains(output, "[gradle-mcp-repl-env] javaExecutable=")
+            assert(output.contains("[gradle-mcp-repl-env] projectRoot="))
+            assert(output.contains("[gradle-mcp-repl-env] classpath="))
+            assert(output.contains("[gradle-mcp-repl-env] javaExecutable="))
             // Verify that the javaExecutable contains something related to the toolchain if possible, 
             // but for now just that it succeeded.
-            assertContains(output, "[gradle-mcp-repl-env] compilerPlugins=")
-            assertContains(output, "[gradle-mcp-repl-env] compilerArgs=")
+            assert(output.contains("[gradle-mcp-repl-env] compilerPlugins="))
+            assert(output.contains("[gradle-mcp-repl-env] compilerArgs="))
         }
     }
 
@@ -64,9 +62,9 @@ class ReplEnvInitScriptTest {
         }.use { project ->
             val output = runResolveReplEnv(project, tempDir)
 
-            assertContains(output, "[gradle-mcp-repl-env] projectRoot=")
-            assertContains(output, "[gradle-mcp-repl-env] classpath=")
-            assertContains(output, "[gradle-mcp-repl-env] javaExecutable=")
+            assert(output.contains("[gradle-mcp-repl-env] projectRoot="))
+            assert(output.contains("[gradle-mcp-repl-env] classpath="))
+            assert(output.contains("[gradle-mcp-repl-env] javaExecutable="))
         }
     }
 
@@ -93,11 +91,11 @@ class ReplEnvInitScriptTest {
             // In KMP, the JVM source set is usually 'jvmMain'
             val output = runResolveReplEnv(project, tempDir, sourceSet = "jvmMain")
 
-            assertContains(output, "[gradle-mcp-repl-env] projectRoot=")
-            assertContains(output, "[gradle-mcp-repl-env] classpath=")
-            assertContains(output, "[gradle-mcp-repl-env] javaExecutable=")
-            assertContains(output, "[gradle-mcp-repl-env] compilerPlugins=")
-            assertContains(output, "[gradle-mcp-repl-env] compilerArgs=")
+            assert(output.contains("[gradle-mcp-repl-env] projectRoot="))
+            assert(output.contains("[gradle-mcp-repl-env] classpath="))
+            assert(output.contains("[gradle-mcp-repl-env] javaExecutable="))
+            assert(output.contains("[gradle-mcp-repl-env] compilerPlugins="))
+            assert(output.contains("[gradle-mcp-repl-env] compilerArgs="))
         }
     }
 
@@ -125,7 +123,7 @@ class ReplEnvInitScriptTest {
             )
         }.use { project ->
             val output = runResolveReplEnv(project, tempDir)
-            assertContains(output, "[gradle-mcp-repl-env] projectRoot=")
+            assert(output.contains("[gradle-mcp-repl-env] projectRoot="))
         }
     }
 
@@ -148,9 +146,9 @@ class ReplEnvInitScriptTest {
         }.use { project ->
             val output = runResolveReplEnv(project, tempDir)
 
-            assertContains(output, "[gradle-mcp-repl-env] classpath=")
+            assert(output.contains("[gradle-mcp-repl-env] classpath="))
             val classpathLine = output.lines().find { it.contains("[gradle-mcp-repl-env] classpath=") }
-            assertTrue(classpathLine != null, "Classpath line not found in output: $output")
+            assert(classpathLine != null)
             val classpath = classpathLine!!.substringAfter("[gradle-mcp-repl-env] classpath=").split(";")
 
             println("[DEBUG_LOG] Classpath: $classpath")
@@ -158,7 +156,7 @@ class ReplEnvInitScriptTest {
             // Check for classes directory. 
             // Gradle usually puts them in build/classes/kotlin/main or similar.
             val hasClassesDir = classpath.any { it.contains("classes") && it.contains("main") }
-            assertTrue(hasClassesDir, "Classpath should contain classes directory: $classpath")
+            assert(hasClassesDir)
 
             // Check if the classes directory actually exists (meaning it was built)
             // It might be build/classes/kotlin/main or build/classes/java/main
@@ -170,10 +168,10 @@ class ReplEnvInitScriptTest {
             if (classesDir != null) {
                 // Comment out the existence check to see if it's really built.
                 // Wait, it says it was built (FROM-CACHE), so it should exist.
-                assertTrue(java.io.File(classesDir).exists(), "Classes directory should exist: $classesDir")
+                assert(java.io.File(classesDir).exists())
             } else {
                 // Fallback check if it's named differently
-                assertTrue(classpath.any { java.io.File(it).exists() && it.contains("classes") }, "At least one classes directory should exist in $classpath")
+                assert(classpath.any { java.io.File(it).exists() && it.contains("classes") })
             }
         }
     }
@@ -200,19 +198,19 @@ class ReplEnvInitScriptTest {
 
             val output = runResolveReplEnv(project, tempDir)
 
-            assertContains(output, "[gradle-mcp-repl-env] classpath=")
+            assert(output.contains("[gradle-mcp-repl-env] classpath="))
             val classpathLine = output.lines().find { it.contains("[gradle-mcp-repl-env] classpath=") }
-            assertTrue(classpathLine != null, "Classpath line not found in output: $output")
+            assert(classpathLine != null)
             val classpath = classpathLine!!.substringAfter("[gradle-mcp-repl-env] classpath=").split(";")
 
             val hasClassesDir = classpath.any { it.contains("classes") && it.contains("main") }
-            assertTrue(hasClassesDir, "Classpath should contain classes directory: $classpath")
+            assert(hasClassesDir)
 
             val kotlinClassesDir = classpath.find { it.contains("classes") && it.contains("kotlin") && it.contains("main") }
             val javaClassesDir = classpath.find { it.contains("classes") && it.contains("java") && it.contains("main") }
             val classesDir = kotlinClassesDir ?: javaClassesDir
 
-            assertTrue(classesDir != null && java.io.File(classesDir).exists(), "Classes directory should exist after build: $classesDir")
+            assert(classesDir != null && java.io.File(classesDir).exists())
         }
     }
 
@@ -240,16 +238,16 @@ class ReplEnvInitScriptTest {
             runGradle(project, "clean")
             val output = runResolveReplEnv(project, tempDir, sourceSet = "jvmMain")
 
-            assertContains(output, "[gradle-mcp-repl-env] classpath=")
+            assert(output.contains("[gradle-mcp-repl-env] classpath="))
             val classpathLine = output.lines().find { it.contains("[gradle-mcp-repl-env] classpath=") }
-            assertTrue(classpathLine != null, "Classpath line not found in output: $output")
+            assert(classpathLine != null)
             val classpath = classpathLine!!.substringAfter("[gradle-mcp-repl-env] classpath=").split(";")
 
             val hasClassesDir = classpath.any { it.contains("classes") && it.contains("jvm") && it.contains("main") }
-            assertTrue(hasClassesDir, "Classpath should contain jvm classes directory: $classpath")
+            assert(hasClassesDir)
 
             val classesDir = classpath.find { it.contains("classes") && it.contains("jvm") && it.contains("main") }
-            assertTrue(classesDir != null && java.io.File(classesDir).exists(), "KMP Classes directory should exist after build: $classesDir")
+            assert(classesDir != null && java.io.File(classesDir).exists())
         }
     }
 
@@ -270,16 +268,16 @@ class ReplEnvInitScriptTest {
         }.use { project ->
             // First run
             val output1 = runResolveReplEnv(project, tempDir)
-            assertContains(output1, "> Task :resolveReplEnvironment")
+            assert(output1.contains("> Task :resolveReplEnvironment"))
             // In Gradle, if a task is not up-to-date, it won't have UP-TO-DATE label.
             // If it is up-to-date, it will have UP-TO-DATE.
-            assertTrue(!output1.contains(":resolveReplEnvironment UP-TO-DATE"), "First run should not be UP-TO-DATE")
+            assert(!output1.contains(":resolveReplEnvironment UP-TO-DATE"))
 
             // Second run
             val output2 = runResolveReplEnv(project, tempDir)
-            assertContains(output2, "> Task :resolveReplEnvironment")
+            assert(output2.contains("> Task :resolveReplEnvironment"))
             // It should NOT be UP-TO-DATE now
-            assertTrue(!output2.contains(":resolveReplEnvironment UP-TO-DATE"), "Second run should not be UP-TO-DATE")
+            assert(!output2.contains(":resolveReplEnvironment UP-TO-DATE"))
         }
     }
 
@@ -311,7 +309,7 @@ class ReplEnvInitScriptTest {
             tosAccepter = { false }
         )
         val result = runningBuild.awaitFinished()
-        assertTrue(result.buildResult.isSuccessful == true, "Build failed: ${result.buildResult.consoleOutput}")
+        assert(result.buildResult.isSuccessful == true)
     }
 
     private suspend fun runResolveReplEnv(
@@ -344,7 +342,7 @@ class ReplEnvInitScriptTest {
         )
         val result = runningBuild.awaitFinished()
 
-        assertTrue(result.buildResult.isSuccessful == true, "Build failed: ${result.buildResult.consoleOutput}")
+        assert(result.buildResult.isSuccessful == true)
         return result.buildResult.consoleOutput.toString()
     }
 }

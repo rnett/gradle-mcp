@@ -8,6 +8,7 @@ import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleScanTosAcceptRequest
 import dev.rnett.gradle.mcp.gradle.RunningBuild
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
 import org.gradle.tooling.events.OperationType
 import org.gradle.tooling.events.ProgressListener
@@ -202,6 +203,13 @@ object UpdateTools {
         }
 
         override suspend fun closeAll() {
+        }
+
+        override suspend fun sendRequest(
+            sessionId: String,
+            command: dev.rnett.gradle.mcp.repl.ReplRequest
+        ): Flow<dev.rnett.gradle.mcp.repl.ReplResponse> {
+            throw UnsupportedOperationException("Not used for tool listing")
         }
     }
 }

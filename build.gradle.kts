@@ -65,13 +65,14 @@ dependencies {
     implementation(libs.ktor.server.di)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.server.config.yaml)
-
     implementation(libs.logback.classic)
 
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.mockk)
+    testImplementation("io.insert-koin:koin-test:4.0.1")
+    testImplementation("io.insert-koin:koin-test-junit5:4.0.1")
 }
 
 ktor {
@@ -90,7 +91,7 @@ kotlin {
 }
 
 @OptIn(ExperimentalKotlinGradlePluginApi::class)
-powerAssert {
+fun org.jetbrains.kotlin.powerassert.gradle.PowerAssertGradleExtension.configurePowerAssert() {
     functions = listOf(
         "kotlin.assert",
         // kotlin.test
@@ -108,6 +109,14 @@ powerAssert {
         "kotlin.test.assertSame",
         "kotlin.test.assertNotSame",
     )
+}
+
+allprojects {
+    plugins.withType<org.jetbrains.kotlin.powerassert.gradle.PowerAssertGradlePlugin> {
+        configure<org.jetbrains.kotlin.powerassert.gradle.PowerAssertGradleExtension> {
+            configurePowerAssert()
+        }
+    }
 }
 
 tasks.test {

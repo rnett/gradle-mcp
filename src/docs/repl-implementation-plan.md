@@ -101,8 +101,8 @@ This section details how rich output is produced in the REPL worker and mapped o
   - The worker may emit multiple `display` frames per snippet; exactly one `result` frame is emitted at the end.
 
 - Display API available to snippets
-    - Inject a small prelude at session start to expose:
-        - `display(value: Any?)`
+    - Inject a small `Responder` at session start to expose:
+        - `respond(value: Any?)`
         - `markdown(md: String)`
         - `html(fragment: String)`
         - `image(bytes: ByteArray, mime: String = "image/png")`

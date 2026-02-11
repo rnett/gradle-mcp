@@ -15,8 +15,6 @@ import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class ReplToolTest : BaseMcpServerTest() {
 
@@ -61,7 +59,7 @@ class ReplToolTest : BaseMcpServerTest() {
         ) as CallToolResult
 
         val text = (response.content.first() as TextContent).text
-        assertTrue(text!!.startsWith("REPL session started with ID: "), "Expected start message, got: $text")
+        assert(text!!.startsWith("REPL session started with ID: "))
 
         // Verify provider was called with the custom root
         io.mockk.verify { provider.runBuild(GradleProjectRoot(customRoot.toString()), any(), any()) }
@@ -99,7 +97,7 @@ class ReplToolTest : BaseMcpServerTest() {
         ) as CallToolResult
 
         val text = (response.content.first() as TextContent).text
-        assertTrue(text!!.startsWith("REPL session started with ID: "), "Expected start message, got: $text")
+        assert(text!!.startsWith("REPL session started with ID: "))
     }
 
     @Test
@@ -126,7 +124,7 @@ class ReplToolTest : BaseMcpServerTest() {
         )
 
         val response = server.client.callTool("repl", mapOf("command" to "stop")) as CallToolResult
-        assertEquals("REPL session stopped.", (response.content.first() as TextContent).text)
+        assert((response.content.first() as TextContent).text == "REPL session stopped.")
     }
 
     @Test
@@ -137,8 +135,8 @@ class ReplToolTest : BaseMcpServerTest() {
                 "code" to "val x = 1"
             )
         ) as CallToolResult
-        assertTrue(response.isError == true)
+        assert(response.isError == true)
         val text = (response.content.first() as TextContent).text
-        assertEquals("No active REPL session. Start one with command 'start'.", text)
+        assert(text == "No active REPL session. Start one with command 'start'.")
     }
 }

@@ -320,12 +320,11 @@ fun testKotlinProject(
                 package com.example
                 
                 import kotlin.test.Test
-                import kotlin.test.assertEquals
                 
                 class HelloTest {
                     @Test
                     fun `test greet`() {
-                        assertEquals("Hello, World!", greet("World"))
+                        assert(greet("World") == "Hello, World!")
                     }
                 }
             """.trimIndent()

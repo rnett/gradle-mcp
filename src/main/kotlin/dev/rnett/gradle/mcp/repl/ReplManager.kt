@@ -8,6 +8,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -29,6 +34,8 @@ interface ReplManager {
     fun getSession(sessionId: String): ReplSession?
     suspend fun terminateSession(sessionId: String)
     suspend fun closeAll()
+
+    suspend fun sendRequest(sessionId: String, command: ReplRequest): Flow<ReplResponse>
 }
 
 /**
@@ -68,8 +75,15 @@ class DefaultReplManager(
         val config: ReplConfig,
         val logJobs: List<Job>,
         @Volatile var lastActivity: Instant = Instant.fromEpochMilliseconds(System.currentTimeMillis()),
-        val outputBuffer: java.util.Queue<String> = java.util.concurrent.ConcurrentLinkedQueue()
+        val outputBuffer: java.util.Queue<String> = java.util.concurrent.ConcurrentLinkedQueue(),
+        private val _responses: MutableSharedFlow<ReplResponse> = MutableSharedFlow()
     ) {
+        val responses = _responses.asSharedFlow()
+
+        suspend fun emitResponse(response: ReplResponse) {
+            _responses.emit(response)
+        }
+
         fun addOutput(line: String) {
             outputBuffer.add(line)
             while (outputBuffer.size > 50) {
@@ -115,12 +129,20 @@ class DefaultReplManager(
             scope.launch(Dispatchers.IO) {
                 process.inputStream.bufferedReader().useLines { lines ->
                     lines.forEach { line ->
-                        session?.addOutput(line)
-                        MDC.put("sessionId", sessionId)
-                        try {
-                            LOGGER.info("REPL Worker stdout: $line")
-                        } finally {
-                            MDC.remove("sessionId")
+                        session?.lastActivity = Instant.fromEpochMilliseconds(System.currentTimeMillis())
+                        if (line.startsWith(ReplResponse.RPC_PREFIX)) {
+                            val jsonLine = line.removePrefix(ReplResponse.RPC_PREFIX)
+                            try {
+                                val response = Json.decodeFromString<ReplResponse>(jsonLine)
+                                session?.emitResponse(response)
+                            } catch (e: Exception) {
+                                LOGGER.error("Failed to decode REPL RPC message: $line", e)
+                                session?.addOutput(line)
+                                logStdout(sessionId, line)
+                            }
+                        } else {
+                            session?.addOutput(line)
+                            logStdout(sessionId, line)
                         }
                     }
                 }
@@ -128,6 +150,7 @@ class DefaultReplManager(
             scope.launch(Dispatchers.IO) {
                 process.errorStream.bufferedReader().useLines { lines ->
                     lines.forEach { line ->
+                        session?.lastActivity = Instant.fromEpochMilliseconds(System.currentTimeMillis())
                         session?.addOutput(line)
                         MDC.put("sessionId", sessionId)
                         try {
@@ -167,6 +190,39 @@ class DefaultReplManager(
                     it.process.destroyForcibly()
                 }
             }
+        }
+    }
+
+    private fun logStdout(sessionId: String, line: String) {
+        MDC.put("sessionId", sessionId)
+        try {
+            LOGGER.info("REPL Worker stdout: $line")
+        } finally {
+            MDC.remove("sessionId")
+        }
+    }
+
+    override suspend fun sendRequest(sessionId: String, command: ReplRequest): Flow<ReplResponse> {
+        val session = sessions[sessionId] ?: error("No active REPL session with ID $sessionId")
+
+        val json = Json.encodeToString(command)
+        withContext(Dispatchers.IO) {
+            session.process.outputStream.bufferedWriter().apply {
+                write(json)
+                newLine()
+                flush()
+            }
+        }
+
+        return flow {
+            session.responses.collect {
+                emit(it)
+                if (it is ReplResponse.Result) {
+                    throw kotlinx.coroutines.CancellationException("Found result")
+                }
+            }
+        }.catch { e ->
+            if (e !is kotlinx.coroutines.CancellationException || e.message != "Found result") throw e
         }
     }
 

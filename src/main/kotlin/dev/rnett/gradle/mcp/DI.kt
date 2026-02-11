@@ -27,6 +27,7 @@ import io.modelcontextprotocol.kotlin.sdk.ServerCapabilities
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import kotlinx.serialization.json.Json
 import org.koin.core.module.Module
+import org.koin.dsl.bind
 import org.koin.dsl.module
 
 object DI {
@@ -42,8 +43,8 @@ object DI {
         single { config }
         single { json }
         single { config.property("gradle").getAs<GradleConfiguration>() }
-        single<InitScriptProvider> { DefaultInitScriptProvider() }
-        single<BundledJarProvider> { DefaultBundledJarProvider() }
+        single { DefaultInitScriptProvider() } bind InitScriptProvider::class
+        single { DefaultBundledJarProvider() } bind BundledJarProvider::class
         single { BackgroundBuildManager() }
         single { BuildResults(get()) }
         single<ReplManager> { DefaultReplManager(get()) }
@@ -59,7 +60,7 @@ object DI {
         single {
             val provider: GradleProvider = get()
             val replManager: ReplManager = get()
-            listOf(
+            listOf<McpServerComponent>(
                 GradleIntrospectionTools(provider),
                 GradleExecutionTools(provider),
                 ReplTools(provider, replManager),

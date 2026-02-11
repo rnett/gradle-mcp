@@ -1,48 +1,32 @@
 package dev.rnett.gradle.mcp.repl
 
 import kotlinx.serialization.json.Json
-import java.io.File
 import java.io.PrintStream
-import kotlin.script.experimental.api.ResultValue
-import kotlin.script.experimental.api.ResultWithDiagnostics
-import kotlin.script.experimental.api.ScriptCompilationConfiguration
-import kotlin.script.experimental.api.ScriptEvaluationConfiguration
-import kotlin.script.experimental.api.compilerOptions
-import kotlin.script.experimental.api.previousSnippets
-import kotlin.script.experimental.host.toScriptSource
-import kotlin.script.experimental.jvm.baseClassLoader
-import kotlin.script.experimental.jvm.jvm
-import kotlin.script.experimental.jvm.updateClasspath
-import kotlin.script.experimental.jvmhost.BasicJvmScriptingHost
+import java.util.Base64
 
 class ReplWorker(val config: ReplConfig) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    private val compilationConfiguration = ScriptCompilationConfiguration {
-        jvm {
-            // Add provided classpath
-            updateClasspath(config.classpath.map { File(it) })
-
-            // In a real implementation we might want to filter or prioritize this
-            // dependenciesFromCurrentContext(wholeClasspath = true)
+    private val responder = object : Responder {
+        override fun respond(value: Any?, mime: String?) {
+            sendResponse(ResultRenderer.renderResult(value, mime))
         }
 
-        // Handle compiler plugins and args if needed
-        // This often requires more advanced configuration in the host
-        compilerOptions.append(config.compilerArgs)
+        override fun markdown(md: String) {
+            sendResponse(ReplResponse.Data(md, "text/markdown"))
+        }
 
-        // Use K2 if possible (optional, depends on kotlin-scripting version)
-        // compilerOptions.append("-Xuse-k2")
-    }
+        override fun html(fragment: String) {
+            sendResponse(ReplResponse.Data(fragment, "text/html"))
+        }
 
-    private var evaluationConfiguration = ScriptEvaluationConfiguration {
-        jvm {
-            // Ensure we can use types from the host if needed
-            baseClassLoader(ReplWorker::class.java.classLoader)
+        override fun image(bytes: ByteArray, mime: String) {
+            val base64 = Base64.getEncoder().encodeToString(bytes)
+            sendResponse(ReplResponse.Data(base64, mime))
         }
     }
 
-    private val host = BasicJvmScriptingHost()
+    private val evaluator: KotlinScriptEvaluator = KotlinScriptEvaluator(config, responder)
 
     private val stdout = System.`out`
     private val stderr = System.err
@@ -78,54 +62,33 @@ class ReplWorker(val config: ReplConfig) {
 
             try {
                 val request = json.decodeFromString<ReplRequest>(line)
-                evaluate(request.code)
+                val result = evaluator.evaluate(request.code)
+                handleResult(result)
             } catch (e: Exception) {
-                sendResponse(ReplResponse.Result(false, e.stackTraceToString()))
+                sendResponse(ReplResponse.Result.RuntimeError(e.message ?: e.toString(), e.stackTraceToString()))
             }
         }
     }
 
-    private fun evaluate(code: String) {
-        val result = host.eval(code.toScriptSource(), compilationConfiguration, evaluationConfiguration)
-
+    private fun handleResult(result: KotlinScriptEvaluator.EvalResult) {
         when (result) {
-            is ResultWithDiagnostics.Success -> {
-                val evalResult = result.value.returnValue
-
-                // Update evaluation configuration with the new snapshot to preserve state
-                evaluationConfiguration = ScriptEvaluationConfiguration(evaluationConfiguration) {
-                    previousSnippets.append(result.value)
-                }
-
-                when (evalResult) {
-                    is ResultValue.Value -> {
-                        sendResponse(ReplResponse.Result(true, evalResult.value.toString(), renderKind = "text"))
-                    }
-
-                    is ResultValue.Unit -> {
-                        sendResponse(ReplResponse.Result(true, "Unit", renderKind = "text"))
-                    }
-
-                    is ResultValue.Error -> {
-                        sendResponse(ReplResponse.Result(false, evalResult.error.stackTraceToString()))
-                    }
-
-                    else -> {
-                        sendResponse(ReplResponse.Result(true, "Success", renderKind = "text"))
-                    }
-                }
+            is KotlinScriptEvaluator.EvalResult.Success -> {
+                sendResponse(ReplResponse.Result.Success(result.data))
             }
 
-            is ResultWithDiagnostics.Failure -> {
-                val diagnostics = result.reports.joinToString("\n") { it.render() }
-                sendResponse(ReplResponse.Result(false, diagnostics))
+            is KotlinScriptEvaluator.EvalResult.CompilationError -> {
+                sendResponse(ReplResponse.Result.CompilationError(result.message))
+            }
+
+            is KotlinScriptEvaluator.EvalResult.RuntimeError -> {
+                sendResponse(ReplResponse.Result.RuntimeError(result.message, result.stackTrace))
             }
         }
     }
 
     private fun sendResponse(response: ReplResponse) {
         val line = json.encodeToString(response)
-        stdout.println(line)
+        stdout.println("${ReplResponse.RPC_PREFIX}$line")
         stdout.flush()
     }
 
