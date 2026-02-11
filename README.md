@@ -16,6 +16,10 @@ Tools include introspecting projects, running tasks, and running tests.
 * Customization of JVM args, environment variables, and system properties. Plus, the ability to source environment variables from the shell instead of inheriting them - useful on macOS where IntelliJ or Gradle may not start with the right
   env vars.
 
+### Configuration
+
+The `GRADLE_MCP_PROJECT_ROOT` environment variable can be set to provide a default Gradle project root. This is used if no project root is specified in a tool call and there isn't exactly one MCP root configured.
+
 ## Getting started
 
 > [!IMPORTANT]

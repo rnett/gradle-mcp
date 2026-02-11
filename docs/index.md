@@ -87,6 +87,11 @@ See [jbang documentation](https://www.jbang.dev/documentation/jbang/latest/insta
 }
 ```
 
+## Configuration
+
+The `GRADLE_MCP_PROJECT_ROOT` environment variable can be set to provide a default Gradle project root.
+This is used if no project root is specified in a tool call and there isn't exactly one MCP root configured.
+
 ## Usage
 
 Run the server.
