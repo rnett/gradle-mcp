@@ -18,9 +18,11 @@ fun McpServer.add(component: McpServerComponent) {
 }
 
 abstract class McpServerComponent(val name: String, val description: String) {
-    fun register(server: McpServer) {
+    open fun register(server: McpServer) {
         _parts.forEach { it.register(server) }
     }
+
+    open suspend fun close() {}
 
     fun interface Registerer<T> {
         fun register(server: McpServer): T

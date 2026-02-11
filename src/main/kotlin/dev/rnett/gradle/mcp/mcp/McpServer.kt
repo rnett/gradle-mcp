@@ -20,14 +20,14 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 
 class McpServer(
     serverInfo: Implementation,
     options: ServerOptions,
-    val json: Json
+    val json: Json,
+    private val components: List<McpServerComponent> = emptyList()
 ) : Server(serverInfo, options) {
     private val LOGGER = LoggerFactory.getLogger(McpServer::class.java)
     val scope = CoroutineScope(Dispatchers.Default + SupervisorJob() + CoroutineExceptionHandler { ctx, e ->
@@ -50,6 +50,10 @@ class McpServer(
             }
         }
         onClose {
+            // Ensure component shutdown completes before close() returns
+            kotlinx.coroutines.runBlocking {
+                components.forEach { it.close() }
+            }
             scope.cancel("Server closing")
         }
     }

@@ -10,7 +10,6 @@ import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.util.zip.ZipOutputStream
 import kotlin.test.Test
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
@@ -85,28 +84,6 @@ class ReplManagerTest {
     }
 
     @Test
-    fun `sessions are closed after timeout`() = runTest {
-        val manager = createManager(timeout = 100.milliseconds, checkInterval = 10.milliseconds)
-        val process = manager.startSession("session1", config1, "java")
-
-        // Wait for timeout and check. 
-        // We use a real-time wait because the manager uses Instant.fromEpochMilliseconds(System.currentTimeMillis()) which doesn't work with VirtualTime in runTest
-        val start = System.currentTimeMillis()
-        while (!process.isAlive && System.currentTimeMillis() - start < 2000) {
-            // If it's already not alive, it's either finished or crashed, which is fine for starting state
-            delay(50)
-            break
-        }
-
-        while (process.isAlive && System.currentTimeMillis() - start < 5000) {
-            delay(50)
-        }
-
-        assert(!process.isAlive)
-        manager.closeAll()
-    }
-
-    @Test
     fun `startSession creates new process when none exists`() = runTest {
         val manager = createManager()
         val process = manager.startSession("session1", config1, "java")
@@ -135,12 +112,13 @@ class ReplManagerTest {
     @Test
     fun `startSession replaces existing process`() = runTest {
         val manager = createManager()
-        val process1 = manager.startSession("session1", config1, "java")
-        val process2 = manager.startSession("session1", config2, "java")
-
         try {
-            assert(process1 !== process2)
-            assert(!process1.isAlive)
+            val process1 = manager.startSession("session1", config1, "java")
+            val process2 = manager.startSession("session1", config2, "java")
+
+            kotlin.test.assertNotSame(process1, process2)
+            kotlin.test.assertFalse(process1.isAlive)
+            kotlin.test.assertTrue(process2.isAlive)
         } finally {
             manager.closeAll()
         }

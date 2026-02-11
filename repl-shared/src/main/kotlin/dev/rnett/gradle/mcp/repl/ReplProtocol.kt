@@ -33,6 +33,14 @@ sealed class ReplResponse {
     }
 
     @Serializable
+    data class Log(
+        val level: String,
+        val logger: String,
+        val message: String,
+        val throwable: String? = null
+    ) : ReplResponse()
+
+    @Serializable
     data class Data(
         val value: String,
         val mime: String = "text/plain",

@@ -80,7 +80,8 @@ object DI {
                     ),
                     enforceStrictCapabilities = false
                 ),
-                get()
+                get(),
+                components
             ).apply {
                 components.forEach { add(it) }
             }
@@ -109,7 +110,8 @@ object DI {
                 ),
                 enforceStrictCapabilities = false
             ),
-            json
+            json,
+            components
         ).apply {
             components.forEach { add(it) }
         }

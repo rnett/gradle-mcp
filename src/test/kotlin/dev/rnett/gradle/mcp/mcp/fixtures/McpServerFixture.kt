@@ -79,6 +79,8 @@ class McpServerFixture(
     suspend fun close() {
         runCatching { client.close() }
         runCatching { server.close() }
+        // Allow onClose hooks and OS handles to settle, especially on Windows
+        kotlinx.coroutines.delay(250)
         koinApp.close()
         scope.cancel("Test cleanup")
     }

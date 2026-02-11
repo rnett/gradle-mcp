@@ -36,12 +36,6 @@ class Application(val args: Array<String>) {
             throw t
         }
         mcpServer.apply {
-            onClose {
-                provider.close()
-                runBlocking {
-                    replManager.closeAll()
-                }
-            }
             connect(transport)
             suspendCoroutine {
                 onClose { it.resume(Unit) }
@@ -58,12 +52,6 @@ class Application(val args: Array<String>) {
                 } catch (t: Throwable) {
                     LOGGER.error("Failed to initialize MCP Server", t)
                     throw t
-                }
-                mcpServer.onClose {
-                    provider.close()
-                    runBlocking {
-                        replManager.closeAll()
-                    }
                 }
                 mcpServer
             }

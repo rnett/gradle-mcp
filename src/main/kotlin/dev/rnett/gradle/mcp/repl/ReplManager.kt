@@ -5,21 +5,22 @@ import dev.rnett.gradle.mcp.gradle.DefaultBundledJarProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import org.slf4j.MDC
+import java.util.Scanner
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.absolutePathString
 import kotlin.time.Duration.Companion.minutes
@@ -31,7 +32,7 @@ sealed class ReplSession {
 }
 
 interface ReplManager {
-    fun startSession(sessionId: String, config: ReplConfig, javaExecutable: String): Process
+    suspend fun startSession(sessionId: String, config: ReplConfig, javaExecutable: String): Process
     fun getSession(sessionId: String): ReplSession?
     suspend fun terminateSession(sessionId: String)
     suspend fun closeAll()
@@ -51,38 +52,23 @@ class DefaultReplManager(
     private val sessions = ConcurrentHashMap<String, ReplSessionState>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    init {
-        scope.launch {
-            while (isActive) {
-                delay(checkInterval)
-                checkTimeouts()
-            }
-        }
-    }
-
-    private suspend fun checkTimeouts() {
-        val now = Instant.fromEpochMilliseconds(System.currentTimeMillis())
-        sessions.keys().toList().forEach { sessionId ->
-            val session = sessions[sessionId] ?: return@forEach
-            if (now - session.lastActivity > timeout) {
-                LOGGER.info("Session $sessionId timed out after $timeout of inactivity")
-                terminateSession(sessionId)
-            }
-        }
-    }
-
     private data class ReplSessionState(
         val process: Process,
         val config: ReplConfig,
         val logJobs: MutableList<Job> = mutableListOf(),
         @Volatile var lastActivity: Instant = Instant.fromEpochMilliseconds(System.currentTimeMillis()),
         val outputBuffer: java.util.Queue<String> = java.util.concurrent.ConcurrentLinkedQueue(),
-        private val _responses: MutableSharedFlow<ReplResponse> = MutableSharedFlow(replay = 100)
+        private val _responses: MutableSharedFlow<ReplResponse> = MutableSharedFlow(200, extraBufferCapacity = 50, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     ) {
         val responses = _responses.asSharedFlow()
 
         suspend fun emitResponse(response: ReplResponse) {
             _responses.emit(response)
+        }
+
+        @OptIn(ExperimentalCoroutinesApi::class)
+        fun clearResponsesBuffer() {
+            _responses.resetReplayCache()
         }
 
         fun addOutput(line: String) {
@@ -93,8 +79,9 @@ class DefaultReplManager(
         }
     }
 
-    override fun startSession(sessionId: String, config: ReplConfig, javaExecutable: String): Process {
-        scope.launch {
+    override suspend fun startSession(sessionId: String, config: ReplConfig, javaExecutable: String): Process {
+        // Ensure any existing session is fully terminated before starting a new one to avoid races
+        if (sessions.containsKey(sessionId)) {
             terminateSession(sessionId)
         }
         return startProcess(sessionId, config, javaExecutable)
@@ -110,6 +97,7 @@ class DefaultReplManager(
             }
             return ReplSession.Terminated(exitCode, output.joinToString("\n"))
         }
+        // Keep lastActivity update for potential future use, but manager no longer enforces timeouts
         session.lastActivity = Instant.fromEpochMilliseconds(System.currentTimeMillis())
         return ReplSession.Running(session.process)
     }
@@ -124,53 +112,85 @@ class DefaultReplManager(
             workerJar.absolutePathString()
         ).start()
 
+        LOGGER.info("Process started: {}", process.pid())
+
         val session = ReplSessionState(process, config)
         sessions[sessionId] = session
 
         session.logJobs.add(
             scope.launch(Dispatchers.IO) {
-                process.inputStream.bufferedReader().useLines { lines ->
-                    lines.forEach { line ->
-                        session.lastActivity = Instant.fromEpochMilliseconds(System.currentTimeMillis())
-                        if (line.startsWith(ReplResponse.RPC_PREFIX)) {
-                            val jsonLine = line.removePrefix(ReplResponse.RPC_PREFIX)
-                            try {
-                                val response = Json.decodeFromString<ReplResponse>(jsonLine)
-                                session.emitResponse(response)
-                            } catch (e: Exception) {
-                                LOGGER.error("Failed to decode REPL RPC message: $line", e)
-                                session.addOutput(line)
-                                logStdout(sessionId, line)
+                val scanner = Scanner(process.inputStream)
+                while (scanner.hasNextLine()) {
+                    val line = scanner.nextLine() ?: break
+                    if (line.startsWith(ReplResponse.RPC_PREFIX)) {
+                        val jsonLine = line.removePrefix(ReplResponse.RPC_PREFIX)
+                        try {
+                            val response = Json.decodeFromString<ReplResponse>(jsonLine)
+                            when (response) {
+                                is ReplResponse.Log -> {
+                                    MDC.put("sessionId", sessionId)
+                                    try {
+                                        val workerLogger = LoggerFactory.getLogger("${LOGGER.name}.worker")
+                                        when (response.level.uppercase()) {
+                                            "TRACE" -> workerLogger.trace("{}: {}", response.logger, response.message)
+                                            "DEBUG" -> workerLogger.debug("{}: {}", response.logger, response.message)
+                                            "INFO" -> workerLogger.info("{}: {}", response.logger, response.message)
+                                            "WARN" -> workerLogger.warn("{}: {}", response.logger, response.message)
+                                            "ERROR" -> workerLogger.error(
+                                                "{}: {} {}",
+                                                response.logger,
+                                                response.message,
+                                                response.throwable ?: ""
+                                            )
+
+                                            else -> workerLogger.info(
+                                                "{}[{}]: {}",
+                                                response.logger,
+                                                response.level,
+                                                response.message
+                                            )
+                                        }
+                                    } finally {
+                                        MDC.remove("sessionId")
+                                    }
+                                }
+
+                                else -> session.emitResponse(response)
                             }
-                        } else {
-                            session.addOutput(line)
+                        } catch (e: Exception) {
+                            LOGGER.error("Failed to decode REPL RPC message: $line", e)
+                            session.addOutput("STDOUT: $line")
                             logStdout(sessionId, line)
                         }
+                    } else {
+                        session.addOutput("STDOUT: $line")
+                        logStdout(sessionId, line)
                     }
                 }
             }
         )
         session.logJobs.add(
             scope.launch(Dispatchers.IO) {
-                process.errorStream.bufferedReader().useLines { lines ->
-                    lines.forEach { line ->
-                        session.lastActivity = Instant.fromEpochMilliseconds(System.currentTimeMillis())
-                        session.addOutput(line)
-                        MDC.put("sessionId", sessionId)
-                        try {
-                            LOGGER.warn("REPL Worker stderr: $line")
-                        } finally {
-                            MDC.remove("sessionId")
-                        }
+                val scanner = Scanner(process.errorStream)
+                while (scanner.hasNextLine()) {
+                    val line = scanner.nextLine() ?: break
+                    session.addOutput("STDERR: $line")
+                    MDC.put("sessionId", sessionId)
+                    try {
+                        LOGGER.warn("REPL Worker stderr: $line")
+                    } finally {
+                        MDC.remove("sessionId")
                     }
                 }
             }
         )
 
         // Send config to worker's stdin
-        val configLine = Json.encodeToString(config) + "\n"
-        process.outputStream.write(configLine.encodeToByteArray())
-        process.outputStream.flush()
+        val configLine = Json.encodeToString(config)
+        val writer = process.outputStream.bufferedWriter()
+        writer.write(configLine)
+        writer.newLine()
+        writer.flush()
 
         return process
     }
@@ -180,14 +200,38 @@ class DefaultReplManager(
      */
     override suspend fun terminateSession(sessionId: String) {
         sessions.remove(sessionId)?.let {
+            if (!it.process.isAlive) return@let
             LOGGER.info("Terminating REPL worker for session $sessionId")
-            it.logJobs.forEach { job -> job.cancel() }
-            it.process.destroy()
-            withContext(Dispatchers.IO) {
-                if (!it.process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) {
-                    it.process.destroyForcibly()
+
+            // Close all process streams to unblock any readers/writers
+            runCatching { it.process.outputStream.close() }
+            runCatching { it.process.inputStream.close() }
+            runCatching { it.process.errorStream.close() }
+
+            // Cancel log collection coroutines and wait briefly for them to finish to avoid hangs on blocked reads
+            it.logJobs.forEach { job ->
+                try {
+                    job.cancel()
+                    kotlinx.coroutines.withTimeout(500) { job.join() }
+                } catch (_: Exception) {
+                    // If they don't finish promptly, proceed with termination
                 }
             }
+
+            // Attempt graceful termination, then force termination immediately to ensure timely shutdown in tests/environments
+            it.process.destroy()
+            withContext(Dispatchers.IO) {
+                // Also attempt to kill any child processes to avoid lingering process trees on Windows
+                runCatching {
+                    it.process.toHandle().descendants().forEach { ph ->
+                        runCatching { ph.destroyForcibly() }
+                    }
+                }
+                it.process.destroyForcibly()
+                // Ensure the process has actually exited before returning
+                it.process.waitFor()
+            }
+            LOGGER.info("REPL worker for session $sessionId terminated with exit code ${it.process.exitValue()}")
         }
     }
 
@@ -204,15 +248,16 @@ class DefaultReplManager(
         val session = sessions[sessionId] ?: error("No active REPL session with ID $sessionId")
 
         val json = Json.encodeToString(command)
+
+        session.clearResponsesBuffer()
         withContext(Dispatchers.IO) {
-            session.process.outputStream.bufferedWriter().apply {
-                write(ReplResponse.RPC_PREFIX)
-                write(json)
-                newLine()
-                flush()
-            }
+            val line = ReplResponse.RPC_PREFIX + json + '\n'
+            session.process.outputStream.write(line.encodeToByteArray())
+            session.process.outputStream.flush()
         }
 
+
+        LOGGER.info("Request written")
         return flow {
             session.responses
                 .collect {
@@ -231,6 +276,8 @@ class DefaultReplManager(
      */
     override suspend fun closeAll() {
         sessions.keys().toList().forEach { terminateSession(it) }
+        // Give the OS a brief moment to release any file handles on Windows
+        kotlinx.coroutines.delay(250)
         scope.cancel()
     }
 

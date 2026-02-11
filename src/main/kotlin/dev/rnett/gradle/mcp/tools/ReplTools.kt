@@ -86,6 +86,10 @@ class ReplTools(
         }
     }
 
+    override suspend fun close() {
+        replManager.closeAll()
+    }
+
     private suspend fun startRepl(args: ReplArgs, context: McpToolContext): CallToolResult {
         val projectPath = args.projectPath
         val sourceSet = args.sourceSet
@@ -209,6 +213,11 @@ class ReplTools(
                 is ReplResponse.Result.RuntimeError -> {
                     isError = true
                     textBuffer.appendLine("\n\nRuntime Error: ${it.message}${it.stackTrace?.let { "\n$it" } ?: ""}")
+                }
+
+                is ReplResponse.Log -> {
+                    // Logs are already handled by ReplManager and forwarded to the main logger.
+                    // We don't need to display them in the tool output by default.
                 }
             }
         }

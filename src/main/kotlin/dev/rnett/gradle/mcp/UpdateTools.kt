@@ -186,7 +186,7 @@ object UpdateTools {
     }
 
     val throwingReplManager = object : dev.rnett.gradle.mcp.repl.ReplManager {
-        override fun startSession(
+        override suspend fun startSession(
             sessionId: String,
             config: dev.rnett.gradle.mcp.repl.ReplConfig,
             javaExecutable: String
