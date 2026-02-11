@@ -5,6 +5,10 @@ plugins {
     id("io.ktor.plugin")
 }
 
+kotlin {
+    jvmToolchain(8)
+}
+
 dependencies {
     implementation(project(":repl-shared"))
     implementation(libs.kotlin.scripting.jvm)

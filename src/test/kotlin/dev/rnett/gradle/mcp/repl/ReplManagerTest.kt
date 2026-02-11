@@ -239,7 +239,7 @@ class ReplManagerTest {
                     while (scanner.hasNextLine()) {
                         String line = scanner.nextLine();
                         if (line.contains("print 1")) {
-                           System.out.println("${ReplResponse.RPC_PREFIX}{\"type\":\"dev.rnett.gradle.mcp.repl.ReplResponse.Output\",\"event\":\"stdout\",\"data\":\"1\"}");
+                           System.out.println("${ReplResponse.RPC_PREFIX}{\"type\":\"dev.rnett.gradle.mcp.repl.ReplResponse.Output.Stdout\",\"data\":\"1\"}");
                            System.out.flush();
                         }
                         if (line.contains("result 2")) {
@@ -261,9 +261,8 @@ class ReplManagerTest {
         val responses = manager.sendRequest("session1", ReplRequest("print 1\nresult 2")).toList()
 
         assert(responses.size == 2)
-        assert(responses[0] is ReplResponse.Output)
-        val output = responses[0] as ReplResponse.Output
-        assert(output.event == "stdout")
+        assert(responses[0] is ReplResponse.Output.Stdout)
+        val output = responses[0] as ReplResponse.Output.Stdout
         assert(output.data == "1")
 
         assert(responses[1] is ReplResponse.Result.Success)

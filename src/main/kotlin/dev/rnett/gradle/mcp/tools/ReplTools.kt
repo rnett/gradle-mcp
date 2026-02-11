@@ -95,10 +95,12 @@ class ReplTools(
 
         val projectRoot = context.run { args.projectRoot.resolve() }
 
+        val taskPath = if (projectPath == ":") ":resolveReplEnvironment" else "$projectPath:resolveReplEnvironment"
+
         val result = gradle.runBuild(
             projectRoot,
             GradleInvocationArguments(
-                additionalArguments = listOf("$projectPath:resolveReplEnvironment", "-Pgradle-mcp.repl.sourceSet=$sourceSet")
+                additionalArguments = listOf(taskPath, "-Pgradle-mcp.repl.sourceSet=$sourceSet")
             ),
             { context.run { ScansTosManager.askForScansTos(projectRoot, it) } }
         ).awaitFinished()
@@ -116,7 +118,15 @@ class ReplTools(
         val compilerArgs = envLines.find { it.contains("compilerArgs=") }?.substringAfter("compilerArgs=")?.split(";")?.filter { it.isNotBlank() } ?: emptyList()
 
         if (javaExecutable == null) {
-            return CallToolResult(listOf(TextContent("Failed to find javaExecutable in environment output")), isError = true)
+            return CallToolResult(
+                listOf(
+                    TextContent(
+                        "No JVM target available for source set '$sourceSet' in project '$projectPath'. " +
+                                "Ensure that the project has a JVM target (e.g., via the `kotlin(\"jvm\")` or `java` plugin) " +
+                                "and that the source set exists."
+                    )
+                ), isError = true
+            )
         }
 
         val sessionId = UUID.randomUUID().toString()
@@ -149,39 +159,60 @@ class ReplTools(
         )
 
         val contents = mutableListOf<PromptMessageContent>()
+        val textBuffer = StringBuilder()
+
+        fun flushText() {
+            if (textBuffer.isNotEmpty()) {
+                contents.add(TextContent(textBuffer.toString()))
+                textBuffer.clear()
+            }
+        }
+
+        fun appendOutput(prefix: String, data: String) {
+            data.lineSequence().forEach { line ->
+                if (line.isNotEmpty()) {
+                    textBuffer.append(prefix).append(": ").appendLine(line)
+                } else {
+                    textBuffer.appendLine()
+                }
+            }
+        }
 
         fun handleData(data: ReplResponse.Data) {
             if (data.mime.startsWith("image/")) {
+                flushText()
                 contents.add(ImageContent(data.value, data.mime))
             } else {
-                contents.add(TextContent(data.value))
+                textBuffer.append(data.value)
             }
         }
 
         var isError = false
         replManager.sendRequest(sessionId, ReplRequest(args.code)).collect {
             when (it) {
-                is ReplResponse.Output -> contents.add(TextContent(it.data))
+                is ReplResponse.Output.Stdout -> appendOutput("STDOUT", it.data)
+                is ReplResponse.Output.Stderr -> appendOutput("STDERR", it.data)
                 is ReplResponse.Data -> handleData(it)
                 is ReplResponse.Result.Success -> {
                     if (it.data.mime != "text/plain") {
                         handleData(it.data)
                     } else if (it.data.value.isNotBlank()) {
-                        contents.add(TextContent(it.data.value))
+                        textBuffer.append(it.data.value)
                     }
                 }
 
                 is ReplResponse.Result.CompilationError -> {
                     isError = true
-                    contents.add(TextContent("\nCompilation Error:\n${it.message}"))
+                    textBuffer.appendLine("\n\nCompilation Error:\n${it.message}")
                 }
 
                 is ReplResponse.Result.RuntimeError -> {
                     isError = true
-                    contents.add(TextContent("\nRuntime Error: ${it.message}${it.stackTrace?.let { "\n$it" } ?: ""}"))
+                    textBuffer.appendLine("\n\nRuntime Error: ${it.message}${it.stackTrace?.let { "\n$it" } ?: ""}")
                 }
             }
         }
+        flushText()
         return CallToolResult(contents, isError = isError)
     }
 }

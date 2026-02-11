@@ -139,4 +139,67 @@ class ReplToolTest : BaseMcpServerTest() {
         val text = (response.content.first() as TextContent).text
         assert(text == "No active REPL session. Start one with command 'start'.")
     }
+
+    @Test
+    fun `start command with missing javaExecutable returns graceful error`() = runTest {
+        val projectPath = ":app"
+        val sourceSet = "main"
+
+        val consoleOutput = """
+            [gradle-mcp-repl-env] projectRoot=C:\path\to\project
+            [gradle-mcp-repl-env] classpath=cp1;cp2
+        """.trimIndent()
+
+        val buildResult = mockk<BuildResult>(relaxed = true)
+        every { buildResult.isSuccessful } returns true
+        every { buildResult.id } returns BuildId.newId()
+        every { buildResult.consoleOutput } returns consoleOutput
+
+        val runningBuild = mockk<RunningBuild<Unit>>(relaxed = true)
+        coEvery { runningBuild.awaitFinished() } returns GradleResult(buildResult, Result.success(Unit))
+
+        every { provider.runBuild(any(), any(), any()) } returns runningBuild
+
+        val response = server.client.callTool(
+            "repl", mapOf(
+                "command" to "start",
+                "projectPath" to projectPath,
+                "sourceSet" to sourceSet
+            )
+        ) as CallToolResult
+
+        assert(response.isError == true)
+        val text = (response.content.first() as TextContent).text
+        assert(text!!.contains("No JVM target available"))
+    }
+
+    @Test
+    fun `start command with non-jvm source set returns graceful error`() = runTest {
+        val projectPath = ":app"
+        val sourceSet = "commonMain"
+
+        val buildResult = mockk<BuildResult>(relaxed = true)
+        every { buildResult.isSuccessful } returns false
+        every { buildResult.id } returns BuildId.newId()
+        // Simulate the error message from repl-env.init.gradle.kts
+        every { buildResult.toOutputString() } returns "FAILURE: Build failed with an exception.\n\n* What went wrong:\nExecution failed for task ':app:resolveReplEnvironment'.\n> SourceSet 'commonMain' found in project ':app', but it does not appear to be a JVM source set. REPL is only supported for JVM source sets."
+
+        val runningBuild = mockk<RunningBuild<Unit>>(relaxed = true)
+        coEvery { runningBuild.awaitFinished() } returns GradleResult(buildResult, Result.success(Unit))
+
+        every { provider.runBuild(any(), any(), any()) } returns runningBuild
+
+        val response = server.client.callTool(
+            "repl", mapOf(
+                "command" to "start",
+                "projectPath" to projectPath,
+                "sourceSet" to sourceSet
+            )
+        ) as CallToolResult
+
+        assert(response.isError == true)
+        val text = (response.content.first() as TextContent).text
+        assert(text!!.contains("Failed to resolve REPL environment because Gradle task failed"))
+        assert(text!!.contains("does not appear to be a JVM source set"))
+    }
 }

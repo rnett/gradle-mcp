@@ -156,6 +156,49 @@ allprojects {
 
             // 2. Resolve Environment (Classpath, compiler args/plugins)
 
+            // Helper to configure from a compilation
+            fun configureFromCompilation(compilation: Any) {
+                // Runtime classpath configuration
+                val runtimeClasspathConf = compilation.getProperty("runtimeDependencyFiles") as? org.gradle.api.file.FileCollection
+                if (runtimeClasspathConf != null) {
+                    runtimeClasspath.from(runtimeClasspathConf)
+                } else {
+                    // Fallback to searching configuration by name if runtimeDependencyFiles is not available
+                    val target = compilation.getProperty("target")
+                    val targetName = target?.getProperty("name")?.toString()
+                    val compilationName = compilation.getProperty("name")?.toString()
+                    if (targetName != null && compilationName != null) {
+                        val isMain = compilationName == "main"
+                        val isTest = compilationName == "test"
+                        val confName = if (isMain) "${targetName}RuntimeClasspath" else if (isTest) "${targetName}TestRuntimeClasspath" else null
+                        if (confName != null) {
+                            val conf = project.configurations.findByName(confName)
+                            if (conf != null) runtimeClasspath.from(conf)
+                        }
+                    }
+                }
+
+                // Add classes and resources from the compilation
+                val output = compilation.getProperty("output")
+                val classesDirs = output?.getProperty("classesDirs") as? org.gradle.api.file.FileCollection
+                val resourcesDir = output?.getProperty("resourcesDir")
+
+                if (classesDirs != null) runtimeClasspath.from(classesDirs)
+                if (resourcesDir != null) runtimeClasspath.from(resourcesDir)
+
+                val classesTaskName = compilation.getProperty("classesTaskName") as? String
+                if (classesTaskName != null) dependsOn(classesTaskName)
+
+                // Resolve Kotlin compile task for compiler args/plugins
+                val compileTaskProvider = compilation.callMethod("getCompileTaskProvider") as? TaskProvider<out Task>
+                if (compileTaskProvider != null) {
+                    compilerArgs.set(compileTaskProvider.map { resolveKotlinCompilerOptions(it) })
+                    compilerPlugins.set(compileTaskProvider.map { resolveKotlinCompilerPlugins(it) })
+                }
+
+                targetSourceSet.set(targetSourceSetName)
+            }
+
             // Helper to configure from a standard Java SourceSet
             fun configureFromJavaSourceSet(sourceSet: SourceSet) {
                 targetSourceSet.set(targetSourceSetName)
@@ -187,75 +230,70 @@ allprojects {
                 }
             }
 
-            // Helper to configure from Kotlin Multiplatform Target
-            fun configureFromKmp(kotlinExt: Any, sourceSetName: String) {
-                val isMain = sourceSetName.endsWith("Main")
-                val isTest = sourceSetName.endsWith("Test")
-                if (!isMain && !isTest) {
-                    throw GradleException("Kotlin Multiplatform source set '$sourceSetName' is not a JVM source set (missing Main/Test suffix)")
-                }
-
-                val targetName = sourceSetName.removeSuffix("Main").removeSuffix("Test")
+            // Execution logic
+            var configured = false
+            if (kotlinExt != null) {
                 val targets = kotlinExt.getProperty("targets") as? NamedDomainObjectCollection<*>
-                    ?: throw GradleException("Could not find targets in Kotlin extension")
+                if (targets != null) {
+                    // KMP project
+                    outer@ for (target in targets) {
+                        val platformType = target.callMethod("getPlatformType")?.toString()?.lowercase()
+                        if (platformType != "jvm") continue
 
-                val target = try {
-                    targets.getByName(targetName)
-                } catch (e: Throwable) {
-                    null
-                }
-                    ?: throw GradleException("Kotlin Multiplatform target '$targetName' not found for source set '$sourceSetName'")
-
-                val platformType = target.callMethod("getPlatformType")?.toString()?.lowercase()
-                if (platformType != "jvm") {
-                    throw GradleException("Source set '$sourceSetName' is not a JVM source set (platform=$platformType)")
-                }
-
-                // Runtime classpath configuration
-                val confName = if (isMain) "${targetName}RuntimeClasspath" else "${targetName}TestRuntimeClasspath"
-                val conf = project.configurations.findByName(confName)
-                    ?: throw GradleException("Configuration '$confName' not found for Kotlin Multiplatform JVM target '$targetName'")
-                runtimeClasspath.from(conf)
-
-                // Add classes and resources from the compilation
-                try {
-                    val compilations = target.getProperty("compilations") as? NamedDomainObjectCollection<*>
-                    val comp = compilations?.getByName(if (isMain) "main" else "test")
-
-                    if (comp != null) {
-                        val output = comp.getProperty("output")
-                        val classesDirs = output?.getProperty("classesDirs") as? org.gradle.api.file.FileCollection
-                        val resourcesDir = output?.getProperty("resourcesDir")
-
-                        if (classesDirs != null) runtimeClasspath.from(classesDirs)
-                        if (resourcesDir != null) runtimeClasspath.from(resourcesDir)
-
-                        val classesTaskName = comp.getProperty("classesTaskName") as? String
-                        if (classesTaskName != null) dependsOn(classesTaskName)
-
-                        // Resolve Kotlin compile task for compiler args/plugins
-                        val compileTaskProvider = comp.callMethod("getCompileTaskProvider") as? TaskProvider<out Task>
-                        if (compileTaskProvider != null) {
-                            compilerArgs.set(compileTaskProvider.map { resolveKotlinCompilerOptions(it) })
-                            compilerPlugins.set(compileTaskProvider.map { resolveKotlinCompilerPlugins(it) })
+                        val compilations = target.getProperty("compilations") as? NamedDomainObjectCollection<*> ?: continue
+                        for (compilation in compilations) {
+                            val allSourceSets = compilation.callMethod("getAllKotlinSourceSets") as? Iterable<*>
+                            if (allSourceSets != null) {
+                                for (ss in allSourceSets) {
+                                    val ssName = ss?.getProperty("name")?.toString()
+                                    if (ssName == targetSourceSetName) {
+                                        configureFromCompilation(compilation)
+                                        configured = true
+                                        break@outer
+                                    }
+                                }
+                            }
                         }
                     }
-                } catch (e: Throwable) {
-                    // Best effort
+                } else {
+                    // Kotlin-only project (non-KMP)
+                    // Try to find the jvm target which is often present even in non-KMP kotlin-jvm projects
+                    val target = kotlinExt.getProperty("target") ?: kotlinExt.callMethod("getTargets")?.let { (it as? Iterable<*>)?.firstOrNull() }
+                    if (target != null) {
+                        val compilations = target.getProperty("compilations") as? NamedDomainObjectCollection<*>
+                        if (compilations != null) {
+                            outer@ for (compilation in compilations) {
+                                val allSourceSets = compilation.callMethod("getAllKotlinSourceSets") as? Iterable<*>
+                                if (allSourceSets != null) {
+                                    for (ss in allSourceSets) {
+                                        val ssName = ss?.getProperty("name")?.toString()
+                                        if (ssName == targetSourceSetName) {
+                                            configureFromCompilation(compilation)
+                                            configured = true
+                                            break@outer
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
-
-                targetSourceSet.set(sourceSetName)
             }
 
-            // Execution logic
-            if (javaSourceSet != null) {
+            if (!configured && javaSourceSet != null) {
                 // Java or Kotlin JVM project
                 configureFromJavaSourceSet(javaSourceSet)
-            } else if (kotlinExt != null && (kotlinExt.javaClass.name.contains("KotlinMultiplatformExtension") || kotlinSourceSet != null)) {
-                // KMP or Kotlin-only (without Java plugin)
-                configureFromKmp(kotlinExt, targetSourceSetName)
-            } else {
-                throw GradleException("SourceSet '$targetSourceSetName' not found in project '$path'")
+                configured = true
+            }
+
+            if (!configured) {
+                val availableSourceSets = (sourceSets?.names ?: emptySet()) + (kotlinSourceSets?.names ?: emptySet())
+                val message = if (targetSourceSetName in availableSourceSets) {
+                    "SourceSet '$targetSourceSetName' found in project '$path', but it does not appear to be a JVM source set. REPL is only supported for JVM source sets."
+                } else {
+                    "SourceSet '$targetSourceSetName' not found in project '$path'. Available source sets: ${availableSourceSets.joinToString(", ")}"
+                }
+                throw GradleException(message)
             }
         }
     }
