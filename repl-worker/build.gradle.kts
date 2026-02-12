@@ -25,7 +25,7 @@ dependencies {
 
 val testKotlinStdlib2 by configurations.creating
 
-val oldKotlinVersion = "2.0.21"
+val oldKotlinVersion = "2.3.10"
 dependencies {
     testKotlinStdlib2("org.jetbrains.kotlin:kotlin-stdlib:$oldKotlinVersion")
 }
