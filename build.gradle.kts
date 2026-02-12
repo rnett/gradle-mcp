@@ -58,7 +58,7 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.mcp.sdk)
-    implementation("io.insert-koin:koin-core-jvm:4.0.1")
+    implementation("io.insert-koin:koin-core-jvm:4.1.1")
     implementation("io.insert-koin:koin-ktor:4.0.1")
     implementation("io.insert-koin:koin-logger-slf4j:4.0.1")
     implementation(libs.ktor.server.netty)
