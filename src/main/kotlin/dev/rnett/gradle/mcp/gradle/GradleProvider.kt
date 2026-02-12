@@ -131,27 +131,20 @@ class DefaultGradleProvider(
         }
 
     suspend fun getConnection(projectRoot: Path): ProjectConnection {
-        val connection = connectionCache.get(projectRoot).asDeferred().await()
-        if (connection.isStopped()) {
+        var connection = connectionCache.get(projectRoot).asDeferred().await()
+        if (connection.isAlive()) {
             connectionCache.synchronous().invalidate(projectRoot)
-            return connectionCache.get(projectRoot).asDeferred().await()
+            connection = connectionCache.get(projectRoot).asDeferred().await()
         }
         return connection
     }
 
-    private fun ProjectConnection.isStopped(): Boolean {
+    private fun ProjectConnection.isAlive(): Boolean {
         return try {
-            // There is no public isClosed() or similar in ProjectConnection.
-            // We can try to get a model with a very short timeout, but even that might be too much.
-            // Checking internal state via reflection is against guidelines.
-            // However, the issue description says "see if there's a way to check for liveness before starting a build"
-            // If we can't find a public API, maybe we can just try to call a cheap method.
+            // fast and simple model
             this.getModel(BuildEnvironment::class.java)
-            false
-        } catch (e: IllegalStateException) {
-            e.message?.contains("as it has been stopped") == true && e.message?.contains("Cannot use connection to Gradle distribution") == true
-        } catch (e: Exception) {
-            // Other exceptions might not mean it's stopped in a way that requires invalidating the connection
+            true
+        } catch (_: Throwable) {
             false
         }
     }
@@ -365,6 +358,7 @@ class DefaultGradleProvider(
             LOGGER.makeLoggingEventBuilder(Level.WARN)
                 .addKeyValue("buildId", buildId)
                 .log("Error during job launched during build", it)
+
             cleanupConnectionIfOld(connection, runningBuild.projectRoot, args)
         }) { scope ->
             val env = args.actualEnvVars(envProvider)
