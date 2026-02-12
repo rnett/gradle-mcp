@@ -13,9 +13,6 @@ import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.jvm.toolchain.JavaToolchainService
-import kotlin.reflect.KProperty1
-import kotlin.reflect.full.functions
-import kotlin.reflect.full.memberProperties
 
 /**
  * Task to resolve the REPL environment for a specific source set in a project.
@@ -64,20 +61,12 @@ val targetSourceSetName = (gradle.startParameter.projectProperties["gradle-mcp.r
 /**
  * Helper to safely call a method via reflection.
  */
-fun Any.callMethod(methodName: String, args: Map<String, Any?> = emptyMap(), numArgs: Int? = null, throwIfNotFound: Boolean = true): Any? {
+fun Any.callMethod(methodName: String, args: Array<Any?> = emptyArray(), throwIfNotFound: Boolean = true): Any? {
     try {
-        val kClass = this::class
-        val function = kClass.functions.find { it.name == methodName && (numArgs == null || it.parameters.size == numArgs) }
-        println("Calling $function")
-        if (function != null) {
-            val callArgs = function.parameters.mapNotNull { p ->
-                if (p.index == 0)
-                    p to this
-                else
-                    args[p.name]?.let { p to it }
-            }.toMap()
-
-            return function.callBy(callArgs)
+        val method = this.javaClass.methods.find { it.name == methodName && it.parameterCount == args.size }
+        if (method != null) {
+            method.isAccessible = true
+            return method.invoke(this, *args)
         }
 
         if (throwIfNotFound) {
@@ -85,7 +74,6 @@ fun Any.callMethod(methodName: String, args: Map<String, Any?> = emptyMap(), num
         }
         return null
     } catch (e: Throwable) {
-        e.printStackTrace()
         if (throwIfNotFound) throw e
         return null
     }
@@ -95,15 +83,20 @@ fun Any.callMethod(methodName: String, args: Map<String, Any?> = emptyMap(), num
  * Helper to safely get a property via a getter method.
  */
 fun Any.getProperty(propertyName: String, throwIfNotFound: Boolean = false): Any? {
-    val prop = this::class.memberProperties.find { it.name == propertyName }
+    val getterName = "get" + propertyName.replaceFirstChar { it.uppercase() }
+    val value = callMethod(getterName, throwIfNotFound = false)
+    if (value != null) return value
 
-    if (prop == null && throwIfNotFound) {
-        throw GradleException("Property $propertyName not found on ${this.javaClass.name}")
+    try {
+        val field = this.javaClass.getDeclaredField(propertyName)
+        field.isAccessible = true
+        return field.get(this)
+    } catch (e: Throwable) {
+        if (throwIfNotFound) {
+            throw GradleException("Property $propertyName not found on ${this.javaClass.name}", e)
+        }
+        return null
     }
-
-    @Suppress("UNCHECKED_CAST")
-    prop as KProperty1<Any, *>?
-    return prop?.get(this)
 }
 
 /**
@@ -115,7 +108,11 @@ fun resolveKotlinCompilerOptions(task: Task): List<String> {
         // Try getting it from compilerOptions.freeCompilerArgs (KGP 1.7+)
         val compilerOptions = task.callMethod("getCompilerOptions", throwIfNotFound = false)
         if (compilerOptions != null) {
-            val freeCompilerArgs = compilerOptions.getProperty("freeCompilerArgs", throwIfNotFound = false)
+            val freeCompilerArgs = try {
+                compilerOptions.getProperty("freeCompilerArgs", throwIfNotFound = false)
+            } catch (e: Throwable) {
+                null
+            }
             if (freeCompilerArgs != null) {
                 if (freeCompilerArgs is org.gradle.api.provider.HasConfigurableValue && freeCompilerArgs is org.gradle.api.provider.Provider<*>) {
                     val value = freeCompilerArgs.get()
@@ -130,7 +127,11 @@ fun resolveKotlinCompilerOptions(task: Task): List<String> {
         }
 
         // Try getting it from task.freeCompilerArgs (older KGP)
-        val freeCompilerArgs = task.getProperty("freeCompilerArgs", throwIfNotFound = false)
+        val freeCompilerArgs = try {
+            task.getProperty("freeCompilerArgs", throwIfNotFound = false)
+        } catch (e: Throwable) {
+            null
+        }
         if (freeCompilerArgs != null) {
             if (freeCompilerArgs is org.gradle.api.provider.HasConfigurableValue && freeCompilerArgs is org.gradle.api.provider.Provider<*>) {
                 val value = freeCompilerArgs.get()
@@ -145,7 +146,6 @@ fun resolveKotlinCompilerOptions(task: Task): List<String> {
 
         emptyList()
     } catch (e: Throwable) {
-        println("[DEBUG_LOG] Error resolving freeCompilerArgs: $e")
         emptyList()
     }
 }
@@ -270,20 +270,13 @@ allprojects {
                         ?: project.tasks.find { it.name.contains("Kotlin") && it.name.contains(targetSourceSetName, ignoreCase = true) }
 
                     if (kotlinTask != null) {
-                        println("[DEBUG_LOG] Found kotlinTask=${kotlinTask.name} type=${kotlinTask.javaClass.name}")
                         compilerArgs.set(project.provider {
-                            val args = resolveKotlinCompilerOptions(kotlinTask)
-                            println("[DEBUG_LOG] task=${kotlinTask.name} resolvedArgs=$args")
-                            args
+                            resolveKotlinCompilerOptions(kotlinTask)
                         })
 
                         compilerClasspath.set(project.provider {
-                            val cp = resolveKotlinCompilerPlugins(kotlinTask)
-                            println("[DEBUG_LOG] task=${kotlinTask.name} resolvedCP=$cp")
-                            cp
+                            resolveKotlinCompilerPlugins(kotlinTask)
                         })
-                    } else {
-                        println("[DEBUG_LOG] NO kotlinTask found for $targetSourceSetName")
                     }
                 }
 

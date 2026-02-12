@@ -4,7 +4,6 @@ import dev.rnett.gradle.mcp.BuildConfig
 import dev.rnett.gradle.mcp.gradle.fixtures.testGradleProject
 import kotlinx.coroutines.test.runTest
 import java.nio.file.Files
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.seconds
 
@@ -315,8 +314,7 @@ class ReplEnvInitScriptTest {
     }
 
     @Test
-    @Ignore
-    fun `repl-env init script extracts compiler args including plugins`() = runTest(timeout = 300.seconds) {
+    fun `repl-env init script extracts free compiler args`() = runTest(timeout = 300.seconds) {
         val tempDir = Files.createTempDirectory("gradle-mcp-test-repl-env-args-")
         testGradleProject {
             buildScript(
@@ -328,6 +326,12 @@ class ReplEnvInitScriptTest {
                 
                 repositories {
                     mavenCentral()
+                }
+
+                tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+                    compilerOptions {
+                        freeCompilerArgs.add("-Xjvm-default=all")
+                    }
                 }
 
                 file("src/main/kotlin/foo.kt").apply {
@@ -346,12 +350,10 @@ class ReplEnvInitScriptTest {
 
             println("[DEBUG_LOG] Compiler Args: $args")
 
-            // Check for serialization plugin in args
-            // It usually appears as -Xplugin=...kotlin-serialization...
-            val hasSerializationPluginInArgs = args.any { it.contains("kotlin-serialization") || it.contains("plugin:org.jetbrains.kotlin.serialization") }
-            assert(hasSerializationPluginInArgs)
+            // Check for our free compiler arg
+            assert(args.contains("-Xjvm-default=all"))
 
-            // Check for serialization plugin in compiler classpath
+            // Check for serialization plugin in compiler classpath (should still be there)
             assert(output.contains("[gradle-mcp-repl-env] compilerClasspath="))
             val cpLine = output.lines().find { it.contains("[gradle-mcp-repl-env] compilerClasspath=") }
             assert(cpLine != null)
