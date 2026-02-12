@@ -25,7 +25,6 @@ import org.gradle.tooling.BuildException
 import org.gradle.tooling.ConfigurableLauncher
 import org.gradle.tooling.Failure
 import org.gradle.tooling.GradleConnector
-import org.gradle.tooling.ModelBuilder
 import org.gradle.tooling.ProjectConnection
 import org.gradle.tooling.TestExecutionException
 import org.gradle.tooling.events.OperationType
@@ -55,6 +54,7 @@ import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.reflect.KClass
 import kotlin.time.Duration
@@ -113,6 +113,49 @@ class DefaultGradleProvider(
         private val LOGGER = LoggerFactory.getLogger(DefaultGradleProvider::class.java)
     }
 
+    private class ProjectConnectionWrapper(val connection: ProjectConnection) : ProjectConnection by connection {
+        private val refCount = AtomicInteger(0)
+        private var isStale = false
+
+        fun acquire() {
+            synchronized(this) {
+                if (isStale && refCount.get() == 0) {
+                    throw IllegalStateException("Cannot acquire a connection that is already stale and closed")
+                }
+                refCount.incrementAndGet()
+            }
+        }
+
+        fun release() {
+            synchronized(this) {
+                val count = refCount.decrementAndGet()
+                if (count == 0 && isStale) {
+                    closeInternal()
+                }
+            }
+        }
+
+        fun markStale() {
+            synchronized(this) {
+                isStale = true
+                if (refCount.get() == 0) {
+                    closeInternal()
+                }
+            }
+        }
+
+        private fun closeInternal() {
+            synchronized(this) {
+                if (refCount.get() > 0 || !isStale) return
+                try {
+                    connection.close()
+                } catch (e: Exception) {
+                    LOGGER.error("Error closing Gradle connection", e)
+                }
+            }
+        }
+    }
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun close() {
@@ -124,15 +167,20 @@ class DefaultGradleProvider(
     private val connectionCache = Caffeine.newBuilder()
         .expireAfterAccess(config.ttl.toJavaDuration())
         .maximumSize(config.maxConnections.toLong())
-        .buildAsync<Path, ProjectConnection> { path, executor ->
+        .removalListener<Path, ProjectConnectionWrapper> { _, connection, _ ->
+            connection?.markStale()
+        }
+        .buildAsync<Path, ProjectConnectionWrapper> { path, executor ->
             CompletableFuture.supplyAsync({
-                GradleConnector.newConnector()
-                    .forProjectDirectory(path.toFile())
-                    .connect()
+                ProjectConnectionWrapper(
+                    GradleConnector.newConnector()
+                        .forProjectDirectory(path.toFile())
+                        .connect()
+                ).apply { acquire() }
             }, executor)
         }
 
-    suspend fun getConnection(projectRoot: Path): ProjectConnection {
+    private suspend fun getConnectionWrapper(projectRoot: Path): ProjectConnectionWrapper {
         var connection = connectionCache.get(projectRoot).asDeferred().await()
         if (!connection.isAlive()) {
             connectionCache.synchronous().invalidate(projectRoot)
@@ -140,6 +188,8 @@ class DefaultGradleProvider(
         }
         return connection
     }
+
+    suspend fun getConnection(projectRoot: Path): ProjectConnection = getConnectionWrapper(projectRoot)
 
     private fun ProjectConnection.isAlive(): Boolean {
         return try {
@@ -250,19 +300,24 @@ class DefaultGradleProvider(
 
         scope.launch {
             try {
-                val connection = getConnection(projectRoot)
-                val launcher = launcherProvider(connection)
-                launcher.invokeBuild(
-                    connection,
-                    args,
-                    additionalProgressListeners,
-                    stdoutLineHandler,
-                    stderrLineHandler,
-                    tosAccepter,
-                    buildId,
-                    runningBuild,
-                    invoker
-                )
+                val wrapper = getConnectionWrapper(projectRoot)
+                wrapper.acquire()
+                try {
+                    val launcher = launcherProvider(wrapper)
+                    launcher.invokeBuild(
+                        wrapper,
+                        args,
+                        additionalProgressListeners,
+                        stdoutLineHandler,
+                        stderrLineHandler,
+                        tosAccepter,
+                        buildId,
+                        runningBuild,
+                        invoker
+                    )
+                } finally {
+                    wrapper.release()
+                }
             } catch (e: Throwable) {
                 if (e is CancellationException) throw e
                 runningBuild.updateStatus(exception = e)
@@ -359,8 +414,6 @@ class DefaultGradleProvider(
             LOGGER.makeLoggingEventBuilder(Level.WARN)
                 .addKeyValue("buildId", buildId)
                 .log("Error during job launched during build", it)
-
-            cleanupConnectionIfOld(connection, runningBuild.projectRoot, args)
         }) { scope ->
             val env = args.actualEnvVars(envProvider)
             LOGGER.info("Setting environment variables for build: ${env.keys}")
@@ -512,21 +565,6 @@ class DefaultGradleProvider(
             )
             runningBuild.updateStatus(result)
             buildResults.storeResult(result.buildResult as BuildResult)
-
-            cleanupConnectionIfOld(connection, runningBuild.projectRoot, args)
-        }
-    }
-
-    private fun cleanupConnectionIfOld(connection: ProjectConnection, projectRoot: Path, args: GradleInvocationArguments) {
-        val currentConnection = connectionCache.getIfPresent(projectRoot)?.asDeferred()
-        if (currentConnection?.isCompleted != true) return
-
-        if (currentConnection.getCompleted() !== connection) {
-            try {
-                connection.close()
-            } catch (e: Exception) {
-                LOGGER.error("Error closing Gradle connection", e)
-            }
         }
     }
 
