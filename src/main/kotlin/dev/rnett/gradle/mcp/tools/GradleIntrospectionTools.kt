@@ -22,7 +22,7 @@ class GradleIntrospectionTools(
     )
 
     val describeProject by tool<DescribeProjectArgs, String>(
-        "describe_project",
+        ToolNames.DESCRIBE_PROJECT,
         "Describes a Gradle project or subproject. Includes the tasks and child projects. Can be used to query available tasks."
     ) { args ->
         gradle.getBuildModel<GradleProject>(args.projectRoot, args.invocationArgs).throwFailure().let { (id, projectModel) ->
@@ -71,7 +71,7 @@ class GradleIntrospectionTools(
     )
 
     val getIncludedBuilds by tool<IncludedBuildsArgs, String>(
-        "get_included_builds",
+        ToolNames.GET_INCLUDED_BUILDS,
         "Gets the included builds of a Gradle project."
     ) {
         gradle.getBuildModel<GradleBuild>(it.projectRoot, it.invocationArgs).throwFailure().let { (id, buildModel) ->
@@ -104,7 +104,7 @@ class GradleIntrospectionTools(
     )
 
     val getProjectPublications by tool<ProjectPublicationsArgs, String>(
-        "get_project_publications",
+        ToolNames.GET_PROJECT_PUBLICATIONS,
         "Gets all publications (i.e. artifacts published that Gradle knows about) for the Gradle project."
     ) { args ->
         val (id, publicationsModel) = gradle.getBuildModel<org.gradle.tooling.model.gradle.ProjectPublications>(

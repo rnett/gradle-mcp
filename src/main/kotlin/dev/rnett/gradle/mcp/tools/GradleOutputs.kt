@@ -46,7 +46,7 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
         }
 
         if (buildFailures != null && buildFailures.isNotEmpty()) {
-            appendLine("Failures: ${buildFailures.size} - use `lookup_build_failures` tool for more details")
+            appendLine("Failures: ${buildFailures.size} - use `${ToolNames.LOOKUP_BUILD_FAILURES}` tool for more details")
             appendLine(OutputFormatter.listResults(buildFailures, 10) {
                 buildString {
                     append(it.id.id)
@@ -65,7 +65,7 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
         }
 
         val problemsSummary = problems.toSummary()
-        appendLine("Problems:     ${problemsSummary.totalCount} - use `lookup_build_problems_summary` or `lookup_build_problem_details` tools for more details")
+        appendLine("Problems:     ${problemsSummary.totalCount} - use `${ToolNames.LOOKUP_BUILD_PROBLEMS}` tool for more details")
         if (problemsSummary.errorCounts.isNotEmpty()) {
             appendLine("  Errors:     ${problemsSummary.errorCounts.size}")
             appendLine(OutputFormatter.listResults(problemsSummary.errorCounts.toList(), 5, item = ::formatProblem))
@@ -84,7 +84,7 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
         }
         appendLine()
 
-        appendLine("Tests:      ${testResults.totalCount} - use `lookup_build_tests` and `lookup_build_test_details` tool for more details")
+        appendLine("Tests:      ${testResults.totalCount} - use `${ToolNames.LOOKUP_BUILD_TESTS}` tool for more details")
         appendLine("  Passed:   ${testResults.passed.size}")
         appendLine("  Skipped:  ${testResults.skipped.size}")
         appendLine("  Failed:   ${testResults.failed.size}")

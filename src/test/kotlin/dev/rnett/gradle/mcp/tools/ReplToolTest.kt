@@ -50,7 +50,7 @@ class ReplToolTest : BaseMcpServerTest() {
         every { provider.runBuild(any(), any(), any()) } returns runningBuild
 
         val response = server.client.callTool(
-            "repl", mapOf(
+            ToolNames.REPL, mapOf(
                 "command" to "start",
                 "projectRoot" to customRoot.toString(),
                 "projectPath" to projectPath,
@@ -89,7 +89,7 @@ class ReplToolTest : BaseMcpServerTest() {
         every { provider.runBuild(any(), any(), any()) } returns runningBuild
 
         val response = server.client.callTool(
-            "repl", mapOf(
+            ToolNames.REPL, mapOf(
                 "command" to "start",
                 "projectPath" to projectPath,
                 "sourceSet" to sourceSet
@@ -116,21 +116,21 @@ class ReplToolTest : BaseMcpServerTest() {
         every { provider.runBuild(any(), any(), any()) } returns runningBuild
 
         server.client.callTool(
-            "repl", mapOf(
+            ToolNames.REPL, mapOf(
                 "command" to "start",
                 "projectPath" to ":app",
                 "sourceSet" to "main"
             )
         )
 
-        val response = server.client.callTool("repl", mapOf("command" to "stop")) as CallToolResult
+        val response = server.client.callTool(ToolNames.REPL, mapOf("command" to "stop")) as CallToolResult
         assert((response.content.first() as TextContent).text == "REPL session stopped.")
     }
 
     @Test
     fun `snippet without session returns error`() = runTest {
         val response = server.client.callTool(
-            "repl", mapOf(
+            ToolNames.REPL, mapOf(
                 "command" to "run",
                 "code" to "val x = 1"
             )
@@ -161,7 +161,7 @@ class ReplToolTest : BaseMcpServerTest() {
         every { provider.runBuild(any(), any(), any()) } returns runningBuild
 
         val response = server.client.callTool(
-            "repl", mapOf(
+            ToolNames.REPL, mapOf(
                 "command" to "start",
                 "projectPath" to projectPath,
                 "sourceSet" to sourceSet
@@ -190,7 +190,7 @@ class ReplToolTest : BaseMcpServerTest() {
         every { provider.runBuild(any(), any(), any()) } returns runningBuild
 
         val response = server.client.callTool(
-            "repl", mapOf(
+            ToolNames.REPL, mapOf(
                 "command" to "start",
                 "projectPath" to projectPath,
                 "sourceSet" to sourceSet

@@ -23,11 +23,11 @@ class BackgroundBuildTools(
 ) : McpServerComponent("Background Build Tools", "Tools for running and managing Gradle builds in the background.") {
 
     val runCommandBackground by tool<GradleExecutionTools.ExecuteCommandArgs, BuildId>(
-        "background_run_gradle_command",
+        ToolNames.BACKGROUND_RUN_GRADLE_COMMAND,
         """
             |Starts a Gradle command in the background. Returns the BuildId immediately.
             |Always prefer using this tool over invoking Gradle via the command line or shell.
-            |Use `background_build_get_status` to monitor the build's progress and see the console output.
+            |Use `${ToolNames.BACKGROUND_BUILD_GET_STATUS}` to monitor the build's progress and see the console output.
             |Once the build is complete, use the `lookup_*` tools to get detailed results, just like a foreground build.
         """.trimMargin()
     ) {
@@ -42,10 +42,10 @@ class BackgroundBuildTools(
     class EmptyInput
 
     val listBackgroundBuilds by tool<EmptyInput, String>(
-        "background_build_list",
+        ToolNames.BACKGROUND_BUILD_LIST,
         """
             |Returns a list of all active background builds.
-            |The returned BuildIds can be used with `background_build_get_status`, `background_build_stop`, and the `lookup_*` tools.
+            |The returned BuildIds can be used with `${ToolNames.BACKGROUND_BUILD_GET_STATUS}`, `${ToolNames.BACKGROUND_BUILD_STOP}`, and the `lookup_*` tools.
         """.trimMargin()
     ) {
         val active = gradle.backgroundBuildManager.listBuilds()
@@ -89,7 +89,7 @@ class BackgroundBuildTools(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val getBackgroundBuildStatus by tool<GetStatusArgs, String>(
-        "background_build_get_status",
+        ToolNames.BACKGROUND_BUILD_GET_STATUS,
         """
             |Returns the detailed status of a background build, including its current status and the recent console output.
             |For completed builds, it returns a summary of the result.
@@ -209,8 +209,8 @@ class BackgroundBuildTools(
     }
 
     val stopBackgroundBuild by tool<BuildIdArgs, String>(
-        "background_build_stop",
-        "Requests that an active background build be stopped. Use `background_build_list` to see active builds."
+        ToolNames.BACKGROUND_BUILD_STOP,
+        "Requests that an active background build be stopped. Use `${ToolNames.BACKGROUND_BUILD_LIST}` to see active builds."
     ) {
         val buildId = it.buildId ?: throw IllegalArgumentException("buildId is required")
         val running = gradle.backgroundBuildManager.getBuild(buildId)

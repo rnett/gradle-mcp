@@ -1,3 +1,6 @@
+- Why are all init scripts being used for builds (e.g. the repl one for non repl builds)
+- Repl init script had errors on mac.
+- Errors int he daemon was stopped (cached connection?) should be recoverable
 - Repl.
 - Repl supports android source sets and android plugins (<9 and >9)
 - Consider how logging in repl should be handled for my code vs user code.

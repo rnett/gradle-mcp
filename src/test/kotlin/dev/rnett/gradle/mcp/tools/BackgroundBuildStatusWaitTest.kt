@@ -83,7 +83,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            "background_build_get_status", mapOf(
+            ToolNames.BACKGROUND_BUILD_GET_STATUS, mapOf(
                 "buildId" to JsonPrimitive(buildId.toString()),
                 "wait" to JsonPrimitive(2.0)
             )
@@ -131,7 +131,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            "background_build_get_status", mapOf(
+            ToolNames.BACKGROUND_BUILD_GET_STATUS, mapOf(
                 "buildId" to JsonPrimitive(buildId.toString()),
                 "wait" to JsonPrimitive(2.0),
                 "waitFor" to JsonPrimitive("Ready")
@@ -178,7 +178,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            "background_build_get_status", mapOf(
+            ToolNames.BACKGROUND_BUILD_GET_STATUS, mapOf(
                 "buildId" to JsonPrimitive(buildId.toString()),
                 "wait" to JsonPrimitive(2.0),
                 "waitFor" to JsonPrimitive("Ready")
@@ -228,7 +228,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            "background_build_get_status",
+            ToolNames.BACKGROUND_BUILD_GET_STATUS,
             mapOf(
                 "buildId" to JsonPrimitive(buildId.toString()),
                 "wait" to JsonPrimitive(2.0),
@@ -271,7 +271,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            "background_build_get_status",
+            ToolNames.BACKGROUND_BUILD_GET_STATUS,
             mapOf(
                 "buildId" to JsonPrimitive(buildId.toString()),
                 "wait" to JsonPrimitive(2.0),
@@ -320,7 +320,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            "background_build_get_status",
+            ToolNames.BACKGROUND_BUILD_GET_STATUS,
             mapOf(
                 "buildId" to JsonPrimitive(buildId.toString()),
                 "wait" to JsonPrimitive(2.0),

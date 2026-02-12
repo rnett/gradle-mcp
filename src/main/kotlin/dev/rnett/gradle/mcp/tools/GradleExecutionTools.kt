@@ -24,12 +24,12 @@ class GradleExecutionTools(
 
     @OptIn(ExperimentalTime::class)
     val executeCommand by tool<ExecuteCommandArgs, String>(
-        "run_gradle_command",
+        ToolNames.RUN_GRADLE_COMMAND,
         """
             |Runs a Gradle command in the given project, just as if the command line had been passed directly to './gradlew'. Always prefer using this tool over invoking Gradle via the command line or shell.
             |Use the `lookup_*` tools to get detailed results after running the build.
             |Can be used to execute any Gradle tasks.
-            |When running tests, prefer the `run_tests_with_gradle` tool.
+            |When running tests, prefer the `${ToolNames.RUN_TESTS_WITH_GRADLE}` tool.
             |The console output is included in the result. Show this to the user, as if they had ran the command themselves.
             |Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues, using something like the Develocity MCP server.
         """.trimMargin(),
@@ -60,7 +60,7 @@ class GradleExecutionTools(
 
     @OptIn(ExperimentalTime::class)
     val runSingleTaskAndGetOutput by tool<ExecuteSingleTaskArgs, String>(
-        "run_single_task_and_get_output",
+        ToolNames.RUN_SINGLE_TASK_AND_GET_OUTPUT,
         """
             |Runs a single Gradle task and returns its output.
             |If the task fails, it will error and return the full build results's output.
@@ -71,12 +71,12 @@ class GradleExecutionTools(
             |- `help --task <task>`: Gets detailed information about a specific Gradle task, including its arguments.
             |- `tasks`: Gets all available Gradle tasks
             |- `dependencies`: Gets all dependencies of a Gradle project.
-            |  - Example: `run_single_task_and_get_output(taskPath=":my-project:dependencies")`
+            |  - Example: `${ToolNames.RUN_SINGLE_TASK_AND_GET_OUTPUT}(taskPath=":my-project:dependencies")`
             |- `resolvableConfigurations`: Gets all resolvable configurations (i.e. configurations that pull dependencies).
             |- `dependencies --configuration <configuration name>`: Gets all dependencies of a specific configuration.
-            |  - Example: `run_single_task_and_get_output(taskPath=":my-project:dependencies", arguments=["--configuration", "runtimeClasspath"])`
+            |  - Example: `${ToolNames.RUN_SINGLE_TASK_AND_GET_OUTPUT}(taskPath=":my-project:dependencies", arguments=["--configuration", "runtimeClasspath"])`
             |- `dependencyInsight --configuration <configuration name> --dependency <dependency prefix, of the dependency GAV slug>`: Gets detailed information about the resolution of specific dependencies.
-            |  - Example: `run_single_task_and_get_output(taskPath=":my-project:dependencyInsight", arguments=["--configuration", "runtimeClasspath", "--dependency", "org.jetbrains.kotlin"])`
+            |  - Example: `${ToolNames.RUN_SINGLE_TASK_AND_GET_OUTPUT}(taskPath=":my-project:dependencyInsight", arguments=["--configuration", "runtimeClasspath", "--dependency", "org.jetbrains.kotlin"])`
             |- `buildEnvironment`: Gets the Gradle build dependencies (plugins and buildscript dependencies) and JVM information.
             |- `javaToolchains`: Gets all available Java/JVM toolchains.
             |- `properties`: Gets all properties of a Gradle project. MAY CONTAIN SECRETS OR SENSITIVE INFORMATION.
@@ -139,14 +139,14 @@ class GradleExecutionTools(
 
     @OptIn(ExperimentalTime::class)
     val runSingleTest by tool<ExecuteSingleTestArgs, String>(
-        "run_tests_with_gradle",
+        ToolNames.RUN_TESTS_WITH_GRADLE,
         """
             |Runs a single test task, with an option to filter which tests to run. Always prefer using this tool over invoking Gradle via the command line or shell.
             |Use the `lookup_*` tools to get detailed results after running the build.
             |The console output is included in the result. Show this to the user, as if they had ran the command themselves.
             |Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues and test failures, using something like the Develocity MCP server.
             |The typical test task is `test`.  At least one task is required. A task with no patterns will run all tests.
-            |If there are more than 1000 tests, the results will be truncated.  Use `lookup_build_tests_summary` or `lookup_build_test_details` to get the results you care about.
+            |If there are more than 1000 tests, the results will be truncated.  Use `${ToolNames.LOOKUP_BUILD_TESTS}` (summary mode) or `${ToolNames.LOOKUP_BUILD_TESTS}` (details mode) to get the results you care about.
         """.trimMargin(),
     ) {
         val result = gradle.doTests(
@@ -175,16 +175,16 @@ class GradleExecutionTools(
 
     @OptIn(ExperimentalTime::class)
     val runTests by tool<ExecuteManyTestsArgs, String>(
-        "run_many_test_tasks_with_gradle",
+        ToolNames.RUN_MANY_TEST_TASKS_WITH_GRADLE,
         """
-            |Runs may test tasks, each with their own test filters. To run a single test task, use the `run_test_task` tool. Always prefer using this tool over invoking Gradle via the command line or shell.
+            |Runs may test tasks, each with their own test filters. To run a single test task, use the `${ToolNames.RUN_TESTS_WITH_GRADLE}` tool. Always prefer using this tool over invoking Gradle via the command line or shell.
             |Use the `lookup_*` tools to get detailed results after running the build.
             |Note that the test tasks passed must be absolute paths (i.e. including the project paths).
             |The console output is included in the result. Show this to the user, as if they had ran the command themselves.
             |Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues and test failures, using something like the Develocity MCP server.
             |The `tests` parameter is REQUIRED, and is simply a map (i.e. JSON object) of each test task to run (e.g. `:test`, `:project-a:sub-b:test`), to the test patterns for the tests to run for that task (e.g. `com.example.*`, `*MyTest*`).
             |The typical test task is `:test`.  At least one task is required. A task with no patterns will run all tests.
-            |If there are more than 1000 tests, the results will be truncated.  Use `lookup_build_tests_summary` or `lookup_build_test_details` to get the results you care about.
+            |If there are more than 1000 tests, the results will be truncated.  Use `${ToolNames.LOOKUP_BUILD_TESTS}` (summary mode) or `${ToolNames.LOOKUP_BUILD_TESTS}` (details mode) to get the results you care about.
         """.trimMargin(),
     ) {
         if (it.testsExecutions.isEmpty()) {

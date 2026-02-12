@@ -32,7 +32,7 @@ class GradleBuildLookupTools(val buildResults: BuildResults) : McpServerComponen
 
     @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
     val lookupLatestBuilds by tool<LatestBuildArgs, String>(
-        "lookup_latest_builds",
+        ToolNames.LOOKUP_LATEST_BUILDS,
         "Gets the latest builds (both background and completed) ran by this MCP server."
     ) {
         val completed = buildResults.latest(it.maxBuilds)
@@ -100,7 +100,7 @@ class GradleBuildLookupTools(val buildResults: BuildResults) : McpServerComponen
 
 
     val lookupBuildTests by tool<TestsLookupArgs, String>(
-        name = "lookup_build_tests",
+        name = ToolNames.LOOKUP_BUILD_TESTS,
         description = "For a given build, provides either a summary of test executions or detailed information for a specific test. If `details` is provided, detailed execution info (duration, failure details, and console output) for that test is returned. If `summary` is provided (or neither), returns a list of tests matching the provided filters. Only one of `summary` or `details` may be specified. Works for in-progress builds.",
     ) {
         require(it.summary == null || it.details == null) { "Only one of `summary` or `details` may be specified." }
@@ -193,7 +193,7 @@ class GradleBuildLookupTools(val buildResults: BuildResults) : McpServerComponen
     )
 
     val lookupBuildTasks by tool<TaskLookupArgs, String>(
-        "lookup_build_tasks",
+        ToolNames.LOOKUP_BUILD_TASKS,
         "For a given build, provides either a summary of task executions or detailed information for a specific task. If `details` is provided, detailed execution info (duration, outcome, and console output) for that task is returned. If `summary` is provided (or neither), returns a list of tasks matching the provided filters. Only one of `summary` or `details` may be specified. Works for in-progress builds."
     ) {
         val result = buildResults.require(it.buildId)
@@ -265,7 +265,7 @@ class GradleBuildLookupTools(val buildResults: BuildResults) : McpServerComponen
     )
 
     val lookupBuild by tool<BuildIdArgs, String>(
-        name = "lookup_build",
+        name = ToolNames.LOOKUP_BUILD,
         description = "Takes a build ID; returns a summary of that build. Works for in-progress builds.",
     ) {
         val build = buildResults.require(it.buildId)
@@ -294,7 +294,7 @@ class GradleBuildLookupTools(val buildResults: BuildResults) : McpServerComponen
 
 
     val lookupBuildFailures by tool<FailureLookupArgs, String>(
-        name = "lookup_build_failures",
+        name = ToolNames.LOOKUP_BUILD_FAILURES,
         description = "Provides a summary of build failures (including test failures) or details for a specific failure. If `details` is provided, detailed information (including causes and stack traces) for that failure is returned. If `summary` is provided (or neither), lists all build failures. Only one of `summary` or `details` may be specified. Works for in-progress builds, but may only show test failures.",
     ) {
         require(it.summary == null || it.details == null) { "Only one of `summary` or `details` may be specified." }
@@ -343,7 +343,7 @@ class GradleBuildLookupTools(val buildResults: BuildResults) : McpServerComponen
     )
 
     val lookupBuildProblems by tool<ProblemLookupArgs, String>(
-        name = "lookup_build_problems",
+        name = ToolNames.LOOKUP_BUILD_PROBLEMS,
         description = "Provides a summary of all problems reported during a build (errors, warnings, etc.) or details for a specific problem. If `details` is provided, detailed information (locations, details, and potential solutions) for that problem is returned. If `summary` is provided (or neither), returns a summary of all problems. Only one of `summary` or `details` may be specified. Works for in-progress builds.",
     ) {
         require(it.summary == null || it.details == null) { "Only one of `summary` or `details` may be specified." }
@@ -414,7 +414,7 @@ class GradleBuildLookupTools(val buildResults: BuildResults) : McpServerComponen
     )
 
     val lookupBuildConsoleOutput by tool<ConsoleOutputArgs, String>(
-        "lookup_build_console_output",
+        ToolNames.LOOKUP_BUILD_CONSOLE_OUTPUT,
         "Gets up to `limitLines` (default 100, null means no limit) of the console output for a given build, starting at a given offset `offsetLines` (default 0). Can read from the tail instead of the head. Repeatedly call this tool using the `nextOffset` in the response to get all console output. Works for in-progress builds."
     ) {
         require(it.offsetLines >= 0) { "`offsetLines` must be non-negative" }

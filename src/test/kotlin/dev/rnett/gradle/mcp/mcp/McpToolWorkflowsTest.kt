@@ -16,6 +16,7 @@ import dev.rnett.gradle.mcp.gradle.ProblemSeverity
 import dev.rnett.gradle.mcp.gradle.RunningBuild
 import dev.rnett.gradle.mcp.gradle.TestOutcome
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
+import dev.rnett.gradle.mcp.tools.ToolNames
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -96,19 +97,19 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         buildResults.storeResult(result)
 
         // lookup_latest_builds
-        val latestResult = server.client.callTool("lookup_latest_builds", mapOf("maxBuilds" to 1))
+        val latestResult = server.client.callTool(ToolNames.LOOKUP_LATEST_BUILDS, mapOf("maxBuilds" to 1))
         assert(latestResult != null)
 
         // lookup_build
         val summary = server.client.callTool(
-            "lookup_build",
+            ToolNames.LOOKUP_BUILD,
             mapOf("buildId" to result.id.toString())
         )
         assert(summary != null)
 
         // lookup_build_console_output pagination from head
         val page1 = server.client.callTool(
-            "lookup_build_console_output",
+            ToolNames.LOOKUP_BUILD_CONSOLE_OUTPUT,
             mapOf(
                 "buildId" to result.id.toString(),
                 "offsetLines" to 0,
@@ -120,7 +121,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
 
         // lookup_build_tests summary
         val testsSummary = server.client.callTool(
-            "lookup_build_tests",
+            ToolNames.LOOKUP_BUILD_TESTS,
             mapOf(
                 "buildId" to result.id.toString(),
                 "summary" to JsonObject(mapOf("limit" to JsonPrimitive(10)))
@@ -130,7 +131,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
 
         // lookup_build_problems summary
         val problemsSummary = server.client.callTool(
-            "lookup_build_problems",
+            ToolNames.LOOKUP_BUILD_PROBLEMS,
             mapOf(
                 "buildId" to result.id.toString(),
                 "summary" to JsonObject(emptyMap<String, JsonPrimitive>())
@@ -164,7 +165,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
             "commandLine" to JsonArray(listOf(JsonPrimitive("help"))),
             // projectRoot omitted
         )
-        val call = server.client.callTool("run_gradle_command", args)
+        val call = server.client.callTool(ToolNames.RUN_GRADLE_COMMAND, args)
         assert(call != null)
 
         coVerify {
@@ -223,40 +224,40 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         // test background_run_gradle_command
-        val runCall = server.client.callTool("background_run_gradle_command", mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("help")))))
+        val runCall = server.client.callTool(ToolNames.BACKGROUND_RUN_GRADLE_COMMAND, mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("help")))))
         assert(runCall != null)
 
         // test background_build_list
-        val listCall = server.client.callTool("background_build_list", emptyMap())
+        val listCall = server.client.callTool(ToolNames.BACKGROUND_BUILD_LIST, emptyMap())
         assert(listCall != null)
 
         // test background_build_get_status
-        val statusCall = server.client.callTool("background_build_get_status", mapOf("buildId" to buildId.toString()))
+        val statusCall = server.client.callTool(ToolNames.BACKGROUND_BUILD_GET_STATUS, mapOf("buildId" to buildId.toString()))
         assert(statusCall != null)
         val statusText = statusCall!!.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
         assert(statusText.contains("Status: RUNNING"))
         assert(statusText.contains("Duration: "))
 
         // test background_build_stop
-        val stopCall = server.client.callTool("background_build_stop", mapOf("buildId" to buildId.toString()))
+        val stopCall = server.client.callTool(ToolNames.BACKGROUND_BUILD_STOP, mapOf("buildId" to buildId.toString()))
         assert(stopCall != null)
         coVerify { runningBuild.stop() }
 
         // Step 3: Test that lookup_latest_builds shows background builds
-        val latestCall = server.client.callTool("lookup_latest_builds", mapOf("maxBuilds" to JsonPrimitive(5)))
+        val latestCall = server.client.callTool(ToolNames.LOOKUP_LATEST_BUILDS, mapOf("maxBuilds" to JsonPrimitive(5)))
         assert(latestCall != null)
         val latestText = latestCall!!.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
         assert(latestText.contains(buildId.toString()))
         assert(latestText.contains("RUNNING"))
 
         // Step 3: Test that lookup_latest_builds with onlyCompleted doesn't show background builds
-        val latestCompletedCall = server.client.callTool("lookup_latest_builds", mapOf("maxBuilds" to JsonPrimitive(5), "onlyCompleted" to JsonPrimitive(true)))
+        val latestCompletedCall = server.client.callTool(ToolNames.LOOKUP_LATEST_BUILDS, mapOf("maxBuilds" to JsonPrimitive(5), "onlyCompleted" to JsonPrimitive(true)))
         assert(latestCompletedCall != null)
         val latestCompletedText = latestCompletedCall!!.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
         assert(!latestCompletedText.contains(buildId.toString()))
 
         // Step 3: Test that lookup_build shows "still running" message
-        val lookupCall = server.client.callTool("lookup_build", mapOf("buildId" to buildId.toString()))
+        val lookupCall = server.client.callTool(ToolNames.LOOKUP_BUILD, mapOf("buildId" to buildId.toString()))
         assert(lookupCall != null)
         val lookupText = lookupCall!!.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
         assert(lookupText.contains("still running"))
@@ -288,7 +289,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
             "taskPath" to JsonPrimitive(":help"),
             "arguments" to JsonArray(listOf(JsonPrimitive("--info"), JsonPrimitive("--stacktrace")))
         )
-        server.client.callTool("run_single_task_and_get_output", args)
+        server.client.callTool(ToolNames.RUN_SINGLE_TASK_AND_GET_OUTPUT, args)
 
         assert(capturedArgs.captured.additionalArguments.contains(":help"))
         assert(capturedArgs.captured.additionalArguments.contains("--info"))

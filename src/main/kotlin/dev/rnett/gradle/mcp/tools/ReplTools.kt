@@ -49,7 +49,7 @@ class ReplTools(
 
     @OptIn(ExperimentalTime::class)
     val repl by tool<ReplArgs, CallToolResult>(
-        "repl",
+        ToolNames.REPL,
         """
             |Interacts with a Kotlin REPL session. The REPL runs with the classpath and compiler configuration (plugins, args) of a Gradle source set.
             |
@@ -111,7 +111,8 @@ class ReplTools(
         val result = gradle.runBuild(
             projectRoot,
             GradleInvocationArguments(
-                additionalArguments = listOf(taskPath, "-Pgradle-mcp.repl.sourceSet=$sourceSet")
+                additionalArguments = listOf(taskPath, "-Pgradle-mcp.repl.sourceSet=$sourceSet"),
+                requestedInitScripts = listOf(InitScriptNames.REPL_ENV)
             ),
             { context.run { ScansTosManager.askForScansTos(projectRoot, it) } }
         ).awaitFinished()

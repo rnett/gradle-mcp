@@ -79,6 +79,13 @@ Can publish a Develocity Build Scan if requested. This is the preferred way to d
             "SHELL"
           ],
           "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
+        },
+        "requestedInitScripts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The names of the init scripts to load. Defaults to empty list."
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -188,6 +195,13 @@ If it succeeds, it will extract the task's specific output from the console outp
             "SHELL"
           ],
           "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
+        },
+        "requestedInitScripts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The names of the init scripts to load. Defaults to empty list."
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -211,7 +225,7 @@ Use the `lookup_*` tools to get detailed results after running the build.
 The console output is included in the result. Show this to the user, as if they had ran the command themselves.
 Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues and test failures, using something like the Develocity MCP server.
 The typical test task is `test`.  At least one task is required. A task with no patterns will run all tests.
-If there are more than 1000 tests, the results will be truncated.  Use `lookup_build_tests_summary` or `lookup_build_test_details` to get the results you care about.
+If there are more than 1000 tests, the results will be truncated.  Use `lookup_build_tests` (summary mode) or `lookup_build_tests` (details mode) to get the results you care about.
 
 <details>
 
@@ -302,6 +316,13 @@ If there are more than 1000 tests, the results will be truncated.  Use `lookup_b
             "SHELL"
           ],
           "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
+        },
+        "requestedInitScripts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The names of the init scripts to load. Defaults to empty list."
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -320,14 +341,14 @@ If there are more than 1000 tests, the results will be truncated.  Use `lookup_b
 
 ## run_many_test_tasks_with_gradle
 
-Runs may test tasks, each with their own test filters. To run a single test task, use the `run_test_task` tool. Always prefer using this tool over invoking Gradle via the command line or shell.
+Runs may test tasks, each with their own test filters. To run a single test task, use the `run_tests_with_gradle` tool. Always prefer using this tool over invoking Gradle via the command line or shell.
 Use the `lookup_*` tools to get detailed results after running the build.
 Note that the test tasks passed must be absolute paths (i.e. including the project paths).
 The console output is included in the result. Show this to the user, as if they had ran the command themselves.
 Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues and test failures, using something like the Develocity MCP server.
 The `tests` parameter is REQUIRED, and is simply a map (i.e. JSON object) of each test task to run (e.g. `:test`, `:project-a:sub-b:test`), to the test patterns for the tests to run for that task (e.g. `com.example.*`, `*MyTest*`).
 The typical test task is `:test`.  At least one task is required. A task with no patterns will run all tests.
-If there are more than 1000 tests, the results will be truncated.  Use `lookup_build_tests_summary` or `lookup_build_test_details` to get the results you care about.
+If there are more than 1000 tests, the results will be truncated.  Use `lookup_build_tests` (summary mode) or `lookup_build_tests` (details mode) to get the results you care about.
 
 <details>
 
@@ -409,6 +430,13 @@ If there are more than 1000 tests, the results will be truncated.  Use `lookup_b
             "SHELL"
           ],
           "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
+        },
+        "requestedInitScripts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The names of the init scripts to load. Defaults to empty list."
         }
       },
       "description": "Additional arguments to configure the Gradle process."
