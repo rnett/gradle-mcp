@@ -72,7 +72,7 @@ dependencies {
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.mockk)
     testImplementation("io.insert-koin:koin-test:4.0.1")
-    testImplementation("io.insert-koin:koin-test-junit5:4.0.1")
+    testImplementation("io.insert-koin:koin-test-junit5:4.1.1")
 }
 
 ktor {
