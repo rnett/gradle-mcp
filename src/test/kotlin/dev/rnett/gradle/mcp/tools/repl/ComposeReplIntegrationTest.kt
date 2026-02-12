@@ -54,13 +54,13 @@ class ComposeReplIntegrationTest : BaseReplIntegrationTest() {
         """.trimIndent()
             )
         })
-        startRepl()
     }
 
     @Test
     @Order(1)
     @Ignore
     fun `Compose UI test works in REPL`() = runTest(timeout = 10.minutes) {
+        startRepl()
         // Test Compose rendering via UI test
         val result = runSnippet(
             """

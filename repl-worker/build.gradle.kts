@@ -18,8 +18,6 @@ dependencies {
     implementation(libs.kotlin.compiler.embeddable)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)
-    implementation("org.jetbrains.compose.ui:ui-graphics:1.7.0")
-    implementation("org.jetbrains.compose.ui:ui-graphics-desktop:1.7.0")
 
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)
@@ -27,8 +25,9 @@ dependencies {
 
 val testKotlinStdlib2 by configurations.creating
 
+val oldKotlinVersion = "2.0.21"
 dependencies {
-    testKotlinStdlib2("org.jetbrains.kotlin:kotlin-stdlib:2.0.21")
+    testKotlinStdlib2("org.jetbrains.kotlin:kotlin-stdlib:$oldKotlinVersion")
 }
 
 tasks.test {

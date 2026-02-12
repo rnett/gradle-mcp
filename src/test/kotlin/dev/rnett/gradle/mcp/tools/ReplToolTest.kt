@@ -74,7 +74,7 @@ class ReplToolTest : BaseMcpServerTest() {
         val consoleOutput = """
             [gradle-mcp-repl-env] classpath=cp1;cp2
             [gradle-mcp-repl-env] javaExecutable=$javaExec
-            [gradle-mcp-repl-env] compilerPlugins=p1;p2
+            [gradle-mcp-repl-env] compilerClasspath=p1;p2
             [gradle-mcp-repl-env] compilerArgs=a1;a2
         """.trimIndent()
 

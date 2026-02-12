@@ -126,7 +126,7 @@ class ReplTools(
 
         val classpath = envLines.find { it.contains("classpath=") }?.substringAfter("classpath=")?.split(";")?.filter { it.isNotBlank() } ?: emptyList()
         val javaExecutable = envLines.find { it.contains("javaExecutable=") }?.substringAfter("javaExecutable=")
-        val compilerPlugins = envLines.find { it.contains("compilerPlugins=") }?.substringAfter("compilerPlugins=")?.split(";")?.filter { it.isNotBlank() } ?: emptyList()
+        val compilerPlugins = envLines.find { it.contains("compilerClasspath=") }?.substringAfter("compilerClasspath=")?.split(";")?.filter { it.isNotBlank() } ?: emptyList()
         val compilerArgs = envLines.find { it.contains("compilerArgs=") }?.substringAfter("compilerArgs=")?.split(";")?.filter { it.isNotBlank() } ?: emptyList()
 
         if (javaExecutable == null) {
@@ -144,7 +144,7 @@ class ReplTools(
         val sessionId = UUID.randomUUID().toString()
         val config = ReplConfig(
             classpath = classpath,
-            compilerPlugins = compilerPlugins,
+            compilerClasspath = compilerPlugins,
             compilerArgs = compilerArgs
         )
 

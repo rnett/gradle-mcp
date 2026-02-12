@@ -23,6 +23,8 @@ class KotlinScriptEvaluator(val config: ReplConfig, val responder: Responder) {
     private val compilationConfiguration = ScriptCompilationConfiguration {
         jvm {
             updateClasspath(config.classpath.map { File(it) })
+            // Use the compiler classpath for the compiler itself
+            updateClasspath(config.compilerClasspath.map { File(it) })
             // Add only the Responder interface's location to the script's compilation classpath
             val responderLocation = Responder::class.java.protectionDomain.codeSource.location.toURI().let { File(it) }
             updateClasspath(listOf(responderLocation))

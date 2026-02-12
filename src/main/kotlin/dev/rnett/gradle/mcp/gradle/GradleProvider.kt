@@ -25,6 +25,7 @@ import org.gradle.tooling.BuildException
 import org.gradle.tooling.ConfigurableLauncher
 import org.gradle.tooling.Failure
 import org.gradle.tooling.GradleConnector
+import org.gradle.tooling.ModelBuilder
 import org.gradle.tooling.ProjectConnection
 import org.gradle.tooling.TestExecutionException
 import org.gradle.tooling.events.OperationType
@@ -98,6 +99,7 @@ interface GradleProvider : AutoCloseable {
     val buildResults: BuildResults
 }
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class DefaultGradleProvider(
     val config: GradleConfiguration,
     val envProvider: EnvProvider = EnvHelper,
@@ -132,7 +134,7 @@ class DefaultGradleProvider(
 
     suspend fun getConnection(projectRoot: Path): ProjectConnection {
         var connection = connectionCache.get(projectRoot).asDeferred().await()
-        if (connection.isAlive()) {
+        if (!connection.isAlive()) {
             connectionCache.synchronous().invalidate(projectRoot)
             connection = connectionCache.get(projectRoot).asDeferred().await()
         }
@@ -141,8 +143,7 @@ class DefaultGradleProvider(
 
     private fun ProjectConnection.isAlive(): Boolean {
         return try {
-            // fast and simple model
-            this.getModel(BuildEnvironment::class.java)
+            this.model(BuildEnvironment::class.java).get()
             true
         } catch (_: Throwable) {
             false
@@ -520,7 +521,7 @@ class DefaultGradleProvider(
         val currentConnection = connectionCache.getIfPresent(projectRoot)?.asDeferred()
         if (currentConnection?.isCompleted != true) return
 
-        if (currentConnection != connection) {
+        if (currentConnection.getCompleted() !== connection) {
             try {
                 connection.close()
             } catch (e: Exception) {

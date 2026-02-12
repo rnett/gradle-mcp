@@ -4,6 +4,7 @@ import dev.rnett.gradle.mcp.BuildConfig
 import dev.rnett.gradle.mcp.gradle.fixtures.testGradleProject
 import kotlinx.coroutines.test.runTest
 import java.nio.file.Files
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.seconds
 
@@ -40,7 +41,7 @@ class ReplEnvInitScriptTest {
             assert(output.contains("[gradle-mcp-repl-env] javaExecutable="))
             // Verify that the javaExecutable contains something related to the toolchain if possible, 
             // but for now just that it succeeded.
-            assert(output.contains("[gradle-mcp-repl-env] compilerPlugins="))
+            assert(output.contains("[gradle-mcp-repl-env] compilerClasspath="))
             assert(output.contains("[gradle-mcp-repl-env] compilerArgs="))
         }
     }
@@ -95,7 +96,7 @@ class ReplEnvInitScriptTest {
             assert(output.contains("[gradle-mcp-repl-env] projectRoot="))
             assert(output.contains("[gradle-mcp-repl-env] classpath="))
             assert(output.contains("[gradle-mcp-repl-env] javaExecutable="))
-            assert(output.contains("[gradle-mcp-repl-env] compilerPlugins="))
+            assert(output.contains("[gradle-mcp-repl-env] compilerClasspath="))
             assert(output.contains("[gradle-mcp-repl-env] compilerArgs="))
         }
     }
@@ -313,10 +314,59 @@ class ReplEnvInitScriptTest {
         assert(result.buildResult.isSuccessful == true)
     }
 
+    @Test
+    @Ignore
+    fun `repl-env init script extracts compiler args including plugins`() = runTest(timeout = 300.seconds) {
+        val tempDir = Files.createTempDirectory("gradle-mcp-test-repl-env-args-")
+        testGradleProject {
+            buildScript(
+                """
+                plugins {
+                    kotlin("jvm") version "${BuildConfig.KOTLIN_VERSION}"
+                    kotlin("plugin.serialization") version "${BuildConfig.KOTLIN_VERSION}"
+                }
+                
+                repositories {
+                    mavenCentral()
+                }
+
+                file("src/main/kotlin/foo.kt").apply {
+                    parentFile.mkdirs()
+                    writeText("fun foo() {}")
+                }
+            """.trimIndent()
+            )
+        }.use { project ->
+            val output = runResolveReplEnv(project, tempDir)
+
+            assert(output.contains("[gradle-mcp-repl-env] compilerArgs="))
+            val argsLine = output.lines().find { it.contains("[gradle-mcp-repl-env] compilerArgs=") }
+            assert(argsLine != null)
+            val args = argsLine!!.substringAfter("[gradle-mcp-repl-env] compilerArgs=").split(";")
+
+            println("[DEBUG_LOG] Compiler Args: $args")
+
+            // Check for serialization plugin in args
+            // It usually appears as -Xplugin=...kotlin-serialization...
+            val hasSerializationPluginInArgs = args.any { it.contains("kotlin-serialization") || it.contains("plugin:org.jetbrains.kotlin.serialization") }
+            assert(hasSerializationPluginInArgs)
+
+            // Check for serialization plugin in compiler classpath
+            assert(output.contains("[gradle-mcp-repl-env] compilerClasspath="))
+            val cpLine = output.lines().find { it.contains("[gradle-mcp-repl-env] compilerClasspath=") }
+            assert(cpLine != null)
+            val cp = cpLine!!.substringAfter("[gradle-mcp-repl-env] compilerClasspath=").split(";")
+            println("[DEBUG_LOG] Compiler Classpath: $cp")
+            val hasSerializationPluginInCP = cp.any { it.contains("kotlin-serialization") }
+            assert(hasSerializationPluginInCP)
+        }
+    }
+
     private suspend fun runResolveReplEnv(
         project: dev.rnett.gradle.mcp.gradle.fixtures.GradleProjectFixture,
         tempDir: java.nio.file.Path,
-        sourceSet: String = "main"
+        sourceSet: String = "main",
+        extraCode: String = ""
     ): String {
         val backgroundBuildManager = BackgroundBuildManager()
         val buildResults = BuildResults(backgroundBuildManager)
@@ -332,7 +382,7 @@ class ReplEnvInitScriptTest {
         )
         val projectRoot = GradleProjectRoot(project.pathString())
         val args = GradleInvocationArguments(
-            additionalArguments = listOf("resolveReplEnvironment", "-Pgradle-mcp.repl.sourceSet=$sourceSet"),
+            additionalArguments = listOf("resolveReplEnvironment", "-Pgradle-mcp.repl.sourceSet=$sourceSet", "-Pgradle-mcp.repl.testExtraCode=$extraCode"),
             additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
         ).withInitScript("repl-env")
 

@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ReplConfig(
     val classpath: List<String> = emptyList(),
-    val compilerPlugins: List<String> = emptyList(),
+    val compilerClasspath: List<String> = emptyList(),
     val compilerArgs: List<String> = emptyList()
 )
 

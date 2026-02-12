@@ -10,9 +10,9 @@ import org.slf4j.spi.SLF4JServiceProvider
 import java.util.concurrent.ConcurrentHashMap
 
 class ReplWorkerServiceProvider : SLF4JServiceProvider {
-    private lateinit var loggerFactory: ILoggerFactory
-    private lateinit var markerFactory: IMarkerFactory
-    private lateinit var mdcAdapter: MDCAdapter
+    private val loggerFactory: ILoggerFactory = ReplWorkerLoggerFactory()
+    private val markerFactory: IMarkerFactory = BasicMarkerFactory()
+    private val mdcAdapter: MDCAdapter = BasicMDCAdapter()
 
     override fun getLoggerFactory(): ILoggerFactory = loggerFactory
 
@@ -23,9 +23,6 @@ class ReplWorkerServiceProvider : SLF4JServiceProvider {
     override fun getRequestedApiVersion(): String = "2.0.99"
 
     override fun initialize() {
-        loggerFactory = ReplWorkerLoggerFactory()
-        markerFactory = BasicMarkerFactory()
-        mdcAdapter = BasicMDCAdapter()
     }
 }
 

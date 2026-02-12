@@ -58,9 +58,9 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.mcp.sdk)
-    implementation("io.insert-koin:koin-core-jvm:4.0.1")
-    implementation("io.insert-koin:koin-ktor:4.0.1")
-    implementation("io.insert-koin:koin-logger-slf4j:4.0.1")
+    implementation(libs.koin.core)
+    implementation(libs.koin.ktor)
+    implementation(libs.koin.logger.slf4j)
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.di)
     implementation(libs.ktor.serialization.kotlinx.json)
@@ -71,8 +71,8 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.mockk)
-    testImplementation("io.insert-koin:koin-test:4.0.1")
-    testImplementation("io.insert-koin:koin-test-junit5:4.0.1")
+    testImplementation(libs.koin.test)
+    testImplementation(libs.koin.test.junit5)
 }
 
 ktor {
