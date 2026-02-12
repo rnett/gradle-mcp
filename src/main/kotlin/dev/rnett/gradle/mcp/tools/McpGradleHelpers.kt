@@ -18,7 +18,7 @@ suspend inline fun <reified T : Model> GradleProvider.getBuildModel(
     return getBuildModel(
         root,
         T::class,
-        invocationArgs,
+        invocationArgs.withInitScript(InitScriptNames.TASK_OUT),
         { ScansTosManager.askForScansTos(root, it) },
         stdoutLineHandler = {
             ctx.emitLoggingNotification("gradle-build", LoggingLevel.notice, it)
@@ -38,7 +38,7 @@ suspend inline fun GradleProvider.doBuild(
     val root = projectRoot.resolve()
     return runBuild(
         root,
-        invocationArgs,
+        invocationArgs.withInitScript(InitScriptNames.TASK_OUT),
         { ScansTosManager.askForScansTos(root, it) },
         stdoutLineHandler = {
             ctx.emitLoggingNotification("gradle-build", LoggingLevel.notice, it)
@@ -60,7 +60,7 @@ suspend inline fun GradleProvider.doTests(
     return runTests(
         root,
         testPatterns,
-        invocationArgs,
+        invocationArgs.withInitScript(InitScriptNames.TASK_OUT),
         { ScansTosManager.askForScansTos(root, it) },
         stdoutLineHandler = {
             ctx.emitLoggingNotification("gradle-build", LoggingLevel.notice, it)

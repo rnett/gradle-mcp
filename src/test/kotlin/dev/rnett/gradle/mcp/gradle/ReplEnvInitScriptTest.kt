@@ -301,7 +301,7 @@ class ReplEnvInitScriptTest {
         val args = GradleInvocationArguments(
             additionalArguments = tasks.toList(),
             additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
-        )
+        ).withInitScript("task-out")
 
         val runningBuild = provider.runBuild(
             projectRoot = projectRoot,
@@ -333,7 +333,7 @@ class ReplEnvInitScriptTest {
         val args = GradleInvocationArguments(
             additionalArguments = listOf("resolveReplEnvironment", "-Pgradle-mcp.repl.sourceSet=$sourceSet"),
             additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
-        )
+        ).withInitScript("repl-env")
 
         val runningBuild = provider.runBuild(
             projectRoot = projectRoot,

@@ -43,7 +43,7 @@ class TaskOutInitScriptTest {
                 additionalArguments = listOf("help", "-Pgradle-mcp.init-scripts.hello"),
                 envSource = EnvSource.NONE,
                 additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
-            )
+            ).withInitScript("task-out")
 
             val runningBuild = provider.runBuild(
                 projectRoot = projectRoot,
@@ -87,7 +87,7 @@ class TaskOutInitScriptTest {
             val args = GradleInvocationArguments(
                 additionalArguments = listOf("printMessage"),
                 additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
-            )
+            ).withInitScript("task-out")
 
             val runningBuild = provider.runBuild(
                 projectRoot = projectRoot,
@@ -151,7 +151,7 @@ class TaskOutInitScriptTest {
             val args = GradleInvocationArguments(
                 additionalArguments = listOf("execTask"),
                 additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
-            )
+            ).withInitScript("task-out")
 
             val runningBuild = provider.runBuild(
                 projectRoot = projectRoot,

@@ -213,6 +213,27 @@ class GradleInvocationArgumentsTest {
         assert(json.decodeFromString<EnvSource>("\"inherit\"") == EnvSource.INHERIT)
         assert(json.decodeFromString<EnvSource>("\"none\"") == EnvSource.NONE)
     }
+
+    @Test
+    fun `requestedInitScripts is not serialized`() {
+        val args = GradleInvocationArguments(
+            requestedInitScripts = listOf("test-script")
+        )
+        val json = Json.encodeToString(GradleInvocationArguments.serializer(), args)
+        assert(!json.contains("requestedInitScripts"))
+        assert(!json.contains("test-script"))
+
+        val decoded = Json.decodeFromString(GradleInvocationArguments.serializer(), json)
+        assert(decoded.requestedInitScripts.isEmpty())
+    }
+
+    @Test
+    fun `plus operator combines requestedInitScripts`() {
+        val args1 = GradleInvocationArguments(requestedInitScripts = listOf("script1"))
+        val args2 = GradleInvocationArguments(requestedInitScripts = listOf("script2"))
+        val combined = args1 + args2
+        assert(combined.requestedInitScripts == listOf("script1", "script2"))
+    }
 }
 
 class GradleProjectRootTest {

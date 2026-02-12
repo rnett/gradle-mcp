@@ -79,13 +79,6 @@ Can publish a Develocity Build Scan if requested. This is the preferred way to d
             "SHELL"
           ],
           "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
-        },
-        "requestedInitScripts": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "The names of the init scripts to load. Defaults to empty list."
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -195,13 +188,6 @@ If it succeeds, it will extract the task's specific output from the console outp
             "SHELL"
           ],
           "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
-        },
-        "requestedInitScripts": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "The names of the init scripts to load. Defaults to empty list."
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -316,13 +302,6 @@ If there are more than 1000 tests, the results will be truncated.  Use `lookup_b
             "SHELL"
           ],
           "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
-        },
-        "requestedInitScripts": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "The names of the init scripts to load. Defaults to empty list."
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -430,13 +409,6 @@ If there are more than 1000 tests, the results will be truncated.  Use `lookup_b
             "SHELL"
           ],
           "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
-        },
-        "requestedInitScripts": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "The names of the init scripts to load. Defaults to empty list."
         }
       },
       "description": "Additional arguments to configure the Gradle process."

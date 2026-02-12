@@ -47,6 +47,7 @@ import org.gradle.tooling.events.test.TestSkippedResult
 import org.gradle.tooling.events.test.TestStartEvent
 import org.gradle.tooling.events.test.TestSuccessResult
 import org.gradle.tooling.model.Model
+import org.gradle.tooling.model.build.BuildEnvironment
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import java.io.ByteArrayInputStream
@@ -105,7 +106,6 @@ class DefaultGradleProvider(
     override val buildResults: BuildResults = BuildResults(backgroundBuildManager)
 ) : GradleProvider {
 
-    private val initScripts by lazy { initScriptProvider.extractInitScripts() }
 
     companion object {
         private val LOGGER = LoggerFactory.getLogger(DefaultGradleProvider::class.java)
@@ -124,17 +124,38 @@ class DefaultGradleProvider(
         .maximumSize(config.maxConnections.toLong())
         .buildAsync<Path, ProjectConnection> { path, executor ->
             CompletableFuture.supplyAsync({
-                GradleConnector.newConnector().forProjectDirectory(path.toFile()).connect()
+                GradleConnector.newConnector()
+                    .forProjectDirectory(path.toFile())
+                    .connect()
             }, executor)
         }
 
     suspend fun getConnection(projectRoot: Path): ProjectConnection {
-        return connectionCache.get(projectRoot).asDeferred().await()
+        val connection = connectionCache.get(projectRoot).asDeferred().await()
+        if (connection.isStopped()) {
+            connectionCache.synchronous().invalidate(projectRoot)
+            return connectionCache.get(projectRoot).asDeferred().await()
+        }
+        return connection
     }
 
-    suspend fun validateAndGetConnection(projectRoot: GradleProjectRoot, requiresGradleProject: Boolean = true): ProjectConnection {
-        return getConnection(GradlePathUtils.getRootProjectPath(projectRoot, requiresGradleProject))
+    private fun ProjectConnection.isStopped(): Boolean {
+        return try {
+            // There is no public isClosed() or similar in ProjectConnection.
+            // We can try to get a model with a very short timeout, but even that might be too much.
+            // Checking internal state via reflection is against guidelines.
+            // However, the issue description says "see if there's a way to check for liveness before starting a build"
+            // If we can't find a public API, maybe we can just try to call a cheap method.
+            this.getModel(BuildEnvironment::class.java)
+            false
+        } catch (e: IllegalStateException) {
+            e.message?.contains("as it has been stopped") == true && e.message?.contains("Cannot use connection to Gradle distribution") == true
+        } catch (e: Exception) {
+            // Other exceptions might not mean it's stopped in a way that requires invalidating the connection
+            false
+        }
     }
+
 
     class TestCollector(val captureFailedTestOutput: Boolean, val captureAllTestOutput: Boolean) : ProgressListener {
         private val output = mutableMapOf<String, StringBuilder>()
@@ -248,9 +269,8 @@ class DefaultGradleProvider(
                     runningBuild,
                     invoker
                 )
-            } catch (e: CancellationException) {
-                throw e
             } catch (e: Throwable) {
+                if (e is CancellationException) throw e
                 runningBuild.updateStatus(exception = e)
             }
         }
@@ -345,7 +365,7 @@ class DefaultGradleProvider(
             LOGGER.makeLoggingEventBuilder(Level.WARN)
                 .addKeyValue("buildId", buildId)
                 .log("Error during job launched during build", it)
-            cleanupConnectionIfOld(connection, runningBuild.projectRoot)
+            cleanupConnectionIfOld(connection, runningBuild.projectRoot, args)
         }) { scope ->
             val env = args.actualEnvVars(envProvider)
             LOGGER.info("Setting environment variables for build: ${env.keys}")
@@ -354,6 +374,7 @@ class DefaultGradleProvider(
             withSystemProperties(args.additionalSystemProps)
             addJvmArguments(args.additionalJvmArgs + "-Dscan.tag.MCP")
             withDetailedFailure()
+            val initScripts = initScriptProvider.extractInitScripts(args.requestedInitScripts)
             val allArguments = initScripts.flatMap { listOf("-I", it.toString()) } + args.allAdditionalArguments
             withArguments(allArguments)
             setColorOutput(false)
@@ -497,11 +518,11 @@ class DefaultGradleProvider(
             runningBuild.updateStatus(result)
             buildResults.storeResult(result.buildResult as BuildResult)
 
-            cleanupConnectionIfOld(connection, runningBuild.projectRoot)
+            cleanupConnectionIfOld(connection, runningBuild.projectRoot, args)
         }
     }
 
-    private fun cleanupConnectionIfOld(connection: ProjectConnection, projectRoot: Path) {
+    private fun cleanupConnectionIfOld(connection: ProjectConnection, projectRoot: Path, args: GradleInvocationArguments) {
         val currentConnection = connectionCache.getIfPresent(projectRoot)?.asDeferred()
         if (currentConnection?.isCompleted != true) return
 

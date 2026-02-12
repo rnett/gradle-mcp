@@ -3,6 +3,7 @@ package dev.rnett.gradle.mcp.gradle
 import dev.rnett.gradle.mcp.gradle.fixtures.testJavaProject
 import dev.rnett.gradle.mcp.gradle.fixtures.testKotlinProject
 import dev.rnett.gradle.mcp.gradle.fixtures.testMultiProjectBuild
+import dev.rnett.gradle.mcp.tools.InitScriptNames
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.test.runTest
 import org.gradle.tooling.model.build.BuildEnvironment
@@ -62,15 +63,6 @@ class GradleProviderTest {
         }
     }
 
-    @Test
-    fun `can validate and get connection for gradle project`() = runTest(timeout = 120.seconds) {
-        testJavaProject().use { project ->
-            val provider = createTestProvider()
-            val projectRoot = GradleProjectRoot(project.pathString())
-            val connection = provider.validateAndGetConnection(projectRoot, requiresGradleProject = true)
-            assert(connection != null)
-        }
-    }
 
     @Test
     fun `can get build model from gradle project`() = runTest(timeout = 120.seconds) {
@@ -124,7 +116,8 @@ class GradleProviderTest {
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
                 additionalArguments = listOf("help", "-Pgradle-mcp.init-scripts.hello"),
-                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
+                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString()),
+                requestedInitScripts = listOf(InitScriptNames.TASK_OUT)
             )
 
             val runningBuild = provider.runBuild(

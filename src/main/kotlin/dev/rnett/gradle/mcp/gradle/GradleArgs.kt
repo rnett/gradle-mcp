@@ -28,6 +28,9 @@ data class GradleInvocationArguments(
     val publishScan: Boolean = false,
     @Description("Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars.")
     val envSource: EnvSource = EnvSource.INHERIT,
+    @Description("The names of the init scripts to load. Defaults to empty list.")
+    @Transient
+    val requestedInitScripts: List<String> = emptyList(),
 ) {
     operator fun plus(other: GradleInvocationArguments): GradleInvocationArguments {
         return GradleInvocationArguments(
@@ -36,7 +39,8 @@ data class GradleInvocationArguments(
             additionalJvmArgs = additionalJvmArgs + other.additionalJvmArgs,
             additionalArguments = additionalArguments + other.additionalArguments,
             publishScan = publishScan || other.publishScan,
-            envSource = if (other.envSource != EnvSource.INHERIT) other.envSource else envSource
+            envSource = if (other.envSource != EnvSource.INHERIT) other.envSource else envSource,
+            requestedInitScripts = requestedInitScripts + other.requestedInitScripts
         )
     }
 
@@ -82,7 +86,10 @@ data class GradleInvocationArguments(
     }
 
     @Transient
-    val allAdditionalArguments = additionalArguments + (if (publishScan && "--scan" !in additionalArguments) listOf("--scan") else emptyList())
+    val allAdditionalArguments = additionalArguments +
+            (if (publishScan && "--scan" !in additionalArguments) listOf("--scan") else emptyList())
+
+    fun withInitScript(name: String) = copy(requestedInitScripts = requestedInitScripts + name)
 
     companion object {
         val DEFAULT = GradleInvocationArguments()

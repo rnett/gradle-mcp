@@ -72,13 +72,6 @@ Describes a Gradle project or subproject. Includes the tasks and child projects.
             "SHELL"
           ],
           "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
-        },
-        "requestedInitScripts": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "The names of the init scripts to load. Defaults to empty list."
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -152,13 +145,6 @@ Gets the included builds of a Gradle project.
             "SHELL"
           ],
           "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
-        },
-        "requestedInitScripts": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "The names of the init scripts to load. Defaults to empty list."
         }
       },
       "description": "Additional arguments to configure the Gradle process."
@@ -241,13 +227,6 @@ Gets all publications (i.e. artifacts published that Gradle knows about) for the
             "SHELL"
           ],
           "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
-        },
-        "requestedInitScripts": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "The names of the init scripts to load. Defaults to empty list."
         }
       },
       "description": "Additional arguments to configure the Gradle process."

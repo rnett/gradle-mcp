@@ -13,7 +13,7 @@ import kotlin.io.path.exists
 import kotlin.io.path.writeBytes
 
 interface InitScriptProvider {
-    fun extractInitScripts(): List<Path>
+    fun extractInitScripts(scriptNames: List<String>): List<Path>
 }
 
 class DefaultInitScriptProvider(
@@ -33,10 +33,10 @@ class DefaultInitScriptProvider(
     }
 
     /**
-     * Extracts all .init.gradle.kts files from resources to the working directory.
+     * Extracts requested .init.gradle.kts files from resources to the working directory.
      * Returns a list of absolute paths to the extracted scripts.
      */
-    override fun extractInitScripts(): List<Path> {
+    override fun extractInitScripts(scriptNames: List<String>): List<Path> {
         val scripts = mutableListOf<Path>()
         initScriptsDir.createDirectories()
 
@@ -44,7 +44,13 @@ class DefaultInitScriptProvider(
 
         return buildList {
 
-            resourceNames.forEach { resourceName ->
+            scriptNames.forEach { requestedName ->
+                val resourceName = resourceNames.find { it == "$requestedName.init.gradle.kts" }
+                if (resourceName == null) {
+                    LOGGER.warn("Init script $requestedName not found in resources")
+                    return@forEach
+                }
+
                 val resourcePath = "$RESOURCE_PATH/$resourceName"
                 val inputStream = this::class.java.classLoader.getResourceAsStream(resourcePath)
                 if (inputStream == null) {

@@ -84,6 +84,7 @@ fun resolveKotlinCompilerOptions(task: Task): List<String> {
     return try {
         val compilerOptions = task.callMethod("getCompilerOptions")
         if (compilerOptions != null) {
+            @Suppress("UNCHECKED_CAST")
             val freeCompilerArgs = compilerOptions.callMethod("getFreeCompilerArgs") as? org.gradle.api.provider.ListProperty<String>
             freeCompilerArgs?.get() ?: emptyList()
         } else {
@@ -215,6 +216,7 @@ allprojects {
                 }
 
                 if (kotlinCompileClass != null) {
+                    @Suppress("UNCHECKED_CAST")
                     val typedClass = kotlinCompileClass as Class<Task>
                     val kotlinTaskProvider = project.tasks.withType(typedClass).matching { it.name.contains(targetSourceSetName, ignoreCase = true) }
 
