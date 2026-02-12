@@ -19,7 +19,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)
     implementation("org.jetbrains.compose.ui:ui-graphics:1.7.0")
-    implementation("org.jetbrains.compose.ui:ui-graphics-desktop:1.7.0")
+    implementation("org.jetbrains.compose.ui:ui-graphics-desktop:1.10.1")
 
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)
