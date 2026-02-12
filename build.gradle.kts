@@ -60,7 +60,7 @@ dependencies {
     implementation(libs.mcp.sdk)
     implementation("io.insert-koin:koin-core-jvm:4.0.1")
     implementation("io.insert-koin:koin-ktor:4.0.1")
-    implementation("io.insert-koin:koin-logger-slf4j:4.0.1")
+    implementation("io.insert-koin:koin-logger-slf4j:4.1.1")
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.di)
     implementation(libs.ktor.serialization.kotlinx.json)
