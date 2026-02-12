@@ -8,7 +8,6 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.TestMethodOrder
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
@@ -56,7 +55,6 @@ class KotlinReplIntegrationTest : BaseReplIntegrationTest() {
 
     @Test
     @Order(2)
-    @Ignore
     fun `Kotlinx Serialization works`() = runTest(timeout = 10.minutes) {
         // Test Kotlinx Serialization
         // We test that it compiles and runs without classloader issues by using a type that doesn't need KType at runtime if possible,

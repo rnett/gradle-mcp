@@ -1,8 +1,6 @@
 package dev.rnett.gradle.mcp.repl
 
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -10,35 +8,12 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.io.PrintStream
-import java.util.Base64
 import java.util.Scanner
 import kotlin.time.Duration.Companion.minutes
 
 class ReplWorker(val config: ReplConfig, val scanner: Scanner) {
 
-    private val scope = CoroutineScope(Dispatchers.Default + Job())
-
-    private val responder = object : Responder {
-        override fun respond(value: Any?, mime: String?) {
-            val data = ResultRenderer.renderResult(value, mime)
-            sendResponse(data)
-        }
-
-        override fun markdown(md: String) {
-            sendResponse(ReplResponse.Data(md, "text/markdown"))
-        }
-
-        override fun html(fragment: String) {
-            sendResponse(ReplResponse.Data(fragment, "text/html"))
-        }
-
-        override fun image(bytes: ByteArray, mime: String) {
-            val base64 = Base64.getEncoder().encodeToString(bytes)
-            sendResponse(ReplResponse.Data(base64, mime))
-        }
-    }
-
-    private val evaluator: KotlinScriptEvaluator = KotlinScriptEvaluator(config, responder)
+    private val evaluator: KotlinScriptEvaluator = KotlinScriptEvaluator(config, ::sendResponse)
 
     fun run() = runBlocking {
         // Redirect stdout/stderr to capture them during evaluation

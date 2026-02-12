@@ -40,7 +40,7 @@ class ReplEnvInitScriptTest {
             assert(output.contains("[gradle-mcp-repl-env] javaExecutable="))
             // Verify that the javaExecutable contains something related to the toolchain if possible, 
             // but for now just that it succeeded.
-            assert(output.contains("[gradle-mcp-repl-env] compilerClasspath="))
+            assert(output.contains("[gradle-mcp-repl-env] pluginsClasspath="))
             assert(output.contains("[gradle-mcp-repl-env] compilerArgs="))
         }
     }
@@ -95,7 +95,7 @@ class ReplEnvInitScriptTest {
             assert(output.contains("[gradle-mcp-repl-env] projectRoot="))
             assert(output.contains("[gradle-mcp-repl-env] classpath="))
             assert(output.contains("[gradle-mcp-repl-env] javaExecutable="))
-            assert(output.contains("[gradle-mcp-repl-env] compilerClasspath="))
+            assert(output.contains("[gradle-mcp-repl-env] pluginsClasspath="))
             assert(output.contains("[gradle-mcp-repl-env] compilerArgs="))
         }
     }
@@ -354,10 +354,10 @@ class ReplEnvInitScriptTest {
             assert(args.contains("-Xjvm-default=all"))
 
             // Check for serialization plugin in compiler classpath (should still be there)
-            assert(output.contains("[gradle-mcp-repl-env] compilerClasspath="))
-            val cpLine = output.lines().find { it.contains("[gradle-mcp-repl-env] compilerClasspath=") }
+            assert(output.contains("[gradle-mcp-repl-env] pluginsClasspath="))
+            val cpLine = output.lines().find { it.contains("[gradle-mcp-repl-env] pluginsClasspath=") }
             assert(cpLine != null)
-            val cp = cpLine!!.substringAfter("[gradle-mcp-repl-env] compilerClasspath=").split(";")
+            val cp = cpLine!!.substringAfter("[gradle-mcp-repl-env] pluginsClasspath=").split(";")
             println("[DEBUG_LOG] Compiler Classpath: $cp")
             val hasSerializationPluginInCP = cp.any { it.contains("kotlin-serialization") }
             assert(hasSerializationPluginInCP)

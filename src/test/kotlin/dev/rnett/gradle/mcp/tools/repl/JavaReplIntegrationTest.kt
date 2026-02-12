@@ -46,7 +46,7 @@ class JavaReplIntegrationTest : BaseReplIntegrationTest() {
     @Test
     @Order(3)
     fun `Responder works`() = runTest(timeout = 10.minutes) {
-        val result = runSnippet("responder.respond(\"manual response\")")
+        val result = runSnippet("responder.render(\"manual response\")")
         assertTrue(result.contains("manual response"), "Expected 'manual response', but got: $result")
     }
 
@@ -71,7 +71,7 @@ class JavaReplIntegrationTest : BaseReplIntegrationTest() {
     @Test
     @Order(6)
     fun `AWT Image passing works`() = runTest(timeout = 10.minutes) {
-        val result = runSnippet(
+        runSnippetAndAssertImage(
             """
                     import java.awt.image.BufferedImage
                     import java.awt.Color
@@ -81,8 +81,8 @@ class JavaReplIntegrationTest : BaseReplIntegrationTest() {
                     g.fillRect(0, 0, 10, 10)
                     g.dispose()
                     img
-                """.trimIndent()
+                """.trimIndent(),
+            "java-awt-red.png"
         )
-        assertTrue(result.contains("image/png"), "Expected image/png response, but got: $result")
     }
 }

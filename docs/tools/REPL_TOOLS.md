@@ -16,10 +16,10 @@ Interacts with a Kotlin REPL session. The REPL runs with the classpath and compi
 ### Execution and Output
 - **stdout/stderr**: Captured and returned as text.
 - **Last Expression**: The result of the last expression in your snippet is automatically rendered.
-- **Responder**: A `responder: dev.rnett.gradle.mcp.repl.Responder` property is available for manual output (no import necessary). Use it to return multiple items or specific formats.
+- **Responder**: A `responder: dev.rnett.gradle.mcp.repl.Responder` top-level property is available for manual output (no import necessary). Use it to return multiple items or specific formats to the MCP output.
 
-Methods on `Responder`:
-- `respond(value: Any?, mime: String? = null)`: Manually render a value. If `mime` is null, it is automatically detected.
+Methods on `dev.rnett.gradle.mcp.repl.Responder`:
+- `render(value: Any?, mime: String? = null)`: Manually render a value. If `mime` is null, it is automatically detected.
 - `markdown(md: String)`: Render a markdown string.
 - `html(fragment: String)`: Render an HTML fragment.
 - `image(bytes: ByteArray, mime: String = "image/png")`: Render an image from bytes.

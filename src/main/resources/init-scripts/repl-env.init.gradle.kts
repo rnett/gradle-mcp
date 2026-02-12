@@ -31,7 +31,11 @@ abstract class ResolveReplEnvironmentTask : DefaultTask() {
 
     @get:Input
     @get:Optional
-    abstract val compilerClasspath: org.gradle.api.provider.SetProperty<String>
+    abstract val pluginsClasspath: org.gradle.api.provider.SetProperty<String>
+
+    @get:Input
+    @get:Optional
+    abstract val compilerPluginOptions: org.gradle.api.provider.ListProperty<String>
 
     @get:Input
     @get:Optional
@@ -48,7 +52,8 @@ abstract class ResolveReplEnvironmentTask : DefaultTask() {
         println("[gradle-mcp-repl-env] projectRoot=${projectRootPath.get()}")
         println("[gradle-mcp-repl-env] classpath=${currentClasspathFiles.joinToString(";") { it.absolutePath }}")
         println("[gradle-mcp-repl-env] javaExecutable=${javaExecutable.getOrElse(System.getProperty("java.home") + "/bin/java")}")
-        println("[gradle-mcp-repl-env] compilerClasspath=${compilerClasspath.getOrElse(emptySet()).joinToString(";")}")
+        println("[gradle-mcp-repl-env] pluginsClasspath=${pluginsClasspath.getOrElse(emptySet()).joinToString(";")}")
+        println("[gradle-mcp-repl-env] compilerPluginOptions=${compilerPluginOptions.getOrElse(emptyList()).joinToString(";")}")
         println("[gradle-mcp-repl-env] compilerArgs=${compilerArgs.getOrElse(emptyList()).joinToString(";")}")
     }
 }
@@ -151,7 +156,7 @@ fun resolveKotlinCompilerOptions(task: Task): List<String> {
 }
 
 /**
- * Resolves Kotlin compiler plugins from a Kotlin compilation or task.
+ * Resolves Kotlin compiler plugins classpath from a Kotlin compilation or task.
  */
 fun resolveKotlinCompilerPlugins(task: Task): Set<String> {
     return try {
@@ -159,6 +164,60 @@ fun resolveKotlinCompilerPlugins(task: Task): Set<String> {
         pluginClasspath?.files?.map { it.absolutePath }?.toSet() ?: emptySet()
     } catch (e: Throwable) {
         emptySet()
+    }
+}
+
+/**
+ * Resolves Kotlin compiler plugin options from a Kotlin compilation or task.
+ */
+fun resolveKotlinCompilerPluginOptions(task: Task): List<String> {
+    return try {
+        val pluginOptions = task.callMethod("getPluginOptions", throwIfNotFound = false)
+        if (pluginOptions != null) {
+            // KGP 2.3+ or using BaseKotlinCompile.pluginOptions
+            if (pluginOptions is org.gradle.api.provider.ListProperty<*>) {
+                val configs = pluginOptions.get()
+                val allArgs = mutableListOf<String>()
+                for (config in configs) {
+                    if (config != null) {
+                        val optionsMap = config.callMethod("allOptions") as? Map<String, List<Any>>
+                        optionsMap?.forEach { (pluginId, options) ->
+                            for (option in options) {
+                                val key = option.getProperty("key")?.toString()
+                                val value = option.getProperty("value")?.toString()
+                                if (key != null && value != null) {
+                                    allArgs.add("$pluginId:$key=$value")
+                                }
+                            }
+                        }
+                    }
+                }
+                if (allArgs.isNotEmpty()) return allArgs
+            }
+
+            // Fallback for older KGP versions or different structures
+            val arguments = pluginOptions.callMethod("getArguments", throwIfNotFound = false)
+            if (arguments is Iterable<*>) {
+                return arguments.map { it.toString() }
+            }
+
+            val plugins = pluginOptions.getProperty("plugins", throwIfNotFound = false)
+            if (plugins is Iterable<*>) {
+                val allArgs = mutableListOf<String>()
+                for (plugin in plugins) {
+                    if (plugin != null) {
+                        val pluginArgs = plugin.callMethod("getArguments", throwIfNotFound = false)
+                        if (pluginArgs is Iterable<*>) {
+                            allArgs.addAll(pluginArgs.map { it.toString() })
+                        }
+                    }
+                }
+                return allArgs
+            }
+        }
+        emptyList()
+    } catch (e: Throwable) {
+        emptyList()
     }
 }
 
@@ -250,7 +309,8 @@ allprojects {
                     val compileTaskProvider = compilation.callMethod("getCompileTaskProvider", throwIfNotFound = false) as? TaskProvider<out Task>
                     if (compileTaskProvider != null) {
                         compilerArgs.set(compileTaskProvider.map { resolveKotlinCompilerOptions(it) })
-                        compilerClasspath.set(compileTaskProvider.map { resolveKotlinCompilerPlugins(it) })
+                        pluginsClasspath.set(compileTaskProvider.map { resolveKotlinCompilerPlugins(it) })
+                        compilerPluginOptions.set(compileTaskProvider.map { resolveKotlinCompilerPluginOptions(it) })
                     }
 
                     targetSourceSet.set(targetSourceSetName)
@@ -274,8 +334,12 @@ allprojects {
                             resolveKotlinCompilerOptions(kotlinTask)
                         })
 
-                        compilerClasspath.set(project.provider {
+                        pluginsClasspath.set(project.provider {
                             resolveKotlinCompilerPlugins(kotlinTask)
+                        })
+
+                        compilerPluginOptions.set(project.provider {
+                            resolveKotlinCompilerPluginOptions(kotlinTask)
                         })
                     }
                 }

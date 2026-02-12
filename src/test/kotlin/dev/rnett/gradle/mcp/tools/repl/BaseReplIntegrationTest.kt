@@ -27,6 +27,7 @@ import org.koin.dsl.module
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.assertTrue
+import kotlin.test.fail
 import kotlin.time.Duration.Companion.minutes
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -111,6 +112,21 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single {
             DI.createServer(get(), get())
         }
+    }
+
+    protected suspend fun runSnippetAndAssertImage(code: String, resourceName: String) {
+        val response = server.client.callTool(
+            "repl", mapOf(
+                "command" to "run",
+                "code" to code
+            )
+        ) as CallToolResult
+        assert(!response.isError!!) { "Snippet failed: ${response.content.joinToString { if (it is TextContent) it.text!! else "Image(${it})" }}" }
+
+        val imageContent = response.content.filterIsInstance<ImageContent>().firstOrNull()
+            ?: fail("Expected image content in response, but got: ${response.content}")
+
+        ImageAssert.assertImage(imageContent.data, resourceName)
     }
 
     protected suspend fun runSnippet(code: String): String {

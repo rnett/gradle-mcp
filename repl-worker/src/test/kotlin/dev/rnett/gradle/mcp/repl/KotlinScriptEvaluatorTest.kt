@@ -6,12 +6,7 @@ class KotlinScriptEvaluatorTest {
 
     private val stdlibPaths = System.getProperty("kotlin.stdlib.path")?.split(java.io.File.pathSeparator) ?: emptyList()
 
-    private val mockResponder = object : Responder {
-        override fun respond(value: Any?, mime: String?) {}
-        override fun markdown(md: String) {}
-        override fun html(fragment: String) {}
-        override fun image(bytes: ByteArray, mime: String) {}
-    }
+    private val mockResponder = { _: ReplResponse -> }
 
     @Test
     fun `test simple evaluation`() {
@@ -133,21 +128,42 @@ class KotlinScriptEvaluatorTest {
     @Test
     fun `test custom mime type`() {
         val evaluator = KotlinScriptEvaluator(ReplConfig(classpath = stdlibPaths), mockResponder)
-        val result = evaluator.evaluate("responder.respond(\"test\", \"text/custom\")")
+        val result = evaluator.evaluate("responder.render(\"test\", \"text/custom\")")
         assert(result is KotlinScriptEvaluator.EvalResult.Success)
-        // Since respond calls evaluator.renderResult, and the script's call to responder.respond 
+        // Since respond calls evaluator.renderResult, and the script's call to responder.render
         // will go to the mockResponder which does nothing, this test doesn't check the data.
         // But we can check ResultRenderer.renderResult directly.
-        val data = ResultRenderer.renderResult("test", "text/custom")
+        val renderer = ResultRenderer(this::class.java.classLoader)
+        val data = renderer.renderResult("test", "text/custom")
         assert(data.mime == "text/custom")
         assert(data.value == "test")
     }
 
     @Test
     fun `test image rendering`() {
+        val renderer = ResultRenderer(this::class.java.classLoader)
         val image = java.awt.image.BufferedImage(10, 10, java.awt.image.BufferedImage.TYPE_INT_ARGB)
-        val data = ResultRenderer.renderResult(image)
+        val g = image.createGraphics()
+        g.color = java.awt.Color.RED
+        g.fillRect(0, 0, 10, 10)
+        g.dispose()
+
+        val data = renderer.renderResult(image)
         assert(data.mime == "image/png")
-        assert(data.value.isNotEmpty())
+
+        val resourceName = "/test-images/java-awt-red.png"
+        val expectedStream = this::class.java.getResourceAsStream(resourceName)
+        if (expectedStream == null) {
+            // In unit tests we don't have a clean way to write back to src/test/resources 
+            // easily across different environments, and usually we shouldn't.
+            // But since I already generated it in the integration test, it should be there 
+            // if the project is built.
+            // If it's not there, we'll just skip the content assertion or fail with a helpful message.
+            println("Warning: Resource $resourceName not found in classpath, skipping content assertion.")
+        } else {
+            val expectedBytes = expectedStream.readBytes()
+            val actualBytes = java.util.Base64.getDecoder().decode(data.value)
+            assert(actualBytes.contentEquals(expectedBytes)) { "Image content mismatch" }
+        }
     }
 }

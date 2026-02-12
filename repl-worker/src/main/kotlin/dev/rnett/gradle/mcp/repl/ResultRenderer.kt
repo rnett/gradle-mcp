@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.repl
 
+import org.slf4j.LoggerFactory
 import java.awt.Point
 import java.awt.image.BufferedImage
 import java.awt.image.ColorModel
@@ -8,11 +9,18 @@ import java.awt.image.DataBufferInt
 import java.awt.image.Raster
 import java.awt.image.SinglePixelPackedSampleModel
 import java.util.Base64
+import kotlin.reflect.KClass
+import kotlin.reflect.full.allSuperclasses
 
-object ResultRenderer {
+class ResultRenderer(val classLoader: ClassLoader) {
+    @PublishedApi
+    internal val LOGGER by lazy { LoggerFactory.getLogger(ResultRenderer::class.java) }
 
+    @Suppress("NOTHING_TO_INLINE")
     fun renderResult(value: Any?, mime: String? = null): ReplResponse.Data {
+        LOGGER.info("Rendering result with {} type with mime {}", value?.let { it::class }, mime)
         if (mime != null) {
+            LOGGER.info("Mime set to {}", mime)
             val stringValue = when (value) {
                 null -> "null"
                 is Unit -> "Unit"
@@ -27,68 +35,72 @@ object ResultRenderer {
 
         if (value is ReplResponse.Data) return value
 
-        val className = value.javaClass.name
+        val klass = value::class
 
         // AWT BufferedImage
-        if (className == "java.awt.image.BufferedImage") {
+        if (klass.isOrHasSupertypeNamed("java.awt.image.BufferedImage")) {
+            LOGGER.info("Responding with BufferedImage")
             try {
                 val bufferedImage = value as BufferedImage
-                val baos = java.io.ByteArrayOutputStream()
-                javax.imageio.ImageIO.write(bufferedImage, "png", baos)
-                val base64 = Base64.getEncoder().encodeToString(baos.toByteArray())
-                return ReplResponse.Data(base64, "image/png")
+                return renderBufferedImage(bufferedImage, mime = mime)
             } catch (e: Exception) {
+                LOGGER.error("Failed to convert BufferedImage to base64", e)
                 // fall back
             }
         }
 
         // Compose ImageBitmap
-        if (className == "androidx.compose.ui.graphics.ImageBitmap") {
+        if (klass.isOrHasSupertypeNamed("androidx.compose.ui.graphics.ImageBitmap")) {
+            val bitmapClass = classLoader.loadClass("androidx.compose.ui.graphics.ImageBitmap")
             try {
-                val convertersClass = Class.forName("androidx.compose.ui.graphics.DesktopConvertersKt")
-                val toAwtImageMethod = convertersClass.getMethod("toAwtImage", value.javaClass)
-                val bufferedImage = toAwtImageMethod.invoke(null, value) as java.awt.image.BufferedImage
-                return renderResult(bufferedImage)
+                val convertersClass = classLoader.loadClass("androidx.compose.ui.graphics.DesktopConvertersKt")
+                val toAwtImageMethod = convertersClass.getMethod("toAwtImage", bitmapClass)
+                toAwtImageMethod.isAccessible = true
+                val bufferedImage = toAwtImageMethod.invoke(null, value) as BufferedImage
+                LOGGER.info("Responding with ImageBitmap converted to BufferedImage using toAwtImage")
+                return renderBufferedImage(bufferedImage)
             } catch (e: Exception) {
+                LOGGER.debug("Failed to convert ImageBitmap to BufferedImage, trying to use readPixels ${e.stackTraceToString()}", e)
                 // fall back to readPixels
                 try {
-                    val getWidthMethod = value.javaClass.getMethod("getWidth")
-                    val getHeightMethod = value.javaClass.getMethod("getHeight")
+                    LOGGER.info("Responding with ImageBitmap converted to BufferedImage using readPixels")
+                    val getWidthMethod = klass.java.getMethod("getWidth")
+                    getWidthMethod.isAccessible = true
+                    val getHeightMethod = klass.java.getMethod("getHeight")
+                    getHeightMethod.isAccessible = true
                     val width = getWidthMethod.invoke(value) as Int
                     val height = getHeightMethod.invoke(value) as Int
 
-                    val readPixelsMethod = value.javaClass.getMethod(
-                        "readPixels",
-                        IntArray::class.java,
-                        Int::class.java,
-                        Int::class.java,
-                        Int::class.java,
-                        Int::class.java,
-                        Int::class.java,
-                        Int::class.java,
-                        Int::class.java
-                    )
+                    LOGGER.info("Methods: {}", klass.java.methods.toList())
+
+                    val readPixelsMethod = klass.java.methods.single { it.name == "readPixels" }
+                    readPixelsMethod.isAccessible = true
                     val buffer = IntArray(width * height)
                     readPixelsMethod.invoke(value, buffer, 0, 0, width, height, 0, width)
                     val bufferedImage = toAwtImage(buffer, width, height)
-                    return renderResult(bufferedImage)
+                    return renderBufferedImage(bufferedImage)
                 } catch (e2: Exception) {
+                    LOGGER.error("Failed to convert ImageBitmap to BufferedImage, trying to use readPixels ${e.stackTraceToString()}", e)
+                    LOGGER.error("Failed to convert ImageBitmap to BufferedImage using readPixels", e2)
                     // fall back
                 }
             }
         }
 
         // Android Bitmap
-        if (className == "android.graphics.Bitmap") {
+        if (klass.isOrHasSupertypeNamed("android.graphics.Bitmap")) {
             try {
-                val compressFormatClass = Class.forName("android.graphics.Bitmap\$CompressFormat")
+                val compressFormatClass = classLoader.loadClass("android.graphics.Bitmap\$CompressFormat")
                 val pngFormat = compressFormatClass.getField("PNG").get(null)
                 val baos = java.io.ByteArrayOutputStream()
-                val compressMethod = value.javaClass.getMethod("compress", compressFormatClass, Int::class.java, java.io.OutputStream::class.java)
+                val compressMethod = klass.java.getMethod("compress", compressFormatClass, Int::class.java, java.io.OutputStream::class.java)
+                compressMethod.isAccessible = true
                 compressMethod.invoke(value, pngFormat, 100, baos)
                 val base64 = Base64.getEncoder().encodeToString(baos.toByteArray())
+                LOGGER.info("Responding with Bitmap converted to base64")
                 return ReplResponse.Data(base64, "image/png")
             } catch (e: Exception) {
+                LOGGER.error("Failed to convert Bitmap to base64", e)
                 // fall back
             }
         }
@@ -102,8 +114,10 @@ object ResultRenderer {
                 else -> null
             }
             if (mime != null) {
+                LOGGER.info("Byte array looks like image with mime type $mime")
                 return ReplResponse.Data(Base64.getEncoder().encodeToString(value), mime)
             }
+            LOGGER.info("Byte array does not look like an image, responding with text/plain")
             return ReplResponse.Data(value.contentToString(), "text/plain")
         }
 
@@ -114,10 +128,19 @@ object ResultRenderer {
         return ReplResponse.Data(value.toString(), "text/plain")
     }
 
+    fun renderBufferedImage(value: BufferedImage, mime: String? = null): ReplResponse.Data {
+        val baos = java.io.ByteArrayOutputStream()
+        javax.imageio.ImageIO.write(value, "png", baos)
+        val base64 = Base64.getEncoder().encodeToString(baos.toByteArray())
+        return ReplResponse.Data(base64, mime ?: "image/png")
+    }
+
+    fun KClass<*>.isOrHasSupertypeNamed(name: String) = this.qualifiedName == name || this.allSuperclasses.any { it.qualifiedName == name }
+
     /**
      * Used with pixels arrays from ImageBitmap.readPixels
      */
-    private fun toAwtImage(pixels: IntArray, width: Int, height: Int): BufferedImage {
+    fun toAwtImage(pixels: IntArray, width: Int, height: Int): BufferedImage {
 
         val a = 0xff shl 24
         val r = 0xff shl 16

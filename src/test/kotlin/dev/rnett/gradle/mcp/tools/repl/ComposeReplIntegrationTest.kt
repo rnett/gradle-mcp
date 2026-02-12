@@ -8,9 +8,7 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.TestMethodOrder
-import kotlin.test.Ignore
 import kotlin.test.Test
-import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
@@ -58,11 +56,10 @@ class ComposeReplIntegrationTest : BaseReplIntegrationTest() {
 
     @Test
     @Order(1)
-    @Ignore
     fun `Compose UI test works in REPL`() = runTest(timeout = 10.minutes) {
         startRepl()
         // Test Compose rendering via UI test
-        val result = runSnippet(
+        runSnippetAndAssertImage(
             """
                     import androidx.compose.ui.test.*
                     import androidx.compose.ui.graphics.*
@@ -78,10 +75,10 @@ class ComposeReplIntegrationTest : BaseReplIntegrationTest() {
                         node.assertExists()
                         
                         val bitmap = node.captureToImage()
-                        bitmap // Should be rendered as image/png
+                        responder.render(bitmap) // Should be rendered as image/png
                     }
-                """.trimIndent()
+                """.trimIndent(),
+            "compose-hello-world.png"
         )
-        assertTrue(result.contains("image/png"), "Expected image/png response, but got: $result")
     }
 }

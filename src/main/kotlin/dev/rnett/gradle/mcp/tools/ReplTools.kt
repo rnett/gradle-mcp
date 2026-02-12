@@ -3,6 +3,7 @@ package dev.rnett.gradle.mcp.tools
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import dev.rnett.gradle.mcp.repl.KotlinCompilerPluginOption
 import dev.rnett.gradle.mcp.repl.ReplConfig
 import dev.rnett.gradle.mcp.repl.ReplManager
 import dev.rnett.gradle.mcp.repl.ReplRequest
@@ -61,10 +62,10 @@ class ReplTools(
             |### Execution and Output
             |- **stdout/stderr**: Captured and returned as text.
             |- **Last Expression**: The result of the last expression in your snippet is automatically rendered.
-            |- **Responder**: A `responder: dev.rnett.gradle.mcp.repl.Responder` property is available for manual output (no import necessary). Use it to return multiple items or specific formats.
+            |- **Responder**: A `responder: dev.rnett.gradle.mcp.repl.Responder` top-level property is available for manual output (no import necessary). Use it to return multiple items or specific formats to the MCP output.
             |
-            |Methods on `Responder`:
-            |- `respond(value: Any?, mime: String? = null)`: Manually render a value. If `mime` is null, it is automatically detected.
+            |Methods on `dev.rnett.gradle.mcp.repl.Responder`:
+            |- `render(value: Any?, mime: String? = null)`: Manually render a value. If `mime` is null, it is automatically detected.
             |- `markdown(md: String)`: Render a markdown string.
             |- `html(fragment: String)`: Render an HTML fragment.
             |- `image(bytes: ByteArray, mime: String = "image/png")`: Render an image from bytes.
@@ -126,7 +127,9 @@ class ReplTools(
 
         val classpath = envLines.find { it.contains("classpath=") }?.substringAfter("classpath=")?.split(";")?.filter { it.isNotBlank() } ?: emptyList()
         val javaExecutable = envLines.find { it.contains("javaExecutable=") }?.substringAfter("javaExecutable=")
-        val compilerPlugins = envLines.find { it.contains("compilerClasspath=") }?.substringAfter("compilerClasspath=")?.split(";")?.filter { it.isNotBlank() } ?: emptyList()
+        val pluginsClasspath = envLines.find { it.contains("pluginsClasspath=") }?.substringAfter("pluginsClasspath=")?.split(";")?.filter { it.isNotBlank() } ?: emptyList()
+        val compilerPluginOptionsString = envLines.find { it.contains("compilerPluginOptions=") }?.substringAfter("compilerPluginOptions=")
+        val compilerPluginOptionsList = compilerPluginOptionsString?.split(";")?.filter { it.isNotBlank() } ?: emptyList()
         val compilerArgs = envLines.find { it.contains("compilerArgs=") }?.substringAfter("compilerArgs=")?.split(";")?.filter { it.isNotBlank() } ?: emptyList()
 
         if (javaExecutable == null) {
@@ -144,7 +147,18 @@ class ReplTools(
         val sessionId = UUID.randomUUID().toString()
         val config = ReplConfig(
             classpath = classpath,
-            compilerClasspath = compilerPlugins,
+            pluginsClasspath = pluginsClasspath,
+            compilerPluginOptions = compilerPluginOptionsList.mapNotNull {
+                // Expected format: pluginId:optionName=value
+                val parts = it.split(":", limit = 2)
+                if (parts.size == 2) {
+                    val pluginId = parts[0]
+                    val optionParts = parts[1].split("=", limit = 2)
+                    if (optionParts.size == 2) {
+                        KotlinCompilerPluginOption(pluginId, optionParts[0], optionParts[1])
+                    } else null
+                } else null
+            },
             compilerArgs = compilerArgs
         )
 

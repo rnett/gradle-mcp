@@ -3,6 +3,7 @@ package dev.rnett.gradle.mcp.repl
 import org.jetbrains.kotlin.cli.common.repl.ReplCodeLine
 import org.jetbrains.kotlin.cli.common.repl.ReplCompileResult
 import org.jetbrains.kotlin.cli.common.repl.ReplEvalResult
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.net.URL
 import java.net.URLClassLoader
@@ -18,37 +19,55 @@ import kotlin.script.experimental.jvm.updateClasspath
 import kotlin.script.experimental.jvmhost.repl.JvmReplCompiler
 import kotlin.script.experimental.jvmhost.repl.JvmReplEvaluator
 
-class KotlinScriptEvaluator(val config: ReplConfig, val responder: Responder) {
+class KotlinScriptEvaluator(val config: ReplConfig, val responseSender: (ReplResponse) -> Unit) {
+    companion object {
+        private val LOGGER by lazy { LoggerFactory.getLogger(KotlinScriptEvaluator::class.java) }
+        private val excludedPluginArtifacts = setOf("kotlin-scripting-compiler", "kotlin-scripting-compiler-impl", "kotlin-compiler")
+    }
 
     private val compilationConfiguration = ScriptCompilationConfiguration {
         jvm {
-            updateClasspath(config.classpath.map { File(it) })
-            // Use the compiler classpath for the compiler itself
-            updateClasspath(config.compilerClasspath.map { File(it) })
-            // Add only the Responder interface's location to the script's compilation classpath
+            updateClasspath(config.classpath.map { File(it).absoluteFile })
+            // not sure this will always work, may need to pass the jar location as an arg
             val responderLocation = Responder::class.java.protectionDomain.codeSource.location.toURI().let { File(it) }
             updateClasspath(listOf(responderLocation))
         }
+        compilerOptions.append(
+            config.pluginsClasspath.distinct()
+                .map { File(it).absoluteFile }
+                .filterNot {
+                    val artifactName = it.nameWithoutExtension.substringBeforeLast('-')
+                    artifactName in excludedPluginArtifacts || artifactName.removeSuffix("-embeddable") in excludedPluginArtifacts
+                }
+                .map { "-Xplugin=${it.absolutePath}" })
+        compilerOptions.append(config.compilerPluginOptions.distinct().map { "plugin:${it.pluginId}:${it.optionName}=${it.value}" }.flatMap { listOf("-P", it) })
         compilerOptions.append(config.compilerArgs)
+        LOGGER.error("Compiler options: ${this[compilerOptions]}")
         providedProperties("responder" to Responder::class)
     }
 
+    val hostClassLoader = this@KotlinScriptEvaluator::class.java.classLoader
+
+    val executionClassLoader = HostLastClassLoader(
+        config.classpath.map { File(it).toURI().toURL() },
+        hostClassLoader
+    )
+
+    val resultRenderer = executionClassLoader.loadClass(ResultRenderer::class.qualifiedName!!).constructors.single().newInstance(executionClassLoader) as ResultRenderer
+    val responder = executionClassLoader.loadClass(Responder::class.qualifiedName!!).constructors.single().newInstance(responseSender, executionClassLoader) as Responder
+
     private val evaluationConfiguration = ScriptEvaluationConfiguration {
+        // Use a custom classloader that prefers the script's classpath but falls back to the host classloader.
+        // This allows the script to use its own version of libraries if provided, but still access
+        // the host classes (like Responder) if not found in the script classpath.
+
+
         jvm {
-            // Use a custom classloader that prefers the script's classpath but falls back to the host classloader.
-            // This allows the script to use its own version of libraries if provided, but still access
-            // the host classes (like Responder) if not found in the script classpath.
-
-            val hostClassLoader = this@KotlinScriptEvaluator::class.java.classLoader
-
-            val executionClassLoader = HostLastClassLoader(
-                config.classpath.map { File(it).toURI().toURL() },
-                hostClassLoader
-            )
-
             baseClassLoader(executionClassLoader)
             loadDependencies(false)
         }
+
+
         providedProperties("responder" to responder)
     }
 
@@ -70,11 +89,11 @@ class KotlinScriptEvaluator(val config: ReplConfig, val responder: Responder) {
                 val evalResult = evaluator.eval(evaluatorState, compileResult)
                 when (evalResult) {
                     is ReplEvalResult.ValueResult -> {
-                        EvalResult.Success(ResultRenderer.renderResult(evalResult.value))
+                        EvalResult.Success(resultRenderer.renderResult(evalResult.value))
                     }
 
                     is ReplEvalResult.UnitResult -> {
-                        EvalResult.Success(ResultRenderer.renderResult(Unit))
+                        EvalResult.Success(resultRenderer.renderResult(Unit))
                     }
 
                     is ReplEvalResult.Error.Runtime -> {

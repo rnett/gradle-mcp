@@ -3,9 +3,17 @@ package dev.rnett.gradle.mcp.repl
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class KotlinCompilerPluginOption(
+    val pluginId: String,
+    val optionName: String,
+    val value: String
+)
+
+@Serializable
 data class ReplConfig(
     val classpath: List<String> = emptyList(),
-    val compilerClasspath: List<String> = emptyList(),
+    val pluginsClasspath: List<String> = emptyList(),
+    val compilerPluginOptions: List<KotlinCompilerPluginOption> = emptyList(),
     val compilerArgs: List<String> = emptyList()
 )
 
