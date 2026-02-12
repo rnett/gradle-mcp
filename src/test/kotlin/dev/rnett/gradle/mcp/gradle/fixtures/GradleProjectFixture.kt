@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.gradle.fixtures
 
+import dev.rnett.gradle.mcp.BuildConfig
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.writeText
@@ -54,7 +55,7 @@ class GradleProjectFixture private constructor(
  * Builder for creating test Gradle projects.
  */
 class GradleProjectBuilder(private val projectDir: Path) {
-    private var gradleVersion: String = "9.3.1"
+    private var gradleVersion: String = BuildConfig.GRADLE_VERSION
     private var settingsContent: String? = null
     private var buildScriptContent: String? = null
     private val subprojects = mutableListOf<SubprojectConfig>()
@@ -285,7 +286,7 @@ fun testKotlinProject(
         buildScript(
             """
             plugins {
-                kotlin("jvm") version "2.0.0"
+                kotlin("jvm") version "${BuildConfig.KOTLIN_VERSION}"
             }
             
             repositories {

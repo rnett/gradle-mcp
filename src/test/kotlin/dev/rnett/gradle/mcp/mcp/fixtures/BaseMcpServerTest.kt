@@ -28,7 +28,7 @@ abstract class BaseMcpServerTest {
     @TempDir
     lateinit var tempDir: Path
 
-    lateinit var server: McpServerFixture
+    protected lateinit var server: McpServerFixture
     protected val provider = mockk<GradleProvider>(relaxed = true)
 
     protected open fun createTestModule(): org.koin.core.module.Module = module {
@@ -72,7 +72,7 @@ abstract class BaseMcpServerTest {
     }
 
     @AfterTest
-    fun cleanup() = runTest {
+    open fun cleanup() = runTest {
         server.close()
     }
 }

@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.gradle
 
+import dev.rnett.gradle.mcp.BuildConfig
 import dev.rnett.gradle.mcp.gradle.fixtures.testGradleProject
 import kotlinx.coroutines.test.runTest
 import java.nio.file.Files
@@ -15,7 +16,7 @@ class ReplEnvInitScriptTest {
             buildScript(
                 """
                 plugins {
-                    kotlin("jvm") version "2.1.0"
+                    kotlin("jvm") version "${BuildConfig.KOTLIN_VERSION}"
                 }
                 
                 repositories {
@@ -75,7 +76,7 @@ class ReplEnvInitScriptTest {
             buildScript(
                 """
                 plugins {
-                    kotlin("multiplatform") version "2.1.0"
+                    kotlin("multiplatform") version "${BuildConfig.KOTLIN_VERSION}"
                 }
                 
                 repositories {
@@ -106,7 +107,7 @@ class ReplEnvInitScriptTest {
             buildScript(
                 """
                 plugins {
-                    kotlin("jvm") version "2.1.0"
+                    kotlin("jvm") version "${BuildConfig.KOTLIN_VERSION}"
                     java
                 }
                 
@@ -135,7 +136,7 @@ class ReplEnvInitScriptTest {
             buildScript(
                 """
                 plugins {
-                    kotlin("jvm") version "2.1.0"
+                    kotlin("jvm") version "${BuildConfig.KOTLIN_VERSION}"
                 }
                 
                 repositories {
@@ -184,7 +185,7 @@ class ReplEnvInitScriptTest {
             buildScript(
                 """
                 plugins {
-                    kotlin("jvm") version "2.1.0"
+                    kotlin("jvm") version "${BuildConfig.KOTLIN_VERSION}"
                 }
                 
                 repositories {
@@ -222,7 +223,7 @@ class ReplEnvInitScriptTest {
             buildScript(
                 """
                 plugins {
-                    kotlin("multiplatform") version "2.1.0"
+                    kotlin("multiplatform") version "${BuildConfig.KOTLIN_VERSION}"
                 }
                 
                 repositories {
@@ -258,7 +259,7 @@ class ReplEnvInitScriptTest {
             buildScript(
                 """
                 plugins {
-                    kotlin("jvm") version "2.1.0"
+                    kotlin("jvm") version "${BuildConfig.KOTLIN_VERSION}"
                 }
                 repositories {
                     mavenCentral()

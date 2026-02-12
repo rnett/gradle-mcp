@@ -133,6 +133,10 @@ tasks.named<UpdateDaemonJvm>("updateDaemonJvm") {
 buildConfig {
     packageName("dev.rnett.gradle.mcp")
     buildConfigField("APP_VERSION", provider { "${project.version}" })
+    buildConfigField("KOTLIN_VERSION", libs.versions.kotlin.get())
+    buildConfigField("KOTLINX_SERIALIZATION_VERSION", libs.versions.kotlinxSerializationJson.get())
+    buildConfigField("COMPOSE_VERSION", libs.versions.jetbrains.compose.get())
+    buildConfigField("GRADLE_VERSION", libs.versions.gradleToolingApi.get())
     buildConfigField("INIT_SCRIPTS", provider {
         project.projectDir.resolve("src/main/resources/init-scripts")
             .listFiles { file -> file.name.endsWith(".init.gradle.kts") }
