@@ -31,13 +31,19 @@ sealed class ReplSession {
     data class Terminated(val exitCode: Int, val output: String) : ReplSession()
 }
 
-interface ReplManager {
+interface ReplManager : AutoCloseable {
     suspend fun startSession(sessionId: String, config: ReplConfig, javaExecutable: String): Process
     fun getSession(sessionId: String): ReplSession?
     suspend fun terminateSession(sessionId: String)
     suspend fun closeAll()
 
     suspend fun sendRequest(sessionId: String, command: ReplRequest): Flow<ReplResponse>
+
+    override fun close() {
+        kotlinx.coroutines.runBlocking {
+            closeAll()
+        }
+    }
 }
 
 /**

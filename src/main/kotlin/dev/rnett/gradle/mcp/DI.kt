@@ -44,7 +44,7 @@ object DI {
         single { config.property("gradle").getAs<GradleConfiguration>() }
         single { DefaultInitScriptProvider() } bind InitScriptProvider::class
         single { DefaultBundledJarProvider() } bind BundledJarProvider::class
-        single { DefaultReplManager(get()) } bind ReplManager::class
+        single<ReplManager> { DefaultReplManager(get()) }
         single { BuildManager() }
         single<GradleProvider> {
             DefaultGradleProvider(

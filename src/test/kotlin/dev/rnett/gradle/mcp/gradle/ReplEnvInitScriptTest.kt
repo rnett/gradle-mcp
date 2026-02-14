@@ -4,11 +4,42 @@ import dev.rnett.gradle.mcp.BuildConfig
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.fixtures.testGradleProject
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.TestInstance
 import java.nio.file.Files
+import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.seconds
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ReplEnvInitScriptTest {
+
+    private lateinit var buildManager: BuildManager
+    private lateinit var provider: DefaultGradleProvider
+    private lateinit var tempInitScriptsDir: Path
+
+    @BeforeAll
+    fun setupAll() {
+        buildManager = BuildManager()
+        tempInitScriptsDir = Files.createTempDirectory("gradle-mcp-test-repl-env-init-")
+        provider = DefaultGradleProvider(
+            GradleConfiguration(
+                maxConnections = 5,
+                ttl = 60.seconds,
+                allowPublicScansPublishing = false
+            ),
+            initScriptProvider = DefaultInitScriptProvider(tempInitScriptsDir),
+            buildManager = buildManager
+        )
+    }
+
+    @AfterAll
+    fun cleanupAll() {
+        provider.close()
+        buildManager.close()
+        tempInitScriptsDir.toFile().deleteRecursively()
+    }
 
     @Test
     fun `repl-env init script extracts environment info for Kotlin JVM`() = runTest(timeout = 300.seconds) {
@@ -287,16 +318,6 @@ class ReplEnvInitScriptTest {
         project: dev.rnett.gradle.mcp.gradle.fixtures.GradleProjectFixture,
         vararg tasks: String
     ) {
-        val buildManager = BuildManager()
-        val provider = DefaultGradleProvider(
-            GradleConfiguration(
-                maxConnections = 5,
-                ttl = 60.seconds,
-                allowPublicScansPublishing = false
-            ),
-            initScriptProvider = DefaultInitScriptProvider(Files.createTempDirectory("gradle-mcp-test-run-gradle-")),
-            buildManager = buildManager
-        )
         val projectRoot = GradleProjectRoot(project.pathString())
         val args = GradleInvocationArguments(
             additionalArguments = tasks.toList(),
@@ -369,19 +390,13 @@ class ReplEnvInitScriptTest {
         sourceSet: String = "main",
         extraCode: String = ""
     ): String {
-        val buildManager = BuildManager()
-        val provider = DefaultGradleProvider(
-            GradleConfiguration(
-                maxConnections = 5,
-                ttl = 60.seconds,
-                allowPublicScansPublishing = false
-            ),
-            initScriptProvider = DefaultInitScriptProvider(tempDir),
-            buildManager = buildManager
-        )
         val projectRoot = GradleProjectRoot(project.pathString())
         val args = GradleInvocationArguments(
-            additionalArguments = listOf("resolveReplEnvironment", "-Pgradle-mcp.repl.sourceSet=$sourceSet", "-Pgradle-mcp.repl.testExtraCode=$extraCode"),
+            additionalArguments = listOf(
+                "resolveReplEnvironment",
+                "-Pgradle-mcp.repl.sourceSet=$sourceSet",
+                "-Pgradle-mcp.repl.testExtraCode=$extraCode"
+            ),
             additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
         ).withInitScript("repl-env")
 

@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp
 
 import io.ktor.server.config.MapApplicationConfig
+import kotlinx.coroutines.runBlocking
 import org.koin.core.context.stopKoin
 import org.koin.test.KoinTest
 import org.koin.test.check.checkModules
@@ -32,7 +33,7 @@ class StartupE2ETest : KoinTest {
     }
 
     @Test
-    fun `Application can be initialized with real DI`() {
+    fun `Application can be initialized with real DI`() = runBlocking {
         val config = loadConfig()
 
         val koinApp = DI.createKoin(config)
@@ -46,5 +47,7 @@ class StartupE2ETest : KoinTest {
         assertNotNull(provider)
         assertNotNull(replManager)
         assertNotNull(mcpServer)
+
+        mcpServer.close()
     }
 }

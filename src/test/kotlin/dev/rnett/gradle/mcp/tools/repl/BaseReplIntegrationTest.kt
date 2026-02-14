@@ -95,7 +95,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single { GradleConfiguration(4, 10.minutes, false) }
         single { DefaultInitScriptProvider(tempDir.resolve("init-scripts")) } bind InitScriptProvider::class
         single { DefaultBundledJarProvider(tempDir.resolve("jars")) } bind BundledJarProvider::class
-        single { BuildManager() }
+        single<BuildManager> { BuildManager() }
         single<ReplManager> { DefaultReplManager(get()) }
         single<GradleProvider> {
             DefaultGradleProvider(

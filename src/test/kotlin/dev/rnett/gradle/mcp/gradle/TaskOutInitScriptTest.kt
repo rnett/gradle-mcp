@@ -4,28 +4,47 @@ import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.TaskOutcome
 import dev.rnett.gradle.mcp.gradle.fixtures.testGradleProject
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.TestInstance
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.seconds
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class TaskOutInitScriptTest {
+
+    private lateinit var buildManager: BuildManager
+    private lateinit var provider: DefaultGradleProvider
+    private lateinit var tempInitScriptsDir: java.nio.file.Path
+
+    @BeforeAll
+    fun setupAll() {
+        buildManager = BuildManager()
+        tempInitScriptsDir = java.nio.file.Files.createTempDirectory("gradle-mcp-test-task-out-init-")
+        provider = DefaultGradleProvider(
+            GradleConfiguration(
+                maxConnections = 5,
+                ttl = 60.seconds,
+                allowPublicScansPublishing = false
+            ),
+            initScriptProvider = DefaultInitScriptProvider(tempInitScriptsDir),
+            buildManager = buildManager
+        )
+    }
+
+    @AfterAll
+    fun cleanupAll() {
+        provider.close()
+        buildManager.close()
+        tempInitScriptsDir.toFile().deleteRecursively()
+    }
 
 
     @Test
     fun `task-out init script is loaded`() = runTest(timeout = 300.seconds) {
-        val tempDir = java.nio.file.Files.createTempDirectory("gradle-mcp-test-init-")
         testGradleProject {
             buildScript("")
         }.use { project ->
-            val buildManager = BuildManager()
-            val provider = DefaultGradleProvider(
-                GradleConfiguration(
-                    maxConnections = 5,
-                    ttl = 60.seconds,
-                    allowPublicScansPublishing = false
-                ),
-                initScriptProvider = DefaultInitScriptProvider(tempDir),
-                buildManager = buildManager
-            )
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
                 additionalArguments = listOf("help", "-Pgradle-mcp.init-scripts.hello"),
@@ -59,16 +78,6 @@ class TaskOutInitScriptTest {
             """.trimIndent()
             )
         }.use { project ->
-            val buildManager = BuildManager()
-            val provider = DefaultGradleProvider(
-                GradleConfiguration(
-                    maxConnections = 5,
-                    ttl = 60.seconds,
-                    allowPublicScansPublishing = false
-                ),
-                initScriptProvider = DefaultInitScriptProvider(),
-                buildManager = buildManager
-            )
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
                 additionalArguments = listOf("printMessage"),
@@ -121,16 +130,6 @@ class TaskOutInitScriptTest {
             """.trimIndent()
             )
         }.use { project ->
-            val buildManager = BuildManager()
-            val provider = DefaultGradleProvider(
-                GradleConfiguration(
-                    maxConnections = 5,
-                    ttl = 60.seconds,
-                    allowPublicScansPublishing = false
-                ),
-                initScriptProvider = DefaultInitScriptProvider(),
-                buildManager = buildManager
-            )
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
                 additionalArguments = listOf("execTask"),
@@ -167,16 +166,6 @@ class TaskOutInitScriptTest {
             """.trimIndent()
             )
         }.use { project ->
-            val buildManager = BuildManager()
-            val provider = DefaultGradleProvider(
-                GradleConfiguration(
-                    maxConnections = 5,
-                    ttl = 60.seconds,
-                    allowPublicScansPublishing = false
-                ),
-                initScriptProvider = DefaultInitScriptProvider(),
-                buildManager = buildManager
-            )
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
                 additionalArguments = listOf("failInit"),

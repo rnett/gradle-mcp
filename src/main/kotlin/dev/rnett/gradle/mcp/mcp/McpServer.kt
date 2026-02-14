@@ -53,6 +53,18 @@ class McpServer(
             // Ensure component shutdown completes before close() returns
             kotlinx.coroutines.runBlocking {
                 components.forEach { it.close() }
+                components.mapNotNull {
+                    when (it) {
+                        is dev.rnett.gradle.mcp.tools.ReplTools -> it.replManager
+                        is dev.rnett.gradle.mcp.tools.GradleIntrospectionTools -> it.gradle
+                        is dev.rnett.gradle.mcp.tools.GradleExecutionTools -> it.gradle
+                        is dev.rnett.gradle.mcp.tools.BackgroundBuildTools -> it.gradle
+                        is dev.rnett.gradle.mcp.tools.GradleBuildLookupTools -> it.buildResults
+                        else -> null
+                    }
+                }.distinct().forEach {
+                    if (it is AutoCloseable) it.close()
+                }
             }
             scope.cancel("Server closing")
         }
