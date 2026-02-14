@@ -115,7 +115,9 @@ class DefaultReplManager(
             javaExecutable,
             "-jar",
             workerJar.absolutePathString()
-        ).start()
+        ).apply {
+            environment().putAll(config.env)
+        }.start()
 
         LOGGER.info("Process started: {}", process.pid())
 
@@ -285,3 +287,4 @@ class DefaultReplManager(
         private val LOGGER = LoggerFactory.getLogger(DefaultReplManager::class.java)
     }
 }
+

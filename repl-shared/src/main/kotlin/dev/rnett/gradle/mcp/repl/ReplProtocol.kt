@@ -14,7 +14,8 @@ data class ReplConfig(
     val classpath: List<String> = emptyList(),
     val pluginsClasspath: List<String> = emptyList(),
     val compilerPluginOptions: List<KotlinCompilerPluginOption> = emptyList(),
-    val compilerArgs: List<String> = emptyList()
+    val compilerArgs: List<String> = emptyList(),
+    val env: Map<String, String> = emptyMap()
 )
 
 @Serializable

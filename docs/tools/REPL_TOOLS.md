@@ -6,7 +6,8 @@ Tools for interacting with a Kotlin REPL session.
 
 ## project_repl
 
-Interacts with a Kotlin REPL session. The REPL runs with the classpath and compiler configuration (plugins, args) of a Gradle source set.
+Interacts with a Kotlin REPL session. The REPL runs with the classpath and compiler configuration (plugins, args) of a Gradle source set. The source set must be for a JVM target.
+The REPL uses a classpath that includes the source set and all of its dependencies. The REPL must be restarted to pick up changes to the classpath, compile configuration, or the source code.
 
 ### Example Use Cases
 - **Testing Project Logic**: Quickly test functions or classes from your project without writing a full test suite or main method.
@@ -15,7 +16,7 @@ Interacts with a Kotlin REPL session. The REPL runs with the classpath and compi
 - **Debugging**: Inspect the state of your project or dependencies interactively.
 
 ### Commands
-- `start`: Starts a new REPL session (replacing any existing one). Requires `projectPath` (e.g., `:app`) and `sourceSet` (e.g., `main`).
+- `start`: Starts a new REPL session (replacing any existing one). Requires `projectPath` (e.g., `:app`) and `sourceSet` (e.g., `main`). Can set env vars via `env`.
 - `stop`: Stops the currently active REPL session.
 - `run`: Executes a Kotlin code snippet in the current session. Requires `code`.
 
@@ -111,6 +112,13 @@ runComposeUiTest {
         "null"
       ],
       "description": "The source set to use (e.g., 'main'). Required for 'start'."
+    },
+    "env": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Environment variables to set in the REPL worker process Optional for 'start'."
     },
     "code": {
       "type": [
