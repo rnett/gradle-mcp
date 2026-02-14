@@ -28,7 +28,7 @@ object ToolNames {
     const val BACKGROUND_BUILD_STOP = "background_build_stop"
 
     // REPL Tools
-    const val REPL = "repl"
+    const val REPL = "project_repl"
     const val UPDATE_TOOLS = "update_tools"
 }
 

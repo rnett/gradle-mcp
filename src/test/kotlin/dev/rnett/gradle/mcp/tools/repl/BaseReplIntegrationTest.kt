@@ -78,7 +78,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
 
     protected suspend fun startRepl(projectPath: String = ":", sourceSet: String = "main") {
         val startResponse = server.client.callTool(
-            "repl", mapOf(
+            "project_repl", mapOf(
                 "command" to "start",
                 "projectPath" to projectPath,
                 "sourceSet" to sourceSet
@@ -116,7 +116,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
 
     protected suspend fun runSnippetAndAssertImage(code: String, resourceName: String) {
         val response = server.client.callTool(
-            "repl", mapOf(
+            "project_repl", mapOf(
                 "command" to "run",
                 "code" to code
             )
@@ -131,7 +131,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
 
     protected suspend fun runSnippet(code: String): String {
         val response = server.client.callTool(
-            "repl", mapOf(
+            "project_repl", mapOf(
                 "command" to "run",
                 "code" to code
             )

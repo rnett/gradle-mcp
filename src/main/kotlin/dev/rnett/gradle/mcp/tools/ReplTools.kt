@@ -54,6 +54,12 @@ class ReplTools(
         """
             |Interacts with a Kotlin REPL session. The REPL runs with the classpath and compiler configuration (plugins, args) of a Gradle source set.
             |
+            |### Example Use Cases
+            |- **Testing Project Logic**: Quickly test functions or classes from your project without writing a full test suite or main method.
+            |- **Compose UI Inspection**: Render Compose components to images for visual verification.
+            |- **Rapid Prototyping**: Experiment with new libraries or Kotlin features in the context of your project's environment.
+            |- **Debugging**: Inspect the state of your project or dependencies interactively.
+            |
             |### Commands
             |- `start`: Starts a new REPL session (replacing any existing one). Requires `projectPath` (e.g., `:app`) and `sourceSet` (e.g., `main`).
             |- `stop`: Stops the currently active REPL session.
@@ -64,12 +70,6 @@ class ReplTools(
             |- **Last Expression**: The result of the last expression in your snippet is automatically rendered.
             |- **Responder**: A `responder: dev.rnett.gradle.mcp.repl.Responder` top-level property is available for manual output (no import necessary). Use it to return multiple items or specific formats to the MCP output.
             |
-            |Methods on `dev.rnett.gradle.mcp.repl.Responder`:
-            |- `render(value: Any?, mime: String? = null)`: Manually render a value. If `mime` is null, it is automatically detected.
-            |- `markdown(md: String)`: Render a markdown string.
-            |- `html(fragment: String)`: Render an HTML fragment.
-            |- `image(bytes: ByteArray, mime: String = "image/png")`: Render an image from bytes.
-            |
             |### Automatic Rendering and Content Types
             |The tool returns a list of content items (text, images, etc.) in order of execution.
             |- Common image types (AWT `BufferedImage`, Compose `ImageBitmap`, Android `Bitmap`, or `ByteArray` with image headers) are automatically rendered as images.
@@ -78,13 +78,52 @@ class ReplTools(
             |- All other types are rendered via `toString()`.
             |- Standard out and error is also included in the tool result.
             |
-            |Example using `responder`:
+            |### Examples
+            |
+            |#### Basic Usage
+            |```kotlin
+            |val x = 10
+            |val y = 20
+            |x + y // Result: 30
+            |```
+            |
+            |#### Using Project Classes
+            |```kotlin
+            |import com.example.MyService
+            |val service = MyService()
+            |service.doSomething()
+            |```
+            |
+            |#### Using the Responder
             |```kotlin
             |println("Generating plot...")
             |responder.image(plotBytes, "image/png")
             |println("Plot generated.")
             |"Success" // Last expression
             |```
+            |
+            |#### Compose UI Preview
+            |```kotlin
+            |import androidx.compose.ui.test.*
+            |import com.example.MyComposable
+            |
+            |runComposeUiTest {
+            |    setContent {
+            |        MyComposable()
+            |    }
+            |    val node = onRoot()
+            |    val bitmap = node.captureToImage()
+            |    responder.render(bitmap) // Renders the composable as an image
+            |}
+            |```
+            |
+            |### Important Notes
+            |- **Source Changes**: Changes to the project's source code will **not** be reflected in an active REPL session. You must `stop` and `start` the REPL to pick up changes to project classes.
+            |- **Methods on Responder**:
+            |  - `render(value: Any?, mime: String? = null)`: Manually render a value. If `mime` is null, it is automatically detected.
+            |  - `markdown(md: String)`: Render a markdown string.
+            |  - `html(fragment: String)`: Render an HTML fragment.
+            |  - `image(bytes: ByteArray, mime: String = "image/png")`: Render an image from bytes.
         """.trimMargin()
     ) {
         when (it.command) {
@@ -112,7 +151,11 @@ class ReplTools(
         val result = gradle.runBuild(
             projectRoot,
             GradleInvocationArguments(
-                additionalArguments = listOf(taskPath, "-Pgradle-mcp.repl.sourceSet=$sourceSet"),
+                additionalArguments = listOf(
+                    taskPath,
+                    "-Pgradle-mcp.repl.project=$projectPath",
+                    "-Pgradle-mcp.repl.sourceSet=$sourceSet"
+                ),
                 requestedInitScripts = listOf(InitScriptNames.REPL_ENV)
             ),
             { context.run { ScansTosManager.askForScansTos(projectRoot, it) } }

@@ -11,4 +11,13 @@
   ],
   automerge: true,
   "pruneStaleBranches": false,
+  "packageRules": [
+    {
+      "matchPackageNames": [
+        "com.android.tools.build:gradle"
+      ],
+      "matchCurrentVersion": "/^8\\./",
+      "allowedVersions": "< 9.0.0"
+    }
+  ]
 }

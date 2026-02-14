@@ -137,6 +137,13 @@ buildConfig {
     buildConfigField("KOTLINX_SERIALIZATION_VERSION", libs.versions.kotlinxSerializationJson.get())
     buildConfigField("COMPOSE_VERSION", libs.versions.jetbrains.compose.get())
     buildConfigField("GRADLE_VERSION", libs.versions.gradleToolingApi.get())
+    buildConfigField("AGP_9_VERSION", libs.versions.agp9.get())
+    buildConfigField("AGP_8_VERSION", libs.versions.agp8.get())
+    buildConfigField("ANDROIDX_COMPOSE_VERSION", libs.versions.androidxCompose.get())
+    buildConfigField("ANDROID_COMPILE_SDK", "35")
+    buildConfigField("ANDROID_MIN_SDK", "24")
+    buildConfigField("ANDROID_TARGET_SDK", "35")
+    buildConfigField("ANDROIDX_ACTIVITY_COMPOSE_VERSION", libs.versions.androidxActivityCompose.get())
     buildConfigField("INIT_SCRIPTS", provider {
         project.projectDir.resolve("src/main/resources/init-scripts")
             .listFiles { file -> file.name.endsWith(".init.gradle.kts") }

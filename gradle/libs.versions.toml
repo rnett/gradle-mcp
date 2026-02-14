@@ -15,6 +15,10 @@ koin = "4.1.1"
 junit = "6.0.2"
 mockk = "1.14.9"
 jetbrains-compose = "1.10.1"
+agp9 = "9.0.0"
+agp8 = "8.8.0"
+androidxCompose = "1.7.0"
+androidxActivityCompose = "1.9.1"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -56,3 +60,7 @@ slf4j-api = { module = "org.slf4j:slf4j-api", version = "2.0.17" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version = "2.0.17" }
 compose-graphics = { module = "org.jetbrains.compose.ui:ui-graphics", version.ref = "jetbrains-compose" }
 compose-graphics-desktop = { module = "org.jetbrains.compose.ui:ui-graphics-desktop", version.ref = "jetbrains-compose" }
+androidx-compose-ui = { module = "androidx.compose.ui:ui", version.ref = "androidxCompose" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivityCompose" }
+android-gradle-plugin-nine-dummy = { module = "com.android.tools.build:gradle", version.ref = "agp9" }
+android-gradle-plugin-eight-dummy = { module = "com.android.tools.build:gradle", version.ref = "agp8" }
