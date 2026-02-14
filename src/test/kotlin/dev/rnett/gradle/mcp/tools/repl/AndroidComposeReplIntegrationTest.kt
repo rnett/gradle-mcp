@@ -10,7 +10,7 @@ import kotlin.test.Test
 import kotlin.time.Duration.Companion.minutes
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
-class AndroidCompose9ReplIntegrationTest : BaseReplIntegrationTest() {
+class AndroidComposeReplIntegrationTest : BaseReplIntegrationTest() {
 
     private fun setupAndroidProject(agpVersion: String) {
         initProject(testGradleProject {
@@ -107,7 +107,7 @@ class AndroidCompose9ReplIntegrationTest : BaseReplIntegrationTest() {
 
     @Test
     @Order(1)
-    fun `Android Compose REPL with AGP 9`() = runTest(timeout = 10.minutes) {
+    fun `Android Compose REPL`() = runTest(timeout = 10.minutes) {
         setupAndroidProject(BuildConfig.AGP_9_VERSION)
         startRepl(projectPath = ":", sourceSet = "debug")
     }

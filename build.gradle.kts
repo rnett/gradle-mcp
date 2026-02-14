@@ -138,7 +138,6 @@ buildConfig {
     buildConfigField("COMPOSE_VERSION", libs.versions.jetbrains.compose.get())
     buildConfigField("GRADLE_VERSION", libs.versions.gradleToolingApi.get())
     buildConfigField("AGP_9_VERSION", libs.versions.agp9.get())
-    buildConfigField("AGP_8_VERSION", libs.versions.agp8.get())
     buildConfigField("ANDROIDX_COMPOSE_VERSION", libs.versions.androidxCompose.get())
     buildConfigField("ANDROID_COMPILE_SDK", "35")
     buildConfigField("ANDROID_MIN_SDK", "24")

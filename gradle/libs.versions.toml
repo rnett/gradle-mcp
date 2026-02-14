@@ -16,9 +16,8 @@ junit = "6.0.2"
 mockk = "1.14.9"
 jetbrains-compose = "1.10.1"
 agp9 = "9.0.1"
-agp8 = "8.13.2"
 androidxCompose = "1.10.3"
-androidxActivityCompose = "1.9.1"
+androidxActivityCompose = "1.12.4"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -63,4 +62,3 @@ compose-graphics-desktop = { module = "org.jetbrains.compose.ui:ui-graphics-desk
 androidx-compose-ui = { module = "androidx.compose.ui:ui", version.ref = "androidxCompose" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivityCompose" }
 android-gradle-plugin-nine-dummy = { module = "com.android.tools.build:gradle", version.ref = "agp9" }
-android-gradle-plugin-eight-dummy = { module = "com.android.tools.build:gradle", version.ref = "agp8" }
