@@ -13,6 +13,7 @@ import dev.rnett.gradle.mcp.gradle.fixtures.GradleProjectFixture
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import dev.rnett.gradle.mcp.repl.DefaultReplManager
 import dev.rnett.gradle.mcp.repl.ReplManager
+import dev.rnett.gradle.mcp.tools.ToolNames
 import io.modelcontextprotocol.kotlin.sdk.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.ImageContent
 import io.modelcontextprotocol.kotlin.sdk.Root
@@ -44,7 +45,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
     fun cleanupAll() {
         runBlocking {
             try {
-                server.client.callTool("repl", mapOf("command" to "stop"))
+                server.client.callTool(ToolNames.REPL, mapOf("command" to "stop"))
             } catch (e: Exception) {
                 // Ignore
             }
@@ -77,7 +78,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
 
     protected suspend fun startRepl(projectPath: String = ":", sourceSet: String = "main") {
         val startResponse = server.client.callTool(
-            "project_repl", mapOf(
+            ToolNames.REPL, mapOf(
                 "command" to "start",
                 "projectPath" to projectPath,
                 "sourceSet" to sourceSet
@@ -113,7 +114,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
 
     protected suspend fun runSnippetAndAssertImage(code: String, resourceName: String) {
         val response = server.client.callTool(
-            "project_repl", mapOf(
+            ToolNames.REPL, mapOf(
                 "command" to "run",
                 "code" to code
             )
@@ -128,7 +129,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
 
     protected suspend fun runSnippet(code: String): String {
         val response = server.client.callTool(
-            "project_repl", mapOf(
+            ToolNames.REPL, mapOf(
                 "command" to "run",
                 "code" to code
             )

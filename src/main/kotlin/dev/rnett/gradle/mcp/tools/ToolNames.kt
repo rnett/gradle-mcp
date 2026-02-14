@@ -29,7 +29,6 @@ object ToolNames {
 
     // REPL Tools
     const val REPL = "project_repl"
-    const val UPDATE_TOOLS = "update_tools"
 }
 
 object InitScriptNames {
