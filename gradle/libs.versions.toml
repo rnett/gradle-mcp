@@ -1,7 +1,7 @@
 [versions]
 kotlin = "2.3.10"
 ktor = "3.4.0"
-logback = "1.5.30"
+logback = "1.5.31"
 caffeine = "3.2.3"
 commonsIo = "2.21.0"
 schemaKenerator = "2.6.0"
