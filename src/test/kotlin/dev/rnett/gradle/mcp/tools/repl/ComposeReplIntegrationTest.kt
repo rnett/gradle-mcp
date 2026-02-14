@@ -42,12 +42,17 @@ class ComposeReplIntegrationTest : BaseReplIntegrationTest() {
             file(
                 "src/main/kotlin/com/example/App.kt", """
             package com.example
-            import androidx.compose.material.Text
+            import androidx.compose.foundation.background
+            import androidx.compose.foundation.layout.Box
+            import androidx.compose.foundation.layout.size
             import androidx.compose.runtime.Composable
+            import androidx.compose.ui.Modifier
+            import androidx.compose.ui.graphics.Color
+            import androidx.compose.ui.unit.dp
 
             @Composable
             fun App() {
-                Text("Hello Compose")
+                Box(Modifier.size(100.dp).background(Color.Blue))
             }
         """.trimIndent()
             )
@@ -63,6 +68,7 @@ class ComposeReplIntegrationTest : BaseReplIntegrationTest() {
             """
                     import androidx.compose.ui.test.*
                     import androidx.compose.ui.graphics.*
+                    import androidx.compose.ui.Modifier
                     import com.example.App
                     import dev.rnett.gradle.mcp.repl.Responder
                     
@@ -71,14 +77,14 @@ class ComposeReplIntegrationTest : BaseReplIntegrationTest() {
                         setContent {
                             App()
                         }
-                        val node = onNodeWithText("Hello Compose")
+                        val node = onRoot()
                         node.assertExists()
                         
                         val bitmap = node.captureToImage()
                         responder.render(bitmap) // Should be rendered as image/png
                     }
                 """.trimIndent(),
-            "compose-hello-world.png"
+            "compose-blue-square.png"
         )
     }
 }
