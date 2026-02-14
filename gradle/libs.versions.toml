@@ -18,7 +18,7 @@ jetbrains-compose = "1.10.1"
 agp9 = "9.0.1"
 agp8 = "8.13.2"
 androidxCompose = "1.10.3"
-androidxActivityCompose = "1.9.1"
+androidxActivityCompose = "1.12.4"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
