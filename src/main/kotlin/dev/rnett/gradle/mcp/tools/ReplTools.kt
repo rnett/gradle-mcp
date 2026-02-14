@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.tools
 
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProvider
+import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.repl.KotlinCompilerPluginOption
 import dev.rnett.gradle.mcp.repl.ReplConfig
@@ -148,7 +149,7 @@ class ReplTools(
 
         val taskPath = if (projectPath == ":") ":resolveReplEnvironment" else "$projectPath:resolveReplEnvironment"
 
-        val result = gradle.runBuild(
+        val running = gradle.runBuild(
             projectRoot,
             GradleInvocationArguments(
                 additionalArguments = listOf(
@@ -159,13 +160,13 @@ class ReplTools(
                 requestedInitScripts = listOf(InitScriptNames.REPL_ENV)
             ),
             { context.run { ScansTosManager.askForScansTos(projectRoot, it) } }
-        ).awaitFinished()
-
-        if (result.buildResult.isSuccessful != true) {
-            return CallToolResult(listOf(TextContent("Failed to resolve REPL environment because Gradle task failed:\n${result.buildResult.toOutputString()}")), isError = true)
+        )
+        val finished = running.awaitFinished()
+        if (finished.outcome !is BuildOutcome.Success) {
+            return CallToolResult(listOf(TextContent("Failed to resolve REPL environment because Gradle task failed:\n${finished.toOutputString()}")), isError = true)
         }
 
-        val output = result.buildResult.consoleOutput.toString()
+        val output = finished.consoleOutput.toString()
         val envLines = output.lines().filter { it.contains("[gradle-mcp-repl-env]") }
 
         val classpath = envLines.find { it.contains("classpath=") }?.substringAfter("classpath=")?.split(";")?.filter { it.isNotBlank() } ?: emptyList()

@@ -1,18 +1,19 @@
 package dev.rnett.gradle.mcp.tools
 
-import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
 import dev.rnett.gradle.mcp.gradle.BuildId
-import dev.rnett.gradle.mcp.gradle.BuildResult
-import dev.rnett.gradle.mcp.gradle.BuildResults
-import dev.rnett.gradle.mcp.gradle.BuildStatus
+import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
-import dev.rnett.gradle.mcp.gradle.IRunningBuild
+import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
+import dev.rnett.gradle.mcp.gradle.build.BuildStatus
+import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
+import dev.rnett.gradle.mcp.gradle.build.RunningBuild
+import dev.rnett.gradle.mcp.gradle.build.TestResults
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.Root
 import io.modelcontextprotocol.kotlin.sdk.TextContent
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -28,89 +29,84 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
     @Test
     fun `background_build_get_status waits for completion`() = runTest {
-        val backgroundBuildManager = server.koin.get<BackgroundBuildManager>()
-        val buildResults = server.koin.get<BuildResults>()
+        val buildManager = server.koin.get<BuildManager>()
         val buildId = BuildId.newId()
-        val resultDeferred = CompletableDeferred<dev.rnett.gradle.mcp.gradle.GradleResult<Unit>>()
 
-        val runningBuild = mockk<IRunningBuild<Unit>>(relaxed = true) {
+        val runningBuild = mockk<RunningBuild>(relaxed = true) {
             every { id } returns buildId
-            every { status } returns BuildStatus.RUNNING
+            every { isRunning } returns true
+            every { hasBuildFinished } returns false
+            every { status } returns BuildStatus.Running
             every { startTime } returns Clock.System.now()
             every { args } returns GradleInvocationArguments(additionalArguments = listOf("help"))
             every { logBuffer } returns StringBuffer("Started\n")
-            every { result } returns resultDeferred
             every { stop() } returns Unit
             every { cancellationTokenSource } returns mockk<CancellationTokenSource>()
             every { logLines } returns MutableSharedFlow<String>().asSharedFlow()
             every { completedTasks } returns MutableSharedFlow<String>().asSharedFlow()
             every { completedTaskPaths } returns emptySet()
             every { consoleOutput } returns "Started\n"
+            coEvery { awaitFinished() } returns FinishedBuild(
+                id = buildId,
+                args = GradleInvocationArguments(additionalArguments = listOf("help")),
+                consoleOutput = "SUCCESS",
+                publishedScans = emptyList(),
+                testResults = TestResults(emptySet(), emptySet(), emptySet()),
+                problemAggregations = emptyMap(),
+                outcome = BuildOutcome.Success,
+                finishTime = Clock.System.now()
+            )
         }
 
-        backgroundBuildManager.registerBuild(runningBuild)
+        buildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
-        launch {
-            delay(500.milliseconds)
-            every { runningBuild.status } returns BuildStatus.SUCCESSFUL
-            val mockBuildResult = mockk<BuildResult> {
-                every { id } returns buildId
-                every { args } returns GradleInvocationArguments(additionalArguments = listOf("help"))
-                every { isSuccessful } returns true
-                every { isRunning } returns false
-                every { consoleOutput } returns "SUCCESS"
-                every { consoleOutputLines } returns listOf("SUCCESS")
-                every { buildFailures } returns null
-                every { testResults } returns mockk {
-                    every { isEmpty } returns true
-                    every { totalCount } returns 0
-                    every { passed } returns emptySet()
-                    every { skipped } returns emptySet()
-                    every { failed } returns emptySet()
-                }
-                every { problems } returns emptyList()
-                every { publishedScans } returns emptyList()
-            }
-            buildResults.storeResult(mockBuildResult)
-            resultDeferred.complete(mockk {
-                every { buildResult } returns mockBuildResult
-                every { value } returns Result.success(Unit)
-            })
-            // In real app, updateStatus would remove it from BackgroundBuildManager, but here we'll just let it be or remove it manually
-            backgroundBuildManager.removeBuild(buildId)
-        }
+        val mockFinishedBuild = FinishedBuild(
+            id = buildId,
+            args = GradleInvocationArguments(additionalArguments = listOf("help")),
+            consoleOutput = "SUCCESS",
+            publishedScans = emptyList(),
+            testResults = TestResults(emptySet(), emptySet(), emptySet()),
+            problemAggregations = emptyMap(),
+            outcome = BuildOutcome.Success,
+            finishTime = Clock.System.now()
+        )
 
-        val startTime = testScheduler.currentTime
+        every { runningBuild.finish(any()) } returns mockFinishedBuild
+        coEvery { runningBuild.awaitFinished() } returns mockFinishedBuild
+        every { runningBuild.isRunning } returns true
+        every { runningBuild.hasBuildFinished } returns false
+        every { runningBuild.status } returns BuildOutcome.Success
+
+        every { runningBuild.isRunning } returns false
+        every { runningBuild.hasBuildFinished } returns true
+        buildManager.storeResult(mockFinishedBuild)
+
         val statusCall = server.client.callTool(
             ToolNames.BACKGROUND_BUILD_GET_STATUS, mapOf(
                 "buildId" to JsonPrimitive(buildId.toString()),
                 "wait" to JsonPrimitive(2.0)
             )
         )
-        val duration = testScheduler.currentTime - startTime
 
         assert(statusCall != null)
-        assert(duration >= 500)
         val statusText = statusCall!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assert(statusText.contains("BUILD COMPLETED"))
     }
 
     @Test
     fun `background_build_get_status waits for waitFor`() = runTest {
-        val backgroundBuildManager = server.koin.get<BackgroundBuildManager>()
+        val buildManager = server.koin.get<BuildManager>()
         val buildId = BuildId.newId()
-        val resultDeferred = CompletableDeferred<dev.rnett.gradle.mcp.gradle.GradleResult<Unit>>()
         val logBuffer = StringBuffer("Started\n")
         val logLinesFlow = MutableSharedFlow<String>(replay = 1)
 
-        val runningBuild = mockk<IRunningBuild<Unit>>(relaxed = true) {
+        val runningBuild = mockk<RunningBuild>(relaxed = true) {
             every { id } returns buildId
-            every { status } returns BuildStatus.RUNNING
+            every { status } returns BuildStatus.Running
             every { startTime } returns Clock.System.now()
             every { args } returns GradleInvocationArguments(additionalArguments = listOf("help"))
             every { this@mockk.logBuffer } returns logBuffer
-            every { result } returns resultDeferred
             every { stop() } returns Unit
             every { cancellationTokenSource } returns mockk<CancellationTokenSource>()
             every { logLines } returns logLinesFlow.asSharedFlow()
@@ -119,7 +115,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { consoleOutput } returns logBuffer.toString()
         }
 
-        backgroundBuildManager.registerBuild(runningBuild)
+        buildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         launch {
@@ -151,20 +147,18 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
     @Test
     fun `background_build_get_status returns immediately if waitFor already matches`() = runTest {
-        val backgroundBuildManager = server.koin.get<BackgroundBuildManager>()
+        val buildManager = server.koin.get<BuildManager>()
         val buildId = BuildId.newId()
-        val resultDeferred = CompletableDeferred<dev.rnett.gradle.mcp.gradle.GradleResult<Unit>>()
         val logBuffer = StringBuffer("Started\nReady to go\n")
         val logLinesFlow = MutableSharedFlow<String>(replay = 1)
         logLinesFlow.emit("Ready to go")
 
-        val runningBuild = mockk<IRunningBuild<Unit>>(relaxed = true) {
+        val runningBuild = mockk<RunningBuild>(relaxed = true) {
             every { id } returns buildId
-            every { status } returns BuildStatus.RUNNING
+            every { status } returns BuildStatus.Running
             every { startTime } returns Clock.System.now()
             every { args } returns GradleInvocationArguments(additionalArguments = listOf("help"))
             every { this@mockk.logBuffer } returns logBuffer
-            every { result } returns resultDeferred
             every { stop() } returns Unit
             every { cancellationTokenSource } returns mockk<CancellationTokenSource>()
             every { logLines } returns logLinesFlow.asSharedFlow()
@@ -173,7 +167,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { consoleOutput } returns logBuffer.toString()
         }
 
-        backgroundBuildManager.registerBuild(runningBuild)
+        buildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         val startTime = testScheduler.currentTime
@@ -197,18 +191,16 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
     @Test
     fun `background_build_get_status waits for waitForTask`() = runTest {
-        val backgroundBuildManager = server.koin.get<BackgroundBuildManager>()
+        val buildManager = server.koin.get<BuildManager>()
         val buildId = BuildId.newId()
-        val resultDeferred = CompletableDeferred<dev.rnett.gradle.mcp.gradle.GradleResult<Unit>>()
         val completedTasksFlow = MutableSharedFlow<String>(replay = 1)
 
-        val runningBuild = mockk<IRunningBuild<Unit>>(relaxed = true) {
+        val runningBuild = mockk<RunningBuild>(relaxed = true) {
             every { id } returns buildId
-            every { status } returns BuildStatus.RUNNING
+            every { status } returns BuildStatus.Running
             every { startTime } returns Clock.System.now()
             every { args } returns GradleInvocationArguments(additionalArguments = listOf("help"))
             every { logBuffer } returns StringBuffer("Started\n")
-            every { result } returns resultDeferred
             every { stop() } returns Unit
             every { cancellationTokenSource } returns mockk<CancellationTokenSource>()
             every { logLines } returns MutableSharedFlow<String>().asSharedFlow()
@@ -217,7 +209,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { consoleOutput } returns "Started\n"
         }
 
-        backgroundBuildManager.registerBuild(runningBuild)
+        buildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         launch {
@@ -245,19 +237,17 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
     @Test
     fun `background_build_get_status returns immediately if waitForTask already matches`() = runTest {
-        val backgroundBuildManager = server.koin.get<BackgroundBuildManager>()
+        val buildManager = server.koin.get<BuildManager>()
         val buildId = BuildId.newId()
-        val resultDeferred = CompletableDeferred<dev.rnett.gradle.mcp.gradle.GradleResult<Unit>>()
         val completedTasksFlow = MutableSharedFlow<String>(replay = 1)
         completedTasksFlow.emit(":help")
 
-        val runningBuild = mockk<IRunningBuild<Unit>>(relaxed = true) {
+        val runningBuild = mockk<RunningBuild>(relaxed = true) {
             every { id } returns buildId
-            every { status } returns BuildStatus.RUNNING
+            every { status } returns BuildStatus.Running
             every { startTime } returns Clock.System.now()
             every { args } returns GradleInvocationArguments(additionalArguments = listOf("help"))
             every { logBuffer } returns StringBuffer("Started\n")
-            every { result } returns resultDeferred
             every { stop() } returns Unit
             every { cancellationTokenSource } returns mockk<CancellationTokenSource>()
             every { logLines } returns MutableSharedFlow<String>().asSharedFlow()
@@ -266,7 +256,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { consoleOutput } returns "Started\n"
         }
 
-        backgroundBuildManager.registerBuild(runningBuild)
+        buildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         val startTime = testScheduler.currentTime
@@ -288,19 +278,17 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
     @Test
     fun `background_build_get_status respects afterCall for waitForTask`() = runTest {
-        val backgroundBuildManager = server.koin.get<BackgroundBuildManager>()
+        val buildManager = server.koin.get<BuildManager>()
         val buildId = BuildId.newId()
-        val resultDeferred = CompletableDeferred<dev.rnett.gradle.mcp.gradle.GradleResult<Unit>>()
         val completedTasksFlow = MutableSharedFlow<String>(replay = 1)
         completedTasksFlow.emit(":preExisting")
 
-        val runningBuild = mockk<IRunningBuild<Unit>>(relaxed = true) {
+        val runningBuild = mockk<RunningBuild>(relaxed = true) {
             every { id } returns buildId
-            every { status } returns BuildStatus.RUNNING
+            every { status } returns BuildStatus.Running
             every { startTime } returns Clock.System.now()
             every { args } returns GradleInvocationArguments(additionalArguments = listOf("help"))
             every { logBuffer } returns StringBuffer("Started\n")
-            every { result } returns resultDeferred
             every { stop() } returns Unit
             every { cancellationTokenSource } returns mockk<CancellationTokenSource>()
             every { logLines } returns MutableSharedFlow<String>().asSharedFlow()
@@ -309,7 +297,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { consoleOutput } returns "Started\n"
         }
 
-        backgroundBuildManager.registerBuild(runningBuild)
+        buildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         launch {

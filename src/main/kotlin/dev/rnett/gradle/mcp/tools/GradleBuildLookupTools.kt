@@ -1,13 +1,15 @@
 package dev.rnett.gradle.mcp.tools
 
 import dev.rnett.gradle.mcp.gradle.BuildId
-import dev.rnett.gradle.mcp.gradle.BuildResult
-import dev.rnett.gradle.mcp.gradle.BuildResults
-import dev.rnett.gradle.mcp.gradle.FailureId
+import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.ProblemId
-import dev.rnett.gradle.mcp.gradle.RunningBuild
-import dev.rnett.gradle.mcp.gradle.TaskOutcome
-import dev.rnett.gradle.mcp.gradle.TestOutcome
+import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
+import dev.rnett.gradle.mcp.gradle.build.FailureId
+import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
+import dev.rnett.gradle.mcp.gradle.build.RunningBuild
+import dev.rnett.gradle.mcp.gradle.build.TaskOutcome
+import dev.rnett.gradle.mcp.gradle.build.TestOutcome
+import dev.rnett.gradle.mcp.gradle.build.failuresIfFailed
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
@@ -15,7 +17,7 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
 
-class GradleBuildLookupTools(val buildResults: BuildResults) : McpServerComponent("Lookup Tools", "Tools for looking up detailed information about past Gradle builds ran by this MCP server.") {
+class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponent("Lookup Tools", "Tools for looking up detailed information about past Gradle builds ran by this MCP server.") {
 
     companion object {
         const val BUILD_ID_DESCRIPTION = "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
@@ -35,12 +37,16 @@ class GradleBuildLookupTools(val buildResults: BuildResults) : McpServerComponen
         ToolNames.LOOKUP_LATEST_BUILDS,
         "Gets the latest builds (both background and completed) ran by this MCP server."
     ) {
-        val completed = buildResults.latest(it.maxBuilds)
-        val active = if (it.onlyCompleted) emptyList() else buildResults.backgroundBuildManager.listBuilds()
+        val completed = buildResults.latestFinished(it.maxBuilds)
+        val active = if (it.onlyCompleted) emptyList() else buildResults.listRunningBuilds()
 
         val all = (completed.map { it to false } + active.map { it to true })
             .sortedByDescending { (b, _) -> b.id.timestamp }
             .take(it.maxBuilds)
+
+        if (all.isEmpty()) {
+            return@tool "No builds found"
+        }
 
         buildString {
             appendLine("BuildId | Command line | Seconds ago | Status | Build failures | Test failures")
@@ -54,14 +60,14 @@ class GradleBuildLookupTools(val buildResults: BuildResults) : McpServerComponen
                 append(secondsAgo).append("s ago | ")
 
                 if (isActive) {
-                    val rb = build as RunningBuild<*>
+                    val rb = build as RunningBuild
                     append(rb.status).append(" | ")
                     append("-").append(" | ")
                     appendLine("-")
                 } else {
-                    val br = build as BuildResult
-                    append(if (br.isSuccessful == true) "SUCCESS" else "FAILURE").append(" | ")
-                    append(br.buildFailures?.size ?: 0).append(" | ")
+                    val br = build as FinishedBuild
+                    append(if (br.outcome is BuildOutcome.Success) "SUCCESS" else "FAILURE").append(" | ")
+                    append(br.outcome.failuresIfFailed?.size ?: 0).append(" | ")
                     appendLine(br.testResults.failed.size)
                 }
             }
@@ -111,7 +117,7 @@ class GradleBuildLookupTools(val buildResults: BuildResults) : McpServerComponen
             val tests = build.testResults.all.filter { t -> t.testName == it.details.testName }.toList()
 
             if (tests.isEmpty()) {
-                val isRunning = build is RunningBuild<*> || build.isRunning
+                val isRunning = build is RunningBuild || build.isRunning
                 if (isRunning) {
                     return@tool "Test not found. The build is still running, so it may not have been executed yet."
                 } else {
@@ -301,10 +307,10 @@ class GradleBuildLookupTools(val buildResults: BuildResults) : McpServerComponen
 
         val build = buildResults.require(it.buildId)
 
-        val failures = build.allFailures
+        val allFailures = if (build is FinishedBuild) build.allFailures else build.allTestFailures
 
         if (it.details != null) {
-            val failure = failures[it.details.failureId]
+            val failure = allFailures[it.details.failureId]
                 ?: error("No failure with ID ${it.details.failureId} found for build ${build.id}")
 
             return@tool buildString {
@@ -314,10 +320,10 @@ class GradleBuildLookupTools(val buildResults: BuildResults) : McpServerComponen
 
         buildString {
             appendLine("Id | Message")
-            failures.forEach { (id, failure) ->
+            allFailures.forEach { (id, failure) ->
                 appendLine("${id.id} : ${failure.message}")
             }
-            if (build.isRunning && failures.isEmpty()) {
+            if (build.isRunning && allFailures.isEmpty()) {
                 appendLine("No failures found yet. The build is still running.")
             }
         }

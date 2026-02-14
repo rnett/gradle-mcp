@@ -26,7 +26,7 @@ suspend inline fun <reified T : Model> GradleProvider.getBuildModel(
         },
         stderrLineHandler = { ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it) },
         requiresGradleProject = requiresGradleProject
-    ).awaitFinished()
+    )
 }
 
 
@@ -36,7 +36,7 @@ suspend inline fun GradleProvider.doBuild(
     invocationArgs: GradleInvocationArguments,
 ): GradleResult<Unit> {
     val root = projectRoot.resolve()
-    return runBuild(
+    val running = runBuild(
         root,
         invocationArgs.withInitScript(InitScriptNames.TASK_OUT),
         { ScansTosManager.askForScansTos(root, it) },
@@ -47,7 +47,9 @@ suspend inline fun GradleProvider.doBuild(
         stderrLineHandler = {
             ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it)
         }
-    ).awaitFinished()
+    )
+    val finished = running.awaitFinished()
+    return GradleResult(finished, Result.success(Unit))
 }
 
 context(ctx: McpContext)
@@ -57,7 +59,7 @@ suspend inline fun GradleProvider.doTests(
     invocationArgs: GradleInvocationArguments,
 ): GradleResult<Unit> {
     val root = projectRoot.resolve()
-    return runTests(
+    val running = runTests(
         root,
         testPatterns,
         invocationArgs.withInitScript(InitScriptNames.TASK_OUT),
@@ -69,6 +71,8 @@ suspend inline fun GradleProvider.doTests(
         stderrLineHandler = {
             ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it)
         }
-    ).awaitFinished()
+    )
+    val finished = running.awaitFinished()
+    return GradleResult(finished, Result.success(Unit))
 }
 

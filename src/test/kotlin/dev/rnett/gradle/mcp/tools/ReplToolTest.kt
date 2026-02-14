@@ -1,10 +1,12 @@
 package dev.rnett.gradle.mcp.tools
 
 import dev.rnett.gradle.mcp.gradle.BuildId
-import dev.rnett.gradle.mcp.gradle.BuildResult
+import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
-import dev.rnett.gradle.mcp.gradle.GradleResult
-import dev.rnett.gradle.mcp.gradle.RunningBuild
+import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
+import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
+import dev.rnett.gradle.mcp.gradle.build.RunningBuild
+import dev.rnett.gradle.mcp.gradle.build.TestResults
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import io.mockk.coEvery
 import io.mockk.every
@@ -15,6 +17,7 @@ import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import kotlin.time.Clock
 
 class ReplToolTest : BaseMcpServerTest() {
 
@@ -39,13 +42,13 @@ class ReplToolTest : BaseMcpServerTest() {
             [gradle-mcp-repl-env] javaExecutable=$javaExec
         """.trimIndent()
 
-        val buildResult = mockk<BuildResult>(relaxed = true)
-        every { buildResult.isSuccessful } returns true
-        every { buildResult.id } returns BuildId.newId()
-        every { buildResult.consoleOutput } returns consoleOutput
+        val finishedBuild = mockk<FinishedBuild>(relaxed = true)
+        every { finishedBuild.outcome } returns BuildOutcome.Success
+        every { finishedBuild.id } returns BuildId.newId()
+        every { finishedBuild.consoleOutput } returns consoleOutput
 
-        val runningBuild = mockk<RunningBuild<Unit>>(relaxed = true)
-        coEvery { runningBuild.awaitFinished() } returns GradleResult(buildResult, Result.success(Unit))
+        val runningBuild = mockk<RunningBuild>(relaxed = true)
+        coEvery { runningBuild.awaitFinished() } returns finishedBuild
 
         every { provider.runBuild(any(), any(), any()) } returns runningBuild
 
@@ -78,13 +81,13 @@ class ReplToolTest : BaseMcpServerTest() {
             [gradle-mcp-repl-env] compilerArgs=a1;a2
         """.trimIndent()
 
-        val buildResult = mockk<BuildResult>(relaxed = true)
-        every { buildResult.isSuccessful } returns true
-        every { buildResult.id } returns BuildId.newId()
-        every { buildResult.consoleOutput } returns consoleOutput
+        val finishedBuild = mockk<FinishedBuild>(relaxed = true)
+        every { finishedBuild.outcome } returns BuildOutcome.Success
+        every { finishedBuild.id } returns BuildId.newId()
+        every { finishedBuild.consoleOutput } returns consoleOutput
 
-        val runningBuild = mockk<RunningBuild<Unit>>(relaxed = true)
-        coEvery { runningBuild.awaitFinished() } returns GradleResult(buildResult, Result.success(Unit))
+        val runningBuild = mockk<RunningBuild>(relaxed = true)
+        coEvery { runningBuild.awaitFinished() } returns finishedBuild
 
         every { provider.runBuild(any(), any(), any()) } returns runningBuild
 
@@ -105,13 +108,13 @@ class ReplToolTest : BaseMcpServerTest() {
         // Start a session first (we need to mock the build again)
         val javaExec = "java"
         val consoleOutput = "[gradle-mcp-repl-env] javaExecutable=$javaExec"
-        val buildResult = mockk<BuildResult>(relaxed = true)
-        every { buildResult.isSuccessful } returns true
-        every { buildResult.id } returns BuildId.newId()
-        every { buildResult.consoleOutput } returns consoleOutput
+        val finishedBuild = mockk<FinishedBuild>(relaxed = true)
+        every { finishedBuild.outcome } returns BuildOutcome.Success
+        every { finishedBuild.id } returns BuildId.newId()
+        every { finishedBuild.consoleOutput } returns consoleOutput
 
-        val runningBuild = mockk<RunningBuild<Unit>>(relaxed = true)
-        coEvery { runningBuild.awaitFinished() } returns GradleResult(buildResult, Result.success(Unit))
+        val runningBuild = mockk<RunningBuild>(relaxed = true)
+        coEvery { runningBuild.awaitFinished() } returns finishedBuild
 
         every { provider.runBuild(any(), any(), any()) } returns runningBuild
 
@@ -150,13 +153,13 @@ class ReplToolTest : BaseMcpServerTest() {
             [gradle-mcp-repl-env] classpath=cp1;cp2
         """.trimIndent()
 
-        val buildResult = mockk<BuildResult>(relaxed = true)
-        every { buildResult.isSuccessful } returns true
-        every { buildResult.id } returns BuildId.newId()
-        every { buildResult.consoleOutput } returns consoleOutput
+        val finishedBuild = mockk<FinishedBuild>(relaxed = true)
+        every { finishedBuild.outcome } returns BuildOutcome.Success
+        every { finishedBuild.id } returns BuildId.newId()
+        every { finishedBuild.consoleOutput } returns consoleOutput
 
-        val runningBuild = mockk<RunningBuild<Unit>>(relaxed = true)
-        coEvery { runningBuild.awaitFinished() } returns GradleResult(buildResult, Result.success(Unit))
+        val runningBuild = mockk<RunningBuild>(relaxed = true)
+        coEvery { runningBuild.awaitFinished() } returns finishedBuild
 
         every { provider.runBuild(any(), any(), any()) } returns runningBuild
 
@@ -178,14 +181,19 @@ class ReplToolTest : BaseMcpServerTest() {
         val projectPath = ":app"
         val sourceSet = "commonMain"
 
-        val buildResult = mockk<BuildResult>(relaxed = true)
-        every { buildResult.isSuccessful } returns false
-        every { buildResult.id } returns BuildId.newId()
-        // Simulate the error message from repl-env.init.gradle.kts
-        every { buildResult.toOutputString() } returns "FAILURE: Build failed with an exception.\n\n* What went wrong:\nExecution failed for task ':app:resolveReplEnvironment'.\n> SourceSet 'commonMain' found in project ':app', but it does not appear to be a JVM source set. REPL is only supported for JVM source sets."
+        val finishedBuild = FinishedBuild(
+            id = BuildId.newId(),
+            args = GradleInvocationArguments(additionalArguments = emptyList()),
+            consoleOutput = "FAILURE: Build failed with an exception.\n\n* What went wrong:\nExecution failed for task ':app:resolveReplEnvironment'.\n> SourceSet 'commonMain' found in project ':app', but it does not appear to be a JVM source set. REPL is only supported for JVM source sets.",
+            publishedScans = emptyList(),
+            testResults = TestResults(emptySet<dev.rnett.gradle.mcp.gradle.build.TestResult>(), emptySet<dev.rnett.gradle.mcp.gradle.build.TestResult>(), emptySet<dev.rnett.gradle.mcp.gradle.build.TestResult>()),
+            problemAggregations = emptyMap(),
+            outcome = BuildOutcome.Failed(emptyList()),
+            finishTime = Clock.System.now()
+        )
 
-        val runningBuild = mockk<RunningBuild<Unit>>(relaxed = true)
-        coEvery { runningBuild.awaitFinished() } returns GradleResult(buildResult, Result.success(Unit))
+        val runningBuild = mockk<RunningBuild>(relaxed = true)
+        coEvery { runningBuild.awaitFinished() } returns finishedBuild
 
         every { provider.runBuild(any(), any(), any()) } returns runningBuild
 

@@ -3,6 +3,7 @@ package dev.rnett.gradle.mcp.tools
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectPath
 import dev.rnett.gradle.mcp.gradle.GradleProvider
+import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import io.github.smiley4.schemakenerator.core.annotations.Example
@@ -39,11 +40,12 @@ class GradleExecutionTools(
             GradleInvocationArguments(additionalArguments = it.commandLine, publishScan = it.scan) + it.invocationArguments
         )
 
-        if (result.buildResult.isSuccessful == false) {
+        val finished = result.build.awaitFinished()
+        if (finished.outcome !is BuildOutcome.Success) {
             isError = true
         }
 
-        result.buildResult.toOutputString()
+        finished.toOutputString()
     }
 
     @Serializable
@@ -97,16 +99,17 @@ class GradleExecutionTools(
             GradleInvocationArguments(additionalArguments = additionalArgs) + it.invocationArguments
         )
 
-        if (result.buildResult.isSuccessful == false) {
+        val finished = result.build.awaitFinished()
+        if (finished.outcome !is BuildOutcome.Success) {
             isError = true
-            result.buildResult.toOutputString()
+            finished.toOutputString()
         } else {
             buildString {
 
-                if (result.buildResult.taskOutputCapturingFailed) {
+                if (finished.taskOutputCapturingFailed) {
                     appendLine("Task output capturing failed. Task output may be incomplete or interleaved with other tasks.\n")
                 }
-                appendLine(result.buildResult.getTaskOutput(it.taskPath, true) ?: "Task output not found in console output. Build result:\n${result.buildResult.toOutputString()}")
+                appendLine(finished.getTaskOutput(it.taskPath, true) ?: "Task output not found in console output. Build result:\n${finished.toOutputString()}")
             }
         }
     }
@@ -155,11 +158,12 @@ class GradleExecutionTools(
             GradleInvocationArguments(publishScan = it.scan) + it.invocationArguments
         )
 
-        if (result.buildResult.isSuccessful == false) {
+        val finished = result.build.awaitFinished()
+        if (finished.outcome !is BuildOutcome.Success) {
             isError = true
         }
 
-        result.buildResult.toOutputString()
+        finished.toOutputString()
     }
 
 
@@ -197,10 +201,11 @@ class GradleExecutionTools(
             GradleInvocationArguments(publishScan = it.scan) + it.invocationArguments,
         )
 
-        if (result.buildResult.isSuccessful == false) {
+        val finished = result.build.awaitFinished()
+        if (finished.outcome !is BuildOutcome.Success) {
             isError = true
         }
 
-        result.buildResult.toOutputString()
+        finished.toOutputString()
     }
 }

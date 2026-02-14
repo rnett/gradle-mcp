@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.gradle
 
 import dev.rnett.gradle.mcp.BuildConfig
+import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.fixtures.testGradleProject
 import kotlinx.coroutines.test.runTest
 import java.nio.file.Files
@@ -286,8 +287,7 @@ class ReplEnvInitScriptTest {
         project: dev.rnett.gradle.mcp.gradle.fixtures.GradleProjectFixture,
         vararg tasks: String
     ) {
-        val backgroundBuildManager = BackgroundBuildManager()
-        val buildResults = BuildResults(backgroundBuildManager)
+        val buildManager = BuildManager()
         val provider = DefaultGradleProvider(
             GradleConfiguration(
                 maxConnections = 5,
@@ -295,8 +295,7 @@ class ReplEnvInitScriptTest {
                 allowPublicScansPublishing = false
             ),
             initScriptProvider = DefaultInitScriptProvider(Files.createTempDirectory("gradle-mcp-test-run-gradle-")),
-            backgroundBuildManager = backgroundBuildManager,
-            buildResults = buildResults
+            buildManager = buildManager
         )
         val projectRoot = GradleProjectRoot(project.pathString())
         val args = GradleInvocationArguments(
@@ -310,7 +309,7 @@ class ReplEnvInitScriptTest {
             tosAccepter = { false }
         )
         val result = runningBuild.awaitFinished()
-        assert(result.buildResult.isSuccessful == true)
+        assert(result.outcome is BuildOutcome.Success)
     }
 
     @Test
@@ -370,8 +369,7 @@ class ReplEnvInitScriptTest {
         sourceSet: String = "main",
         extraCode: String = ""
     ): String {
-        val backgroundBuildManager = BackgroundBuildManager()
-        val buildResults = BuildResults(backgroundBuildManager)
+        val buildManager = BuildManager()
         val provider = DefaultGradleProvider(
             GradleConfiguration(
                 maxConnections = 5,
@@ -379,8 +377,7 @@ class ReplEnvInitScriptTest {
                 allowPublicScansPublishing = false
             ),
             initScriptProvider = DefaultInitScriptProvider(tempDir),
-            backgroundBuildManager = backgroundBuildManager,
-            buildResults = buildResults
+            buildManager = buildManager
         )
         val projectRoot = GradleProjectRoot(project.pathString())
         val args = GradleInvocationArguments(
@@ -395,7 +392,7 @@ class ReplEnvInitScriptTest {
         )
         val result = runningBuild.awaitFinished()
 
-        assert(result.buildResult.isSuccessful == true)
-        return result.buildResult.consoleOutput.toString()
+        assert(result.outcome is BuildOutcome.Success)
+        return result.consoleOutput.toString()
     }
 }

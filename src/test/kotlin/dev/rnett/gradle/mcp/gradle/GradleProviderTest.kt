@@ -1,5 +1,8 @@
 package dev.rnett.gradle.mcp.gradle
 
+import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
+import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
+import dev.rnett.gradle.mcp.gradle.build.failuresIfFailed
 import dev.rnett.gradle.mcp.gradle.fixtures.testJavaProject
 import dev.rnett.gradle.mcp.gradle.fixtures.testKotlinProject
 import dev.rnett.gradle.mcp.tools.InitScriptNames
@@ -49,7 +52,8 @@ class GradleProviderTest {
                 ttl = 60.seconds,
                 allowPublicScansPublishing = false
             ),
-            initScriptProvider = DefaultInitScriptProvider(tempDir)
+            initScriptProvider = DefaultInitScriptProvider(tempDir),
+            buildManager = BuildManager()
         )
     }
 
@@ -76,11 +80,10 @@ class GradleProviderTest {
                 args = args,
                 tosAccepter = { false },
                 requiresGradleProject = true
-            ).awaitFinished()
+            )
 
             assert(result.value.isSuccess)
             val buildEnv = result.value.getOrThrow()
-            assert(buildEnv != null)
             assert(buildEnv.gradle != null)
         }
     }
@@ -110,12 +113,11 @@ class GradleProviderTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assert(runningBuild.status == BuildStatus.SUCCESSFUL)
-            assert(result.buildResult.isSuccessful == true)
-            assert(result.buildResult.consoleOutput.isNotEmpty())
-            assert(result.buildResult.id != null)
+            assert(runningBuild.status == BuildOutcome.Success)
+            assert(result.outcome is BuildOutcome.Success)
+            assert(result.consoleOutput.isNotEmpty())
             assert(capturedLines.isNotEmpty())
-            assert(result.buildResult.consoleOutput.contains("Gradle MCP init script task-out.init.gradle.kts loaded"))
+            assert(result.consoleOutput.contains("Gradle MCP init script task-out.init.gradle.kts loaded"))
         }
     }
 
@@ -134,20 +136,19 @@ class GradleProviderTest {
                     tosAccepter = { false }
                 )
 
-                assert(runningBuild != null)
                 val buildId = runningBuild.id
 
                 // Verify it's in the manager WHILE it's running (or just after start)
-                assert(provider.backgroundBuildManager.getBuild(buildId) != null)
+                assert(provider.buildManager.getBuild(buildId) != null)
 
                 val buildResult = runningBuild.awaitFinished()
 
-                assert(buildResult.buildResult.isSuccessful == true)
-                assert(runningBuild.status == BuildStatus.SUCCESSFUL)
+                assert(buildResult.outcome is BuildOutcome.Success)
                 assert(runningBuild.logBuffer.isNotEmpty())
 
-                // Verify it's removed from the manager after finish
-                kotlin.test.assertNull(provider.backgroundBuildManager.getBuild(buildId))
+                // Verify it's STILL in the manager after finish, but as a FrozenBuild
+                val finalBuild = provider.buildManager.getBuild(buildId)
+                assert(finalBuild is FinishedBuild)
             }
         }
     }
@@ -168,9 +169,9 @@ class GradleProviderTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assert(result.buildResult.isSuccessful == true)
-            assert(result.buildResult.testResults.passed.isNotEmpty())
-            assert(result.buildResult.testResults.failed.isEmpty())
+            assert(result.outcome is BuildOutcome.Success)
+            assert(result.testResults.passed.isNotEmpty())
+            assert(result.testResults.failed.isEmpty())
 
             // Run with filter
             val runningBuildFiltered = provider.runTests(
@@ -181,8 +182,8 @@ class GradleProviderTest {
             )
             val resultFiltered = runningBuildFiltered.awaitFinished()
 
-            assert(resultFiltered.buildResult.isSuccessful == true)
-            assert(resultFiltered.buildResult.testResults.totalCount == 1)
+            assert(resultFiltered.outcome is BuildOutcome.Success)
+            assert(resultFiltered.testResults.totalCount == 1)
         }
     }
 
@@ -202,9 +203,8 @@ class GradleProviderTest {
             )
 
             val result = runningBuild.awaitFinished()
-            assert(result.buildResult.isSuccessful == false)
-            assert((result.buildResult as BuildResult).buildFailures!!.isNotEmpty())
-            assert(runningBuild.status == BuildStatus.FAILED)
+            assert(result.outcome is BuildOutcome.Failed)
+            assert(result.outcome.failuresIfFailed!!.isNotEmpty())
         }
     }
 
@@ -235,20 +235,18 @@ class GradleProviderTest {
                     assert(runningBuild2 != null)
 
                     // Both should be in the manager
-                    assert(provider.backgroundBuildManager.getBuild(runningBuild1.id) != null)
-                    assert(provider.backgroundBuildManager.getBuild(runningBuild2.id) != null)
+                    assert(provider.buildManager.getBuild(runningBuild1.id) != null)
+                    assert(provider.buildManager.getBuild(runningBuild2.id) != null)
 
                     val result1 = runningBuild1.awaitFinished()
                     val result2 = runningBuild2.awaitFinished()
 
-                    assert(result1.buildResult.isSuccessful == true)
-                    assert(result2.buildResult.isSuccessful == true)
-                    assert(runningBuild1.status == BuildStatus.SUCCESSFUL)
-                    assert(runningBuild2.status == BuildStatus.SUCCESSFUL)
+                    assert(result1.outcome is BuildOutcome.Success)
+                    assert(result2.outcome is BuildOutcome.Success)
 
-                    // Both should be removed from the manager
-                    kotlin.test.assertNull(provider.backgroundBuildManager.getBuild(runningBuild1.id))
-                    kotlin.test.assertNull(provider.backgroundBuildManager.getBuild(runningBuild2.id))
+                    // Both should still be in the manager as FinishedBuilds
+                    assert(provider.buildManager.getBuild(runningBuild1.id) is FinishedBuild)
+                    assert(provider.buildManager.getBuild(runningBuild2.id) is FinishedBuild)
                 }
             }
         }
@@ -271,8 +269,8 @@ class GradleProviderTest {
                 runningBuild.stop()
 
                 val result = runningBuild.awaitFinished()
-                assert(runningBuild.status == BuildStatus.CANCELLED)
-                kotlin.test.assertNull(provider.backgroundBuildManager.getBuild(runningBuild.id))
+                assert(runningBuild.status == BuildOutcome.Canceled)
+                assert(provider.buildManager.getBuild(runningBuild.id) is FinishedBuild)
             }
         }
     }
@@ -290,7 +288,8 @@ class GradleProviderTest {
                     ttl = 60.seconds,
                     allowPublicScansPublishing = true
                 ),
-                initScriptProvider = DefaultInitScriptProvider(tempDir)
+                initScriptProvider = DefaultInitScriptProvider(tempDir),
+                buildManager = BuildManager()
             )
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
@@ -306,7 +305,7 @@ class GradleProviderTest {
             )
             val buildResult = runningBuild.awaitFinished()
 
-            val scans = buildResult.buildResult.publishedScans
+            val scans = buildResult.publishedScans
             assert(scans.isNotEmpty())
             assert(scans.all { it.url.contains("https://scans.gradle.com/s/") || it.develocityInstance.isNotBlank() })
         }

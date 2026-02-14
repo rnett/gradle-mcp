@@ -1,5 +1,7 @@
 package dev.rnett.gradle.mcp.gradle
 
+import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
+import dev.rnett.gradle.mcp.gradle.build.failuresIfFailed
 import dev.rnett.gradle.mcp.gradle.fixtures.testJavaProject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
@@ -9,13 +11,15 @@ import kotlin.time.Duration.Companion.seconds
 
 class ConcurrentSameProjectTest {
 
+    val buildManager = BuildManager()
+
     private fun createTestProvider(): DefaultGradleProvider {
         val config = GradleConfiguration(
             maxConnections = 10,
             ttl = 60.seconds,
             allowPublicScansPublishing = false
         )
-        return DefaultGradleProvider(config)
+        return DefaultGradleProvider(config, buildManager = buildManager)
     }
 
     @Test
@@ -57,21 +61,21 @@ class ConcurrentSameProjectTest {
                 )
 
                 // Wait for Build 2 to finish. It should finish before Build 1.
-                val result2 = runningBuild2.awaitFinished()
-                assertTrue(result2.buildResult.isSuccessful == true, "Build 2 should be successful. Console: ${result2.buildResult.consoleOutput}")
+                val build2 = runningBuild2.awaitFinished()
+                assertTrue(build2.outcome is BuildOutcome.Success, "Build 2 should be successful. Console: ${build2.consoleOutput}")
 
                 // Now check Build 1. It should still be successful when it finishes.
-                val result1 = runningBuild1.awaitFinished()
-                if (!result1.buildResult.isSuccessful!!) {
+                val build1 = runningBuild1.awaitFinished()
+                if (build1.outcome !is BuildOutcome.Success) {
                     println("Build 1 failed. Console output:")
-                    println(result1.buildResult.consoleOutput)
-                    result1.buildResult.buildFailures?.forEach {
-                        it.writeFailureTree(StringBuilder().apply { append("Failure: ") })
-                        println(it.message)
-                        println(it.description)
+                    println(build1.consoleOutput)
+                    build1.outcome.failuresIfFailed?.forEach { f ->
+                        val sb = StringBuilder()
+                        f.writeFailureTree(sb, "Failure: ")
+                        println(sb.toString())
                     }
                 }
-                assertTrue(result1.buildResult.isSuccessful == true, "Build 1 should be successful but failed with: ${result1.buildResult.buildFailures}")
+                assertTrue(build1.outcome is BuildOutcome.Success, "Build 1 should be successful but failed with: ${build1.outcome.failuresIfFailed}")
             }
         }
     }

@@ -1,20 +1,22 @@
 package dev.rnett.gradle.mcp.mcp
 
-import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
-import dev.rnett.gradle.mcp.gradle.Build
 import dev.rnett.gradle.mcp.gradle.BuildId
-import dev.rnett.gradle.mcp.gradle.BuildResult
-import dev.rnett.gradle.mcp.gradle.BuildResults
-import dev.rnett.gradle.mcp.gradle.BuildStatus
-import dev.rnett.gradle.mcp.gradle.FailureId
+import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
-import dev.rnett.gradle.mcp.gradle.GradleResult
 import dev.rnett.gradle.mcp.gradle.ProblemAggregation
 import dev.rnett.gradle.mcp.gradle.ProblemId
 import dev.rnett.gradle.mcp.gradle.ProblemSeverity
-import dev.rnett.gradle.mcp.gradle.RunningBuild
-import dev.rnett.gradle.mcp.gradle.TestOutcome
+import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
+import dev.rnett.gradle.mcp.gradle.build.BuildStatus
+import dev.rnett.gradle.mcp.gradle.build.Failure
+import dev.rnett.gradle.mcp.gradle.build.FailureId
+import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
+import dev.rnett.gradle.mcp.gradle.build.GradleBuildScan
+import dev.rnett.gradle.mcp.gradle.build.RunningBuild
+import dev.rnett.gradle.mcp.gradle.build.TestOutcome
+import dev.rnett.gradle.mcp.gradle.build.TestResult
+import dev.rnett.gradle.mcp.gradle.build.TestResults
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.mockk.coEvery
@@ -27,7 +29,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.io.path.absolutePathString
 import kotlin.test.Test
 import kotlin.time.Clock
@@ -35,7 +36,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class McpToolWorkflowsTest : BaseMcpServerTest() {
 
-    private fun syntheticBuildResult(): BuildResult {
+    private fun syntheticBuildResult(): FinishedBuild {
         val args = GradleInvocationArguments.DEFAULT
         val id = BuildId.newId()
         val console = buildString {
@@ -43,19 +44,19 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
             appendLine("> Task :help")
             appendLine("BUILD SUCCESSFUL")
         }.trimEnd()
-        val scans = emptyList<dev.rnett.gradle.mcp.gradle.GradleBuildScan>()
-        val testResults = Build.TestResults(
+        val scans = emptyList<GradleBuildScan>()
+        val testResults = TestResults(
             passed = setOf(
-                Build.TestResult("com.example.HelloTest.passes", null, 0.1.seconds, failures = null, status = TestOutcome.PASSED)
+                TestResult("com.example.HelloTest.passes", null, 0.1.seconds, failures = null, status = TestOutcome.PASSED)
             ),
             skipped = emptySet(),
             failed = setOf(
-                Build.TestResult(
+                TestResult(
                     "com.example.HelloTest.fails",
                     "Assertion failed",
                     0.2.seconds,
                     failures = listOf(
-                        Build.Failure(
+                        Failure(
                             FailureId("f1"),
                             message = "expected true to be false",
                             description = null,
@@ -87,13 +88,22 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
                 )
             )
         )
-        return BuildResult(id, args, console, scans, testResults, buildFailures = null, problemAggregations = problems)
+        return FinishedBuild(
+            id = id,
+            args = args,
+            consoleOutput = console,
+            publishedScans = scans,
+            testResults = testResults,
+            problemAggregations = problems,
+            outcome = BuildOutcome.Success,
+            finishTime = Clock.System.now()
+        )
     }
 
     @Test
     fun `lookup tools can read stored build`() = runTest {
         val result = syntheticBuildResult()
-        val buildResults = server.koin.get<BuildResults>()
+        val buildResults = server.koin.get<BuildManager>()
         buildResults.storeResult(result)
 
         // lookup_latest_builds
@@ -143,10 +153,12 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
     @Test
     fun `execution works with single MCP root and no projectRoot`() = runTest {
         val result = syntheticBuildResult()
-        val runningBuild = mockk<RunningBuild<Unit>>(relaxed = true) {
-            coEvery { awaitFinished() } returns GradleResult(result, Result.success(Unit))
-            coEvery { id } returns result.id
+        val runningBuild = mockk<RunningBuild>(relaxed = true) {
+            coEvery { awaitFinished() } returns result
+            every { id } returns result.id
         }
+        val buildManager = server.koin.get<BuildManager>()
+        buildManager.storeResult(result)
         coEvery {
             provider.runBuild(
                 GradleProjectRoot(tempDir.absolutePathString()),
@@ -183,18 +195,18 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
     @Test
     fun `background build workflows`() = runTest {
         val buildId = BuildId.newId()
-        val runningBuild = mockk<RunningBuild<Unit>>(relaxed = true) {
+        val runningBuild = mockk<RunningBuild>(relaxed = true) {
             every { id } returns buildId
-            every { status } returns BuildStatus.RUNNING
+            every { status } returns BuildStatus.Running
             every { startTime } returns Clock.System.now()
             every { args } returns GradleInvocationArguments(additionalArguments = listOf("help"))
             every { logBuffer } returns StringBuffer("line1\nline2\n")
             every { stop() } returns Unit
             every { isRunning } returns true
-            every { isSuccessful } returns null
+            every { hasBuildFinished } returns false
             every { problemAggregations } returns emptyMap()
-            every { testResults } returns Build.TestResults(emptySet(), emptySet(), emptySet())
-            every { publishedScans } returns ConcurrentLinkedQueue<dev.rnett.gradle.mcp.gradle.GradleBuildScan>()
+            every { testResults } returns TestResults(emptySet(), emptySet(), emptySet())
+            every { publishedScans } returns emptyList()
             every { consoleOutput } returns "line1\nline2\n"
             every { problems } returns emptyList()
         }
@@ -210,17 +222,8 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
             )
         } returns runningBuild
 
-        every { provider.backgroundBuildManager } returns mockk {
-            every { registerBuild(any()) } returns Unit
-            every { listBuilds() } returns listOf(runningBuild)
-            every { getBuild(buildId) } returns runningBuild
-        }
-        every { provider.buildResults } returns mockk {
-            every { getResult(buildId) } returns null
-        }
-
-        val backgroundBuildManager = server.koin.get<BackgroundBuildManager>()
-        backgroundBuildManager.registerBuild(runningBuild)
+        val buildManager = server.koin.get<BuildManager>()
+        buildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         // test background_run_gradle_command
@@ -235,7 +238,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         val statusCall = server.client.callTool(ToolNames.BACKGROUND_BUILD_GET_STATUS, mapOf("buildId" to buildId.toString()))
         assert(statusCall != null)
         val statusText = statusCall!!.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
-        assert(statusText.contains("Status: RUNNING"))
+        assert(statusText.contains("Status: Running"))
         assert(statusText.contains("Duration: "))
 
         // test background_build_stop
@@ -248,7 +251,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         assert(latestCall != null)
         val latestText = latestCall!!.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
         assert(latestText.contains(buildId.toString()))
-        assert(latestText.contains("RUNNING"))
+        assert(latestText.contains("Running"))
 
         // Step 3: Test that lookup_latest_builds with onlyCompleted doesn't show background builds
         val latestCompletedCall = server.client.callTool(ToolNames.LOOKUP_LATEST_BUILDS, mapOf("maxBuilds" to JsonPrimitive(5), "onlyCompleted" to JsonPrimitive(true)))
@@ -266,9 +269,9 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
     @Test
     fun `run_single_task_and_get_output uses arguments`() = runTest {
         val result = syntheticBuildResult()
-        val runningBuild = mockk<RunningBuild<Unit>>(relaxed = true) {
-            coEvery { awaitFinished() } returns GradleResult(result, Result.success(Unit))
-            coEvery { id } returns result.id
+        val runningBuild = mockk<RunningBuild>(relaxed = true) {
+            coEvery { awaitFinished() } returns result
+            every { id } returns result.id
         }
 
         val capturedArgs = slot<GradleInvocationArguments>()

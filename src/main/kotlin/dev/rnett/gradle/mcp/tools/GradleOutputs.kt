@@ -1,10 +1,11 @@
 package dev.rnett.gradle.mcp.tools
 
-import dev.rnett.gradle.mcp.gradle.Build
-import dev.rnett.gradle.mcp.gradle.BuildResult
 import dev.rnett.gradle.mcp.gradle.ProblemAggregation
 import dev.rnett.gradle.mcp.gradle.ProblemId
 import dev.rnett.gradle.mcp.gradle.ProblemSeverity
+import dev.rnett.gradle.mcp.gradle.build.Build
+import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
+import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
 import kotlinx.serialization.Serializable
 
 object OutputFormatter {
@@ -31,21 +32,23 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
         }
         appendLine(
             "Status: ${
-                when (isRunning) {
-                    true -> "Running (still running, some information may be incomplete)"
-                    false -> if (isSuccessful == true) "Success" else "Failure"
+                if (isRunning) {
+                    "Running (still running, some information may be incomplete)"
+                } else {
+                    val finished = this@toOutputString as FinishedBuild
+                    if (finished.outcome is BuildOutcome.Success) "Success" else "Failure"
                 }
             }"
         )
 
         appendLine()
-        val buildFailures = if (this is BuildResult) {
-            this.buildFailures
+        val buildFailures = if (this@toOutputString is FinishedBuild) {
+            allBuildFailures.values
         } else {
             testResults.failed.asSequence().flatMap { it.failures.orEmpty().asSequence() }.toList()
         }
 
-        if (buildFailures != null && buildFailures.isNotEmpty()) {
+        if (buildFailures.isNotEmpty()) {
             appendLine("Failures: ${buildFailures.size} - use `${ToolNames.LOOKUP_BUILD_FAILURES}` tool for more details")
             appendLine(OutputFormatter.listResults(buildFailures, 10) {
                 buildString {

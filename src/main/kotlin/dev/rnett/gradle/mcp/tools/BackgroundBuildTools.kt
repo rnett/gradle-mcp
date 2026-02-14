@@ -1,9 +1,10 @@
 package dev.rnett.gradle.mcp.tools
 
 import dev.rnett.gradle.mcp.gradle.BuildId
-import dev.rnett.gradle.mcp.gradle.BuildStatus
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProvider
+import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
+import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -48,7 +49,7 @@ class BackgroundBuildTools(
             |The returned BuildIds can be used with `${ToolNames.BACKGROUND_BUILD_GET_STATUS}`, `${ToolNames.BACKGROUND_BUILD_STOP}`, and the `lookup_*` tools.
         """.trimMargin()
     ) {
-        val active = gradle.backgroundBuildManager.listBuilds()
+        val active = gradle.buildManager.listRunningBuilds()
             .sortedByDescending { it.id.timestamp }
 
         if (active.isEmpty()) {
@@ -107,61 +108,62 @@ class BackgroundBuildTools(
     ) {
         val buildId = it.buildId ?: throw IllegalArgumentException("buildId is required")
 
-        val running = gradle.backgroundBuildManager.getBuild(buildId)
-        val startLines = if (it.afterCall && running != null) running.consoleOutput.count { it == '\n' } else 0
-        if (it.wait != null) {
+        val build = gradle.buildManager.getBuild(buildId)
+            ?: throw IllegalArgumentException("Unknown or expired build ID: $buildId")
+
+        val startLines = if (it.afterCall && build is RunningBuild) build.consoleOutput.count { it == '\n' } else 0
+        if (it.wait != null && build is RunningBuild) {
             val waitForRegex = it.waitFor?.toRegex()
             val waitForTask = it.waitForTask
 
-
-
             withTimeoutOrNull(it.wait.seconds) {
-                if (running != null) {
-                    coroutineScope {
-                        select {
-                            onTimeout(it.wait.seconds) {}
-                            if (waitForRegex != null) {
-                                if (!it.afterCall && waitForRegex.containsMatchIn(running.logBuffer)) {
-                                    launch { }.onJoin {}
-                                } else {
-                                    async {
-                                        running.logLines.firstOrNull { line ->
-                                            waitForRegex.containsMatchIn(line)
-                                        }
-                                    }.onAwait { }
-                                }
+                coroutineScope {
+                    select {
+                        onTimeout(it.wait.seconds) {}
+                        if (waitForRegex != null) {
+                            if (!it.afterCall && waitForRegex.containsMatchIn(build.logBuffer)) {
+                                launch { }.onJoin {}
+                            } else {
+                                async {
+                                    build.logLines.firstOrNull { line: String ->
+                                        waitForRegex.containsMatchIn(line)
+                                    }
+                                }.onAwait { }
                             }
-                            if (waitForTask != null) {
-                                if (!it.afterCall && running.completedTaskPaths.contains(waitForTask)) {
-                                    launch { }.onJoin {}
-                                } else {
-                                    async {
-                                        running.completedTasks.firstOrNull { taskPath ->
-                                            taskPath == waitForTask
-                                        }
-                                    }.onAwait { }
-                                }
-                            }
-                            running.result.onJoin { }
                         }
+                        if (waitForTask != null) {
+                            if (!it.afterCall && build.completedTaskPaths.contains(waitForTask)) {
+                                launch { }.onJoin {}
+                            } else {
+                                async {
+                                    build.completedTasks.firstOrNull { taskPath: String ->
+                                        taskPath == waitForTask
+                                    }
+                                }.onAwait { }
+                            }
+                        }
+                        async { build.awaitFinished() }.onAwait { }
                     }
                 }
             }
         }
 
-        if (running != null && running.status == BuildStatus.RUNNING) {
+        val currentBuild = gradle.buildManager.getBuild(buildId)
+            ?: throw IllegalArgumentException("Unknown or expired build ID: $buildId")
+
+        if (currentBuild is RunningBuild) {
             return@tool buildString {
                 appendLine("BUILD IN PROGRESS")
-                appendLine("Build ID: ${running.id}")
-                appendLine("Status: ${running.status}")
-                appendLine("Start Time: ${running.startTime}")
-                appendLine("Duration: ${Clock.System.now() - running.startTime}")
-                appendLine("Command line: ${running.args.renderCommandLine()}")
+                appendLine("Build ID: ${currentBuild.id}")
+                appendLine("Status: ${currentBuild.status}")
+                appendLine("Start Time: ${currentBuild.startTime}")
+                appendLine("Duration: ${Clock.System.now() - currentBuild.startTime}")
+                appendLine("Command line: ${currentBuild.args.renderCommandLine()}")
                 appendLine()
 
                 val waitForRegex = it.waitFor?.toRegex()
                 if (waitForRegex != null) {
-                    val matchingLines = running.logBuffer.lines().drop(startLines).filter { line -> line.isNotBlank() && waitForRegex.containsMatchIn(line) }
+                    val matchingLines = currentBuild.logBuffer.lines().drop(startLines).filter { line -> line.isNotBlank() && waitForRegex.containsMatchIn(line) }
                     if (matchingLines.isNotEmpty()) {
                         appendLine("Matching lines for '${it.waitFor}':")
                         matchingLines.forEach { appendLine("    $it") }
@@ -171,7 +173,7 @@ class BackgroundBuildTools(
                     }
                 }
 
-                val log = running.logBuffer
+                val log = currentBuild.logBuffer
                 var lineCount = 0
                 var lastIndex = log.length
                 val maxTailLines = it.maxTailLines ?: 20
@@ -190,8 +192,7 @@ class BackgroundBuildTools(
             }
         }
 
-        val completed = gradle.buildResults.getResult(buildId)
-            ?: throw IllegalArgumentException("Unknown or expired build ID: $buildId")
+        val completed = currentBuild as FinishedBuild
 
         return@tool buildString {
             appendLine("BUILD COMPLETED")
@@ -213,10 +214,9 @@ class BackgroundBuildTools(
         "Requests that an active background build be stopped. Use `${ToolNames.BACKGROUND_BUILD_LIST}` to see active builds."
     ) {
         val buildId = it.buildId ?: throw IllegalArgumentException("buildId is required")
-        val running = gradle.backgroundBuildManager.getBuild(buildId)
+        val build = gradle.buildManager.getBuild(buildId) as? RunningBuild
             ?: throw IllegalArgumentException("Build $buildId is not running or not found")
-
-        running.stop()
+        build.stop()
         "Build $buildId stop requested"
     }
 }

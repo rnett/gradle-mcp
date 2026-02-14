@@ -1,7 +1,6 @@
 package dev.rnett.gradle.mcp
 
-import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
-import dev.rnett.gradle.mcp.gradle.BuildResults
+import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.BundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultBundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
@@ -45,15 +44,13 @@ object DI {
         single { config.property("gradle").getAs<GradleConfiguration>() }
         single { DefaultInitScriptProvider() } bind InitScriptProvider::class
         single { DefaultBundledJarProvider() } bind BundledJarProvider::class
-        single { BackgroundBuildManager() }
-        single { BuildResults(get()) }
-        single<ReplManager> { DefaultReplManager(get()) }
+        single { DefaultReplManager(get()) } bind ReplManager::class
+        single { BuildManager() }
         single<GradleProvider> {
             DefaultGradleProvider(
                 get(),
                 initScriptProvider = get(),
-                backgroundBuildManager = get(),
-                buildResults = get()
+                buildManager = get()
             )
         }
 
@@ -65,7 +62,7 @@ object DI {
                 GradleExecutionTools(provider),
                 ReplTools(provider, replManager),
                 BackgroundBuildTools(provider),
-                GradleBuildLookupTools(provider.buildResults),
+                GradleBuildLookupTools(provider.buildManager),
             )
         }
 
@@ -97,7 +94,7 @@ object DI {
         GradleExecutionTools(provider),
         ReplTools(provider, replManager),
         BackgroundBuildTools(provider),
-        GradleBuildLookupTools(provider.buildResults),
+        GradleBuildLookupTools(provider.buildManager),
     )
 
     fun createServer(json: Json, components: List<McpServerComponent>): McpServer {

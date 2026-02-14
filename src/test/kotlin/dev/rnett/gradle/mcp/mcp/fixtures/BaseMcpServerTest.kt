@@ -1,8 +1,7 @@
 package dev.rnett.gradle.mcp.mcp.fixtures
 
 import dev.rnett.gradle.mcp.DI
-import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
-import dev.rnett.gradle.mcp.gradle.BuildResults
+import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.BundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultBundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
@@ -38,12 +37,10 @@ abstract class BaseMcpServerTest {
         }
         single<InitScriptProvider> { DefaultInitScriptProvider(tempDir.resolve("init-scripts")) }
         single<BundledJarProvider> { DefaultBundledJarProvider(tempDir.resolve("jars")) }
-        single { BackgroundBuildManager() }
-        single { BuildResults(get()) }
+        single { BuildManager() }
         single<dev.rnett.gradle.mcp.repl.ReplManager> { dev.rnett.gradle.mcp.repl.DefaultReplManager(get()) }
         single<GradleProvider> {
-            every { provider.backgroundBuildManager } returns get()
-            every { provider.buildResults } returns get()
+            every { provider.buildManager } returns get()
             provider
         }
 

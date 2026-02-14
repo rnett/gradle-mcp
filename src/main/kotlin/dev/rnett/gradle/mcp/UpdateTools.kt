@@ -1,12 +1,11 @@
 package dev.rnett.gradle.mcp
 
-import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
-import dev.rnett.gradle.mcp.gradle.BuildResults
+import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleScanTosAcceptRequest
-import dev.rnett.gradle.mcp.gradle.RunningBuild
+import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
@@ -151,7 +150,7 @@ object UpdateTools {
             stdoutLineHandler: ((String) -> Unit)?,
             stderrLineHandler: ((String) -> Unit)?,
             requiresGradleProject: Boolean
-        ): RunningBuild<T> {
+        ): dev.rnett.gradle.mcp.gradle.GradleResult<T> {
             throw UnsupportedOperationException("Not used for tool listing")
         }
 
@@ -162,7 +161,7 @@ object UpdateTools {
             additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
             stdoutLineHandler: ((String) -> Unit)?,
             stderrLineHandler: ((String) -> Unit)?,
-        ): RunningBuild<Unit> {
+        ): RunningBuild {
             throw UnsupportedOperationException("Not used for tool listing")
         }
 
@@ -174,15 +173,14 @@ object UpdateTools {
             additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
             stdoutLineHandler: ((String) -> Unit)?,
             stderrLineHandler: ((String) -> Unit)?,
-        ): RunningBuild<Unit> {
+        ): RunningBuild {
             throw UnsupportedOperationException("Not used for tool listing")
         }
 
         override fun close() {
         }
 
-        override val backgroundBuildManager = BackgroundBuildManager()
-        override val buildResults = BuildResults(backgroundBuildManager)
+        override val buildManager = BuildManager()
     }
 
     val throwingReplManager = object : dev.rnett.gradle.mcp.repl.ReplManager {

@@ -1,8 +1,7 @@
 package dev.rnett.gradle.mcp.tools.repl
 
 import dev.rnett.gradle.mcp.DI
-import dev.rnett.gradle.mcp.gradle.BackgroundBuildManager
-import dev.rnett.gradle.mcp.gradle.BuildResults
+import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.BundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultBundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
@@ -95,15 +94,13 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single { GradleConfiguration(4, 10.minutes, false) }
         single { DefaultInitScriptProvider(tempDir.resolve("init-scripts")) } bind InitScriptProvider::class
         single { DefaultBundledJarProvider(tempDir.resolve("jars")) } bind BundledJarProvider::class
-        single { BackgroundBuildManager() }
-        single { BuildResults(get()) }
+        single { BuildManager() }
         single<ReplManager> { DefaultReplManager(get()) }
         single<GradleProvider> {
             DefaultGradleProvider(
                 get(),
                 initScriptProvider = get(),
-                backgroundBuildManager = get(),
-                buildResults = get()
+                buildManager = get()
             )
         }
         single {

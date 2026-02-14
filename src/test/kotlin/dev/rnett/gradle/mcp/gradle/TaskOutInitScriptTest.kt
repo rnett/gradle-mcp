@@ -1,23 +1,13 @@
 package dev.rnett.gradle.mcp.gradle
 
+import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
+import dev.rnett.gradle.mcp.gradle.build.TaskOutcome
 import dev.rnett.gradle.mcp.gradle.fixtures.testGradleProject
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.seconds
 
 class TaskOutInitScriptTest {
-
-    private fun createTestProvider(): DefaultGradleProvider {
-        val tempDir = java.nio.file.Files.createTempDirectory("gradle-mcp-test-init-")
-        return DefaultGradleProvider(
-            GradleConfiguration(
-                maxConnections = 5,
-                ttl = 60.seconds,
-                allowPublicScansPublishing = false
-            ),
-            initScriptProvider = DefaultInitScriptProvider(tempDir)
-        )
-    }
 
 
     @Test
@@ -26,8 +16,7 @@ class TaskOutInitScriptTest {
         testGradleProject {
             buildScript("")
         }.use { project ->
-            val backgroundBuildManager = BackgroundBuildManager()
-            val buildResults = BuildResults(backgroundBuildManager)
+            val buildManager = BuildManager()
             val provider = DefaultGradleProvider(
                 GradleConfiguration(
                     maxConnections = 5,
@@ -35,8 +24,7 @@ class TaskOutInitScriptTest {
                     allowPublicScansPublishing = false
                 ),
                 initScriptProvider = DefaultInitScriptProvider(tempDir),
-                backgroundBuildManager = backgroundBuildManager,
-                buildResults = buildResults
+                buildManager = buildManager
             )
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
@@ -52,8 +40,8 @@ class TaskOutInitScriptTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assert(result.buildResult.isSuccessful == true)
-            assert(result.buildResult.consoleOutput.contains("Gradle MCP init script task-out.init.gradle.kts loaded"))
+            assert(result.outcome is BuildOutcome.Success)
+            assert(result.consoleOutput.contains("Gradle MCP init script task-out.init.gradle.kts loaded"))
         }
     }
 
@@ -71,8 +59,7 @@ class TaskOutInitScriptTest {
             """.trimIndent()
             )
         }.use { project ->
-            val backgroundBuildManager = BackgroundBuildManager()
-            val buildResults = BuildResults(backgroundBuildManager)
+            val buildManager = BuildManager()
             val provider = DefaultGradleProvider(
                 GradleConfiguration(
                     maxConnections = 5,
@@ -80,8 +67,7 @@ class TaskOutInitScriptTest {
                     allowPublicScansPublishing = false
                 ),
                 initScriptProvider = DefaultInitScriptProvider(),
-                backgroundBuildManager = backgroundBuildManager,
-                buildResults = buildResults
+                buildManager = buildManager
             )
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
@@ -96,20 +82,20 @@ class TaskOutInitScriptTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assert(result.buildResult.isSuccessful == true)
-            assert(!result.buildResult.taskOutputCapturingFailed)
+            assert(result.outcome is BuildOutcome.Success)
+            assert(!result.taskOutputCapturingFailed)
 
-            assert(result.buildResult.consoleOutput.contains(":printMessage OUT Hello from task"))
-            assert(result.buildResult.consoleOutput.contains(":printMessage ERR Error from task"))
+            assert(result.consoleOutput.contains(":printMessage OUT Hello from task"))
+            assert(result.consoleOutput.contains(":printMessage ERR Error from task"))
 
             // Should NOT contain the original unprefixed lines (they should have been replaced)
-            val lines = result.buildResult.consoleOutput.lines()
+            val lines = result.consoleOutput.lines()
             assert(!lines.contains("Hello from task"))
             assert(!lines.contains("ERR: Error from task"))
 
-            assert(result.buildResult.getTaskOutput(":printMessage") == "Hello from task\nError from task")
+            assert(result.getTaskOutput(":printMessage") == "Hello from task\nError from task")
 
-            val taskResult = result.buildResult.taskResults[":printMessage"]
+            val taskResult = result.taskResults[":printMessage"]
             assert(taskResult != null)
             assert(taskResult!!.outcome == TaskOutcome.SUCCESS)
             assert(taskResult.consoleOutput?.trim() == "Hello from task\nError from task")
@@ -135,8 +121,7 @@ class TaskOutInitScriptTest {
             """.trimIndent()
             )
         }.use { project ->
-            val backgroundBuildManager = BackgroundBuildManager()
-            val buildResults = BuildResults(backgroundBuildManager)
+            val buildManager = BuildManager()
             val provider = DefaultGradleProvider(
                 GradleConfiguration(
                     maxConnections = 5,
@@ -144,8 +129,7 @@ class TaskOutInitScriptTest {
                     allowPublicScansPublishing = false
                 ),
                 initScriptProvider = DefaultInitScriptProvider(),
-                backgroundBuildManager = backgroundBuildManager,
-                buildResults = buildResults
+                buildManager = buildManager
             )
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
@@ -160,10 +144,10 @@ class TaskOutInitScriptTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assert(result.buildResult.isSuccessful == true)
-            assert(!result.buildResult.taskOutputCapturingFailed)
-            assert(result.buildResult.consoleOutput.contains(":execTask OUT Hello from external process"))
-            assert(result.buildResult.getTaskOutput(":execTask") == "Hello from external process")
+            assert(result.outcome is BuildOutcome.Success)
+            assert(!result.taskOutputCapturingFailed)
+            assert(result.consoleOutput.contains(":execTask OUT Hello from external process"))
+            assert(result.getTaskOutput(":execTask") == "Hello from external process")
         }
     }
 
@@ -183,8 +167,7 @@ class TaskOutInitScriptTest {
             """.trimIndent()
             )
         }.use { project ->
-            val backgroundBuildManager = BackgroundBuildManager()
-            val buildResults = BuildResults(backgroundBuildManager)
+            val buildManager = BuildManager()
             val provider = DefaultGradleProvider(
                 GradleConfiguration(
                     maxConnections = 5,
@@ -192,8 +175,7 @@ class TaskOutInitScriptTest {
                     allowPublicScansPublishing = false
                 ),
                 initScriptProvider = DefaultInitScriptProvider(),
-                backgroundBuildManager = backgroundBuildManager,
-                buildResults = buildResults
+                buildManager = buildManager
             )
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
@@ -208,8 +190,8 @@ class TaskOutInitScriptTest {
             )
             val result = runningBuild.awaitFinished()
 
-            assert(result.buildResult.isSuccessful == true)
-            assert(result.buildResult.taskOutputCapturingFailed)
+            assert(result.outcome is BuildOutcome.Success)
+            assert(result.taskOutputCapturingFailed)
         }
     }
 }
