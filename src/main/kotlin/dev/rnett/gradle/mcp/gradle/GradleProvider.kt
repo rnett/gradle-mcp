@@ -312,8 +312,9 @@ class DefaultGradleProvider(
                     wrapper.release()
                 }
             }
-            val finished = runningBuild.finish(exception = outcome.exceptionOrNull() as? org.gradle.tooling.GradleConnectionException)
-            buildManager.storeResult(finished)
+            runningBuild.finish(exception = outcome.exceptionOrNull() as? org.gradle.tooling.GradleConnectionException) {
+                buildManager.storeResult(it)
+            }
             outcome
         }
         return runningBuild to deferred

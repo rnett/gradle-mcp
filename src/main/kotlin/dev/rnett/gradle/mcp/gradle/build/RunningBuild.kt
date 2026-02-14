@@ -89,9 +89,10 @@ data class RunningBuild(
         return RefFinishedBuild(this, Clock.System.now(), outcome)
     }
 
-    fun finish(exception: GradleConnectionException? = null): FinishedBuild {
+    fun finish(exception: GradleConnectionException? = null, store: (FinishedBuild) -> Unit): FinishedBuild {
         val finished = toFinishedBuild(exception)
         this.status = finished.outcome
+        store(finished)
         finishedBuildDeferred.complete(finished)
         return finished
     }

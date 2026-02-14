@@ -65,7 +65,7 @@ class BackgroundBuildStatusRaceTest : BaseMcpServerTest() {
             )
 
             // 2. Real logic: GradleProvider calls finish then storeResult
-            every { runningBuild.finish(any()) } returns mockFinishedBuild
+            every { runningBuild.finish(any(), any()) } returns mockFinishedBuild
             coEvery { runningBuild.awaitFinished() } returns mockFinishedBuild
             every { runningBuild.isRunning } returns false
 

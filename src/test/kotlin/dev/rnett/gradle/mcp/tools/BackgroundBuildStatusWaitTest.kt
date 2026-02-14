@@ -72,7 +72,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             finishTime = Clock.System.now()
         )
 
-        every { runningBuild.finish(any()) } returns mockFinishedBuild
+        every { runningBuild.finish(any(), any()) } returns mockFinishedBuild
         coEvery { runningBuild.awaitFinished() } returns mockFinishedBuild
         every { runningBuild.isRunning } returns true
         every { runningBuild.hasBuildFinished } returns false

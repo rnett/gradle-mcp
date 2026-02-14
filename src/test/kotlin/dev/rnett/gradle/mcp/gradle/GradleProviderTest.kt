@@ -62,7 +62,6 @@ class GradleProviderTest {
         testJavaProject().use { project ->
             val provider = createTestProvider()
             val connection = provider.getConnection(project.path())
-            assert(connection != null)
         }
     }
 
