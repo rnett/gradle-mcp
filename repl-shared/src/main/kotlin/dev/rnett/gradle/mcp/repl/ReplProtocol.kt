@@ -25,7 +25,7 @@ data class ReplRequest(
 
 @Serializable
 sealed class ReplResponse {
-    
+
     companion object {
         const val RPC_PREFIX = "[gradle-mcp-repl-rpc]"
     }
@@ -64,9 +64,12 @@ sealed class ReplResponse {
         ) : Result()
 
         @Serializable
-        data class CompilationError(val message: String) : Result()
+        data class CompilationError(val message: String, val location: String?) : Result()
 
         @Serializable
         data class RuntimeError(val message: String, val stackTrace: String? = null) : Result()
+
+        @Serializable
+        data class InternalError(val message: String, val stackTrace: String? = null) : Result()
     }
 }

@@ -1,5 +1,9 @@
 package dev.rnett.gradle.mcp.repl
 
+import dev.rnett.gradle.mcp.repl.ReplResponse.Result.CompilationError
+import dev.rnett.gradle.mcp.repl.ReplResponse.Result.InternalError
+import dev.rnett.gradle.mcp.repl.ReplResponse.Result.RuntimeError
+import dev.rnett.gradle.mcp.repl.ReplResponse.Result.Success
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -7,6 +11,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import org.slf4j.LoggerFactory
 import java.io.PrintStream
 import java.util.Scanner
 import kotlin.time.Duration.Companion.minutes
@@ -50,30 +55,38 @@ class ReplWorker(val config: ReplConfig, val scanner: Scanner) {
                 continue
             }
 
+            LOGGER.info("Repl request received $line")
+
             try {
                 val jsonLine = line.removePrefix(ReplResponse.RPC_PREFIX)
                 val request = json.decodeFromString<ReplRequest>(jsonLine)
                 val result = evaluator.evaluate(request.code)
                 handleResult(result)
             } catch (e: Exception) {
-                sendResponse(ReplResponse.Result.RuntimeError(e.message ?: e.toString(), e.stackTraceToString()))
+                LOGGER.error("Repl code execution failed with exception", e)
+                sendResponse(ReplResponse.Result.InternalError(e.message ?: e.toString(), e.stackTraceToString()))
             }
         }
         timeoutJob.cancel()
     }
 
     private fun handleResult(result: KotlinScriptEvaluator.EvalResult) {
+        LOGGER.info("Repl request finished with result {}", result)
         when (result) {
             is KotlinScriptEvaluator.EvalResult.Success -> {
-                sendResponse(ReplResponse.Result.Success(result.data))
+                sendResponse(Success(result.data))
             }
 
             is KotlinScriptEvaluator.EvalResult.CompilationError -> {
-                sendResponse(ReplResponse.Result.CompilationError(result.message))
+                sendResponse(CompilationError(result.message, result.location?.toString()))
             }
 
             is KotlinScriptEvaluator.EvalResult.RuntimeError -> {
-                sendResponse(ReplResponse.Result.RuntimeError(result.message, result.stackTrace))
+                sendResponse(RuntimeError(result.message, result.stackTrace))
+            }
+
+            is KotlinScriptEvaluator.EvalResult.InternalError -> {
+                sendResponse(InternalError(result.message, result.stackTrace))
             }
         }
     }
@@ -81,6 +94,7 @@ class ReplWorker(val config: ReplConfig, val scanner: Scanner) {
     companion object {
         private val json = Json { ignoreUnknownKeys = true }
         private val stdout = System.`out`
+        private val LOGGER by lazy { LoggerFactory.getLogger(ReplWorker::class.java) }
 
         fun sendResponse(response: ReplResponse) {
             val line = json.encodeToString(response)

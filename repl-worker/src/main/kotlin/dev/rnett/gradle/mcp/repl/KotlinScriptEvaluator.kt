@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.repl
 
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.repl.ReplCodeLine
 import org.jetbrains.kotlin.cli.common.repl.ReplCompileResult
 import org.jetbrains.kotlin.cli.common.repl.ReplEvalResult
@@ -86,8 +87,7 @@ class KotlinScriptEvaluator(val config: ReplConfig, val responseSender: (ReplRes
 
         return when (compileResult) {
             is ReplCompileResult.CompiledClasses -> {
-                val evalResult = evaluator.eval(evaluatorState, compileResult)
-                when (evalResult) {
+                when (val evalResult = evaluator.eval(evaluatorState, compileResult)) {
                     is ReplEvalResult.ValueResult -> {
                         EvalResult.Success(resultRenderer.renderResult(evalResult.value))
                     }
@@ -101,35 +101,36 @@ class KotlinScriptEvaluator(val config: ReplConfig, val responseSender: (ReplRes
                     }
 
                     is ReplEvalResult.Error.CompileTime -> {
-                        EvalResult.RuntimeError("Eval compile-time error: ${evalResult.message}", null)
+                        EvalResult.CompilationError("Eval compile-time error: ${evalResult.message}", evalResult.location)
                     }
 
                     is ReplEvalResult.HistoryMismatch -> {
-                        EvalResult.RuntimeError("History mismatch", null)
+                        EvalResult.InternalError("History mismatch", null)
                     }
 
                     is ReplEvalResult.Incomplete -> {
-                        EvalResult.CompilationError("Incomplete code (eval stage)")
+                        EvalResult.CompilationError("Incomplete code (eval stage)", null)
                     }
                 }
             }
 
             is ReplCompileResult.Error -> {
                 val message = compileResult.message.replace(Regex("Line_\\d+\\.kts"), "repl-$snippetId.kts")
-                EvalResult.CompilationError(message)
+                EvalResult.CompilationError(message, compileResult.location)
             }
 
             is ReplCompileResult.Incomplete -> {
                 val message = compileResult.message.replace(Regex("Line_\\d+\\.kts"), "repl-$snippetId.kts")
-                EvalResult.CompilationError("Incomplete code: $message")
+                EvalResult.CompilationError("Incomplete code: $message", null)
             }
         }
     }
 
     sealed class EvalResult {
         data class Success(val data: ReplResponse.Data) : EvalResult()
-        data class CompilationError(val message: String) : EvalResult()
+        data class CompilationError(val message: String, val location: CompilerMessageLocation?) : EvalResult()
         data class RuntimeError(val message: String, val stackTrace: String?) : EvalResult()
+        data class InternalError(val message: String, val stackTrace: String?) : EvalResult()
     }
 }
 

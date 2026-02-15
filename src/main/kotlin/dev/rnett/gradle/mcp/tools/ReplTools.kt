@@ -15,6 +15,7 @@ import io.modelcontextprotocol.kotlin.sdk.ImageContent
 import io.modelcontextprotocol.kotlin.sdk.PromptMessageContent
 import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.serialization.Serializable
+import org.slf4j.LoggerFactory
 import java.util.UUID
 import kotlin.time.ExperimentalTime
 
@@ -22,6 +23,9 @@ class ReplTools(
     val gradle: GradleProvider,
     val replManager: ReplManager,
 ) : McpServerComponent("REPL Tools", "Tools for interacting with a Kotlin REPL session.") {
+    companion object {
+        val LOGGER = LoggerFactory.getLogger(ReplTools::class.java)!!
+    }
 
     @Serializable
     enum class ReplCommand {
@@ -277,7 +281,7 @@ class ReplTools(
 
                 is ReplResponse.Result.CompilationError -> {
                     isError = true
-                    textBuffer.appendLine("\n\nCompilation Error:\n${it.message}")
+                    textBuffer.appendLine("\n\nCompilation Error:\n${it.message} at ${it.location ?: "unknown location"}")
                 }
 
                 is ReplResponse.Result.RuntimeError -> {
@@ -288,6 +292,12 @@ class ReplTools(
                 is ReplResponse.Log -> {
                     // Logs are already handled by ReplManager and forwarded to the main logger.
                     // We don't need to display them in the tool output by default.
+                }
+
+                is ReplResponse.Result.InternalError -> {
+                    isError = true
+                    LOGGER.error("Internal error from REPL worker: {} with stack trace {}", it.message, it.stackTrace)
+                    textBuffer.appendLine("\n\nInternal Error: ${it.message}")
                 }
             }
         }
