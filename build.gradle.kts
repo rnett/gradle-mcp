@@ -63,6 +63,7 @@ dependencies {
     implementation(libs.koin.logger.slf4j)
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.di)
+    implementation(libs.ktor.server.sse)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.server.config.yaml)
     implementation(libs.logback.classic)
@@ -73,6 +74,8 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.koin.test)
     testImplementation(libs.koin.test.junit5)
+    testImplementation(libs.ktor.client.cio)
+    testImplementation(libs.ktor.client.content.negotiation)
 }
 
 ktor {

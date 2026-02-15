@@ -1,4 +1,5 @@
-- Repl can specify additional dependencies and env vars.
+- Repl can specify additional dependencies
+- Repl works correctly when user source set has a slf4j setup
 - Consider how logging in repl should be handled for my code vs user code.
 - [Requires Gradle 9.4] Capture test metadata events. Put k/v pairs in the test details, and make files accessible. Probably add a "includeMetadataFiles" glob to the details. Want to include each file as its own response for image support.
   This is Gradle 9.4+

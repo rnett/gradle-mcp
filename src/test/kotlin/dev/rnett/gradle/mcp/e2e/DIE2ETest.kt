@@ -1,5 +1,9 @@
-package dev.rnett.gradle.mcp
+package dev.rnett.gradle.mcp.e2e
 
+import dev.rnett.gradle.mcp.DI
+import dev.rnett.gradle.mcp.gradle.GradleProvider
+import dev.rnett.gradle.mcp.mcp.McpServer
+import dev.rnett.gradle.mcp.repl.ReplManager
 import io.ktor.server.config.MapApplicationConfig
 import kotlinx.coroutines.runBlocking
 import org.koin.core.context.stopKoin
@@ -9,7 +13,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertNotNull
 
-class StartupE2ETest : KoinTest {
+class DIE2ETest : KoinTest {
 
     @AfterTest
     fun cleanup() {
@@ -40,9 +44,9 @@ class StartupE2ETest : KoinTest {
         val koin = koinApp.koin
 
         // This replicates what Application(args) does
-        val provider = koin.get<dev.rnett.gradle.mcp.gradle.GradleProvider>()
-        val replManager = koin.get<dev.rnett.gradle.mcp.repl.ReplManager>()
-        val mcpServer = koin.get<dev.rnett.gradle.mcp.mcp.McpServer>()
+        val provider = koin.get<GradleProvider>()
+        val replManager = koin.get<ReplManager>()
+        val mcpServer = koin.get<McpServer>()
 
         assertNotNull(provider)
         assertNotNull(replManager)
