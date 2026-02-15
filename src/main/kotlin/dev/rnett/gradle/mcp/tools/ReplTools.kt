@@ -289,10 +289,6 @@ class ReplTools(
                     textBuffer.appendLine("\n\nRuntime Error: ${it.message}${it.stackTrace?.let { "\n$it" } ?: ""}")
                 }
 
-                is ReplResponse.Log -> {
-                    // Logs are already handled by ReplManager and forwarded to the main logger.
-                    // We don't need to display them in the tool output by default.
-                }
 
                 is ReplResponse.Result.InternalError -> {
                     isError = true

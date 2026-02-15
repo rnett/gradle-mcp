@@ -12,7 +12,9 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
 import java.io.PrintStream
+import java.lang.management.ManagementFactory
 import java.util.Scanner
 import kotlin.time.Duration.Companion.minutes
 
@@ -104,6 +106,8 @@ class ReplWorker(val config: ReplConfig, val scanner: Scanner) {
 
         @JvmStatic
         fun main(args: Array<String>) {
+            val pid = ManagementFactory.getRuntimeMXBean().name.split("@")[0]
+            MDC.put("PID", pid)
             Scanner(System.`in`).use { scanner ->
                 if (!scanner.hasNextLine()) return
                 val configLine = scanner.nextLine() ?: return

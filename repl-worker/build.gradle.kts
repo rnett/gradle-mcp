@@ -12,7 +12,7 @@ kotlin {
 dependencies {
     implementation(project(":repl-shared"))
     implementation(libs.slf4j.api)
-    implementation(libs.slf4j.simple)
+    implementation(libs.logback.classic.jdk8)
     implementation(libs.kotlin.scripting.jvm)
     implementation(libs.kotlin.scripting.jvm.host)
     implementation(libs.kotlin.compiler.embeddable)
@@ -37,6 +37,7 @@ tasks.test {
         systemProperty("kotlin.stdlib.path", stdlibJar.absolutePath)
     }
     systemProperty("kotlin.stdlib.kotlin2.path", testKotlinStdlib2.joinToString(File.pathSeparator) { it.absolutePath })
+    systemProperty("GRADLE_MCP_LOG_DIR", layout.buildDirectory.dir("test-logs").get().asFile.absolutePath)
 }
 
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {

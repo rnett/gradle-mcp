@@ -11,6 +11,8 @@ import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
+import java.lang.management.ManagementFactory
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -66,6 +68,12 @@ class Application(val args: Array<String>) {
         @JvmStatic
         fun stdio(args: Array<String>) {
             runAndLogErrors {
+                val pid = try {
+                    ProcessHandle.current().pid().toString()
+                } catch (t: Throwable) {
+                    ManagementFactory.getRuntimeMXBean().name.split("@")[0]
+                }
+                MDC.put("PID", pid)
                 System.err.println("Starting Gradle MCP server with STDIO transport...")
                 Application(args).startStdio()
             }
@@ -74,6 +82,12 @@ class Application(val args: Array<String>) {
         @JvmStatic
         fun server(args: Array<String>) {
             runAndLogErrors {
+                val pid = try {
+                    ProcessHandle.current().pid().toString()
+                } catch (t: Throwable) {
+                    ManagementFactory.getRuntimeMXBean().name.split("@")[0]
+                }
+                MDC.put("PID", pid)
                 System.err.println("Starting Gradle MCP server with SSE transport...")
                 Application(args).startServer()
             }

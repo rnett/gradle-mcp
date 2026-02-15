@@ -133,37 +133,7 @@ class DefaultReplManager(
                         val jsonLine = line.removePrefix(ReplResponse.RPC_PREFIX)
                         try {
                             val response = Json.decodeFromString<ReplResponse>(jsonLine)
-                            when (response) {
-                                is ReplResponse.Log -> {
-                                    MDC.put("sessionId", sessionId)
-                                    try {
-                                        val workerLogger = LoggerFactory.getLogger("${LOGGER.name}.worker")
-                                        when (response.level.uppercase()) {
-                                            "TRACE" -> workerLogger.trace("{}: {}", response.logger, response.message)
-                                            "DEBUG" -> workerLogger.debug("{}: {}", response.logger, response.message)
-                                            "INFO" -> workerLogger.info("{}: {}", response.logger, response.message)
-                                            "WARN" -> workerLogger.warn("{}: {}", response.logger, response.message)
-                                            "ERROR" -> workerLogger.error(
-                                                "{}: {} {}",
-                                                response.logger,
-                                                response.message,
-                                                response.throwable ?: ""
-                                            )
-
-                                            else -> workerLogger.info(
-                                                "{}[{}]: {}",
-                                                response.logger,
-                                                response.level,
-                                                response.message
-                                            )
-                                        }
-                                    } finally {
-                                        MDC.remove("sessionId")
-                                    }
-                                }
-
-                                else -> session.emitResponse(response)
-                            }
+                            session.emitResponse(response)
                         } catch (e: Exception) {
                             LOGGER.error("Failed to decode REPL RPC message: $line", e)
                             session.addOutput("STDOUT: $line")
