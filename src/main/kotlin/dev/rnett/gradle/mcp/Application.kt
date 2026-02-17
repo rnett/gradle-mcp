@@ -13,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.io.Sink
 import kotlinx.io.Source
@@ -142,17 +143,17 @@ class Application(val args: Array<String>, val transport: Transport) {
         val LOGGER = LoggerFactory.getLogger(Application::class.java)
 
         @JvmStatic
-        suspend fun stdio(args: Array<String>) {
+        fun stdio(args: Array<String>) = runBlocking {
             Application(args, Transport.Stdio(System.`in`.asSource().buffered(), System.out.asSink().buffered())).start()
         }
 
         @JvmStatic
-        suspend fun server(args: Array<String>) {
+        fun server(args: Array<String>) = runBlocking {
             Application(args, Transport.Sse()).start()
         }
 
         @JvmStatic
-        suspend fun main(args: Array<String>) {
+        fun main(args: Array<String>) {
             if (args.getOrNull(0) == "stdio") {
                 stdio(args.drop(1).toTypedArray())
             } else {
