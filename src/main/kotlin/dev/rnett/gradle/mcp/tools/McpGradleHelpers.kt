@@ -41,11 +41,7 @@ suspend inline fun GradleProvider.doBuild(
         invocationArgs.withInitScript(InitScriptNames.TASK_OUT),
         { ScansTosManager.askForScansTos(root, it) },
         stdoutLineHandler = {
-            ctx.emitLoggingNotification("gradle-build", LoggingLevel.notice, it)
             ctx.emitProgressNotification(0.0, 0.0, it)
-        },
-        stderrLineHandler = {
-            ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it)
         }
     )
     val finished = running.awaitFinished()
@@ -65,11 +61,7 @@ suspend inline fun GradleProvider.doTests(
         invocationArgs.withInitScript(InitScriptNames.TASK_OUT),
         { ScansTosManager.askForScansTos(root, it) },
         stdoutLineHandler = {
-            ctx.emitLoggingNotification("gradle-build", LoggingLevel.notice, it)
             ctx.emitProgressNotification(0.0, 0.0, it)
-        },
-        stderrLineHandler = {
-            ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it)
         }
     )
     val finished = running.awaitFinished()

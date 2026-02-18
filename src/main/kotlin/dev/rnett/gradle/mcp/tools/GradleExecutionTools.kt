@@ -86,6 +86,7 @@ class GradleExecutionTools(
             |- `outgoingVariants`: Gets all outgoing variants of the project (i.e. configurations that can be published or consumed from other projects).
         """.trimMargin(),
     ) {
+        //TODO intercept --help and --version and use the new 9.4 build models
         val additionalArgs = buildList {
             add(it.taskPath)
             addAll(it.arguments)

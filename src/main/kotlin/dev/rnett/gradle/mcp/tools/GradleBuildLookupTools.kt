@@ -19,6 +19,8 @@ import kotlin.uuid.ExperimentalUuidApi
 
 class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponent("Lookup Tools", "Tools for looking up detailed information about past Gradle builds ran by this MCP server.") {
 
+    //TODO consider a single lookup tool with a "kind" argument
+
     companion object {
         const val BUILD_ID_DESCRIPTION = "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
     }
