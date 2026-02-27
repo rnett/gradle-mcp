@@ -9,6 +9,8 @@ import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import dev.rnett.gradle.mcp.repl.DefaultReplEnvironmentService
+import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
 import dev.rnett.gradle.mcp.tools.BackgroundBuildTools
 import dev.rnett.gradle.mcp.tools.GradleBuildLookupTools
 import dev.rnett.gradle.mcp.tools.GradleExecutionTools
@@ -39,6 +41,7 @@ abstract class BaseMcpServerTest {
         single<BundledJarProvider> { DefaultBundledJarProvider(tempDir.resolve("jars")) }
         single { BuildManager() }
         single<dev.rnett.gradle.mcp.repl.ReplManager> { dev.rnett.gradle.mcp.repl.DefaultReplManager(get()) }
+        single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
         single<GradleProvider> {
             every { provider.buildManager } returns get()
             provider
@@ -47,10 +50,11 @@ abstract class BaseMcpServerTest {
         single {
             val provider: GradleProvider = get()
             val replManager: dev.rnett.gradle.mcp.repl.ReplManager = get()
+            val replEnvironmentService: ReplEnvironmentService = get()
             listOf(
                 GradleIntrospectionTools(provider),
                 GradleExecutionTools(provider),
-                dev.rnett.gradle.mcp.tools.ReplTools(provider, replManager),
+                dev.rnett.gradle.mcp.tools.ReplTools(provider, replManager, replEnvironmentService),
                 BackgroundBuildTools(provider),
                 GradleBuildLookupTools(get()),
             )

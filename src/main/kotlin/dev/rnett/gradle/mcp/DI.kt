@@ -11,15 +11,16 @@ import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.mcp.McpServer
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.mcp.add
+import dev.rnett.gradle.mcp.repl.DefaultReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.DefaultReplManager
+import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.ReplManager
 import dev.rnett.gradle.mcp.tools.BackgroundBuildTools
 import dev.rnett.gradle.mcp.tools.GradleBuildLookupTools
 import dev.rnett.gradle.mcp.tools.GradleExecutionTools
 import dev.rnett.gradle.mcp.tools.GradleIntrospectionTools
 import dev.rnett.gradle.mcp.tools.ReplTools
-import io.ktor.server.config.ApplicationConfig
-import io.ktor.server.config.getAs
+import io.ktor.server.config.*
 import io.modelcontextprotocol.kotlin.sdk.EmptyJsonObject
 import io.modelcontextprotocol.kotlin.sdk.Implementation
 import io.modelcontextprotocol.kotlin.sdk.ServerCapabilities
@@ -45,6 +46,7 @@ object DI {
         single { DefaultInitScriptProvider() } bind InitScriptProvider::class
         single { DefaultBundledJarProvider() } bind BundledJarProvider::class
         single<ReplManager> { DefaultReplManager(get()) }
+        single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
         single { BuildManager() }
         single<GradleProvider> {
             DefaultGradleProvider(
@@ -57,10 +59,11 @@ object DI {
         single {
             val provider: GradleProvider = get()
             val replManager: ReplManager = get()
+            val replEnvironmentService: ReplEnvironmentService = get()
             listOf<McpServerComponent>(
                 GradleIntrospectionTools(provider),
                 GradleExecutionTools(provider),
-                ReplTools(provider, replManager),
+                ReplTools(provider, replManager, replEnvironmentService),
                 BackgroundBuildTools(provider),
                 GradleBuildLookupTools(provider.buildManager),
             )
@@ -89,10 +92,14 @@ object DI {
         modules(createModule(config))
     }
 
-    fun components(provider: GradleProvider, replManager: ReplManager): List<McpServerComponent> = listOf(
+    fun components(
+        provider: GradleProvider,
+        replManager: ReplManager,
+        replEnvironmentService: ReplEnvironmentService
+    ): List<McpServerComponent> = listOf(
         GradleIntrospectionTools(provider),
         GradleExecutionTools(provider),
-        ReplTools(provider, replManager),
+        ReplTools(provider, replManager, replEnvironmentService),
         BackgroundBuildTools(provider),
         GradleBuildLookupTools(provider.buildManager),
     )

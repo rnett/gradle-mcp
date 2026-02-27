@@ -113,6 +113,13 @@ runComposeUiTest {
       ],
       "description": "The source set to use (e.g., 'main'). Required for 'start'."
     },
+    "additionalDependencies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Additional dependencies to add to the repl classpath, in Gradle dependency notation. Optional for 'start'."
+    },
     "env": {
       "type": "object",
       "additionalProperties": {

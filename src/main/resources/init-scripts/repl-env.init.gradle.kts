@@ -62,6 +62,7 @@ abstract class ResolveReplEnvironmentTask : DefaultTask() {
 // Configuration from start parameters
 val targetProject = (gradle.startParameter.projectProperties["gradle-mcp.repl.project"] ?: ":")
 val targetSourceSetName = (gradle.startParameter.projectProperties["gradle-mcp.repl.sourceSet"] ?: "main")
+val additionalDependencies = (gradle.startParameter.projectProperties["gradle-mcp.repl.additionalDependencies"]?.split(";|;")?.filter { it.isNotBlank() } ?: listOf())
 
 /**
  * Helper to safely call a method via reflection.
@@ -275,22 +276,20 @@ allprojects {
                 // Helper to configure from a compilation
                 fun configureFromCompilation(compilation: Any) {
                     // Runtime classpath configuration
-                    val runtimeClasspathConf = compilation.getProperty("runtimeDependencyFiles") as? org.gradle.api.file.FileCollection
-                    if (runtimeClasspathConf != null) {
-                        runtimeClasspath.from(runtimeClasspathConf)
-                    } else {
-                        // Fallback to searching configuration by name if runtimeDependencyFiles is not available
-                        val target = compilation.getProperty("target")
-                        val targetName = target?.getProperty("name")?.toString()
-                        val compilationName = compilation.getProperty("name")?.toString()
-                        if (targetName != null && compilationName != null) {
-                            val isMain = compilationName == "main"
-                            val isTest = compilationName == "test"
-                            val confName = if (isMain) "${targetName}RuntimeClasspath" else if (isTest) "${targetName}TestRuntimeClasspath" else null
-                            if (confName != null) {
-                                val conf = project.configurations.findByName(confName)
-                                if (conf != null) runtimeClasspath.from(conf)
+                    val confName = compilation.getProperty("runtimeDependencyConfigurationName") as? String ?: compilation.getProperty("compileDependencyConfigurationName") as? String
+                    val conf = confName?.let { project.configurations.findByName(it) }
+
+                    if (conf != null) {
+                        if (additionalDependencies.isNotEmpty()) {
+                            val replClasspath = project.configurations.create("gradleMcpReplClasspath")
+                            replClasspath.isCanBeResolved = true
+                            replClasspath.extendsFrom(conf)
+                            additionalDependencies.forEach { dependency ->
+                                replClasspath.dependencies.add(project.dependencies.create(dependency))
                             }
+                            runtimeClasspath.from(replClasspath)
+                        } else {
+                            runtimeClasspath.from(conf)
                         }
                     }
 
@@ -319,7 +318,25 @@ allprojects {
                 // Helper to configure from a standard Java SourceSet
                 fun configureFromJavaSourceSet(sourceSet: SourceSet) {
                     targetSourceSet.set(targetSourceSetName)
-                    runtimeClasspath.from(sourceSet.runtimeClasspath)
+
+                    if (additionalDependencies.isNotEmpty()) {
+                        val replClasspath = project.configurations.create("gradleMcpReplClasspath")
+                        replClasspath.isCanBeResolved = true
+                        val runtimeConf = project.configurations.findByName(sourceSet.runtimeClasspathConfigurationName)
+                        if (runtimeConf != null) {
+                            replClasspath.extendsFrom(runtimeConf)
+                        } else {
+                            // sourceSet.runtimeClasspath is a FileCollection, so we use from()
+                            replClasspath.dependencies.add(project.dependencies.create(sourceSet.runtimeClasspath))
+                        }
+                        additionalDependencies.forEach { dependency ->
+                            replClasspath.dependencies.add(project.dependencies.create(dependency))
+                        }
+                        runtimeClasspath.from(replClasspath)
+                    } else {
+                        runtimeClasspath.from(sourceSet.runtimeClasspath)
+                    }
+
                     runtimeClasspath.from(sourceSet.output.classesDirs)
                     runtimeClasspath.from(sourceSet.output.resourcesDir)
                     dependsOn(sourceSet.classesTaskName)

@@ -11,7 +11,9 @@ import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.gradle.fixtures.GradleProjectFixture
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
+import dev.rnett.gradle.mcp.repl.DefaultReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.DefaultReplManager
+import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.ReplManager
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.modelcontextprotocol.kotlin.sdk.CallToolResult
@@ -97,6 +99,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single { DefaultBundledJarProvider(tempDir.resolve("jars")) } bind BundledJarProvider::class
         single<BuildManager> { BuildManager() }
         single<ReplManager> { DefaultReplManager(get()) }
+        single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
         single<GradleProvider> {
             DefaultGradleProvider(
                 get(),
@@ -105,7 +108,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
             )
         }
         single {
-            DI.components(get(), get())
+            DI.components(get(), get(), get())
         }
         single {
             DI.createServer(get(), get())

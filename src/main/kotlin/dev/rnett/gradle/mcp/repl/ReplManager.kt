@@ -20,10 +20,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import org.slf4j.MDC
-import java.util.Scanner
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.absolutePathString
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 sealed class ReplSession {
@@ -51,9 +50,7 @@ interface ReplManager : AutoCloseable {
  * Implements Step 4 of the REPL implementation plan.
  */
 class DefaultReplManager(
-    private val bundledJarProvider: BundledJarProvider = DefaultBundledJarProvider(),
-    private val timeout: kotlin.time.Duration = 15.minutes,
-    private val checkInterval: kotlin.time.Duration = 1.minutes
+    private val bundledJarProvider: BundledJarProvider = DefaultBundledJarProvider()
 ) : ReplManager {
     private val sessions = ConcurrentHashMap<String, ReplSessionState>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

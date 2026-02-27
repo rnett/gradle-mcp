@@ -80,7 +80,7 @@ class ReplManagerTest {
         val provider = mockk<BundledJarProvider>()
         every { provider.extractJar(any()) } returns jarPath
 
-        return DefaultReplManager(provider, timeout = timeout, checkInterval = checkInterval)
+        return DefaultReplManager(provider)
     }
 
     @Test

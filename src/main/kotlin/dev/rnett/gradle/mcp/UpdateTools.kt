@@ -7,6 +7,8 @@ import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleScanTosAcceptRequest
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import dev.rnett.gradle.mcp.repl.ReplConfigWithJava
+import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
 import org.gradle.tooling.events.OperationType
@@ -60,7 +62,7 @@ object UpdateTools {
             throw IllegalArgumentException("Output directory must be a directory")
         }
 
-        val files = DI.components(throwingGradleProvider, throwingReplManager).mapNotNull {
+        val files = DI.components(throwingGradleProvider, throwingReplManager, throwingReplEnvironmentService).mapNotNull {
             val file = directory?.resolve("${it.name.replace(" ", "_").uppercase()}.md")
             executeForComponent(it, file, verify)
             file
@@ -181,6 +183,18 @@ object UpdateTools {
         }
 
         override val buildManager = BuildManager()
+    }
+
+    val throwingReplEnvironmentService = object : ReplEnvironmentService {
+        override suspend fun resolveReplEnvironment(
+            projectRoot: GradleProjectRoot,
+            projectPath: String,
+            sourceSet: String,
+            additionalDependencies: List<String>,
+            tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean
+        ): ReplConfigWithJava {
+            throw UnsupportedOperationException("Not supported in UpdateTools")
+        }
     }
 
     val throwingReplManager = object : dev.rnett.gradle.mcp.repl.ReplManager {

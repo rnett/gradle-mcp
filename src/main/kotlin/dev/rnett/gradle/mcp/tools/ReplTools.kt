@@ -1,11 +1,8 @@
 package dev.rnett.gradle.mcp.tools
 
-import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProvider
-import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
-import dev.rnett.gradle.mcp.repl.KotlinCompilerPluginOption
-import dev.rnett.gradle.mcp.repl.ReplConfig
+import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.ReplManager
 import dev.rnett.gradle.mcp.repl.ReplRequest
 import dev.rnett.gradle.mcp.repl.ReplResponse
@@ -16,12 +13,13 @@ import io.modelcontextprotocol.kotlin.sdk.PromptMessageContent
 import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.serialization.Serializable
 import org.slf4j.LoggerFactory
-import java.util.UUID
+import java.util.*
 import kotlin.time.ExperimentalTime
 
 class ReplTools(
     val gradle: GradleProvider,
     val replManager: ReplManager,
+    val replEnvironmentService: ReplEnvironmentService
 ) : McpServerComponent("REPL Tools", "Tools for interacting with a Kotlin REPL session.") {
     companion object {
         val LOGGER = LoggerFactory.getLogger(ReplTools::class.java)!!
@@ -47,6 +45,8 @@ class ReplTools(
         val projectPath: String? = null,
         @Description("The source set to use (e.g., 'main'). Required for 'start'.")
         val sourceSet: String? = null,
+        @Description("Additional dependencies to add to the repl classpath, in Gradle dependency notation. Optional for 'start'.")
+        val additionalDependencies: List<String> = emptyList(),
         @Description("Environment variables to set in the REPL worker process Optional for 'start'.")
         val env: Map<String, String> = emptyMap(),
         @Description("The Kotlin code snippet to execute. Required for 'run'.")
@@ -154,67 +154,21 @@ class ReplTools(
 
         val projectRoot = context.run { args.projectRoot.resolve() }
 
-        val taskPath = if (projectPath == ":") ":resolveReplEnvironment" else "$projectPath:resolveReplEnvironment"
-
-        val running = gradle.runBuild(
-            projectRoot,
-            GradleInvocationArguments(
-                additionalArguments = listOf(
-                    taskPath,
-                    "-Pgradle-mcp.repl.project=$projectPath",
-                    "-Pgradle-mcp.repl.sourceSet=$sourceSet"
-                ),
-                requestedInitScripts = listOf(InitScriptNames.REPL_ENV)
-            ),
-            { context.run { ScansTosManager.askForScansTos(projectRoot, it) } }
-        )
-        val finished = running.awaitFinished()
-        if (finished.outcome !is BuildOutcome.Success) {
-            return CallToolResult(listOf(TextContent("Failed to resolve REPL environment because Gradle task failed:\n${finished.toOutputString()}")), isError = true)
-        }
-
-        val output = finished.consoleOutput.toString()
-        val envLines = output.lines().filter { it.contains("[gradle-mcp-repl-env]") }
-
-        val classpath = envLines.find { it.contains("classpath=") }?.substringAfter("classpath=")?.split(";")?.filter { it.isNotBlank() } ?: emptyList()
-        val javaExecutable = envLines.find { it.contains("javaExecutable=") }?.substringAfter("javaExecutable=")
-        val pluginsClasspath = envLines.find { it.contains("pluginsClasspath=") }?.substringAfter("pluginsClasspath=")?.split(";")?.filter { it.isNotBlank() } ?: emptyList()
-        val compilerPluginOptionsString = envLines.find { it.contains("compilerPluginOptions=") }?.substringAfter("compilerPluginOptions=")
-        val compilerPluginOptionsList = compilerPluginOptionsString?.split(";")?.filter { it.isNotBlank() } ?: emptyList()
-        val compilerArgs = envLines.find { it.contains("compilerArgs=") }?.substringAfter("compilerArgs=")?.split(";")?.filter { it.isNotBlank() } ?: emptyList()
-
-        if (javaExecutable == null) {
-            return CallToolResult(
-                listOf(
-                    TextContent(
-                        "No JVM target available for source set '$sourceSet' in project '$projectPath'. " +
-                                "Ensure that the project has a JVM target (e.g., via the `kotlin(\"jvm\")` or `java` plugin) " +
-                                "and that the source set exists."
-                    )
-                ), isError = true
+        val envResult = try {
+            replEnvironmentService.resolveReplEnvironment(
+                projectRoot,
+                projectPath,
+                sourceSet,
+                args.additionalDependencies
             )
+        } catch (e: Exception) {
+            return CallToolResult(listOf(TextContent(e.message ?: "Failed to resolve REPL environment")), isError = true)
         }
 
         val sessionId = UUID.randomUUID().toString()
-        val config = ReplConfig(
-            classpath = classpath,
-            pluginsClasspath = pluginsClasspath,
-            compilerPluginOptions = compilerPluginOptionsList.mapNotNull {
-                // Expected format: pluginId:optionName=value
-                val parts = it.split(":", limit = 2)
-                if (parts.size == 2) {
-                    val pluginId = parts[0]
-                    val optionParts = parts[1].split("=", limit = 2)
-                    if (optionParts.size == 2) {
-                        KotlinCompilerPluginOption(pluginId, optionParts[0], optionParts[1])
-                    } else null
-                } else null
-            },
-            compilerArgs = compilerArgs,
-            env = args.env
-        )
+        val config = envResult.config.copy(env = args.env)
 
-        replManager.startSession(sessionId, config, javaExecutable)
+        replManager.startSession(sessionId, config, envResult.javaExecutable)
         currentReplSessionId = sessionId
         return CallToolResult(listOf(TextContent("REPL session started with ID: $sessionId")))
     }
