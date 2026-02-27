@@ -38,7 +38,12 @@ Gets the latest builds (both background and completed) ran by this MCP server.
 
 ## lookup_build_tests
 
-For a given build, provides either a summary of test executions or detailed information for a specific test. If `details` is provided, detailed execution info (duration, failure details, and console output) for that test is returned. If `summary` is provided (or neither), returns a list of tests matching the provided filters. Only one of `summary` or `details` may be specified. Works for in-progress builds.
+For a given build, provides either a summary of test executions or detailed information for a specific test. 
+If `details` is provided, detailed execution info (duration, failure details, metadata, attached file paths, and console output) for that test is returned. If files are attached, be sure to look at them yourself.
+If `summary` is provided (or neither), returns a list of tests matching the provided filters. 
+Only one of `summary` or `details` may be specified. 
+Works for in-progress builds.
+
 
 <details>
 

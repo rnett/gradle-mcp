@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.powerassert.gradle.PowerAssertGradleExtension
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -94,7 +95,7 @@ kotlin {
 }
 
 @OptIn(ExperimentalKotlinGradlePluginApi::class)
-fun org.jetbrains.kotlin.powerassert.gradle.PowerAssertGradleExtension.configurePowerAssert() {
+fun PowerAssertGradleExtension.configurePowerAssert() {
     functions = listOf(
         "kotlin.assert",
         // kotlin.test
@@ -115,8 +116,9 @@ fun org.jetbrains.kotlin.powerassert.gradle.PowerAssertGradleExtension.configure
 }
 
 allprojects {
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
     plugins.withType<org.jetbrains.kotlin.powerassert.gradle.PowerAssertGradlePlugin> {
-        configure<org.jetbrains.kotlin.powerassert.gradle.PowerAssertGradleExtension> {
+        configure<PowerAssertGradleExtension> {
             configurePowerAssert()
         }
     }
@@ -124,11 +126,8 @@ allprojects {
 
 tasks.test {
     useJUnitPlatform()
-    systemProperty("junit.jupiter.execution.parallel.enabled", "true")
-    systemProperty("junit.jupiter.execution.parallel.mode.classes.default", "concurrent")
-    systemProperty("junit.jupiter.execution.parallel.config.strategy", "fixed")
-    systemProperty("junit.jupiter.execution.parallel.config.fixed.parallelism", "5")
     systemProperty("GRADLE_MCP_LOG_DIR", layout.buildDirectory.dir("test-logs").get().asFile.absolutePath)
+    maxParallelForks = 4
 }
 
 tasks.named<UpdateDaemonJvm>("updateDaemonJvm") {

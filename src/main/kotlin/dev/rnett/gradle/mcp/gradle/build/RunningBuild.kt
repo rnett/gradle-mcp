@@ -22,7 +22,7 @@ import org.gradle.tooling.events.problems.PluginIdLocation
 import org.gradle.tooling.events.problems.Problem
 import org.gradle.tooling.events.problems.TaskPathLocation
 import java.nio.file.Path
-import java.util.Collections
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.io.path.Path
@@ -251,7 +251,9 @@ private fun DefaultGradleProvider.TestCollector.Result.toModel(indexer: FailureI
         output,
         duration,
         failures?.map { indexer.withIndex(it.toContent()) },
-        status
+        status,
+        metadata,
+        attachments.map { TestResult.Attachment(it.file, it.mediaType) }
     )
 }
 

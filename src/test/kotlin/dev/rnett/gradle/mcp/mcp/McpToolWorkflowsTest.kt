@@ -47,7 +47,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         val scans = emptyList<GradleBuildScan>()
         val testResults = TestResults(
             passed = setOf(
-                TestResult("com.example.HelloTest.passes", null, 0.1.seconds, failures = null, status = TestOutcome.PASSED)
+                TestResult("com.example.HelloTest.passes", null, 0.1.seconds, failures = null, status = TestOutcome.PASSED, metadata = emptyMap(), attachments = emptyList())
             ),
             skipped = emptySet(),
             failed = setOf(
@@ -64,7 +64,9 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
                             problemAggregations = emptyMap()
                         )
                     ),
-                    status = TestOutcome.FAILED
+                    status = TestOutcome.FAILED,
+                    metadata = emptyMap(),
+                    attachments = emptyList()
                 )
             )
         )

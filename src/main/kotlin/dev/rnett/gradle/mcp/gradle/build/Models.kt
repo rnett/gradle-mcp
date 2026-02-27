@@ -4,9 +4,9 @@ import dev.rnett.gradle.mcp.gradle.ProblemAggregation
 import dev.rnett.gradle.mcp.gradle.ProblemSeverity
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
+import java.nio.file.Path
 import kotlin.time.Duration
 
-@Serializable
 data class TaskResult(
     val path: String,
     val outcome: TaskOutcome,
@@ -14,7 +14,6 @@ data class TaskResult(
     val consoleOutput: String?
 )
 
-@Serializable
 data class TestResults(
     val passed: Set<TestResult>,
     val skipped: Set<TestResult>,
@@ -31,16 +30,18 @@ data class TestResults(
     }
 }
 
-@Serializable
 data class TestResult(
     val testName: String,
     val consoleOutput: String?,
     val executionDuration: Duration,
     val failures: List<Failure>?,
-    val status: TestOutcome
-)
+    val status: TestOutcome,
+    val metadata: Map<String, String>,
+    val attachments: List<Attachment>
+) {
+    data class Attachment(val path: Path, val mediaType: String?)
+}
 
-@Serializable
 data class Failure(
     val id: FailureId,
     val message: String?,

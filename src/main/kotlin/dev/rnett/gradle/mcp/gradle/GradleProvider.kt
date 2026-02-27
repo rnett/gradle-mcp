@@ -39,7 +39,9 @@ import org.gradle.tooling.events.task.TaskSuccessResult
 import org.gradle.tooling.events.test.Destination
 import org.gradle.tooling.events.test.JvmTestOperationDescriptor
 import org.gradle.tooling.events.test.TestFailureResult
+import org.gradle.tooling.events.test.TestFileAttachmentMetadataEvent
 import org.gradle.tooling.events.test.TestFinishEvent
+import org.gradle.tooling.events.test.TestKeyValueMetadataEvent
 import org.gradle.tooling.events.test.TestOperationDescriptor
 import org.gradle.tooling.events.test.TestOutputEvent
 import org.gradle.tooling.events.test.TestSkippedResult
@@ -196,11 +198,16 @@ class DefaultGradleProvider(
     }
 
 
+    @Suppress("UnstableApiUsage")
     class TestCollector(val captureFailedTestOutput: Boolean, val captureAllTestOutput: Boolean) : ProgressListener {
         private val output = mutableMapOf<String, StringBuilder>()
         private val passed = mutableListOf<Result>()
         private val skipped = mutableListOf<Result>()
         private val failed = mutableListOf<Result>()
+        private val metadata = mutableMapOf<String, MutableMap<String, String>>()
+        private val attachments = mutableMapOf<String, MutableList<FileAttachment>>()
+
+        data class FileAttachment(val file: Path, val mediaType: String?)
 
         data class Results(
             val passed: Set<Result>,
@@ -213,6 +220,8 @@ class DefaultGradleProvider(
             val output: String?,
             val duration: Duration,
             val failures: List<Failure>?,
+            val metadata: Map<String, String>,
+            val attachments: List<FileAttachment>,
         )
 
         private fun TestOperationDescriptor.testName(): String? {
@@ -226,13 +235,16 @@ class DefaultGradleProvider(
             when (event) {
                 is TestStartEvent -> {}
                 is TestFinishEvent -> {
+                    val testName = event.descriptor.testName() ?: return
                     val testResult = Result(
-                        event.descriptor.testName() ?: return,
+                        testName,
                         null,
                         (event.result.endTime - event.result.startTime).milliseconds,
-                        null
+                        null,
+                        metadata.remove(testName) ?: emptyMap(),
+                        attachments.remove(testName) ?: emptyList(),
                     )
-                    val output = output.remove(testResult.testName)?.toString() ?: ""
+                    val output = output.remove(testName)?.toString() ?: ""
                     when (val result = event.result) {
                         is TestSuccessResult -> {
                             passed += testResult.copy(output = output.takeIf { captureAllTestOutput })
@@ -253,6 +265,16 @@ class DefaultGradleProvider(
                     val prefix = if (event.descriptor.destination == Destination.StdErr) "Err: " else ""
                     output.getOrPut(testName) { StringBuilder() }.append(prefix + event.descriptor.message)
                 }
+
+                is TestKeyValueMetadataEvent -> {
+                    val testName = (event.descriptor.parent as? TestOperationDescriptor)?.testName() ?: return
+                    metadata.getOrPut(testName) { mutableMapOf() }.putAll(event.values)
+                }
+
+                is TestFileAttachmentMetadataEvent -> {
+                    val testName = (event.descriptor.parent as? TestOperationDescriptor)?.testName() ?: return
+                    attachments.getOrPut(testName) { mutableListOf() }.add(FileAttachment(event.file.toPath(), event.mediaType))
+                }
             }
         }
 
@@ -266,6 +288,7 @@ class DefaultGradleProvider(
             add(OperationType.TEST)
             if (captureFailedTestOutput || captureAllTestOutput) {
                 add(OperationType.TEST_OUTPUT)
+                add(OperationType.TEST_METADATA)
             }
         }
     }

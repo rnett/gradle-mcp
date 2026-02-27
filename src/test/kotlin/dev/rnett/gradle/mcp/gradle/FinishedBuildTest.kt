@@ -113,14 +113,14 @@ class FinishedBuildTest {
     @Test
     fun `test results tracks counts correctly`() {
         val passed = setOf(
-            TestResult("test1", null, 100.milliseconds, null, TestOutcome.PASSED),
-            TestResult("test2", null, 200.milliseconds, null, TestOutcome.PASSED)
+            TestResult("test1", null, 100.milliseconds, null, TestOutcome.PASSED, emptyMap(), emptyList()),
+            TestResult("test2", null, 200.milliseconds, null, TestOutcome.PASSED, emptyMap(), emptyList())
         )
         val skipped = setOf(
-            TestResult("test3", null, 0.milliseconds, null, TestOutcome.SKIPPED)
+            TestResult("test3", null, 0.milliseconds, null, TestOutcome.SKIPPED, emptyMap(), emptyList())
         )
         val failed = setOf(
-            TestResult("test4", "output", 150.milliseconds, emptyList(), TestOutcome.FAILED)
+            TestResult("test4", "output", 150.milliseconds, emptyList(), TestOutcome.FAILED, emptyMap(), emptyList())
         )
 
         val testResults = TestResults(
@@ -151,13 +151,13 @@ class FinishedBuildTest {
     @Test
     fun `test results all sequence contains all tests`() {
         val passed = setOf(
-            TestResult("test1", null, 100.milliseconds, null, TestOutcome.PASSED)
+            TestResult("test1", null, 100.milliseconds, null, TestOutcome.PASSED, emptyMap(), emptyList())
         )
         val skipped = setOf(
-            TestResult("test2", null, 0.milliseconds, null, TestOutcome.SKIPPED)
+            TestResult("test2", null, 0.milliseconds, null, TestOutcome.SKIPPED, emptyMap(), emptyList())
         )
         val failed = setOf(
-            TestResult("test3", "output", 150.milliseconds, emptyList(), TestOutcome.FAILED)
+            TestResult("test3", "output", 150.milliseconds, emptyList(), TestOutcome.FAILED, emptyMap(), emptyList())
         )
 
         val testResults = TestResults(
@@ -241,7 +241,9 @@ class FinishedBuildTest {
             consoleOutput = null,
             executionDuration = 100.milliseconds,
             failures = listOf(testFailure),
-            status = TestOutcome.FAILED
+            status = TestOutcome.FAILED,
+            metadata = emptyMap(),
+            attachments = emptyList()
         )
 
         val result = FinishedBuild(
@@ -286,7 +288,9 @@ class FinishedBuildTest {
             consoleOutput = null,
             executionDuration = 100.milliseconds,
             failures = listOf(testFailure),
-            status = TestOutcome.FAILED
+            status = TestOutcome.FAILED,
+            metadata = emptyMap(),
+            attachments = emptyList()
         )
 
         val result = FinishedBuild(
@@ -332,7 +336,9 @@ class FinishedBuildTest {
             consoleOutput = null,
             executionDuration = 100.milliseconds,
             failures = listOf(testFailure),
-            status = TestOutcome.FAILED
+            status = TestOutcome.FAILED,
+            metadata = emptyMap(),
+            attachments = emptyList()
         )
 
         val result = FinishedBuild(
@@ -471,6 +477,28 @@ class FinishedBuildTest {
             finishTime = Clock.System.now()
         )
         assert(result.getTaskOutput(":nonexistent") == null)
+    }
+
+    @Test
+    fun `test result can hold metadata and attachments`() {
+        val metadata = mapOf("key" to "value")
+        val attachmentPath = java.nio.file.Paths.get("test.txt")
+        val attachments = listOf(TestResult.Attachment(attachmentPath, "text/plain"))
+
+        val testResult = TestResult(
+            testName = "metadataTest",
+            consoleOutput = "some output",
+            executionDuration = 50.milliseconds,
+            failures = null,
+            status = TestOutcome.PASSED,
+            metadata = metadata,
+            attachments = attachments
+        )
+
+        assert(testResult.metadata["key"] == "value")
+        assert(testResult.attachments.size == 1)
+        assert(testResult.attachments[0].path == attachmentPath)
+        assert(testResult.attachments[0].mediaType == "text/plain")
     }
 }
 

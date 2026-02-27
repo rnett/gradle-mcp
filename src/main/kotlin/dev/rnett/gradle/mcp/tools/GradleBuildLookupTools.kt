@@ -13,6 +13,7 @@ import dev.rnett.gradle.mcp.gradle.build.failuresIfFailed
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
+import kotlin.io.path.absolutePathString
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
@@ -109,7 +110,12 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
 
     val lookupBuildTests by tool<TestsLookupArgs, String>(
         name = ToolNames.LOOKUP_BUILD_TESTS,
-        description = "For a given build, provides either a summary of test executions or detailed information for a specific test. If `details` is provided, detailed execution info (duration, failure details, and console output) for that test is returned. If `summary` is provided (or neither), returns a list of tests matching the provided filters. Only one of `summary` or `details` may be specified. Works for in-progress builds.",
+        description = """For a given build, provides either a summary of test executions or detailed information for a specific test. 
+            |If `details` is provided, detailed execution info (duration, failure details, metadata, attached file paths, and console output) for that test is returned. If files are attached, be sure to look at them yourself.
+            |If `summary` is provided (or neither), returns a list of tests matching the provided filters. 
+            |Only one of `summary` or `details` may be specified. 
+            |Works for in-progress builds.
+            |""".trimMargin(),
     ) {
         require(it.summary == null || it.details == null) { "Only one of `summary` or `details` may be specified." }
 
@@ -138,9 +144,24 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                 appendLine("Duration: ${test.executionDuration}")
 
                 if (!test.failures.isNullOrEmpty()) {
-                    appendLine("Failures: ")
+                    appendLine("Failures:")
                     test.failures.forEach { f ->
                         f.writeFailureTree(this, "  ")
+                    }
+                }
+
+                if (test.metadata.isNotEmpty()) {
+                    appendLine("Metadata:")
+                    test.metadata.forEach { (key, value) ->
+                        appendLine("  $key: $value")
+                    }
+                }
+
+                if (test.attachments.isNotEmpty()) {
+                    appendLine("Attached files:")
+                    test.attachments.forEach { attachment ->
+                        //TODO consider adding images to response or using resources. Depends on how good the agent is at using the file paths
+                        appendLine("  ${attachment.path.absolutePathString()}")
                     }
                 }
 
@@ -165,9 +186,15 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
 
         buildString {
             appendLine("Total matching results: ${matched.count()}")
-            appendLine("Test | Outcome")
+            appendLine("Test | Outcome | Metadata")
             results.forEach { tr ->
-                appendLine("${tr.testName} | ${tr.status}")
+                appendLine(
+                    "${tr.testName} | ${tr.status} | ${
+                        tr.metadata.mapValues {
+                            if (it.value.length > 20) it.value.take(20) + " ... (truncated by gradle-mcp)" else it.value
+                        }
+                    }"
+                )
             }
         }
     }
