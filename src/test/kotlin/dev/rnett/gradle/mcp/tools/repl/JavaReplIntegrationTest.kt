@@ -58,17 +58,6 @@ class JavaReplIntegrationTest : BaseReplIntegrationTest() {
     }
 
     @Test
-    @Order(5)
-    fun `SLF4J logging works`() = runTest(timeout = 10.minutes) {
-        runSnippet(
-            """
-                val logger = org.slf4j.LoggerFactory.getLogger("test-logger")
-                logger.info("slf4j info message")
-            """.trimIndent()
-        )
-    }
-
-    @Test
     @Order(6)
     fun `AWT Image passing works`() = runTest(timeout = 10.minutes) {
         runSnippetAndAssertImage(

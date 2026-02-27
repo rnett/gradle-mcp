@@ -42,6 +42,18 @@ sealed class ReplResponse {
     }
 
     @Serializable
+    data class Logging(
+        val loggerName: String,
+        val level: Level,
+        val message: String
+    ) : ReplResponse() {
+        @Serializable
+        enum class Level {
+            DEBUG, INFO, WARN, ERROR;
+        }
+    }
+
+    @Serializable
     data class Data(
         val value: String,
         val mime: String = "text/plain",

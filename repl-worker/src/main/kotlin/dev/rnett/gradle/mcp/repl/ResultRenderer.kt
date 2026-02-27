@@ -1,6 +1,5 @@
 package dev.rnett.gradle.mcp.repl
 
-import org.slf4j.LoggerFactory
 import java.awt.Point
 import java.awt.image.BufferedImage
 import java.awt.image.ColorModel
@@ -8,19 +7,29 @@ import java.awt.image.DataBuffer
 import java.awt.image.DataBufferInt
 import java.awt.image.Raster
 import java.awt.image.SinglePixelPackedSampleModel
-import java.util.Base64
+import java.util.*
 import kotlin.reflect.KClass
 import kotlin.reflect.full.allSuperclasses
 
 class ResultRenderer(val classLoader: ClassLoader) {
-    @PublishedApi
-    internal val LOGGER by lazy { LoggerFactory.getLogger(ResultRenderer::class.java) }
+
+    private fun info(message: String) {
+        Logger.info(ResultRenderer::class, message)
+    }
+
+    private fun error(message: String, e: Throwable) {
+        Logger.error(ResultRenderer::class, message, e)
+    }
+
+    private fun debug(message: String, e: Throwable) {
+        Logger.debug(ResultRenderer::class, message, e)
+    }
 
     @Suppress("NOTHING_TO_INLINE")
     fun renderResult(value: Any?, mime: String? = null): ReplResponse.Data {
-        LOGGER.info("Rendering result with {} type with mime {}", value?.let { it::class }, mime)
+        info("Rendering result with ${value?.let { it::class }} type with mime $mime")
         if (mime != null) {
-            LOGGER.info("Mime set to {}", mime)
+            info("Mime set to $mime")
             val stringValue = when (value) {
                 null -> "null"
                 is Unit -> "Unit"
@@ -39,12 +48,12 @@ class ResultRenderer(val classLoader: ClassLoader) {
 
         // AWT BufferedImage
         if (klass.isOrHasSupertypeNamed("java.awt.image.BufferedImage")) {
-            LOGGER.info("Responding with BufferedImage")
+            info("Responding with BufferedImage")
             try {
                 val bufferedImage = value as BufferedImage
                 return renderBufferedImage(bufferedImage, mime = mime)
             } catch (e: Exception) {
-                LOGGER.error("Failed to convert BufferedImage to base64", e)
+                error("Failed to convert BufferedImage to base64", e)
                 // fall back
             }
         }
@@ -57,13 +66,13 @@ class ResultRenderer(val classLoader: ClassLoader) {
                 val toAwtImageMethod = convertersClass.getMethod("toAwtImage", bitmapClass)
                 toAwtImageMethod.isAccessible = true
                 val bufferedImage = toAwtImageMethod.invoke(null, value) as BufferedImage
-                LOGGER.info("Responding with ImageBitmap converted to BufferedImage using toAwtImage")
+                info("Responding with ImageBitmap converted to BufferedImage using toAwtImage")
                 return renderBufferedImage(bufferedImage)
             } catch (e: Exception) {
-                LOGGER.debug("Failed to convert ImageBitmap to BufferedImage, trying to use readPixels ${e.stackTraceToString()}", e)
+                debug("Failed to convert ImageBitmap to BufferedImage, trying to use readPixels ${e.stackTraceToString()}", e)
                 // fall back to readPixels
                 try {
-                    LOGGER.info("Responding with ImageBitmap converted to BufferedImage using readPixels")
+                    info("Responding with ImageBitmap converted to BufferedImage using readPixels")
                     val getWidthMethod = klass.java.getMethod("getWidth")
                     getWidthMethod.isAccessible = true
                     val getHeightMethod = klass.java.getMethod("getHeight")
@@ -71,7 +80,7 @@ class ResultRenderer(val classLoader: ClassLoader) {
                     val width = getWidthMethod.invoke(value) as Int
                     val height = getHeightMethod.invoke(value) as Int
 
-                    LOGGER.info("Methods: {}", klass.java.methods.toList())
+                    info("Methods: ${klass.java.methods.toList()}")
 
                     val readPixelsMethod = klass.java.methods.single { it.name == "readPixels" }
                     readPixelsMethod.isAccessible = true
@@ -80,8 +89,8 @@ class ResultRenderer(val classLoader: ClassLoader) {
                     val bufferedImage = toAwtImage(buffer, width, height)
                     return renderBufferedImage(bufferedImage)
                 } catch (e2: Exception) {
-                    LOGGER.error("Failed to convert ImageBitmap to BufferedImage, trying to use readPixels ${e.stackTraceToString()}", e)
-                    LOGGER.error("Failed to convert ImageBitmap to BufferedImage using readPixels", e2)
+                    error("Failed to convert ImageBitmap to BufferedImage, trying to use readPixels ${e.stackTraceToString()}", e)
+                    error("Failed to convert ImageBitmap to BufferedImage using readPixels", e2)
                     // fall back
                 }
             }
@@ -97,10 +106,10 @@ class ResultRenderer(val classLoader: ClassLoader) {
                 compressMethod.isAccessible = true
                 compressMethod.invoke(value, pngFormat, 100, baos)
                 val base64 = Base64.getEncoder().encodeToString(baos.toByteArray())
-                LOGGER.info("Responding with Bitmap converted to base64")
+                info("Responding with Bitmap converted to base64")
                 return ReplResponse.Data(base64, "image/png")
             } catch (e: Exception) {
-                LOGGER.error("Failed to convert Bitmap to base64", e)
+                error("Failed to convert Bitmap to base64", e)
                 // fall back
             }
         }
@@ -114,10 +123,10 @@ class ResultRenderer(val classLoader: ClassLoader) {
                 else -> null
             }
             if (mime != null) {
-                LOGGER.info("Byte array looks like image with mime type $mime")
+                info("Byte array looks like image with mime type $mime")
                 return ReplResponse.Data(Base64.getEncoder().encodeToString(value), mime)
             }
-            LOGGER.info("Byte array does not look like an image, responding with text/plain")
+            info("Byte array does not look like an image, responding with text/plain")
             return ReplResponse.Data(value.contentToString(), "text/plain")
         }
 

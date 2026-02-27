@@ -69,7 +69,7 @@ class ReplTools(
             |- **Debugging**: Inspect the state of your project or dependencies interactively.
             |
             |### Commands
-            |- `start`: Starts a new REPL session (replacing any existing one). Requires `projectPath` (e.g., `:app`) and `sourceSet` (e.g., `main`). Can set env vars via `env`.
+            |- `start`: Starts a new REPL session (replacing any existing one). Requires `projectPath` (e.g., `:app`) and `sourceSet` (e.g., `main`). Can set env vars via `env` and add additional dependencies to the classpath via `additionalDependencies`.
             |- `stop`: Stops the currently active REPL session.
             |- `run`: Executes a Kotlin code snippet in the current session. Requires `code`.
             |
@@ -248,6 +248,10 @@ class ReplTools(
                     isError = true
                     LOGGER.error("Internal error from REPL worker: {} with stack trace {}", it.message, it.stackTrace)
                     textBuffer.appendLine("\n\nInternal Error: ${it.message}")
+                }
+
+                is ReplResponse.Logging -> {
+                    // handled in manager
                 }
             }
         }

@@ -4,11 +4,10 @@ import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.repl.ReplCodeLine
 import org.jetbrains.kotlin.cli.common.repl.ReplCompileResult
 import org.jetbrains.kotlin.cli.common.repl.ReplEvalResult
-import org.slf4j.LoggerFactory
 import java.io.File
 import java.net.URL
 import java.net.URLClassLoader
-import java.util.Enumeration
+import java.util.*
 import kotlin.script.experimental.api.ScriptCompilationConfiguration
 import kotlin.script.experimental.api.ScriptEvaluationConfiguration
 import kotlin.script.experimental.api.compilerOptions
@@ -22,7 +21,6 @@ import kotlin.script.experimental.jvmhost.repl.JvmReplEvaluator
 
 class KotlinScriptEvaluator(val config: ReplConfig, val responseSender: (ReplResponse) -> Unit) {
     companion object {
-        private val LOGGER by lazy { LoggerFactory.getLogger(KotlinScriptEvaluator::class.java) }
         private val excludedPluginArtifacts = setOf("kotlin-scripting-compiler", "kotlin-scripting-compiler-impl", "kotlin-compiler")
     }
 
@@ -43,7 +41,7 @@ class KotlinScriptEvaluator(val config: ReplConfig, val responseSender: (ReplRes
                 .map { "-Xplugin=${it.absolutePath}" })
         compilerOptions.append(config.compilerPluginOptions.distinct().map { "plugin:${it.pluginId}:${it.optionName}=${it.value}" }.flatMap { listOf("-P", it) })
         compilerOptions.append(config.compilerArgs)
-        LOGGER.error("Compiler options: ${this[compilerOptions]}")
+        Logger.error(KotlinScriptEvaluator::class, "Compiler options: ${this[compilerOptions]}")
         providedProperties("responder" to Responder::class)
     }
 

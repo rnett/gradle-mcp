@@ -11,11 +11,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import org.slf4j.LoggerFactory
-import org.slf4j.MDC
 import java.io.PrintStream
-import java.lang.management.ManagementFactory
-import java.util.Scanner
+import java.util.*
 import kotlin.time.Duration.Companion.minutes
 
 class ReplWorker(val config: ReplConfig, val scanner: Scanner) {
@@ -57,7 +54,7 @@ class ReplWorker(val config: ReplConfig, val scanner: Scanner) {
                 continue
             }
 
-            LOGGER.info("Repl request received $line")
+            Logger.info(ReplWorker::class, "Repl request received $line")
 
             try {
                 val jsonLine = line.removePrefix(ReplResponse.RPC_PREFIX)
@@ -65,7 +62,7 @@ class ReplWorker(val config: ReplConfig, val scanner: Scanner) {
                 val result = evaluator.evaluate(request.code)
                 handleResult(result)
             } catch (e: Exception) {
-                LOGGER.error("Repl code execution failed with exception", e)
+                Logger.error(ReplWorker::class, "Repl code execution failed with exception", e)
                 sendResponse(ReplResponse.Result.InternalError(e.message ?: e.toString(), e.stackTraceToString()))
             }
         }
@@ -73,7 +70,7 @@ class ReplWorker(val config: ReplConfig, val scanner: Scanner) {
     }
 
     private fun handleResult(result: KotlinScriptEvaluator.EvalResult) {
-        LOGGER.info("Repl request finished with result {}", result)
+        Logger.info(ReplWorker::class, "Repl request finished with result $result")
         when (result) {
             is KotlinScriptEvaluator.EvalResult.Success -> {
                 sendResponse(Success(result.data))
@@ -96,7 +93,6 @@ class ReplWorker(val config: ReplConfig, val scanner: Scanner) {
     companion object {
         private val json = Json { ignoreUnknownKeys = true }
         private val stdout = System.`out`
-        private val LOGGER by lazy { LoggerFactory.getLogger(ReplWorker::class.java) }
 
         fun sendResponse(response: ReplResponse) {
             val line = json.encodeToString(response)
@@ -106,8 +102,6 @@ class ReplWorker(val config: ReplConfig, val scanner: Scanner) {
 
         @JvmStatic
         fun main(args: Array<String>) {
-            val pid = ManagementFactory.getRuntimeMXBean().name.split("@")[0]
-            MDC.put("PID", pid)
             Scanner(System.`in`).use { scanner ->
                 if (!scanner.hasNextLine()) return
                 val configLine = scanner.nextLine() ?: return

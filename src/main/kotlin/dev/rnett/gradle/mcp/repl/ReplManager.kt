@@ -131,6 +131,9 @@ class DefaultReplManager(
                         try {
                             val response = Json.decodeFromString<ReplResponse>(jsonLine)
                             session.emitResponse(response)
+                            if (response is ReplResponse.Logging) {
+                                logMessage(process, sessionId, response)
+                            }
                         } catch (e: Exception) {
                             LOGGER.error("Failed to decode REPL RPC message: $line", e)
                             session.addOutput("STDOUT: $line")
@@ -167,6 +170,23 @@ class DefaultReplManager(
         writer.flush()
 
         return process
+    }
+
+    private fun logMessage(process: Process, sessionId: String, message: ReplResponse.Logging) {
+        LoggerFactory.getLogger(message.loggerName)
+            .atLevel(message.level.toSlf4j())
+            .addKeyValue("replSessionId", sessionId)
+            .addKeyValue("replProcessId", process.pid())
+            .log(message.message)
+    }
+
+    private fun ReplResponse.Logging.Level.toSlf4j(): org.slf4j.event.Level {
+        return when (this) {
+            ReplResponse.Logging.Level.DEBUG -> org.slf4j.event.Level.DEBUG
+            ReplResponse.Logging.Level.INFO -> org.slf4j.event.Level.INFO
+            ReplResponse.Logging.Level.WARN -> org.slf4j.event.Level.WARN
+            ReplResponse.Logging.Level.ERROR -> org.slf4j.event.Level.ERROR
+        }
     }
 
     /**

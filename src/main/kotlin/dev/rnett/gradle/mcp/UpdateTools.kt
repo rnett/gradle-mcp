@@ -190,8 +190,7 @@ object UpdateTools {
             projectRoot: GradleProjectRoot,
             projectPath: String,
             sourceSet: String,
-            additionalDependencies: List<String>,
-            tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean
+            additionalDependencies: List<String>
         ): ReplConfigWithJava {
             throw UnsupportedOperationException("Not supported in UpdateTools")
         }

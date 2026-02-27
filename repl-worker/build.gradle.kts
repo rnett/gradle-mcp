@@ -11,8 +11,6 @@ kotlin {
 
 dependencies {
     implementation(project(":repl-shared"))
-    implementation(libs.slf4j.api)
-    implementation(libs.logback.classic.jdk8)
     implementation(libs.kotlin.scripting.jvm)
     implementation(libs.kotlin.scripting.jvm.host)
     implementation(libs.kotlin.compiler.embeddable)
