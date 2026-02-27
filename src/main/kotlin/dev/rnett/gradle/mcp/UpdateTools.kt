@@ -74,6 +74,25 @@ object UpdateTools {
                 throw IllegalArgumentException("Unexpected files in output directory: $extra")
             }
         }
+
+        val mkdocsFile = Path("mkdocs.yml")
+        if (mkdocsFile.exists()) {
+            val content = mkdocsFile.readText()
+            val navLine = content.indexOf("nav:")
+            if (navLine != -1) {
+                val navContent = content.substring(navLine)
+                val regex = Regex("""(?m)^ *-.*: (.*\.md)$|(?m)^ *- (.*\.md)$""")
+                val referencedFiles = regex.findAll(navContent).map {
+                    it.groups[1]?.value ?: it.groups[2]!!.value
+                }.toSet()
+
+                val docsDir = Path("docs")
+                val missingFiles = referencedFiles.filter { !docsDir.resolve(it).exists() }
+                if (missingFiles.isNotEmpty()) {
+                    throw IllegalArgumentException("Files referenced in mkdocs.yml do not exist: $missingFiles")
+                }
+            }
+        }
     }
 
     fun executeForComponent(component: McpServerComponent, path: Path?, isVerify: Boolean) {

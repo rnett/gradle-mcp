@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.mcp.fixtures
 
 import dev.rnett.gradle.mcp.mcp.McpServer
+import dev.rnett.gradle.mcp.repl.ReplManager
 import io.modelcontextprotocol.kotlin.sdk.ClientCapabilities
 import io.modelcontextprotocol.kotlin.sdk.Implementation
 import io.modelcontextprotocol.kotlin.sdk.Root
@@ -81,6 +82,7 @@ class McpServerFixture(
         runCatching { server.close() }
         // Allow onClose hooks and OS handles to settle, especially on Windows
         kotlinx.coroutines.delay(250)
+        koin.get<ReplManager>().close()
         koinApp.close()
         scope.cancel("Test cleanup")
     }

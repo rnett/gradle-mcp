@@ -71,7 +71,7 @@ class ReplTools(
             |### Commands
             |- `start`: Starts a new REPL session (replacing any existing one). Requires `projectPath` (e.g., `:app`) and `sourceSet` (e.g., `main`). Can set env vars via `env` and add additional dependencies to the classpath via `additionalDependencies`.
             |- `stop`: Stops the currently active REPL session.
-            |- `run`: Executes a Kotlin code snippet in the current session. Requires `code`.
+            |- `run`: Executes a Kotlin code snippet in the current session. Requires `code`, and an active REPL session.
             |
             |### Execution and Output
             |- **stdout/stderr**: Captured and returned as text.
@@ -79,7 +79,10 @@ class ReplTools(
             |- **Responder**: A `responder: dev.rnett.gradle.mcp.repl.Responder` top-level property is available for manual output (no import necessary). Use it to return multiple items or specific formats to the MCP output.
             |
             |### Automatic Rendering and Content Types
-            |The tool returns a list of content items (text, images, etc.) in order of execution.
+            |The tool returns a list of content items (text, images, etc.) in order of execution. 
+            |Use `responder.render(value: Any?, mime: String? = null)` to respond with output.
+            |Some common types will render as the corresponding MCP spec mime type:
+            |
             |- Common image types (AWT `BufferedImage`, Compose `ImageBitmap`, Android `Bitmap`, or `ByteArray` with image headers) are automatically rendered as images.
             |- Markdown can be returned via `responder.markdown(md)`.
             |- HTML fragments can be returned via `responder.html(fragment)`.
