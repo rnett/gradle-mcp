@@ -1,6 +1,6 @@
 [![Maven Central Version](https://img.shields.io/maven-central/v/dev.rnett.gradle-mcp/gradle-mcp?style=for-the-badge)](https://central.sonatype.com/artifact/dev.rnett.gradle-mcp/gradle-mcp)
 ![Maven snapshots](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fdev%2Frnett%2Fgradle-mcp%2Fgradle-mcp%2Fmaven-metadata.xml&strategy=latestProperty&style=for-the-badge&label=SNAPSHOT&color=yellow)
-[![GitHub Repo](https://img.shields.io/badge/github-Repo-181717?style=for-the-badge&logo=github)](https://github.com/rnett/gradle-mcp)
+[![GitHub Repo](https://img.shields.io/badge/github-181717?style=for-the-badge&logo=github)](https://github.com/rnett/gradle-mcp)
 [![GitHub License](https://img.shields.io/github/license/rnett/gradle-mcp?style=for-the-badge)](./LICENSE)
 
 # Gradle MCP server
