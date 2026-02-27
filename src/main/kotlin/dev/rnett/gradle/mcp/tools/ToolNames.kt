@@ -7,11 +7,6 @@ object ToolNames {
     const val RUN_TESTS_WITH_GRADLE = "run_tests_with_gradle"
     const val RUN_MANY_TEST_TASKS_WITH_GRADLE = "run_many_test_tasks_with_gradle"
 
-    // Introspection Tools
-    const val DESCRIBE_PROJECT = "describe_project"
-    const val GET_INCLUDED_BUILDS = "get_included_builds"
-    const val GET_PROJECT_PUBLICATIONS = "get_project_publications"
-
     // Lookup Tools
     const val LOOKUP_LATEST_BUILDS = "lookup_latest_builds"
     const val LOOKUP_BUILD_TESTS = "lookup_build_tests"

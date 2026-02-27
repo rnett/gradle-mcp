@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.mcp.fixtures
 
 import dev.rnett.gradle.mcp.DI
+import dev.rnett.gradle.mcp.DI.components
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.BundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultBundledJarProvider
@@ -11,10 +12,6 @@ import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.repl.DefaultReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
-import dev.rnett.gradle.mcp.tools.BackgroundBuildTools
-import dev.rnett.gradle.mcp.tools.GradleBuildLookupTools
-import dev.rnett.gradle.mcp.tools.GradleExecutionTools
-import dev.rnett.gradle.mcp.tools.GradleIntrospectionTools
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -57,13 +54,7 @@ abstract class BaseMcpServerTest {
             val provider: GradleProvider = get()
             val replManager: dev.rnett.gradle.mcp.repl.ReplManager = get()
             val replEnvironmentService: ReplEnvironmentService = get()
-            listOf(
-                GradleIntrospectionTools(provider),
-                GradleExecutionTools(provider),
-                dev.rnett.gradle.mcp.tools.ReplTools(provider, replManager, replEnvironmentService),
-                BackgroundBuildTools(provider),
-                GradleBuildLookupTools(get()),
-            )
+            components(provider, replManager, replEnvironmentService)
         }
 
         single {
