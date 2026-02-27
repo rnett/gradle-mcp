@@ -103,6 +103,8 @@ If it succeeds, it will extract the task's specific output from the console outp
 
 ### Useful Gradle tasks:
 - `help`: Gets the Gradle version and shows other basic information
+- `--version` (taskPath must be exactly this): Gets detailed information about the gradle version.
+- `--help` (taskPath must be exactly this): Gets help information about the Gradle command itself, including options like `--info` or `--no-configuration-cache`.
 - `help --task <task>`: Gets detailed information about a specific Gradle task, including its arguments.
 - `tasks`: Gets all available Gradle tasks
 - `dependencies`: Gets all dependencies of a Gradle project.
@@ -141,9 +143,8 @@ If it succeeds, it will extract the task's specific output from the console outp
       },
       "description": "Additional arguments to pass to the task."
     },
-    "rerun": {
-      "type": "boolean",
-      "description": "Whether to force the task to rerun by adding --rerun. Defaults to false."
+    "rerunTask": {
+      "type": "boolean"
     },
     "invocationArguments": {
       "type": "object",

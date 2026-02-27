@@ -1,9 +1,9 @@
 package dev.rnett.gradle.mcp.gradle
 
-import dev.rnett.gradle.mcp.gradle.build.Build
+import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
 
 data class GradleResult<out T>(
-    val build: Build,
+    val build: FinishedBuild,
     val value: Result<T>
 )
 

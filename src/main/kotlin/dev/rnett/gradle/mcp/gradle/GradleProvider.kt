@@ -64,7 +64,7 @@ import kotlin.time.toJavaDuration
 
 interface GradleProvider : AutoCloseable {
 
-    fun <T : Model> getBuildModel(
+    suspend fun <T : Model> getBuildModel(
         projectRoot: GradleProjectRoot,
         kClass: KClass<T>,
         args: GradleInvocationArguments,
@@ -320,7 +320,7 @@ class DefaultGradleProvider(
         return runningBuild to deferred
     }
 
-    override fun <T : Model> getBuildModel(
+    override suspend fun <T : Model> getBuildModel(
         projectRoot: GradleProjectRoot,
         kClass: KClass<T>,
         args: GradleInvocationArguments,
@@ -329,7 +329,7 @@ class DefaultGradleProvider(
         stdoutLineHandler: ((String) -> Unit)?,
         stderrLineHandler: ((String) -> Unit)?,
         requiresGradleProject: Boolean
-    ): GradleResult<T> = kotlinx.coroutines.runBlocking {
+    ): GradleResult<T> {
         val (running, deferred) = startBuild(
             args = args,
             additionalProgressListeners = additionalProgressListeners,
@@ -343,7 +343,7 @@ class DefaultGradleProvider(
         )
         val value = deferred.await()
         val finished = running.awaitFinished()
-        GradleResult(finished, value)
+        return GradleResult(finished, value)
     }
 
     override fun runBuild(

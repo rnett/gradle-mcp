@@ -19,6 +19,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.io.TempDir
+import org.koin.core.scope.Scope
 import org.koin.dsl.module
 import java.nio.file.Path
 import kotlin.test.AfterTest
@@ -30,7 +31,12 @@ abstract class BaseMcpServerTest {
     lateinit var tempDir: Path
 
     protected lateinit var server: McpServerFixture
-    protected val provider = mockk<GradleProvider>(relaxed = true)
+    val buildManager = BuildManager()
+    protected open fun Scope.createProvider(): GradleProvider {
+        val provider = mockk<GradleProvider>(relaxed = true)
+        every { provider.buildManager } returns buildManager
+        return provider
+    }
 
     protected open fun createTestModule(): org.koin.core.module.Module = module {
         single { DI.json }
@@ -39,15 +45,15 @@ abstract class BaseMcpServerTest {
         }
         single<InitScriptProvider> { DefaultInitScriptProvider(tempDir.resolve("init-scripts")) }
         single<BundledJarProvider> { DefaultBundledJarProvider(tempDir.resolve("jars")) }
-        single { BuildManager() }
+        single { buildManager }
         single<dev.rnett.gradle.mcp.repl.ReplManager> { dev.rnett.gradle.mcp.repl.DefaultReplManager(get()) }
         single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
+
         single<GradleProvider> {
-            every { provider.buildManager } returns get()
-            provider
+            createProvider()
         }
 
-        single {
+        factory {
             val provider: GradleProvider = get()
             val replManager: dev.rnett.gradle.mcp.repl.ReplManager = get()
             val replEnvironmentService: ReplEnvironmentService = get()
@@ -65,6 +71,8 @@ abstract class BaseMcpServerTest {
             DI.createServer(get(), components)
         }
     }
+
+    val provider: GradleProvider get() = server.koin.get<GradleProvider>()
 
     @BeforeTest
     open fun setup() = runTest {

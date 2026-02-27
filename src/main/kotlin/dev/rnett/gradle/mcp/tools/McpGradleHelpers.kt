@@ -4,7 +4,6 @@ import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleResult
 import dev.rnett.gradle.mcp.mcp.McpContext
-import io.modelcontextprotocol.kotlin.sdk.LoggingLevel
 import org.gradle.tooling.model.Model
 
 
@@ -21,10 +20,8 @@ suspend inline fun <reified T : Model> GradleProvider.getBuildModel(
         invocationArgs.withInitScript(InitScriptNames.TASK_OUT),
         { ScansTosManager.askForScansTos(root, it) },
         stdoutLineHandler = {
-            ctx.emitLoggingNotification("gradle-build", LoggingLevel.notice, it)
             ctx.emitProgressNotification(0.0, 0.0, it)
         },
-        stderrLineHandler = { ctx.emitLoggingNotification("gradle-build", LoggingLevel.error, it) },
         requiresGradleProject = requiresGradleProject
     )
 }

@@ -8,6 +8,8 @@ import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import io.github.smiley4.schemakenerator.core.annotations.Example
 import kotlinx.serialization.Serializable
+import org.gradle.tooling.model.build.BuildEnvironment
+import org.gradle.tooling.model.build.Help
 import kotlin.time.ExperimentalTime
 
 class GradleExecutionTools(
@@ -55,11 +57,11 @@ class GradleExecutionTools(
         val taskPath: String,
         @Description("Additional arguments to pass to the task.")
         val arguments: List<String> = emptyList(),
-        @Description("Whether to force the task to rerun by adding --rerun. Defaults to false.")
-        val rerun: Boolean = false,
+        val rerunTask: Boolean = false,
         val invocationArguments: GradleInvocationArguments = GradleInvocationArguments.DEFAULT
     )
 
+    @Suppress("UnstableApiUsage")
     @OptIn(ExperimentalTime::class)
     val runSingleTaskAndGetOutput by tool<ExecuteSingleTaskArgs, String>(
         ToolNames.RUN_SINGLE_TASK_AND_GET_OUTPUT,
@@ -70,6 +72,8 @@ class GradleExecutionTools(
             |
             |### Useful Gradle tasks:
             |- `help`: Gets the Gradle version and shows other basic information
+            |- `--version` (taskPath must be exactly this): Gets detailed information about the gradle version.
+            |- `--help` (taskPath must be exactly this): Gets help information about the Gradle command itself, including options like `--info` or `--no-configuration-cache`.
             |- `help --task <task>`: Gets detailed information about a specific Gradle task, including its arguments.
             |- `tasks`: Gets all available Gradle tasks
             |- `dependencies`: Gets all dependencies of a Gradle project.
@@ -86,11 +90,29 @@ class GradleExecutionTools(
             |- `outgoingVariants`: Gets all outgoing variants of the project (i.e. configurations that can be published or consumed from other projects).
         """.trimMargin(),
     ) {
-        //TODO intercept --help and --version and use the new 9.4 build models
+
+        if (it.taskPath == "--version") {
+            val result = gradle.getBuildModel<BuildEnvironment>(it.projectRoot, it.invocationArguments)
+            if (result.build.isSuccess) {
+                return@tool result.value.getOrThrow().versionInfo
+            } else {
+                isError = true
+                return@tool "Running --version failed\n\n" + result.build.toOutputString()
+            }
+        } else if (it.taskPath == "--help") {
+            val result = gradle.getBuildModel<Help>(it.projectRoot, it.invocationArguments)
+            if (result.build.isSuccess) {
+                return@tool result.value.getOrThrow().renderedText
+            } else {
+                isError = true
+                return@tool "Running --help failed\n\n" + result.build.toOutputString()
+            }
+        }
+
         val additionalArgs = buildList {
             add(it.taskPath)
             addAll(it.arguments)
-            if (it.rerun) {
+            if (it.rerunTask) {
                 add("--rerun")
             }
         }

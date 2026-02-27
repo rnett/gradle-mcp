@@ -79,6 +79,8 @@ interface FinishedBuild : Build {
     val outcome: BuildOutcome
     val finishTime: Instant
 
+    val isSuccess: Boolean get() = outcome == BuildOutcome.Success
+
     val allBuildFailures: Map<FailureId, Failure>
         get() = outcome.failuresIfFailed.orEmpty().asSequence().flatMap { it.flatten() }.associateBy { it.id }.minus(allTestFailures.keys)
 
