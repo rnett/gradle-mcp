@@ -143,7 +143,7 @@ object UpdateTools {
     }
 
     val throwingGradleProvider = object : GradleProvider {
-        override fun <T : org.gradle.tooling.model.Model> getBuildModel(
+        override suspend fun <T : org.gradle.tooling.model.Model> getBuildModel(
             projectRoot: GradleProjectRoot,
             kClass: kotlin.reflect.KClass<T>,
             args: GradleInvocationArguments,
