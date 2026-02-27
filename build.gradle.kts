@@ -94,36 +94,6 @@ kotlin {
     }
 }
 
-@OptIn(ExperimentalKotlinGradlePluginApi::class)
-fun PowerAssertGradleExtension.configurePowerAssert() {
-    functions = listOf(
-        "kotlin.assert",
-        // kotlin.test
-        "kotlin.test.assertTrue",
-        "kotlin.test.assertEquals",
-        "kotlin.test.assertNotEquals",
-        "kotlin.test.assertNull",
-        "kotlin.test.assertNotNull",
-        "kotlin.test.assertFails",
-        "kotlin.test.assertFailsWith",
-        "kotlin.test.assertContains",
-        "kotlin.test.assertContentEquals",
-        "kotlin.test.assertIs",
-        "kotlin.test.assertIsNot",
-        "kotlin.test.assertSame",
-        "kotlin.test.assertNotSame",
-    )
-}
-
-allprojects {
-    @OptIn(ExperimentalKotlinGradlePluginApi::class)
-    plugins.withType<org.jetbrains.kotlin.powerassert.gradle.PowerAssertGradlePlugin> {
-        configure<PowerAssertGradleExtension> {
-            configurePowerAssert()
-        }
-    }
-}
-
 tasks.test {
     useJUnitPlatform()
     systemProperty("GRADLE_MCP_LOG_DIR", layout.buildDirectory.dir("test-logs").get().asFile.absolutePath)
@@ -214,6 +184,31 @@ publishing {
             from(components["shadow"])
             artifact(tasks.kotlinSourcesJar)
             artifact(tasks.named("javadocJar"))
+        }
+    }
+}
+
+allprojects {
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    plugins.withType<org.jetbrains.kotlin.powerassert.gradle.PowerAssertGradlePlugin> {
+        configure<PowerAssertGradleExtension> {
+            functions = listOf(
+                "kotlin.assert",
+                // kotlin.test
+                "kotlin.test.assertTrue",
+                "kotlin.test.assertEquals",
+                "kotlin.test.assertNotEquals",
+                "kotlin.test.assertNull",
+                "kotlin.test.assertNotNull",
+                "kotlin.test.assertFails",
+                "kotlin.test.assertFailsWith",
+                "kotlin.test.assertContains",
+                "kotlin.test.assertContentEquals",
+                "kotlin.test.assertIs",
+                "kotlin.test.assertIsNot",
+                "kotlin.test.assertSame",
+                "kotlin.test.assertNotSame",
+            )
         }
     }
 }
