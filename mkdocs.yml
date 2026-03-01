@@ -64,3 +64,4 @@ nav:
       - 'Project REPL': tools/REPL_TOOLS.md
       - 'Background Execution': tools/BACKGROUND_BUILD_TOOLS.md
       - 'Detail Lookup': tools/LOOKUP_TOOLS.md
+      - 'Gradle Docs': tools/GRADLE_DOCS_TOOLS.md

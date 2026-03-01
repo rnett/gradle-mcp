@@ -57,8 +57,11 @@ dependencies {
     implementation(libs.schema.kenerator.jsonschema)
     implementation(libs.kotlinx.serialization.json)
 
+    implementation(libs.flexmark.html2md)
+
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.mcp.sdk)
+    implementation(libs.jsoup)
     implementation(libs.koin.core)
     implementation(libs.koin.ktor)
     implementation(libs.koin.logger.slf4j)
@@ -67,6 +70,8 @@ dependencies {
     implementation(libs.ktor.server.sse)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.server.config.yaml)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.content.negotiation)
     implementation(libs.logback.classic)
 
     testImplementation(libs.kotlin.test)
@@ -77,6 +82,7 @@ dependencies {
     testImplementation(libs.koin.test.junit5)
     testImplementation(libs.ktor.client.cio)
     testImplementation(libs.ktor.client.content.negotiation)
+    testImplementation(libs.ktor.client.mock)
 }
 
 ktor {

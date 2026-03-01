@@ -51,3 +51,18 @@ fun ByteArray.hash(): String {
     val digest = md.digest(this)
     return digest.fold("") { str, it -> str + "%02x".format(it) }.take(8)
 }
+
+data class GradleMcpEnvironment(val workingDir: Path) {
+    val cacheDir: Path = workingDir.resolve("cache")
+
+    init {
+        cacheDir.toFile().mkdirs()
+    }
+
+    companion object {
+        fun fromEnv(): GradleMcpEnvironment {
+            val workingDir = System.getenv("GRADLE_MCP_WORKING_DIR") ?: "${System.getProperty("user.home")}/.gradle-mcp"
+            return GradleMcpEnvironment(Path.of(workingDir).toAbsolutePath().normalize())
+        }
+    }
+}

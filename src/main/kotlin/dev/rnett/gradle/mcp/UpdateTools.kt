@@ -62,7 +62,7 @@ object UpdateTools {
             throw IllegalArgumentException("Output directory must be a directory")
         }
 
-        val files = DI.components(throwingGradleProvider, throwingReplManager, throwingReplEnvironmentService).mapNotNull {
+        val files = DI.components(throwingGradleProvider, throwingReplManager, throwingReplEnvironmentService, throwingGradleDocsService).mapNotNull {
             val file = directory?.resolve("${it.name.replace(" ", "_").uppercase()}.md")
             executeForComponent(it, file, verify)
             file
@@ -239,6 +239,16 @@ object UpdateTools {
             sessionId: String,
             command: dev.rnett.gradle.mcp.repl.ReplRequest
         ): Flow<dev.rnett.gradle.mcp.repl.ReplResponse> {
+            throw UnsupportedOperationException("Not used for tool listing")
+        }
+    }
+
+    val throwingGradleDocsService = object : GradleDocsService {
+        override suspend fun getAllDocsPages(version: String?): List<DocsPage> {
+            throw UnsupportedOperationException("Not used for tool listing")
+        }
+
+        override suspend fun getDocsPageAsMarkdown(path: String, version: String?): String {
             throw UnsupportedOperationException("Not used for tool listing")
         }
     }

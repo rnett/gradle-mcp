@@ -17,8 +17,10 @@ import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.ReplManager
 import dev.rnett.gradle.mcp.tools.BackgroundBuildTools
 import dev.rnett.gradle.mcp.tools.GradleBuildLookupTools
+import dev.rnett.gradle.mcp.tools.GradleDocsTools
 import dev.rnett.gradle.mcp.tools.GradleExecutionTools
 import dev.rnett.gradle.mcp.tools.ReplTools
+import io.ktor.client.*
 import io.ktor.server.config.*
 import io.modelcontextprotocol.kotlin.sdk.EmptyJsonObject
 import io.modelcontextprotocol.kotlin.sdk.Implementation
@@ -44,8 +46,12 @@ object DI {
         single { config.property("gradle").getAs<GradleConfiguration>() }
         single { DefaultInitScriptProvider() } bind InitScriptProvider::class
         single { DefaultBundledJarProvider() } bind BundledJarProvider::class
+        single { HttpClient() }
+        single { GradleMcpEnvironment.fromEnv() }
         single<ReplManager> { DefaultReplManager(get()) }
         single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
+        single<MarkdownService> { DefaultMarkdownService(get()) }
+        single<GradleDocsService> { DefaultGradleDocsService(get(), get(), get()) }
         single { BuildManager() }
         single<GradleProvider> {
             DefaultGradleProvider(
@@ -59,7 +65,8 @@ object DI {
             val provider: GradleProvider = get()
             val replManager: ReplManager = get()
             val replEnvironmentService: ReplEnvironmentService = get()
-            components(provider, replManager, replEnvironmentService)
+            val gradleDocsService: GradleDocsService = get()
+            components(provider, replManager, replEnvironmentService, gradleDocsService)
         }
 
         single {
@@ -88,12 +95,14 @@ object DI {
     fun components(
         provider: GradleProvider,
         replManager: ReplManager,
-        replEnvironmentService: ReplEnvironmentService
+        replEnvironmentService: ReplEnvironmentService,
+        gradleDocsService: GradleDocsService,
     ): List<McpServerComponent> = listOf(
         GradleExecutionTools(provider),
         ReplTools(provider, replManager, replEnvironmentService),
         BackgroundBuildTools(provider),
         GradleBuildLookupTools(provider.buildManager),
+        GradleDocsTools(gradleDocsService),
     )
 
     fun createServer(json: Json, components: List<McpServerComponent>): McpServer {

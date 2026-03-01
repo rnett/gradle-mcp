@@ -1,6 +1,10 @@
 package dev.rnett.gradle.mcp.tools.repl
 
 import dev.rnett.gradle.mcp.DI
+import dev.rnett.gradle.mcp.DefaultMarkdownService
+import dev.rnett.gradle.mcp.GradleDocsService
+import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.MarkdownService
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.BundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultBundledJarProvider
@@ -100,6 +104,9 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single<BuildManager> { BuildManager() }
         single<ReplManager> { DefaultReplManager(get()) }
         single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
+        single { GradleMcpEnvironment(tempDir) }
+        single<MarkdownService> { DefaultMarkdownService() }
+        single<GradleDocsService> { dev.rnett.gradle.mcp.DefaultGradleDocsService(io.ktor.client.HttpClient(), get(), get()) }
         single<GradleProvider> {
             DefaultGradleProvider(
                 get(),
@@ -108,7 +115,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
             )
         }
         single {
-            DI.components(get(), get(), get())
+            DI.components(get(), get(), get(), get())
         }
         single {
             DI.createServer(get(), get())

@@ -62,4 +62,18 @@ object GradlePathUtils {
             it.isRegularFile() && (it.name == "gradlew" || it.name == "gradlew.bat")
         }
     }
+
+    fun getGradleVersion(projectRoot: Path): String? {
+        val wrapperProps = projectRoot.resolve("gradle/wrapper/gradle-wrapper.properties")
+        if (wrapperProps.isRegularFile()) {
+            val props = java.util.Properties()
+            wrapperProps.toFile().inputStream().use { props.load(it) }
+            val distributionUrl = props.getProperty("distributionUrl")
+            if (distributionUrl != null) {
+                val match = Regex("gradle-([0-9.]+)-(all|bin)\\.zip").find(distributionUrl)
+                return match?.groupValues?.get(1)
+            }
+        }
+        return null
+    }
 }

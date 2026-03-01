@@ -2,6 +2,10 @@ package dev.rnett.gradle.mcp.mcp.fixtures
 
 import dev.rnett.gradle.mcp.DI
 import dev.rnett.gradle.mcp.DI.components
+import dev.rnett.gradle.mcp.DefaultMarkdownService
+import dev.rnett.gradle.mcp.GradleDocsService
+import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.MarkdownService
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.BundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultBundledJarProvider
@@ -45,6 +49,9 @@ abstract class BaseMcpServerTest {
         single { buildManager }
         single<dev.rnett.gradle.mcp.repl.ReplManager> { dev.rnett.gradle.mcp.repl.DefaultReplManager(get()) }
         single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
+        single { GradleMcpEnvironment(tempDir) }
+        single<MarkdownService> { DefaultMarkdownService() }
+        single<GradleDocsService> { mockk<GradleDocsService>(relaxed = true) }
 
         single<GradleProvider> {
             createProvider()
@@ -54,7 +61,8 @@ abstract class BaseMcpServerTest {
             val provider: GradleProvider = get()
             val replManager: dev.rnett.gradle.mcp.repl.ReplManager = get()
             val replEnvironmentService: ReplEnvironmentService = get()
-            components(provider, replManager, replEnvironmentService)
+            val gradleDocsService: GradleDocsService = get()
+            components(provider, replManager, replEnvironmentService, gradleDocsService)
         }
 
         single {
