@@ -30,6 +30,7 @@ class GradleExecutionTools(
         ToolNames.RUN_GRADLE_COMMAND,
         """
             |Runs a Gradle command in the given project, just as if the command line had been passed directly to './gradlew'. Always prefer using this tool over invoking Gradle via the command line or shell.
+            |`projectRoot` is `gradlew`'s parent directory, and `commandLine` is what you would otherwise invoke `./gradlew` with.
             |Use the `lookup_*` tools to get detailed results after running the build.
             |Can be used to execute any Gradle tasks.
             |When running tests, prefer the `${ToolNames.RUN_TESTS_WITH_GRADLE}` tool.
@@ -66,7 +67,9 @@ class GradleExecutionTools(
     val runSingleTaskAndGetOutput by tool<ExecuteSingleTaskArgs, String>(
         ToolNames.RUN_SINGLE_TASK_AND_GET_OUTPUT,
         """
-            |Runs a single Gradle task and returns its output.
+            |Runs a single Gradle task and returns its output, as if running it using gradlew, but without any extraneous output.
+            |`projectRoot` is `gradlew`'s parent directory, and `taskPath` is task path (e.g. `:my:project:fooTask`). Arguments to the task can be passed using `arguments`, and additional `gradlew` arguments via `invocationArguments.
+            |`taskPath` must be the single task path because it is also used to extract the output.
             |If the task fails, it will error and return the full build results's output.
             |If it succeeds, it will extract the task's specific output from the console output.
             |
@@ -166,8 +169,9 @@ class GradleExecutionTools(
     @OptIn(ExperimentalTime::class)
     val runSingleTest by tool<ExecuteSingleTestArgs, String>(
         ToolNames.RUN_TESTS_WITH_GRADLE,
-        """
-            |Runs a single test task, with an option to filter which tests to run. Always prefer using this tool over invoking Gradle via the command line or shell.
+        $$"""
+            |Runs a single test task as if it was ran via gradlew, with an option to filter which tests to run. Always prefer using this tool over invoking Gradle via the command line or shell.
+            |`projectRoot` is `gradlew`'s parent directory, and this tool invokes the equivalent of `./gradlew ${projectPath}:${taskName} --tests ${tests}`.
             |Use the `lookup_*` tools to get detailed results after running the build.
             |The console output is included in the result. Show this to the user, as if they had ran the command themselves.
             |Can publish a Develocity Build Scan if requested. This is the preferred way to diagnose issues and test failures, using something like the Develocity MCP server.
