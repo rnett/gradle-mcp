@@ -58,6 +58,7 @@ markdown_extensions:
 
 nav:
   - 'Getting Started': index.md
+  - 'Agent Skills': skills.md
   - 'Tools':
       - 'Running Tasks': tools/EXECUTION_TOOLS.md
       - 'Project REPL': tools/REPL_TOOLS.md

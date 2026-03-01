@@ -10,6 +10,7 @@ Tools include introspecting projects, running tasks, and running tests.
 
 ##### Features
 
+* Agent Skills. Guidance for AI agents on how to use these tools effectively. See the [documentation](https://gradle-mcp.rnett.dev/latest/skills/) for more.
 * Token-efficient context use. Tools use token efficient formats (i.e. not JSON) and only include the minimum relevant information. Details are relegated to specialized lookup tools.
 * Access to full test output, which is not typically possible when running from a terminal.
 * Supports publishing Develocity Build Scans, using elicitation to get permission to publish to [the public instance](https://scans.gradle.com).
@@ -50,3 +51,15 @@ jbang run --fresh dev.rnett.gradle-mcp:gradle-mcp:+ stdio
 ```
 
 See the [documentation](https://gradle-mcp.rnett.dev/latest/) for more details.
+
+## Agent Skills
+
+AI agents can use Agent Skills to better understand how to use these tools for common Gradle tasks.
+
+Included skills:
+
+- `gradle-build`: Running Gradle Commands, Background Jobs, and Investigating Failures.
+- `gradle-test`: Running and Investigating Tests.
+- `gradle-repl`: Running Code in the Project's Environment (REPL).
+
+For instructions on how to use these skills, see the [Agent Skills](https://gradle-mcp.rnett.dev/latest/skills/) documentation.

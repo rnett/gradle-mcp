@@ -10,6 +10,7 @@ Tools include introspecting projects, running tasks, and running tests.
 
 ##### Features
 
+* Agent Skills. Guidance for AI agents on how to use these tools effectively. See the [documentation](skills.md) for more.
 * Token-efficient context use. Tools use token efficient formats (i.e. not JSON) and only include the minimum relevant information. Details are relegated to specialized lookup tools.
 * Supports publishing Develocity Build Scans, using elicitation to get permission to publish to [the public instance](https://scans.gradle.com).
 * Tools for running and managing Gradle builds in the background. Helpful for running dev servers, etc.
@@ -97,6 +98,18 @@ This is used if no project root is specified in a tool call and there isn't exac
 Run the server.
 It accepts a single argument, `stdio`, to run in STDIO mode.
 By default it runs as a server on port 47813.
+
+## Agent Skills
+
+AI agents can use Agent Skills to better understand how to use these tools for common Gradle tasks.
+
+Included skills:
+
+- `gradle-build`: Running Gradle Commands, Background Jobs, and Investigating Failures.
+- `gradle-test`: Running and Investigating Tests.
+- `gradle-repl`: Running Code in the Project's Environment (REPL).
+
+For instructions on how to use these skills, see the [Agent Skills](skills.md) documentation.
 
 [//]: # (@formatter:off)
 !!! danger
