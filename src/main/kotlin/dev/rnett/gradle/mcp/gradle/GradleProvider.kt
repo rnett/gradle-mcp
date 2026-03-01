@@ -99,6 +99,8 @@ interface GradleProvider : AutoCloseable {
     val buildManager: BuildManager
 }
 
+class InterceptedSpecialCommandException(message: String) : IllegalStateException(message)
+
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class DefaultGradleProvider(
     val config: GradleConfiguration,
@@ -316,25 +318,71 @@ class DefaultGradleProvider(
         ).also { buildManager.registerBuild(it) }
 
         val deferred = scope.async {
-            val outcome = runCatchingExceptCancellation {
-                val wrapper = getConnectionWrapper(projectRoot)
-                wrapper.acquire()
-                try {
-                    val launcher = launcherProvider(wrapper)
-                    launcher.invokeBuild(
-                        args,
+            val outcome: Result<R> = try {
+                if (args.isHelp) {
+                    val model = getBuildModel(
+                        projectRootInput,
+                        org.gradle.tooling.model.build.Help::class,
+                        args.copy(
+                            additionalArguments = emptyList(),
+                            publishScan = false,
+                            requestedInitScripts = emptyList()
+                        ),
+                        tosAccepter,
                         additionalProgressListeners,
                         stdoutLineHandler,
                         stderrLineHandler,
-                        tosAccepter,
-                        buildId,
-                        runningBuild,
-                        invoker
+                        requiresGradleProject
                     )
-                } finally {
-                    wrapper.release()
+                    val text = model.value.getOrThrow().renderedText
+                    runningBuild.addLogLine(text)
+                    stdoutLineHandler?.invoke(text)
+                    Result.failure(InterceptedSpecialCommandException("Help command intercepted, result is in console output."))
+                } else if (args.isVersion) {
+                    val model = getBuildModel(
+                        projectRootInput,
+                        BuildEnvironment::class,
+                        args.copy(
+                            additionalArguments = emptyList(),
+                            publishScan = false,
+                            requestedInitScripts = emptyList()
+                        ),
+                        tosAccepter,
+                        additionalProgressListeners,
+                        stdoutLineHandler,
+                        stderrLineHandler,
+                        requiresGradleProject
+                    )
+                    val text = "Gradle ${model.value.getOrThrow().gradle.gradleVersion}"
+                    runningBuild.addLogLine(text)
+                    stdoutLineHandler?.invoke(text)
+                    Result.failure(InterceptedSpecialCommandException("Version command intercepted, result is in console output."))
+                } else {
+                    val wrapper = getConnectionWrapper(projectRoot)
+                    wrapper.acquire()
+                    try {
+                        val launcher = launcherProvider(wrapper)
+                        Result.success(
+                            launcher.invokeBuild(
+                                args,
+                                additionalProgressListeners,
+                                stdoutLineHandler,
+                                stderrLineHandler,
+                                tosAccepter,
+                                buildId,
+                                runningBuild,
+                                invoker
+                            )
+                        )
+                    } finally {
+                        wrapper.release()
+                    }
                 }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Result.failure(e)
             }
+
             runningBuild.finish(exception = outcome.exceptionOrNull() as? org.gradle.tooling.GradleConnectionException) {
                 buildManager.storeResult(it)
             }

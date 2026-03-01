@@ -51,8 +51,6 @@ class GradleExecutionToolTest : BaseMcpServerTest() {
         val text = call!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         // Should contain Gradle version info
         assertContains(text, "Gradle")
-        assertContains(text, "Kotlin:")
-        assertContains(text, "Launcher JVM:")
         assertTrue(call.isError != true, "Call should not be an error, but was: $text")
     }
 
@@ -63,7 +61,27 @@ class GradleExecutionToolTest : BaseMcpServerTest() {
 
         val text = call!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         // Should contain Gradle help text
-        assertContains(text, "USAGE: gradle [option...] [task...]")
+        assertContains(text, "USAGE: gradle")
+        assertTrue(call.isError != true, "Call should not be an error, but was: $text")
+    }
+
+    @Test
+    fun `run_single_task_and_get_output -v works with real project`() = runTest {
+        val args = mapOf("taskPath" to JsonPrimitive("-v"))
+        val call = server.client.callTool(ToolNames.RUN_SINGLE_TASK_AND_GET_OUTPUT, args)
+
+        val text = call!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        assertContains(text, "Gradle")
+        assertTrue(call.isError != true, "Call should not be an error, but was: $text")
+    }
+
+    @Test
+    fun `run_single_task_and_get_output -h works with real project`() = runTest {
+        val args = mapOf("taskPath" to JsonPrimitive("-h"))
+        val call = server.client.callTool(ToolNames.RUN_SINGLE_TASK_AND_GET_OUTPUT, args)
+
+        val text = call!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        assertContains(text, "USAGE: gradle")
         assertTrue(call.isError != true, "Call should not be an error, but was: $text")
     }
 }

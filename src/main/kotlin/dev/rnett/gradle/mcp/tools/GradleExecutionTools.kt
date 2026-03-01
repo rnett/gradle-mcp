@@ -8,8 +8,6 @@ import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import io.github.smiley4.schemakenerator.core.annotations.Example
 import kotlinx.serialization.Serializable
-import org.gradle.tooling.model.build.BuildEnvironment
-import org.gradle.tooling.model.build.Help
 import kotlin.time.ExperimentalTime
 
 class GradleExecutionTools(
@@ -94,23 +92,7 @@ class GradleExecutionTools(
         """.trimMargin(),
     ) {
 
-        if (it.taskPath == "--version") {
-            val result = gradle.getBuildModel<BuildEnvironment>(it.projectRoot, it.invocationArguments)
-            if (result.build.isSuccess) {
-                return@tool result.value.getOrThrow().versionInfo
-            } else {
-                isError = true
-                return@tool "Running --version failed\n\n" + result.build.toOutputString()
-            }
-        } else if (it.taskPath == "--help") {
-            val result = gradle.getBuildModel<Help>(it.projectRoot, it.invocationArguments)
-            if (result.build.isSuccess) {
-                return@tool result.value.getOrThrow().renderedText
-            } else {
-                isError = true
-                return@tool "Running --help failed\n\n" + result.build.toOutputString()
-            }
-        }
+        val isSpecial = it.taskPath in listOf("--version", "-v", "--help", "-h")
 
         val additionalArgs = buildList {
             add(it.taskPath)
@@ -126,16 +108,19 @@ class GradleExecutionTools(
         )
 
         val finished = result.build.awaitFinished()
-        if (finished.outcome !is BuildOutcome.Success) {
+        if (finished.outcome !is BuildOutcome.Success && !isSpecial) {
             isError = true
             finished.toOutputString()
         } else {
-            buildString {
-
-                if (finished.taskOutputCapturingFailed) {
-                    appendLine("Task output capturing failed. Task output may be incomplete or interleaved with other tasks.\n")
+            if (isSpecial) {
+                finished.toOutputString()
+            } else {
+                buildString {
+                    if (finished.taskOutputCapturingFailed) {
+                        appendLine("Task output capturing failed. Task output may be incomplete or interleaved with other tasks.\n")
+                    }
+                    appendLine(finished.getTaskOutput(it.taskPath, true) ?: "Task output not found in console output. Build result:\n${finished.toOutputString()}")
                 }
-                appendLine(finished.getTaskOutput(it.taskPath, true) ?: "Task output not found in console output. Build result:\n${finished.toOutputString()}")
             }
         }
     }

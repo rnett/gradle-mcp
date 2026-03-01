@@ -89,6 +89,12 @@ data class GradleInvocationArguments(
     val allAdditionalArguments = additionalArguments +
             (if (publishScan && "--scan" !in additionalArguments) listOf("--scan") else emptyList())
 
+    val isHelp: Boolean
+        get() = "--help" in allAdditionalArguments || "-h" in allAdditionalArguments
+
+    val isVersion: Boolean
+        get() = "--version" in allAdditionalArguments || "-v" in allAdditionalArguments
+
     fun withInitScript(name: String) = copy(requestedInitScripts = requestedInitScripts + name)
 
     companion object {

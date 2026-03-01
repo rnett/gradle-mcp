@@ -25,6 +25,9 @@ object OutputFormatter {
 
 
 fun Build.toOutputString(includeArgs: Boolean = true): String {
+    if (args.isHelp || args.isVersion) {
+        return consoleOutput.toString()
+    }
     return buildString {
         appendLine("Gradle MCP Build ID: $id")
         if (includeArgs) {

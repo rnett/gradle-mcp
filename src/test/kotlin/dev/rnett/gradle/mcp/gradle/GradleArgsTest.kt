@@ -234,6 +234,22 @@ class GradleInvocationArgumentsTest {
         val combined = args1 + args2
         assert(combined.requestedInitScripts == listOf("script1", "script2"))
     }
+
+    @Test
+    fun `isHelp detects help flags`() {
+        assert(GradleInvocationArguments(additionalArguments = listOf("--help")).isHelp)
+        assert(GradleInvocationArguments(additionalArguments = listOf("-h")).isHelp)
+        assert(!GradleInvocationArguments(additionalArguments = listOf("--version")).isHelp)
+        assert(!GradleInvocationArguments(additionalArguments = listOf()).isHelp)
+    }
+
+    @Test
+    fun `isVersion detects version flags`() {
+        assert(GradleInvocationArguments(additionalArguments = listOf("--version")).isVersion)
+        assert(GradleInvocationArguments(additionalArguments = listOf("-v")).isVersion)
+        assert(!GradleInvocationArguments(additionalArguments = listOf("--help")).isVersion)
+        assert(!GradleInvocationArguments(additionalArguments = listOf()).isVersion)
+    }
 }
 
 class GradleProjectRootTest {
