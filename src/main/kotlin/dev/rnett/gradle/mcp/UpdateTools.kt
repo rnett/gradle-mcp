@@ -251,5 +251,11 @@ object UpdateTools {
         override suspend fun getDocsPageAsMarkdown(path: String, version: String?): String {
             throw UnsupportedOperationException("Not used for tool listing")
         }
+        override suspend fun getReleaseNotes(version: String?): String {
+            throw UnsupportedOperationException("Not used for tool listing")
+        }
+        override suspend fun searchDocs(query: String, isRegex: Boolean, version: String?): List<DocsSearchResult> {
+            throw UnsupportedOperationException("Not used for tool listing")
+        }
     }
 }
