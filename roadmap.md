@@ -1,2 +1,1 @@
-- Make the repl worker not include itself in stacktraces from executed code
 - Test with continuous builds
