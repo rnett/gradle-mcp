@@ -95,7 +95,9 @@ class KotlinScriptEvaluator(val config: ReplConfig, val responseSender: (ReplRes
                     }
 
                     is ReplEvalResult.Error.Runtime -> {
-                        EvalResult.RuntimeError(evalResult.message, evalResult.cause?.stackTraceToString())
+                        val originalCause = evalResult.cause
+                        val cleanedStackTrace = originalCause?.let { cleanStackTrace(it) }
+                        EvalResult.RuntimeError(evalResult.message, cleanedStackTrace)
                     }
 
                     is ReplEvalResult.Error.CompileTime -> {
@@ -123,6 +125,36 @@ class KotlinScriptEvaluator(val config: ReplConfig, val responseSender: (ReplRes
             }
         }
     }
+
+    private fun cleanStackTrace(throwable: Throwable): String {
+        val stackTrace = throwable.stackTrace
+
+        // We want to keep frames that are NOT internal to the script engine or our evaluator,
+        // UNLESS they are between script frames.
+        // Actually, a better approach might be to find the last script frame and keep everything up to it,
+        // but still filter out some very specific internal ones if they are at the top.
+
+        val lastScriptIndex = stackTrace.indexOfLast { it.className.startsWith("Line_") }
+        val relevantFrames = if (lastScriptIndex != -1) {
+            stackTrace.take(lastScriptIndex + 1)
+        } else {
+            stackTrace.toList()
+        }
+
+        val sb = StringBuilder()
+        sb.append(throwable.toString()).append("\n")
+        for (element in relevantFrames) {
+            sb.append("\tat ").append(element).append("\n")
+        }
+
+        val cause = throwable.cause
+        if (cause != null) {
+            sb.append("Caused by: ").append(cleanStackTrace(cause))
+        }
+
+        return sb.toString().trim()
+    }
+
 
     sealed class EvalResult {
         data class Success(val data: ReplResponse.Data) : EvalResult()

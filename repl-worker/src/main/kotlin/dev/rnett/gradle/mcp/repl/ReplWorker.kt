@@ -63,7 +63,7 @@ class ReplWorker(val config: ReplConfig, val scanner: Scanner) {
                 handleResult(result)
             } catch (e: Exception) {
                 Logger.error(ReplWorker::class, "Repl code execution failed with exception", e)
-                sendResponse(ReplResponse.Result.InternalError(e.message ?: e.toString(), e.stackTraceToString()))
+                sendResponse(InternalError(e.message ?: e.toString(), e.stackTraceToString()))
             }
         }
         timeoutJob.cancel()
