@@ -11,6 +11,7 @@ The following skills are included in the `skills/` directory of the repository:
   failures.
 * **[gradle-test](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-test/SKILL.md)**: Workflows for running tests, filtering tests, and investigating test failures.
 * **[gradle-repl](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-repl/SKILL.md)**: Using the project REPL to run code in the project's environment, inspect state, and test logic.
+* **[gradle-docs](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-docs/SKILL.md)**: Searching and reading the Gradle User Guide.
 
 ## How to Include Skills in Your Project
 

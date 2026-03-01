@@ -61,5 +61,6 @@ Included skills:
 - `gradle-build`: Running Gradle Commands, Background Jobs, and Investigating Failures.
 - `gradle-test`: Running and Investigating Tests.
 - `gradle-repl`: Running Code in the Project's Environment (REPL).
+- `gradle-docs`: Searching and reading the Gradle User Guide.
 
 For instructions on how to use these skills, see the [Agent Skills](https://gradle-mcp.rnett.dev/latest/skills/) documentation.
