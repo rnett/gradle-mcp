@@ -15,6 +15,10 @@ Use the Gradle MCP to interact with Gradle whenever possible.
 * The `test` task should be used to run tests.
   After making a change, make sure it passes.
 
+On some machines, the Gradle build tool project will be checked out in `./gradle-build-tool`.
+Be careful that your search, run, etc, commands don't involve it, unless that's your intent.
+For example, the "Build everything" operation will build it too, which we don't want.
+
 ## Code style notes
 
 * Always name tests using descriptive names in english, using backticks.

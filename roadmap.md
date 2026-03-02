@@ -1,1 +1,3 @@
+- "Get dependency updates" tool
+- Build in the maven libraries mcp, in ways that uses the build's dependencies, i.e. for searching
 - Test with continuous builds

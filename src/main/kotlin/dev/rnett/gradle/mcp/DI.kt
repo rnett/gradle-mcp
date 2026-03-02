@@ -3,9 +3,11 @@ package dev.rnett.gradle.mcp
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.BundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultBundledJarProvider
+import dev.rnett.gradle.mcp.gradle.DefaultGradleDependencyService
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
 import dev.rnett.gradle.mcp.gradle.GradleConfiguration
+import dev.rnett.gradle.mcp.gradle.GradleDependencyService
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.mcp.McpServer
@@ -52,6 +54,7 @@ object DI {
         single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
         single<MarkdownService> { DefaultMarkdownService(get()) }
         single<GradleDocsService> { DefaultGradleDocsService(get(), get(), get()) }
+        single<GradleDependencyService> { DefaultGradleDependencyService(get()) }
         single { BuildManager() }
         single<GradleProvider> {
             DefaultGradleProvider(

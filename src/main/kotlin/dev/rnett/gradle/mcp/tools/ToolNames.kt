@@ -35,4 +35,5 @@ object ToolNames {
 object InitScriptNames {
     const val REPL_ENV = "repl-env"
     const val TASK_OUT = "task-out"
+    const val DEPENDENCIES_REPORT = "dependencies-report"
 }
