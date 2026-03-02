@@ -13,6 +13,7 @@ import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
 import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
+import dev.rnett.gradle.mcp.gradle.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.repl.DefaultReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
@@ -52,6 +53,7 @@ abstract class BaseMcpServerTest {
         single { GradleMcpEnvironment(tempDir) }
         single<MarkdownService> { DefaultMarkdownService() }
         single<GradleDocsService> { mockk<GradleDocsService>(relaxed = true) }
+        single<GradleDependencyService> { mockk<GradleDependencyService>(relaxed = true) }
 
         single<GradleProvider> {
             createProvider()
@@ -62,7 +64,8 @@ abstract class BaseMcpServerTest {
             val replManager: dev.rnett.gradle.mcp.repl.ReplManager = get()
             val replEnvironmentService: ReplEnvironmentService = get()
             val gradleDocsService: GradleDocsService = get()
-            components(provider, replManager, replEnvironmentService, gradleDocsService)
+            val gradleDependencyService: GradleDependencyService = get()
+            components(provider, replManager, replEnvironmentService, gradleDocsService, gradleDependencyService)
         }
 
         single {

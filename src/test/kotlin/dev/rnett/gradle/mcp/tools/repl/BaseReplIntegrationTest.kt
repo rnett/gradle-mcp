@@ -13,6 +13,8 @@ import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
 import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
+import dev.rnett.gradle.mcp.gradle.dependencies.DefaultGradleDependencyService
+import dev.rnett.gradle.mcp.gradle.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.gradle.fixtures.GradleProjectFixture
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import dev.rnett.gradle.mcp.repl.DefaultReplEnvironmentService
@@ -107,6 +109,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single { GradleMcpEnvironment(tempDir) }
         single<MarkdownService> { DefaultMarkdownService() }
         single<GradleDocsService> { dev.rnett.gradle.mcp.DefaultGradleDocsService(io.ktor.client.HttpClient(), get(), get()) }
+        single<GradleDependencyService> { DefaultGradleDependencyService(get()) }
         single<GradleProvider> {
             DefaultGradleProvider(
                 get(),
@@ -115,7 +118,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
             )
         }
         single {
-            DI.components(get(), get(), get(), get())
+            DI.components(get(), get(), get(), get(), get())
         }
         single {
             DI.createServer(get(), get())

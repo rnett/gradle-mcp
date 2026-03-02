@@ -6,6 +6,10 @@ import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleScanTosAcceptRequest
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
+import dev.rnett.gradle.mcp.gradle.dependencies.GradleDependencyService
+import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleConfigurationDependencies
+import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependencyReport
+import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleSourceSetDependencyReport
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.repl.ReplConfigWithJava
 import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
@@ -62,7 +66,13 @@ object UpdateTools {
             throw IllegalArgumentException("Output directory must be a directory")
         }
 
-        val files = DI.components(throwingGradleProvider, throwingReplManager, throwingReplEnvironmentService, throwingGradleDocsService).mapNotNull {
+        val files = DI.components(
+            throwingGradleProvider,
+            throwingReplManager,
+            throwingReplEnvironmentService,
+            throwingGradleDocsService,
+            throwingGradleDependencyService
+        ).mapNotNull {
             val file = directory?.resolve("${it.name.replace(" ", "_").uppercase()}.md")
             executeForComponent(it, file, verify)
             file
@@ -255,6 +265,34 @@ object UpdateTools {
             throw UnsupportedOperationException("Not used for tool listing")
         }
         override suspend fun searchDocs(query: String, isRegex: Boolean, version: String?): List<DocsSearchResult> {
+            throw UnsupportedOperationException("Not used for tool listing")
+        }
+    }
+    
+    val throwingGradleDependencyService = object : GradleDependencyService {
+        override suspend fun getDependencies(
+            projectRoot: GradleProjectRoot,
+            projectPath: String?,
+            configuration: String?,
+            sourceSet: String?,
+            checkUpdates: Boolean,
+            onlyDirect: Boolean
+        ): GradleDependencyReport {
+            throw UnsupportedOperationException("Not used for tool listing")
+        }
+
+        override suspend fun getSourceSetDependencies(
+            projectRoot: GradleProjectRoot,
+            sourceSetPath: String
+        ): GradleSourceSetDependencyReport {
+            throw UnsupportedOperationException("Not used for tool listing")
+        }
+
+        override suspend fun getConfigurationDependencies(
+            projectRoot: GradleProjectRoot,
+            configurationPath: String,
+            tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean
+        ): GradleConfigurationDependencies {
             throw UnsupportedOperationException("Not used for tool listing")
         }
     }

@@ -61,7 +61,8 @@ nav:
   - 'Agent Skills': skills.md
   - 'Tools':
       - 'Running Tasks': tools/EXECUTION_TOOLS.md
-      - 'Project REPL': tools/REPL_TOOLS.md
       - 'Background Execution': tools/BACKGROUND_BUILD_TOOLS.md
       - 'Detail Lookup': tools/LOOKUP_TOOLS.md
+      - 'Project REPL': tools/REPL_TOOLS.md
+      - 'Dependency Tools': tools/DEPENDENCY_TOOLS.md
       - 'Gradle Docs': tools/GRADLE_DOCS_TOOLS.md

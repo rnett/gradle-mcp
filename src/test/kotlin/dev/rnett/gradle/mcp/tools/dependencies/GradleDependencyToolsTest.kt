@@ -1,0 +1,337 @@
+package dev.rnett.gradle.mcp.tools.dependencies
+
+import dev.rnett.gradle.mcp.gradle.dependencies.GradleDependencyService
+import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleConfigurationDependencies
+import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
+import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependencyReport
+import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleProjectDependencies
+import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleSourceSetDependencies
+import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
+import dev.rnett.gradle.mcp.tools.ToolNames
+import io.mockk.coEvery
+import io.modelcontextprotocol.kotlin.sdk.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.Root
+import io.modelcontextprotocol.kotlin.sdk.TextContent
+import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.BeforeEach
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+class GradleDependencyToolsTest : BaseMcpServerTest() {
+
+    private lateinit var dependencyService: GradleDependencyService
+    private lateinit var tools: GradleDependencyTools
+
+    @BeforeEach
+    fun setupTest() = runTest {
+        dependencyService = server.koin.get()
+        tools = GradleDependencyTools(dependencyService)
+        server.setServerRoots(Root(tempDir.toUri().toString(), "root"))
+    }
+
+    @Test
+    fun `get-dependencies updatesOnly produces consolidated summary`() = runTest {
+        val report = GradleDependencyReport(
+            projects = listOf(
+                GradleProjectDependencies(
+                    path = ":",
+                    sourceSets = listOf(
+                        GradleSourceSetDependencies("main", listOf("implementation", "compileClasspath")),
+                        GradleSourceSetDependencies("test", listOf("testImplementation", "testCompileClasspath"))
+                    ),
+                    repositories = emptyList(),
+                    configurations = listOf(
+                        GradleConfigurationDependencies(
+                            name = "compileClasspath",
+                            description = "Compile classpath",
+                            isResolvable = true,
+                            dependencies = listOf(
+                                GradleDependency(
+                                    id = "org.slf4j:slf4j-api:1.7.30",
+                                    group = "org.slf4j",
+                                    name = "slf4j-api",
+                                    version = "1.7.30",
+                                    latestVersion = "2.0.0",
+                                    isDirect = true
+                                )
+                            )
+                        ),
+                        GradleConfigurationDependencies(
+                            name = "testCompileClasspath",
+                            description = "Test compile classpath",
+                            isResolvable = true,
+                            dependencies = listOf(
+                                GradleDependency(
+                                    id = "junit:junit:4.12",
+                                    group = "junit",
+                                    name = "junit",
+                                    version = "4.12",
+                                    latestVersion = "4.13.2",
+                                    isDirect = true
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        coEvery {
+            dependencyService.getDependencies(
+                projectRoot = any(),
+                projectPath = any(),
+                configuration = any(),
+                sourceSet = any(),
+                checkUpdates = true,
+                versionFilter = any(),
+                onlyDirect = true
+            )
+        } returns report
+
+        val response = server.client.callTool(
+            ToolNames.GET_DEPENDENCIES, mapOf(
+                "projectPath" to ":",
+                "onlyDirect" to true,
+                "updatesOnly" to true
+            )
+        ) as CallToolResult
+
+        val result = (response.content.first() as TextContent).text
+
+        val expected = """
+            Available Dependency Updates:
+
+            - org.slf4j:slf4j-api:1.7.30: 1.7.30 -> 2.0.0
+              Found in:
+                - Project: :, Configurations: compileClasspath, Source Sets: main
+
+            - junit:junit:4.12: 4.12 -> 4.13.2
+              Found in:
+                - Project: :, Configurations: testCompileClasspath, Source Sets: test
+        """.trimIndent()
+
+        assertEquals(expected, result)
+    }
+
+    @Test
+    fun `get-dependencies marks repeated dependencies`() = runTest {
+        val report = GradleDependencyReport(
+            projects = listOf(
+                GradleProjectDependencies(
+                    path = ":",
+                    sourceSets = emptyList(),
+                    repositories = emptyList(),
+                    configurations = listOf(
+                        GradleConfigurationDependencies(
+                            name = "compileClasspath",
+                            description = null,
+                            isResolvable = true,
+                            dependencies = listOf(
+                                GradleDependency(
+                                    id = "A", group = "g", name = "A", version = "1",
+                                    variant = "v",
+                                    children = listOf(
+                                        GradleDependency(id = "B", group = "g", name = "B", version = "1", variant = "v")
+                                    )
+                                ),
+                                GradleDependency(
+                                    id = "B", group = "g", name = "B", version = "1", variant = "v"
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        coEvery {
+            dependencyService.getDependencies(any(), any(), any(), any(), checkUpdates = true, versionFilter = any(), onlyDirect = true)
+        } returns report
+
+        val response = server.client.callTool(ToolNames.GET_DEPENDENCIES, emptyMap()) as CallToolResult
+        val result = (response.content.first() as TextContent).text
+
+        assertTrue(result!!.contains("Dependency Report"), "Should contain report header")
+        assertTrue(result.contains("Note: (*) indicates a dependency that has already been listed"), "Should contain (*) explanation")
+        assertTrue(result.contains("B (*)"), "Repeated dependency should be marked with (*)")
+    }
+
+    @Test
+    fun `output is correctly sorted and filtered`() = runTest {
+        val report = GradleDependencyReport(
+            projects = listOf(
+                GradleProjectDependencies(
+                    path = ":",
+                    sourceSets = emptyList(),
+                    repositories = emptyList(),
+                    configurations = listOf(
+                        GradleConfigurationDependencies(
+                            name = "parentConf",
+                            description = null,
+                            isResolvable = false,
+                            dependencies = listOf(
+                                GradleDependency(id = "org.slf4j:slf4j-api:1.7.30", group = "org.slf4j", name = "slf4j-api", version = "1.7.30")
+                            )
+                        ),
+                        GradleConfigurationDependencies(
+                            name = "childConf",
+                            description = null,
+                            isResolvable = false,
+                            extendsFrom = listOf("parentConf"),
+                            dependencies = listOf(
+                                GradleDependency(id = "com.google.guava:guava:30.1-jre", group = "com.google.guava", name = "guava", version = "30.1-jre")
+                            )
+                        )
+                    )
+                )
+            )
+        )
+        val output = tools.formatDependencyReport(report)
+
+        // Verify sorting: parentConf (depth 0) should be before childConf (depth 1)
+        val parentIdx = output.indexOf("Configuration: parentConf")
+        val childIdx = output.indexOf("Configuration: childConf")
+        assertTrue(parentIdx != -1, "Should contain parentConf")
+        assertTrue(childIdx != -1, "Should contain childConf")
+        assertTrue(parentIdx < childIdx, "parentConf should be before childConf. Output:\n$output")
+
+        // Verify extends from
+        assertTrue(output.contains("Extends from: parentConf"), "Should show inheritance in childConf section")
+
+        // Verify filtering: slf4j should be in parentConf but NOT in childConf (because it's inherited from unresolvable to unresolvable)
+        val parentPart = output.substring(parentIdx, childIdx)
+        val childPart = output.substring(childIdx)
+
+        assertTrue(parentPart.contains("slf4j-api:1.7.30"), "parentConf should contain slf4j-api")
+        assertTrue(!childPart.contains("slf4j-api:1.7.30"), "childConf should NOT contain slf4j-api (inherited). Child part:\n$childPart")
+        assertTrue(childPart.contains("guava:30.1-jre"), "childConf should contain guava")
+    }
+
+    @Test
+    fun `resolvable configuration shows inherited dependencies with graphs`() = runTest {
+        val report = GradleDependencyReport(
+            projects = listOf(
+                GradleProjectDependencies(
+                    path = ":",
+                    sourceSets = emptyList(),
+                    repositories = emptyList(),
+                    configurations = listOf(
+                        GradleConfigurationDependencies(
+                            name = "implementation",
+                            description = null,
+                            isResolvable = false,
+                            dependencies = listOf(
+                                GradleDependency(id = "org.slf4j:slf4j-api:1.7.30", group = "org.slf4j", name = "slf4j-api", version = "1.7.30")
+                            )
+                        ),
+                        GradleConfigurationDependencies(
+                            name = "compileClasspath",
+                            description = null,
+                            isResolvable = true,
+                            extendsFrom = listOf("implementation"),
+                            dependencies = listOf(
+                                GradleDependency(id = "org.slf4j:slf4j-api:1.7.30", group = "org.slf4j", name = "slf4j-api", version = "1.7.30")
+                            )
+                        )
+                    )
+                )
+            )
+        )
+        val output = tools.formatDependencyReport(report)
+
+        val implIdx = output.indexOf("Configuration: implementation")
+        val compileClasspathIdx = output.indexOf("Configuration: compileClasspath")
+
+        assertTrue(implIdx != -1 && compileClasspathIdx != -1)
+
+        val implPart = output.substring(implIdx, compileClasspathIdx)
+        val compilePart = output.substring(compileClasspathIdx)
+
+        assertTrue(implPart.contains("slf4j-api:1.7.30"), "implementation should show slf4j")
+        assertTrue(compilePart.contains("slf4j-api:1.7.30"), "compileClasspath should ALSO show slf4j because it's the first resolvable one. Output:\n$output")
+    }
+
+    @Test
+    fun `shows note when version differs from parent`() = runTest {
+        val report = GradleDependencyReport(
+            projects = listOf(
+                GradleProjectDependencies(
+                    path = ":",
+                    sourceSets = emptyList(),
+                    repositories = emptyList(),
+                    configurations = listOf(
+                        GradleConfigurationDependencies(
+                            name = "implementation",
+                            description = null,
+                            isResolvable = false,
+                            dependencies = listOf(
+                                GradleDependency(id = "org.slf4j:slf4j-api:1.7.30", group = "org.slf4j", name = "slf4j-api", version = "1.7.30")
+                            )
+                        ),
+                        GradleConfigurationDependencies(
+                            name = "compileClasspath",
+                            description = null,
+                            isResolvable = true,
+                            extendsFrom = listOf("implementation"),
+                            dependencies = listOf(
+                                GradleDependency(
+                                    id = "org.slf4j:slf4j-api:1.7.31",
+                                    group = "org.slf4j",
+                                    name = "slf4j-api",
+                                    version = "1.7.31",
+                                    fromConfiguration = "implementation"
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+        val output = tools.formatDependencyReport(report)
+
+        assertTrue(output.contains("slf4j-api:1.7.31 (was 1.7.30 in implementation)"), "Should show version difference note. Output:\n$output")
+    }
+
+    @Test
+    fun `get-dependencies shows update message when checkUpdates is true`() = runTest {
+        val report = GradleDependencyReport(
+            projects = listOf(
+                GradleProjectDependencies(
+                    path = ":",
+                    sourceSets = emptyList(),
+                    repositories = emptyList(),
+                    configurations = listOf(
+                        GradleConfigurationDependencies(
+                            name = "implementation",
+                            description = null,
+                            isResolvable = true,
+                            dependencies = listOf(
+                                GradleDependency(
+                                    id = "org.slf4j:slf4j-api:1.7.30",
+                                    group = "org.slf4j",
+                                    name = "slf4j-api",
+                                    version = "1.7.30",
+                                    latestVersion = "2.0.0"
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        coEvery {
+            dependencyService.getDependencies(any(), any(), any(), any(), checkUpdates = true, any(), any())
+        } returns report
+
+        val response = server.client.callTool(
+            ToolNames.GET_DEPENDENCIES, mapOf(
+                "checkUpdates" to true
+            )
+        ) as CallToolResult
+
+        val result = (response.content.first() as TextContent).text
+        assertTrue(result!!.contains("[UPDATE AVAILABLE: 2.0.0]"), "Output should contain update message. Result:\n$result")
+    }
+}

@@ -18,6 +18,7 @@ Use the Gradle MCP to interact with Gradle whenever possible.
 On some machines, the Gradle build tool project will be checked out in `./gradle-build-tool`.
 Be careful that your search, run, etc, commands don't involve it, unless that's your intent.
 For example, the "Build everything" operation will build it too, which we don't want.
+However, they make great sources of knowledge when you are working with Gradle's APIs - use them accordingly.
 
 ## Code style notes
 

@@ -1,3 +1,7 @@
-- "Get dependency updates" tool
 - Build in the maven libraries mcp, in ways that uses the build's dependencies, i.e. for searching
+  - Probably want download/index all dependency source, search all dependency sources. With an option to just use the version catalog instead of running the dependency tasks.
+  - Need to handle variants somehow
+- Dependency investigation skill, making uses of the new tools and running the dependencies and dependency insight skills
+- Introspection skill, using --help, --version, tasks, task help, etc.
+- More skills in general.
 - Test with continuous builds

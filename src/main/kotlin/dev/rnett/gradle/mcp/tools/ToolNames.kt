@@ -25,6 +25,9 @@ object ToolNames {
     // REPL Tools
     const val REPL = "project_repl"
 
+    // Dependency Tools
+    const val GET_DEPENDENCIES = "get_dependencies"
+
     // Docs Tools
     const val GET_ALL_GRADLE_DOCS_PAGES = "get_all_gradle_docs_pages"
     const val GET_GRADLE_DOCS_PAGE = "get_gradle_docs_page"

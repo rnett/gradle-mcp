@@ -3,13 +3,13 @@ package dev.rnett.gradle.mcp
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.BundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultBundledJarProvider
-import dev.rnett.gradle.mcp.gradle.DefaultGradleDependencyService
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
 import dev.rnett.gradle.mcp.gradle.GradleConfiguration
-import dev.rnett.gradle.mcp.gradle.GradleDependencyService
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
+import dev.rnett.gradle.mcp.gradle.dependencies.DefaultGradleDependencyService
+import dev.rnett.gradle.mcp.gradle.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.mcp.McpServer
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.mcp.add
@@ -22,6 +22,7 @@ import dev.rnett.gradle.mcp.tools.GradleBuildLookupTools
 import dev.rnett.gradle.mcp.tools.GradleDocsTools
 import dev.rnett.gradle.mcp.tools.GradleExecutionTools
 import dev.rnett.gradle.mcp.tools.ReplTools
+import dev.rnett.gradle.mcp.tools.dependencies.GradleDependencyTools
 import io.ktor.client.*
 import io.ktor.server.config.*
 import io.modelcontextprotocol.kotlin.sdk.EmptyJsonObject
@@ -69,7 +70,8 @@ object DI {
             val replManager: ReplManager = get()
             val replEnvironmentService: ReplEnvironmentService = get()
             val gradleDocsService: GradleDocsService = get()
-            components(provider, replManager, replEnvironmentService, gradleDocsService)
+            val gradleDependencyService: GradleDependencyService = get()
+            components(provider, replManager, replEnvironmentService, gradleDocsService, gradleDependencyService)
         }
 
         single {
@@ -100,12 +102,14 @@ object DI {
         replManager: ReplManager,
         replEnvironmentService: ReplEnvironmentService,
         gradleDocsService: GradleDocsService,
+        gradleDependencyService: GradleDependencyService,
     ): List<McpServerComponent> = listOf(
         GradleExecutionTools(provider),
         ReplTools(provider, replManager, replEnvironmentService),
         BackgroundBuildTools(provider),
         GradleBuildLookupTools(provider.buildManager),
         GradleDocsTools(gradleDocsService),
+        GradleDependencyTools(gradleDependencyService),
     )
 
     fun createServer(json: Json, components: List<McpServerComponent>): McpServer {
