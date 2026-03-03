@@ -14,7 +14,7 @@ import kotlinx.serialization.Serializable
 
 class GradleDependencyTools(
     private val dependencyService: GradleDependencyService
-) : McpServerComponent("Dependency Tools", "Tools for querying Gradle dependencies and checking for updates.") {
+) : McpServerComponent("Project Dependency Tools", "Tools for querying Gradle dependencies and checking for updates.") {
 
     @Serializable
     data class GetDependenciesArgs(

@@ -72,6 +72,8 @@ dependencies {
     implementation(libs.ktor.server.config.yaml)
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.xml)
+    implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.logback.classic)
 
     testImplementation(libs.kotlin.test)

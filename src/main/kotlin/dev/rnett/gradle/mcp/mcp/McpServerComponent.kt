@@ -57,6 +57,7 @@ abstract class McpServerComponent(val name: String, val description: String) {
         data class AuxiliaryResults(val additionalResults: List<PromptMessageContent>, val isError: Boolean)
     }
 
+    // avoid using structured output when possible, just return strings
     inline fun <reified I, reified O> tool(
         name: String,
         description: String,

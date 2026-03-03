@@ -1,6 +1,6 @@
 [//]: # (@formatter:off)
 
-# Dependency Tools
+# Project Dependency Tools
 
 Tools for querying Gradle dependencies and checking for updates.
 

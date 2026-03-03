@@ -10,6 +10,9 @@ import dev.rnett.gradle.mcp.gradle.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleConfigurationDependencies
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependencyReport
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleSourceSetDependencyReport
+import dev.rnett.gradle.mcp.maven.MavenCentralSearchResponse
+import dev.rnett.gradle.mcp.maven.MavenCentralService
+import dev.rnett.gradle.mcp.maven.MavenRepoService
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.repl.ReplConfigWithJava
 import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
@@ -71,7 +74,9 @@ object UpdateTools {
             throwingReplManager,
             throwingReplEnvironmentService,
             throwingGradleDocsService,
-            throwingGradleDependencyService
+            throwingGradleDependencyService,
+            throwingMavenRepoService,
+            throwingMavenCentralService
         ).mapNotNull {
             val file = directory?.resolve("${it.name.replace(" ", "_").uppercase()}.md")
             executeForComponent(it, file, verify)
@@ -276,6 +281,7 @@ object UpdateTools {
             configuration: String?,
             sourceSet: String?,
             checkUpdates: Boolean,
+            versionFilter: String?,
             onlyDirect: Boolean
         ): GradleDependencyReport {
             throw UnsupportedOperationException("Not used for tool listing")
@@ -293,6 +299,22 @@ object UpdateTools {
             configurationPath: String,
             tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean
         ): GradleConfigurationDependencies {
+            throw UnsupportedOperationException("Not used for tool listing")
+        }
+    }
+
+    val throwingMavenRepoService = object : MavenRepoService {
+        override suspend fun getVersions(repository: String, group: String, artifact: String): List<String> {
+            throw UnsupportedOperationException("Not used for tool listing")
+        }
+    }
+
+    val throwingMavenCentralService = object : MavenCentralService {
+        override suspend fun searchCentral(
+            query: String,
+            start: Int,
+            results: Int
+        ): MavenCentralSearchResponse.Response {
             throw UnsupportedOperationException("Not used for tool listing")
         }
     }

@@ -42,6 +42,8 @@ abstract class BaseMcpServerTest {
 
     protected open fun createTestModule(): org.koin.core.module.Module = module {
         single { DI.json }
+        single { DI.xml }
+        single { DI.createHttpClient(get(), get()) }
         single<GradleConfiguration> {
             GradleConfiguration(4, kotlin.time.Duration.parse("10m"), false)
         }
@@ -54,6 +56,8 @@ abstract class BaseMcpServerTest {
         single<MarkdownService> { DefaultMarkdownService() }
         single<GradleDocsService> { mockk<GradleDocsService>(relaxed = true) }
         single<GradleDependencyService> { mockk<GradleDependencyService>(relaxed = true) }
+        single<dev.rnett.gradle.mcp.maven.MavenRepoService> { mockk<dev.rnett.gradle.mcp.maven.MavenRepoService>(relaxed = true) }
+        single<dev.rnett.gradle.mcp.maven.MavenCentralService> { mockk<dev.rnett.gradle.mcp.maven.MavenCentralService>(relaxed = true) }
 
         single<GradleProvider> {
             createProvider()
@@ -65,7 +69,9 @@ abstract class BaseMcpServerTest {
             val replEnvironmentService: ReplEnvironmentService = get()
             val gradleDocsService: GradleDocsService = get()
             val gradleDependencyService: GradleDependencyService = get()
-            components(provider, replManager, replEnvironmentService, gradleDocsService, gradleDependencyService)
+            val mavenRepoService: dev.rnett.gradle.mcp.maven.MavenRepoService = get()
+            val mavenCentralService: dev.rnett.gradle.mcp.maven.MavenCentralService = get()
+            components(provider, replManager, replEnvironmentService, gradleDocsService, gradleDependencyService, mavenRepoService, mavenCentralService)
         }
 
         single {

@@ -16,6 +16,10 @@ import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.gradle.dependencies.DefaultGradleDependencyService
 import dev.rnett.gradle.mcp.gradle.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.gradle.fixtures.GradleProjectFixture
+import dev.rnett.gradle.mcp.maven.DefaultMavenCentralService
+import dev.rnett.gradle.mcp.maven.DefaultMavenRepoService
+import dev.rnett.gradle.mcp.maven.MavenCentralService
+import dev.rnett.gradle.mcp.maven.MavenRepoService
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import dev.rnett.gradle.mcp.repl.DefaultReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.DefaultReplManager
@@ -100,6 +104,8 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
 
     override fun createTestModule() = module {
         single { DI.json }
+        single { DI.xml }
+        single { DI.createHttpClient(get(), get()) }
         single { GradleConfiguration(4, 10.minutes, false) }
         single { DefaultInitScriptProvider(tempDir.resolve("init-scripts")) } bind InitScriptProvider::class
         single { DefaultBundledJarProvider(tempDir.resolve("jars")) } bind BundledJarProvider::class
@@ -108,8 +114,10 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
         single { GradleMcpEnvironment(tempDir) }
         single<MarkdownService> { DefaultMarkdownService() }
-        single<GradleDocsService> { dev.rnett.gradle.mcp.DefaultGradleDocsService(io.ktor.client.HttpClient(), get(), get()) }
+        single<GradleDocsService> { dev.rnett.gradle.mcp.DefaultGradleDocsService(get(), get(), get()) }
         single<GradleDependencyService> { DefaultGradleDependencyService(get()) }
+        single<MavenRepoService> { DefaultMavenRepoService(get()) }
+        single<MavenCentralService> { DefaultMavenCentralService(get()) }
         single<GradleProvider> {
             DefaultGradleProvider(
                 get(),
@@ -118,7 +126,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
             )
         }
         single {
-            DI.components(get(), get(), get(), get(), get())
+            DI.components(get(), get(), get(), get(), get(), get(), get())
         }
         single {
             DI.createServer(get(), get())

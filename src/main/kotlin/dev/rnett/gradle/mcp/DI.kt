@@ -10,6 +10,10 @@ import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.gradle.dependencies.DefaultGradleDependencyService
 import dev.rnett.gradle.mcp.gradle.dependencies.GradleDependencyService
+import dev.rnett.gradle.mcp.maven.DefaultMavenCentralService
+import dev.rnett.gradle.mcp.maven.DefaultMavenRepoService
+import dev.rnett.gradle.mcp.maven.MavenCentralService
+import dev.rnett.gradle.mcp.maven.MavenRepoService
 import dev.rnett.gradle.mcp.mcp.McpServer
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.mcp.add
@@ -22,14 +26,19 @@ import dev.rnett.gradle.mcp.tools.GradleBuildLookupTools
 import dev.rnett.gradle.mcp.tools.GradleDocsTools
 import dev.rnett.gradle.mcp.tools.GradleExecutionTools
 import dev.rnett.gradle.mcp.tools.ReplTools
+import dev.rnett.gradle.mcp.tools.dependencies.DependencySearchTools
 import dev.rnett.gradle.mcp.tools.dependencies.GradleDependencyTools
 import io.ktor.client.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.serialization.kotlinx.json.*
+import io.ktor.serialization.kotlinx.xml.*
 import io.ktor.server.config.*
 import io.modelcontextprotocol.kotlin.sdk.EmptyJsonObject
 import io.modelcontextprotocol.kotlin.sdk.Implementation
 import io.modelcontextprotocol.kotlin.sdk.ServerCapabilities
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import kotlinx.serialization.json.Json
+import nl.adaptivity.xmlutil.serialization.XML
 import org.koin.core.module.Module
 import org.koin.dsl.bind
 import org.koin.dsl.module
@@ -43,19 +52,36 @@ object DI {
         decodeEnumsCaseInsensitive = true
     }
 
+    val xml = XML {
+        defaultPolicy {
+            ignoreUnknownChildren()
+        }
+    }
+
+    fun createHttpClient(json: Json = DI.json, xml: XML = DI.xml) = HttpClient {
+        install(ContentNegotiation) {
+            json(json)
+            xml(xml, io.ktor.http.ContentType.Application.Xml)
+            xml(xml, io.ktor.http.ContentType.Text.Xml)
+        }
+    }
+
     fun createModule(config: ApplicationConfig): Module = module {
         single { config }
+        single { xml }
         single { json }
         single { config.property("gradle").getAs<GradleConfiguration>() }
         single { DefaultInitScriptProvider() } bind InitScriptProvider::class
         single { DefaultBundledJarProvider() } bind BundledJarProvider::class
-        single { HttpClient() }
+        single { createHttpClient(get(), get()) }
         single { GradleMcpEnvironment.fromEnv() }
         single<ReplManager> { DefaultReplManager(get()) }
         single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
         single<MarkdownService> { DefaultMarkdownService(get()) }
         single<GradleDocsService> { DefaultGradleDocsService(get(), get(), get()) }
         single<GradleDependencyService> { DefaultGradleDependencyService(get()) }
+        single<MavenRepoService> { DefaultMavenRepoService(get()) }
+        single<MavenCentralService> { DefaultMavenCentralService(get()) }
         single { BuildManager() }
         single<GradleProvider> {
             DefaultGradleProvider(
@@ -71,7 +97,17 @@ object DI {
             val replEnvironmentService: ReplEnvironmentService = get()
             val gradleDocsService: GradleDocsService = get()
             val gradleDependencyService: GradleDependencyService = get()
-            components(provider, replManager, replEnvironmentService, gradleDocsService, gradleDependencyService)
+            val mavenRepoService: MavenRepoService = get()
+            val mavenCentralService: MavenCentralService = get()
+            components(
+                provider,
+                replManager,
+                replEnvironmentService,
+                gradleDocsService,
+                gradleDependencyService,
+                mavenRepoService,
+                mavenCentralService
+            )
         }
 
         single {
@@ -103,6 +139,8 @@ object DI {
         replEnvironmentService: ReplEnvironmentService,
         gradleDocsService: GradleDocsService,
         gradleDependencyService: GradleDependencyService,
+        mavenRepoService: MavenRepoService,
+        mavenCentralService: MavenCentralService,
     ): List<McpServerComponent> = listOf(
         GradleExecutionTools(provider),
         ReplTools(provider, replManager, replEnvironmentService),
@@ -110,6 +148,7 @@ object DI {
         GradleBuildLookupTools(provider.buildManager),
         GradleDocsTools(gradleDocsService),
         GradleDependencyTools(gradleDependencyService),
+        DependencySearchTools(mavenRepoService, mavenCentralService),
     )
 
     fun createServer(json: Json, components: List<McpServerComponent>): McpServer {
