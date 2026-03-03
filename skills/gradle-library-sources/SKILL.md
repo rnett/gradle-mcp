@@ -1,16 +1,16 @@
 ---
 name: gradle-library-sources
-description: Searching and exploring the source code of library dependencies and Gradle itself.
+description: Deep-dive into the implementation details of any library or Gradle itself with high-performance symbol search and full-text navigation. Use when debugging library issues or learning from implementation.
 license: Apache-2.0
-allowed-tools: read_dependency_sources, search_dependency_sources
+allowed-tools: read_dependency_sources search_dependency_sources
 metadata:
   author: rnett
-  version: "3.0"
+  version: "3.1"
 ---
 
-# Exploring Library and Gradle Sources
+# Ultimate Library & Gradle Source Explorer
 
-Instructions and examples for searching and reading the source code of external library dependencies and Gradle's internal sources using `read_dependency_sources` and `search_dependency_sources`.
+Deep-dive into the implementation details of any library or Gradle itself. Search, navigate, and understand the source code of your dependencies with ease.
 
 ## Directives
 
@@ -24,7 +24,7 @@ Instructions and examples for searching and reading the source code of external 
 - **Read specific files**: Use the `read_dependency_sources` tool with the `path` argument to read a specific source file.
 - **List files**: Use the `read_dependency_sources` tool without a `path` to list the directory structure of the sources.
 - **Force download**: Set `forceDownload: true` if you suspect the cached sources are outdated or incomplete.
-- **Progressive Disclosure**: For details on how indexing and search work, refer to `references/source-indexing.md`.
+- **Progressive Disclosure**: For details on how indexing and search work, refer to the [Source Indexing](references/source-indexing.md) guide.
 
 ## When to Use
 

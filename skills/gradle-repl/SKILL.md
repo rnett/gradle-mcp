@@ -1,16 +1,16 @@
 ---
 name: gradle-repl
-description: Running Kotlin code in the context of the project's source sets using an interactive REPL.
+description: Execute Kotlin code interactively within your project's full runtime context, including all dependencies and source code. Use to test functions, explore APIs, or prototype logic.
 license: Apache-2.0
-allowed-tools: project_repl
+allowed-tools: project_repl inspect_build
 metadata:
   author: rnett
-  version: "1.1"
+  version: "1.2"
 ---
 
-# Running Code in the Project's Environment (REPL)
+# Interactive Kotlin REPL with Full Project Context
 
-Instructions and examples for using the project's REPL to run Kotlin code with the same classpath and environment as your project's source sets, including the source set itself.
+Execute Kotlin code interactively in the exact environment of your project's source sets. Test logic, explore library behaviors, and visualize UI components with ease.
 
 ## Directives
 
@@ -26,7 +26,7 @@ Instructions and examples for using the project's REPL to run Kotlin code with t
 
 - To test a function or class interactively without writing a full test.
 - To inspect library behavior in your project's context.
-- To visualize UI components (like Compose or AWT) by rendering them to images.
+- To visualize UI components (like Compose or AWT) by rendering them to images. See the `compose-view` skill for a deep dive into Compose.
 - To explore the project's runtime environment or state.
 
 ## Workflows

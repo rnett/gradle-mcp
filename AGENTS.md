@@ -39,3 +39,32 @@ There is an overview of the project structure [here](./gradle-sources-overview.m
 * Use test resources (e.g. Gradle projects, GradleProvider) at the class level where possible – they are expensive to create.
 * Most MCP tools should return text, not JSON.
 * Always use isolated Koin contexts; avoid global contexts.
+
+## Skill Development Guidelines
+
+Skills in this project are used by other agents to understand how to interact with Gradle effectively. Follow these rules to ensure skills are helpful and high-quality:
+
+### Structure and Files
+
+- **Organization**: Each skill must have its own directory under `skills/`.
+- **Primary Entrypoint**: The main file is always `SKILL.md`.
+- **Progressive Disclosure**: Detailed guides, troubleshooting, and edge cases should be moved to a `references/` subdirectory.
+- **Link Quality**: Use relative links to reference files (e.g., `[Advanced Diagnostics](references/diagnostics.md)`).
+- **File Size**: Keep all files under 500 lines to ensure they are easily digestible by agents.
+- **Skills docs**: Always update the `docs/skills.md` file with skill details when making changes or adding skills.
+
+### SKILL.md Frontmatter
+
+- **Name**: Must exactly match the directory name (e.g., `gradle-build`).
+- **Description**: Sell the skill! Start with a strong action verb. Clearly state *what* it does and *when* it should be used.
+- **Allowed Tools**: List all MCP tools used in the skill, separated by spaces.
+- **Accuracy**: Only use tools defined in `ToolNames.kt`. Never use legacy names like `inspect_gradle_build` (use `inspect_build`) or `gradle_execute` (use `gradlew`).
+- **Versioning**: Increment the `version` field in metadata when making functional changes or significant documentation updates.
+
+### Content and Best Practices
+
+- **Expert Tone**: Write for an expert audience. Provide high-signal directives and specific task patterns.
+- **Directives**: Focus on the most common and effective workflows.
+- **Title and H1**: Use professional and persuasive titles in the frontmatter and the main H1 header (e.g., use "Advanced Test Execution" instead of "Running Tests").
+- **When to Use**: Always include a "When to Use" section in the frontmatter description or a dedicated section in `SKILL.md`.
+- **Verification**: Ensure all commands and tool parameters mentioned in the skill are correct and reflect the latest API.

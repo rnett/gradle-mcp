@@ -1,16 +1,16 @@
 ---
 name: gradle-test
-description: Running and investigating Gradle tests using consolidated tools and test-specific diagnosis workflows.
+description: Execute and diagnose tests at scale with intelligent filtering and specialized workflows for rapid failure resolution. Use to run specific tests or investigate test failures.
 license: Apache-2.0
 allowed-tools: gradlew inspect_build
 metadata:
   author: rnett
-  version: "2.7"
+  version: "2.8"
 ---
 
-# Running and Investigating Tests
+# Advanced Test Execution & Diagnostic Workflows
 
-Instructions and examples for running tests with Gradle and analyzing test failures using consolidated tools.
+Run tests efficiently with precision filtering and leverage deep diagnostic tools to isolate and fix failures fast within the Gradle environment.
 
 ## Directives
 

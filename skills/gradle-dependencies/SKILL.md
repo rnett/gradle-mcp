@@ -1,16 +1,16 @@
 ---
 name: gradle-dependencies
-description: Querying project dependencies, checking for updates, and searching Maven Central.
+description: Gain deep insights into your dependency graph, check for updates, and discover new libraries on Maven Central. Use when managing project dependencies or looking for library updates.
 license: Apache-2.0
-allowed-tools: inspect_dependencies search_maven_central
+allowed-tools: gradlew inspect_dependencies search_maven_central
 metadata:
   author: rnett
-  version: "2.2"
+  version: "2.3"
 ---
 
-# Managing Project Dependencies
+# Comprehensive Dependency Intelligence & Maven Central Search
 
-Instructions and examples for querying project dependencies, checking for available updates, and searching for new libraries on Maven Central.
+Easily query project dependencies, check for available updates, and find new libraries on Maven Central with powerful search tools.
 
 ## Directives
 

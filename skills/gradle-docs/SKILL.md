@@ -1,16 +1,16 @@
 ---
 name: gradle-docs
-description: Searching and reading the Gradle User Guide, release notes, and version documentation.
+description: Expert access to Gradle documentation, release notes, and version-specific guides, searchable and rendered for easy consumption. Use when looking up Gradle DSL syntax or troubleshooting Gradle features.
 license: Apache-2.0
 allowed-tools: gradle_docs
 metadata:
   author: rnett
-  version: "2.1"
+  version: "2.2"
 ---
 
-# Accessing Gradle Documentation
+# Expert Gradle Documentation & Release Insights
 
-Instructions and examples for searching and reading the Gradle User Guide, release notes, and version-specific documentation using the consolidated `gradle_docs` tool.
+Instantly search and read the official Gradle User Guide, release notes, and version documentation without leaving your environment.
 
 ## Directives
 

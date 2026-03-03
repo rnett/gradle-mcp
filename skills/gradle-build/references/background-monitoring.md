@@ -1,6 +1,6 @@
 # Background Monitoring Patterns
 
-This guide provides advanced patterns for monitoring and managing long-running background builds using `gradle_execute` and `inspect_gradle_build`.
+This guide provides advanced patterns for monitoring and managing long-running background builds using `gradlew` and `inspect_build`.
 
 ## Common Monitoring Patterns
 
@@ -51,7 +51,7 @@ To check the current status of a background build without waiting.
 To see all currently running background builds.
 
 ```json
-{} // Call inspect_gradle_build with no arguments
+{} // Call inspect_build with no arguments
 ```
 
 - This returns the dashboard, which lists all active builds and their `buildId`s.
@@ -89,10 +89,10 @@ For continuous builds (e.g., `gradle build --continuous`), use the background pa
 
 ### 3. Handling Timeouts
 
-If a build takes longer than the `wait` time, `inspect_gradle_build` will return the current status. You can then call it again with a new `wait` time if needed.
+If a build takes longer than the `wait` time, `inspect_build` will return the current status. You can then call it again with a new `wait` time if needed.
 
 ## Troubleshooting Background Builds
 
-- **Build Fails Immediately**: If a background build fails quickly, check the `failures` and `console` output using `inspect_gradle_build`.
+- **Build Fails Immediately**: If a background build fails quickly, check the `failures` and `console` output using `inspect_build`.
 - **Log Message Not Found**: Ensure the `waitFor` regex is correct and that the message is actually being printed to the console.
 - **Resource Exhaustion**: If you have too many background builds running, stop the ones you don't need using `stopBuildId`.

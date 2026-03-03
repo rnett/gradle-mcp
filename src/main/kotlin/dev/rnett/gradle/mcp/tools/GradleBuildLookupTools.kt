@@ -15,9 +15,9 @@ import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withTimeoutOrNull
@@ -440,6 +440,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         val startLines = if (it.afterCall && build is RunningBuild) build.consoleOutputLines.size else 0
 
         if (it.wait != null && build is RunningBuild) {
+            val runningBuild = build
             val waitForRegex = it.waitFor?.toRegex()
             val waitForTask = it.waitForTask
 
@@ -448,29 +449,28 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                     select {
                         onTimeout(it.wait.seconds) {}
                         if (waitForRegex != null) {
-                            if (!it.afterCall && waitForRegex.containsMatchIn(build.logBuffer)) {
-                                launch { }.onJoin {}
-                            } else {
-                                async {
-                                    build.logLines.firstOrNull { line: String ->
-                                        waitForRegex.containsMatchIn(line)
-                                    }
-                                }.onAwait { }
-                            }
+                            async {
+                                if (!it.afterCall && waitForRegex.containsMatchIn(runningBuild.logBuffer)) {
+                                    return@async
+                                }
+                                runningBuild.logLines.firstOrNull { line: String ->
+                                    waitForRegex.containsMatchIn(line)
+                                }
+                            }.onAwait { }
                         }
                         if (waitForTask != null) {
-                            if (!it.afterCall && build.completedTaskPaths.contains(waitForTask)) {
-                                launch { }.onJoin {}
-                            } else {
-                                async {
-                                    build.completedTasks.firstOrNull { taskPath: String ->
-                                        taskPath == waitForTask
-                                    }
-                                }.onAwait { }
-                            }
+                            async {
+                                if (!it.afterCall && runningBuild.completedTaskPaths.contains(waitForTask)) {
+                                    return@async
+                                }
+                                runningBuild.completedTasks.firstOrNull { taskPath: String ->
+                                    taskPath == waitForTask
+                                }
+                            }.onAwait { }
                         }
-                        async { build.awaitFinished() }.onAwait { }
+                        async { runningBuild.awaitFinished() }.onAwait { }
                     }
+                    coroutineContext.cancelChildren()
                 }
             }
             // re-get build to pick up any changes (e.g. it might have finished)

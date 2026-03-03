@@ -1,6 +1,6 @@
 # Investigating Build Failures
 
-This guide provides advanced workflows for diagnosing complex Gradle build failures using `inspect_gradle_build`.
+This guide provides advanced workflows for diagnosing complex Gradle build failures using `inspect_build`.
 
 ## Diagnostic Workflow
 
@@ -76,7 +76,7 @@ If the build failed during testing, use the test-specific inspection.
 ### Dependency Resolution Issues
 
 - Check `failures` for messages like "Could not resolve all dependencies".
-- Use `inspect_gradle_dependencies` to investigate the dependency graph.
+- Use `inspect_dependencies` to investigate the dependency graph.
 
 ### Task Execution Failures
 
@@ -99,4 +99,4 @@ If the failure is particularly elusive, re-run the build with `--scan` and use a
 }
 ```
 
-*(Note: You may need to use `accept_scans_tos` if prompted.)*
+*(Note: You will be prompted to accept the Terms of Service via an elicitation prompt if needed.)*

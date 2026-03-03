@@ -1,16 +1,16 @@
 ---
 name: gradle-build
-description: Running Gradle commands in the foreground or background, managing long-running background jobs, and investigating build failures.
+description: Execute any Gradle task with robust background management and integrated failure analysis. Use for common build tasks like 'build', 'assemble', or starting development servers.
 license: Apache-2.0
-allowed-tools: gradlew inspect_build accept_scans_tos
+allowed-tools: gradlew inspect_build
 metadata:
   author: rnett
-  version: "2.1"
+  version: "2.2"
 ---
 
-# Running Gradle Commands and Background Jobs
+# High-Performance Gradle Build Execution & Management
 
-Instructions and examples for running Gradle commands, managing long-running jobs (like development servers), and investigating build failures using consolidated tools.
+Execute and manage Gradle commands with ease, whether in the foreground or as persistent background jobs. Leverage deep diagnostic tools to rapidly resolve build failures.
 
 ## Directives
 
@@ -98,5 +98,5 @@ Instructions and examples for running Gradle commands, managing long-running job
 
 ## Troubleshooting
 
-- **ToS for Build Scans**: If you use `scan: true`, you might be prompted to accept the Terms of Service. Use the `accept_scans_tos` tool if required.
+- **ToS for Build Scans**: If you use `scan: true`, you will be prompted to accept the Terms of Service via an elicitation prompt. Respond appropriately to continue the build.
 - **Build Not Found**: If a `buildId` is not recognized, it might have expired. Check the dashboard for valid IDs.

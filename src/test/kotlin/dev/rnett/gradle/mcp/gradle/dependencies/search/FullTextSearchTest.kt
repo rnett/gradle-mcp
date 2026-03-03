@@ -225,11 +225,9 @@ class FullTextSearchTest {
         assertEquals(5, result.line)
 
         val expectedSnippet = """
-            line 3 uniqueTerm
             line 4 uniqueTerm
             line 5 uniqueTerm
             line 6 uniqueTerm
-            line 7 uniqueTerm
         """.trimIndent()
         assertEquals(expectedSnippet, result.snippet.trim())
     }

@@ -1,10 +1,10 @@
 # Test Diagnostics Reference
 
-This document provides detailed instructions for diagnosing test failures using the `inspect_gradle_build` tool.
+This document provides detailed instructions for diagnosing test failures using the `inspect_build` tool.
 
 ## Inspecting Test Results
 
-When a build fails due to test failures, use `inspect_gradle_build` with the `tests` inclusion to get a structured view of the results.
+When a build fails due to test failures, use `inspect_build` with the `tests` inclusion to get a structured view of the results.
 
 ### Listing Failed Tests
 
@@ -37,7 +37,7 @@ To see the full output and stack trace for a specific test:
 
 Sometimes a test run fails not because a test failed, but because the build itself failed (e.g., compilation error, configuration error, or a task dependency failed).
 
-If `inspect_gradle_build` shows no failed tests but the build status is `FAILED`, or if you suspect a non-test issue:
+If `inspect_build` shows no failed tests but the build status is `FAILED`, or if you suspect a non-test issue:
 
 1. **Check Build Failures and Problems**:
    ```json
@@ -53,7 +53,7 @@ If `inspect_gradle_build` shows no failed tests but the build status is `FAILED`
 
 ### Assertion Failures
 
-Look for `AssertionError` in the test output. The `inspect_gradle_build` tool will provide the expected vs actual values if available.
+Look for `AssertionError` in the test output. The `inspect_build` tool will provide the expected vs actual values if available.
 
 ### Timeouts
 

@@ -112,9 +112,9 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { cancellationTokenSource } returns mockk<CancellationTokenSource>()
             every { logLines } returns logLinesFlow.asSharedFlow()
             every { completedTasks } returns MutableSharedFlow<String>().asSharedFlow()
-            every { completedTaskPaths } returns emptySet()
-            every { consoleOutput } returns logBuffer.toString()
-            every { consoleOutputLines } returns logBuffer.toString().lines()
+            every { completedTaskPaths } answers { emptySet() }
+            every { consoleOutput } answers { logBuffer.toString() }
+            every { consoleOutputLines } answers { logBuffer.toString().lines() }
         }
 
         buildManager.registerBuild(runningBuild)
@@ -125,7 +125,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             val line = "Ready to go"
             logBuffer.append("$line\n")
             logLinesFlow.emit(line)
-            every { runningBuild.consoleOutputLines } returns logBuffer.toString().lines()
         }
 
         val startTime = testScheduler.currentTime

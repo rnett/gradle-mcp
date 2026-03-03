@@ -1,16 +1,16 @@
 ---
 name: gradle-introspection
-description: Using Gradle's built-in introspection tasks and flags to query project structure, tasks, and environment.
+description: Uncover the full structure of any Gradle project, explore available tasks, and inspect the detailed build environment. Use to explore modules, tasks, and project properties.
 license: Apache-2.0
-allowed-tools: gradlew inspect_build
+allowed-tools: gradlew inspect_build inspect_dependencies
 metadata:
   author: rnett
-  version: "1.4"
+  version: "1.5"
 ---
 
-# Gradle Introspection and Environment
+# Deep Project Structure & Environment Introspection
 
-Instructions and examples for using Gradle's built-in introspection tasks (`projects`, `tasks`, `help`, etc.) and global flags (`--version`, `--help`) using the Gradle MCP tools.
+Map out project modules, discover all available tasks, and gain total visibility into your build configuration and environment using core Gradle diagnostic tools.
 
 ## Directives
 
