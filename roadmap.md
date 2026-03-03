@@ -3,5 +3,6 @@
   - Need to handle variants somehow
 - Dependency investigation skill, making uses of the new tools and running the dependencies and dependency insight skills
 - Introspection skill, using --help, --version, tasks, task help, etc.
+- A gradle sources skill, like the library ones.
 - More skills in general.
 - Test with continuous builds

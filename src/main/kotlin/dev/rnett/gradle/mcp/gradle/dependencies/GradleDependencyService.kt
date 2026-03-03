@@ -12,6 +12,7 @@ import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleProjectDependencies
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleRepository
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleSourceSetDependencies
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleSourceSetDependencyReport
+import kotlin.io.path.Path
 
 /**
  * Service that orchestrates retrieving dependency and repository information from a Gradle build
@@ -36,7 +37,8 @@ interface GradleDependencyService {
         sourceSet: String? = null,
         checkUpdates: Boolean = false,
         versionFilter: String? = null,
-        onlyDirect: Boolean = false
+        onlyDirect: Boolean = false,
+        downloadSources: Boolean = false
     ): GradleDependencyReport
 
     /**
@@ -61,6 +63,26 @@ interface GradleDependencyService {
         configurationPath: String,
         tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean = { false }
     ): GradleConfigurationDependencies
+
+    /**
+     * Download sources for all dependencies in the project.
+     */
+    suspend fun downloadAllSources(projectRoot: GradleProjectRoot): GradleDependencyReport
+
+    /**
+     * Download sources for all dependencies in a specific project.
+     */
+    suspend fun downloadProjectSources(projectRoot: GradleProjectRoot, projectPath: String): GradleProjectDependencies
+
+    /**
+     * Download sources for all dependencies in a specific configuration.
+     */
+    suspend fun downloadConfigurationSources(projectRoot: GradleProjectRoot, configurationPath: String): GradleConfigurationDependencies
+
+    /**
+     * Download sources for all dependencies in a specific source set.
+     */
+    suspend fun downloadSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String): GradleSourceSetDependencyReport
 }
 
 private class MutableDep(
@@ -74,6 +96,7 @@ private class MutableDep(
     val isDirect: Boolean = false,
     val fromConfiguration: String? = null,
     val reason: String?,
+    val sourcesFile: String? = null,
     val children: MutableList<MutableDep> = mutableListOf()
 ) {
     fun toImmutable(
@@ -87,7 +110,7 @@ private class MutableDep(
             children.map { it.toImmutable(knownChildren, visited + key) }
         }
         return GradleDependency(
-            id, group, name, version, variant, capabilities, latestVersion, isDirect, fromConfiguration, reason,
+            id, group, name, version, variant, capabilities, latestVersion, isDirect, fromConfiguration, reason, sourcesFile?.let { Path(it) },
             immutableChildren
         )
     }
@@ -166,6 +189,7 @@ class DefaultGradleDependencyService(
                     val variant = parts.getOrNull(9)?.ifBlank { null }
                     val capabilities = parts.getOrNull(10)?.takeIf { it.isNotBlank() }?.split(",") ?: emptyList()
                     val fromConfiguration = parts.getOrNull(11)?.ifBlank { null }
+                    val sourcesFile = parts.getOrNull(12)?.ifBlank { null }
 
                     while (depStack.size >= level) depStack.removeLast()
 
@@ -179,7 +203,8 @@ class DefaultGradleDependencyService(
                         latestVersion = latestVersion,
                         isDirect = isDirect,
                         fromConfiguration = fromConfiguration,
-                        reason = reason
+                        reason = reason,
+                        sourcesFile = sourcesFile
                     )
                     if (depStack.isEmpty()) {
                         config.topLevelDeps.add(node)
@@ -200,7 +225,8 @@ class DefaultGradleDependencyService(
         sourceSet: String?,
         checkUpdates: Boolean,
         versionFilter: String?,
-        onlyDirect: Boolean
+        onlyDirect: Boolean,
+        downloadSources: Boolean
     ): GradleDependencyReport {
         return getDependencies(
             projectRoot,
@@ -209,7 +235,8 @@ class DefaultGradleDependencyService(
             sourceSet,
             checkUpdates,
             versionFilter,
-            onlyDirect
+            onlyDirect,
+            downloadSources
         ) { false }
     }
 
@@ -221,6 +248,7 @@ class DefaultGradleDependencyService(
         checkUpdates: Boolean,
         versionFilter: String?,
         onlyDirect: Boolean,
+        downloadSources: Boolean,
         tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean
     ): GradleDependencyReport {
         // Prepare invocation args: include the init script and arguments
@@ -253,6 +281,9 @@ class DefaultGradleDependencyService(
         }
         if (onlyDirect) {
             additional += "-Pmcp.onlyDirect=true"
+        }
+        if (downloadSources) {
+            additional += "-Pmcp.downloadSources=true"
         }
         args = args.copy(additionalArguments = args.additionalArguments + additional)
 
@@ -289,6 +320,14 @@ class DefaultGradleDependencyService(
         projectRoot: GradleProjectRoot,
         sourceSetPath: String
     ): GradleSourceSetDependencyReport {
+        return getSourceSetDependencies(projectRoot, sourceSetPath, false)
+    }
+
+    private suspend fun getSourceSetDependencies(
+        projectRoot: GradleProjectRoot,
+        sourceSetPath: String,
+        downloadSources: Boolean
+    ): GradleSourceSetDependencyReport {
         val lastColon = sourceSetPath.lastIndexOf(':')
         require(lastColon != -1) { "sourceSetPath must be an absolute Gradle path (e.g. :project:foo:main)" }
         val projectPath = if (lastColon == 0) ":" else sourceSetPath.substring(0, lastColon)
@@ -300,7 +339,8 @@ class DefaultGradleDependencyService(
             sourceSet = sourceSetName,
             checkUpdates = false,
             versionFilter = null,
-            onlyDirect = false
+            onlyDirect = false,
+            downloadSources = downloadSources
         )
         val project = report.projects.find { it.path == projectPath }
             ?: throw IllegalArgumentException("Project not found in report: $projectPath")
@@ -323,6 +363,15 @@ class DefaultGradleDependencyService(
         configurationPath: String,
         tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean
     ): GradleConfigurationDependencies {
+        return getConfigurationDependencies(projectRoot, configurationPath, false, tosAccepter)
+    }
+
+    private suspend fun getConfigurationDependencies(
+        projectRoot: GradleProjectRoot,
+        configurationPath: String,
+        downloadSources: Boolean,
+        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean
+    ): GradleConfigurationDependencies {
         val lastColon = configurationPath.lastIndexOf(':')
         require(lastColon != -1) { "configurationPath must be an absolute Gradle path (e.g. :project:foo:implementation)" }
         val projectPath = if (lastColon == 0) ":" else configurationPath.substring(0, lastColon)
@@ -336,6 +385,7 @@ class DefaultGradleDependencyService(
             checkUpdates = false,
             versionFilter = null,
             onlyDirect = false,
+            downloadSources = downloadSources,
             tosAccepter = tosAccepter
         )
         val project = report.projects.find { it.path == projectPath }
@@ -343,6 +393,41 @@ class DefaultGradleDependencyService(
 
         return project.configurations.find { it.name == configurationName }
             ?: throw IllegalArgumentException("Configuration not found in project $projectPath: $configurationName")
+    }
+
+    override suspend fun downloadAllSources(projectRoot: GradleProjectRoot): GradleDependencyReport {
+        return getDependencies(
+            projectRoot = projectRoot,
+            downloadSources = true
+        )
+    }
+
+    override suspend fun downloadProjectSources(
+        projectRoot: GradleProjectRoot,
+        projectPath: String
+    ): GradleProjectDependencies {
+        val report = getDependencies(
+            projectRoot = projectRoot,
+            projectPath = projectPath,
+            downloadSources = true
+        )
+        val path = if (projectPath.startsWith(":")) projectPath else ":$projectPath"
+        return report.projects.find { it.path == path }
+            ?: throw IllegalArgumentException("Project not found in report: $path")
+    }
+
+    override suspend fun downloadConfigurationSources(
+        projectRoot: GradleProjectRoot,
+        configurationPath: String
+    ): GradleConfigurationDependencies {
+        return getConfigurationDependencies(projectRoot, configurationPath, true) { false }
+    }
+
+    override suspend fun downloadSourceSetSources(
+        projectRoot: GradleProjectRoot,
+        sourceSetPath: String
+    ): GradleSourceSetDependencyReport {
+        return getSourceSetDependencies(projectRoot, sourceSetPath, true)
     }
 
     internal fun parseStructuredOutput(output: String): GradleDependencyReport {

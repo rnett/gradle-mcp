@@ -58,6 +58,7 @@ abstract class BaseMcpServerTest {
         single<GradleDependencyService> { mockk<GradleDependencyService>(relaxed = true) }
         single<dev.rnett.gradle.mcp.maven.MavenRepoService> { mockk<dev.rnett.gradle.mcp.maven.MavenRepoService>(relaxed = true) }
         single<dev.rnett.gradle.mcp.maven.MavenCentralService> { mockk<dev.rnett.gradle.mcp.maven.MavenCentralService>(relaxed = true) }
+        single<dev.rnett.gradle.mcp.gradle.dependencies.SourcesService> { mockk<dev.rnett.gradle.mcp.gradle.dependencies.SourcesService>(relaxed = true) }
 
         single<GradleProvider> {
             createProvider()
@@ -71,7 +72,8 @@ abstract class BaseMcpServerTest {
             val gradleDependencyService: GradleDependencyService = get()
             val mavenRepoService: dev.rnett.gradle.mcp.maven.MavenRepoService = get()
             val mavenCentralService: dev.rnett.gradle.mcp.maven.MavenCentralService = get()
-            components(provider, replManager, replEnvironmentService, gradleDocsService, gradleDependencyService, mavenRepoService, mavenCentralService)
+            val sourcesService: dev.rnett.gradle.mcp.gradle.dependencies.SourcesService = get()
+            components(provider, replManager, replEnvironmentService, gradleDocsService, gradleDependencyService, mavenRepoService, mavenCentralService, sourcesService)
         }
 
         single {

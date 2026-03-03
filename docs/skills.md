@@ -3,19 +3,9 @@
 Agent Skills are markdown files that provide context, instructions, and examples for an AI agent on how to use specific sets of tools effectively. They help the agent understand the best practices, common workflows, and troubleshooting
 steps for the tools provided by the Gradle MCP server.
 
-## Included Skills
-
-The following skills are included in the `skills/` directory of the repository:
-
-* **[gradle-build](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-build/SKILL.md)**: Instructions for running Gradle commands (foreground or background), managing long-running jobs (like dev servers), and investigating build
-  failures.
-* **[gradle-test](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-test/SKILL.md)**: Workflows for running tests, filtering tests, and investigating test failures.
-* **[gradle-repl](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-repl/SKILL.md)**: Using the project REPL to run code in the project's environment, inspect state, and test logic.
-* **[gradle-docs](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-docs/SKILL.md)**: Searching and reading the Gradle User Guide.
-
 ## How to Include Skills in Your Project
 
-To ensure your AI agent has access to these skills, you should include them in your project's context.
+For now, you must manually install the skills somehow, in a skills directory recognized by your agent.
 
 ### Recommended: Using Context7's Skills Registry
 
@@ -38,5 +28,15 @@ We recommend pointing your agent to the [GitHub repository](https://github.com/r
 
 ### Future distribution: MCP server
 
-The MCP spec is working on adding support for distributing agent skills as part of an MCP server.
-Once that is available, we will use it.
+The MCP spec working group is working on adding support for distributing agent skills as part of an MCP server.
+Once that is available, we will use it to distribute our skills.
+
+## Included Skills
+
+The following skills are included in the `skills/` directory of the repository:
+
+* **[gradle-build](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-build/SKILL.md)**: Instructions for running Gradle commands (foreground or background), managing long-running jobs (like dev servers), and investigating build
+  failures.
+* **[gradle-test](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-test/SKILL.md)**: Workflows for running tests, filtering tests, and investigating test failures.
+* **[gradle-repl](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-repl/SKILL.md)**: Using the project REPL to run code in the project's environment, inspect state, and test logic.
+* **[gradle-docs](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-docs/SKILL.md)**: Searching and reading the Gradle User Guide.

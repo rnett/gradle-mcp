@@ -65,5 +65,6 @@ nav:
       - 'Detail Lookup': tools/LOOKUP_TOOLS.md
       - 'Project REPL': tools/REPL_TOOLS.md
       - 'Project Dependencies': tools/PROJECT_DEPENDENCY_TOOLS.md
+      - 'Dependency Source Search': tools/PROJECT_DEPENDENCY_SOURCE_TOOLS.md
       - 'Dependency Search': tools/DEPENDENCY_SEARCH_TOOLS.md
       - 'Gradle Docs': tools/GRADLE_DOCS_TOOLS.md

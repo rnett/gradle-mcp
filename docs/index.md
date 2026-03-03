@@ -21,7 +21,7 @@ Tools include introspecting projects, running tasks, and running tests.
 
 [//]: # (@formatter:off)
 !!! warning "JDK Requirement"
-    JDK 17 or higher is required to run `gradle-mcp`.
+    JDK 21 or higher is required to run `gradle-mcp`.
     You can use JBang to install JDKs too: [docs](https://www.jbang.dev/documentation/jbang/latest/javaversions.html).
 
 [//]: # (@formatter:on)

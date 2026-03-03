@@ -1,4 +1,6 @@
 import org.gradle.api.NamedDomainObjectContainer
+import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.artifacts.component.ModuleComponentSelector
@@ -36,13 +38,16 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
 
         val checkUpdates = realProject.hasProperty("mcp.checkUpdates") && realProject.property("mcp.checkUpdates").toString() == "true"
         val onlyDirect = realProject.hasProperty("mcp.onlyDirect") && realProject.property("mcp.onlyDirect").toString() == "true"
+        val downloadSources = realProject.hasProperty("mcp.downloadSources") && realProject.property("mcp.downloadSources").toString() == "true"
         val versionFilter = if (realProject.hasProperty("mcp.versionFilter")) realProject.property("mcp.versionFilter").toString() else null
 
         val configurations = getModelConfigurations(model)
         val directDependencies = gatherDirectDependencies(configurations)
         val latestVersions = if (checkUpdates) gatherLatestVersions(configurations, directDependencies, onlyDirect, versionFilter) else emptyMap()
+        val sourcesFiles = if (downloadSources) gatherSources(configurations) else emptyMap()
 
         mcpRenderer.latestVersions = latestVersions
+        mcpRenderer.sourcesFiles = sourcesFiles
         mcpRenderer.onlyDirect = onlyDirect
 
         mcpRenderer.outputProject(project)
@@ -139,6 +144,45 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         return latestVersions
     }
 
+    private fun gatherSources(configurations: List<ConfigurationDetails>): Map<String, String> {
+        val realProject = getProject()
+        val components = mutableSetOf<ModuleComponentIdentifier>()
+
+        configurations.filter { it.isCanBeResolved }.forEach { configDetails ->
+            try {
+                val config = realProject.configurations.findByName(configDetails.name)
+                config?.incoming?.resolutionResult?.allComponents?.forEach {
+                    val id = it.id
+                    if (id is ModuleComponentIdentifier) {
+                        components.add(id)
+                    }
+                }
+            } catch (e: Exception) {
+            }
+        }
+
+        if (components.isEmpty()) return emptyMap()
+
+        val sourcesFiles = mutableMapOf<String, String>()
+        try {
+            val sourcesConfig = realProject.configurations.detachedConfiguration()
+            components.forEach { id ->
+                val dep = realProject.dependencies.create("${id.group}:${id.module}:${id.version}:sources@jar") {
+                    (this as org.gradle.api.artifacts.ExternalModuleDependency).isTransitive = false
+                }
+                sourcesConfig.dependencies.add(dep)
+            }
+
+            sourcesConfig.resolvedConfiguration.lenientConfiguration.artifacts.forEach { artifact ->
+                val id = artifact.moduleVersion.id
+                sourcesFiles["${id.group}:${id.name}:${id.version}"] = artifact.file.absolutePath
+            }
+        } catch (e: Throwable) {
+            println("ERROR_GATHERING_SOURCES: ${e.message}")
+        }
+        return sourcesFiles
+    }
+
     private fun outputRepositories(project: ProjectDetails, realProject: Project, mcpRenderer: McpDependencyReportRenderer) {
         realProject.repositories.forEach { repo ->
             val name = repo.name
@@ -193,6 +237,7 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
 class McpDependencyReportRenderer : DependencyReportRenderer {
     private var output: StyledTextOutput? = null
     var latestVersions: Map<String, String> = emptyMap()
+    var sourcesFiles: Map<String, String> = emptyMap()
     var onlyDirect: Boolean = false
     var gradleProject: Project? = null
     private var currentProject: ProjectDetails? = null
@@ -345,6 +390,7 @@ class McpDependencyReportRenderer : DependencyReportRenderer {
             val alreadyRendered = !visited.add(visitKey)
             val markers = "*".repeat(depth)
             val latestVersion = latestVersions["$group:$name"] ?: ""
+            val sourcesFile = sourcesFiles[id.toString()] ?: sourcesFiles["$group:$name:$version"] ?: ""
 
             var selectionReason = ""
             val requested = dep.requested
@@ -355,7 +401,7 @@ class McpDependencyReportRenderer : DependencyReportRenderer {
                 }
             }
 
-            output?.println("DEP: $path | $markers | $id | $group | $name | $version | $selectionReason | $latestVersion | $isDirect | $variantName | ${caps.joinToString(",")} | ${fromConfiguration ?: ""}")
+            output?.println("DEP: $path | $markers | $id | $group | $name | $version | $selectionReason | $latestVersion | $isDirect | $variantName | ${caps.joinToString(",")} | ${fromConfiguration ?: ""} | $sourcesFile")
 
             if (!alreadyRendered) {
                 component.getDependenciesForVariant(variant).forEach { child ->
@@ -422,7 +468,9 @@ class McpDependencyReportRenderer : DependencyReportRenderer {
             depId.toString()
         }
 
-        output?.println("DEP: $path | $markers | $renderedId | $group | $name | $version | ${dep.getDescription() ?: ""} | | $isDirect | | |")
+        val sourcesFile = sourcesFiles[renderedId] ?: sourcesFiles["$group:$name:$version"] ?: ""
+
+        output?.println("DEP: $path | $markers | $renderedId | $group | $name | $version | ${dep.getDescription() ?: ""} | | $isDirect | | | | $sourcesFile")
 
         if (!alreadyRendered) {
             dep.children.forEach { renderRenderableDependency(project, it, depth + 1, visited) }

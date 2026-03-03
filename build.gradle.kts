@@ -76,6 +76,10 @@ dependencies {
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.logback.classic)
 
+    implementation(libs.lucene.core)
+    implementation(libs.lucene.analysis.common)
+    implementation(libs.lucene.queryparser)
+
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.junit.jupiter)
@@ -92,7 +96,7 @@ ktor {
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 
     compilerOptions {
         freeCompilerArgs.addAll(
@@ -117,6 +121,9 @@ buildConfig {
     buildConfigField("APP_VERSION", provider { "${project.version}" })
     buildConfigField("KOTLIN_VERSION", libs.versions.kotlin.get())
     buildConfigField("KOTLINX_SERIALIZATION_VERSION", libs.versions.kotlinxSerializationJson.get())
+    buildConfigField("SLF4J_VERSION", libs.versions.slf4j.get())
+    buildConfigField("GUAVA_VERSION", libs.versions.guava.get())
+    buildConfigField("JUNIT_JUPITER_VERSION", libs.versions.junit.jupiter.get())
     buildConfigField("COMPOSE_VERSION", libs.versions.jetbrains.compose.get())
     buildConfigField("GRADLE_VERSION", libs.versions.gradleToolingApi.get())
     buildConfigField("AGP_9_VERSION", libs.versions.agp9.get())
@@ -147,6 +154,11 @@ tasks.processResources {
 
 tasks.shadowJar {
     archiveClassifier = ""
+    mergeServiceFiles()
+}
+
+tasks.jar {
+    archiveClassifier = "single"
 }
 
 mavenPublishing {
@@ -163,8 +175,8 @@ mavenPublishing {
         this.licenses {
             license {
                 name.set("The Apache License, Version 2.0")
-                url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
-                distribution.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                distribution.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
             }
         }
         developers {

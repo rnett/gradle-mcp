@@ -9,7 +9,8 @@ Use the Gradle MCP to interact with Gradle whenever possible.
 * **Research before guessing**: Always research the correct way to implement a feature or use a library (e.g., by reviewing documentation or sources) before attempting implementation. Do not rely on trial-and-error guessing for complex APIs
   like Kotlin Scripting.
 * **Use Gradle MCP**: Always use the Gradle MCP tools to run builds and tests whenever possible.
-* If you have trouble solving or investigating an issue after a few tries, stop and think about what the issues are before proceeding. Do research if necessary, and rubber duck to yourself
+* If you have trouble solving or investigating an issue after a few tries, stop and think about what the issues are before proceeding. Do research if necessary, and rubber duck to yourself.
+* When writing skills, remember that skills support progressive disclosure and tune them accordingly. Read the docs on https://agentskills.io/home before creating or eding any skills.
 
 ## Project structure notes
 

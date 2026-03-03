@@ -118,6 +118,8 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single<GradleDependencyService> { DefaultGradleDependencyService(get()) }
         single<MavenRepoService> { DefaultMavenRepoService(get()) }
         single<MavenCentralService> { DefaultMavenCentralService(get()) }
+        single<dev.rnett.gradle.mcp.gradle.dependencies.search.IndexService> { dev.rnett.gradle.mcp.gradle.dependencies.search.DefaultIndexService(get()) }
+        single<dev.rnett.gradle.mcp.gradle.dependencies.SourcesService> { dev.rnett.gradle.mcp.gradle.dependencies.DefaultSourcesService(get(), get(), get()) }
         single<GradleProvider> {
             DefaultGradleProvider(
                 get(),
@@ -126,7 +128,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
             )
         }
         single {
-            DI.components(get(), get(), get(), get(), get(), get(), get())
+            DI.components(get(), get(), get(), get(), get(), get(), get(), get())
         }
         single {
             DI.createServer(get(), get())

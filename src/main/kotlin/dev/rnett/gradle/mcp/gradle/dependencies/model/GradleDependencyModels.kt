@@ -1,5 +1,7 @@
 package dev.rnett.gradle.mcp.gradle.dependencies.model
 
+import java.nio.file.Path
+
 data class GradleDependencyReport(
     val projects: List<GradleProjectDependencies>
 )
@@ -10,6 +12,14 @@ data class GradleProjectDependencies(
     val repositories: List<GradleRepository>,
     val configurations: List<GradleConfigurationDependencies>
 ) {
+    fun allDependencies(): Sequence<GradleDependency> {
+        return sequence {
+            configurations.forEach { config ->
+                yieldAll(config.allDependencies())
+            }
+        }
+    }
+
     fun allDependencies(configurationName: String): List<GradleDependency> {
         val allDeps = mutableMapOf<Any, GradleDependency>()
 
@@ -87,7 +97,11 @@ data class GradleConfigurationDependencies(
     val isResolvable: Boolean,
     val extendsFrom: List<String> = emptyList(),
     val dependencies: List<GradleDependency>
-)
+) {
+    fun allDependencies(): Sequence<GradleDependency> {
+        return dependencies.asSequence().flatMap { it.allDependencies() }
+    }
+}
 
 data class GradleDependency(
     val id: String,
@@ -100,5 +114,15 @@ data class GradleDependency(
     val isDirect: Boolean = false,
     val fromConfiguration: String? = null,
     val reason: String? = null,
+    val sourcesFile: Path? = null,
     val children: List<GradleDependency> = emptyList()
-)
+) {
+    fun allDependencies(): Sequence<GradleDependency> {
+        return sequence {
+            yield(this@GradleDependency)
+            children.forEach { child ->
+                yieldAll(child.allDependencies())
+            }
+        }
+    }
+}

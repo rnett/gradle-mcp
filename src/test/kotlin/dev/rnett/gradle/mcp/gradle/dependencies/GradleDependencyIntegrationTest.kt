@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.gradle.dependencies
 
+import dev.rnett.gradle.mcp.BuildConfig
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
@@ -40,76 +41,94 @@ class GradleDependencyIntegrationTest {
 
         // A single complex project to cover all test cases
         complexProject = testGradleProject {
-            useKotlinDsl(false)
+            useKotlinDsl(true)
             settings(
                 """
-                rootProject.name = 'root'
-                include 'sub-a', 'sub-b', 'sub-lib'
+                rootProject.name = "root"
+                include("sub-a", "sub-b", "sub-lib", "sub-kmp")
             """.trimIndent()
             )
 
             subproject(
                 "sub-a", buildScript = """
-                plugins { id 'java' }
+                plugins { id("java") }
                 repositories { mavenCentral() }
                 dependencies {
-                    implementation 'org.slf4j:slf4j-api:1.7.30'
-                    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+                    implementation("org.slf4j:slf4j-api:${BuildConfig.SLF4J_VERSION}")
+                    testImplementation("org.junit.jupiter:junit-jupiter:${BuildConfig.JUNIT_JUPITER_VERSION}")
                 }
             """.trimIndent()
             )
 
             subproject(
                 "sub-b", buildScript = """
-                plugins { id 'org.jetbrains.kotlin.jvm' version '1.9.22' }
+                plugins { id("org.jetbrains.kotlin.jvm") version "${BuildConfig.KOTLIN_VERSION}" }
                 repositories { mavenCentral() }
             """.trimIndent()
             )
 
             subproject(
                 "sub-lib", buildScript = """
-                plugins { id 'java-library' }
-                group = 'com.example'
-                version = '1.0'
+                plugins { id("java-library") }
+                group = "com.example"
+                version = "1.0"
                 java {
-                    registerFeature('feature1') { usingSourceSet(sourceSets.main) }
-                    registerFeature('feature2') { usingSourceSet(sourceSets.main) }
+                    registerFeature("feature1") { usingSourceSet(sourceSets.main.get()) }
+                    registerFeature("feature2") { usingSourceSet(sourceSets.main.get()) }
                 }
                 configurations {
-                    config1
-                    config2
+                    create("config1")
+                    create("config2")
                 }
                 repositories { mavenCentral() }
                 dependencies {
-                    feature1Api 'org.slf4j:slf4j-api:1.7.30'
-                    feature2Api 'com.google.guava:guava:30.1-jre'
-                    config1 'org.slf4j:slf4j-api:1.7.30'
-                    config2 'com.google.guava:guava:30.1-jre'
+                    "feature1Api"("org.slf4j:slf4j-api:${BuildConfig.SLF4J_VERSION}")
+                    "feature2Api"("com.google.guava:guava:${BuildConfig.GUAVA_VERSION}")
+                    "config1"("org.slf4j:slf4j-api:${BuildConfig.SLF4J_VERSION}")
+                    "config2"("com.google.guava:guava:${BuildConfig.GUAVA_VERSION}")
+                }
+            """.trimIndent()
+            )
+
+            subproject(
+                "sub-kmp", buildScript = """
+                plugins { id("org.jetbrains.kotlin.multiplatform") version "${BuildConfig.KOTLIN_VERSION}" }
+                repositories { mavenCentral() }
+                kotlin {
+                    jvm()
+                    linuxX64()
+                    sourceSets {
+                        commonMain {
+                            dependencies {
+                                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${BuildConfig.KOTLINX_SERIALIZATION_VERSION}")
+                            }
+                        }
+                    }
                 }
             """.trimIndent()
             )
 
             buildScript(
                 """
-                plugins { id 'java' }
+                plugins { id("java") }
                 repositories { mavenCentral() }
                 configurations {
-                    parentConf
-                    childConf.extendsFrom parentConf
+                    val parentConf by creating
+                    val childConf by creating { extendsFrom(parentConf) }
                 }
                 dependencies {
-                    implementation project(':sub-a')
-                    implementation project(':sub-b')
-                    implementation(project(':sub-lib')) {
-                        capabilities { requireCapability 'com.example:sub-lib-feature1' }
+                    implementation(project(":sub-a"))
+                    implementation(project(":sub-b"))
+                    implementation(project(":sub-lib")) {
+                        capabilities { requireCapability("com.example:sub-lib-feature1") }
                     }
-                    implementation(project(':sub-lib')) {
-                        capabilities { requireCapability 'com.example:sub-lib-feature2' }
+                    implementation(project(":sub-lib")) {
+                        capabilities { requireCapability("com.example:sub-lib-feature2") }
                     }
-                    runtimeOnly project(path: ':sub-lib', configuration: 'config2')
+                    runtimeOnly(project(path = ":sub-lib", configuration = "config2"))
                     
-                    parentConf 'org.slf4j:slf4j-api:1.7.30'
-                    childConf 'com.google.guava:guava:30.1-jre'
+                    "parentConf"("org.slf4j:slf4j-api:${BuildConfig.SLF4J_VERSION}")
+                    "childConf"("com.google.guava:guava:${BuildConfig.GUAVA_VERSION}")
                 }
             """.trimIndent()
             )
@@ -216,7 +235,41 @@ class GradleDependencyIntegrationTest {
         val report = service.getDependencies(projectRoot)
 
         assertNotNull(report)
-        assertEquals(4, report.projects.size, "Should have root, sub-a, sub-b, and sub-lib")
+        assertEquals(5, report.projects.size, "Should have root, sub-a, sub-b, sub-lib, and sub-kmp")
+    }
+
+    @Test
+    fun `can get dependencies for kmp project`() = runTest(timeout = 180.seconds) {
+        val projectRoot = GradleProjectRoot(complexProject.pathString())
+        val report = service.getDependencies(projectRoot, projectPath = ":sub-kmp")
+
+        assertNotNull(report)
+        val subKmp = report.projects.find { it.path == ":sub-kmp" }
+        assertNotNull(subKmp)
+
+        // Check for JVM and Linux targets (source sets and configurations)
+        val jvmMain = subKmp.sourceSets.find { it.name == "jvmMain" }
+        assertNotNull(jvmMain)
+        assertTrue(jvmMain.configurations.contains("jvmMainImplementation"))
+
+        val linuxMain = subKmp.sourceSets.find { it.name == "kotlin:linuxX64Main" }
+        assertNotNull(linuxMain, "Should find linuxX64Main source set (prefixed with kotlin: in KMP)")
+
+        // Verify artifacts and variants for a common dependency
+        val commonMain = subKmp.sourceSets.find { it.name == "kotlin:commonMain" }
+        assertNotNull(commonMain)
+
+        val jvmCompileClasspath = subKmp.configurations.find { it.name == "jvmCompileClasspath" }
+        assertNotNull(jvmCompileClasspath)
+
+        val serialization = jvmCompileClasspath.dependencies.find { it.id.contains("kotlinx-serialization-json") }
+        assertNotNull(serialization)
+
+        // Check that variant information is present
+        assertNotNull(serialization.variant, "Variant should not be null for KMP dependency")
+        assertTrue(serialization.variant!!.contains("jvmApiElements") || serialization.variant!!.contains("jvmRuntimeElements"), "Variant should be a JVM variant, got ${serialization.variant}")
+
+        assertNotNull(serialization.version)
     }
 
     @Test

@@ -27,6 +27,8 @@ object ToolNames {
 
     // Dependency Tools
     const val GET_DEPENDENCIES = "get_dependencies"
+    const val SEARCH_DEPENDENCY_SOURCES = "search_dependency_sources"
+    const val READ_DEPENDENCY_SOURCE_PATH = "read_dependency_source_path"
 
     // Docs Tools
     const val GET_ALL_GRADLE_DOCS_PAGES = "get_all_gradle_docs_pages"

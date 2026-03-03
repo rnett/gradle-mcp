@@ -1,4 +1,6 @@
 [versions]
+# For renovate to work right, every version referenced here MUST have a coresponding dependency in the catalog, which is used to detect updates for it
+
 kotlin = "2.3.10"
 ktor = "3.3.3"
 logback = "1.5.32"
@@ -14,12 +16,15 @@ buildconfig = "6.0.7"
 vanniktechPublish = "0.36.0"
 jsoup = "1.22.1"
 koin = "4.1.1"
-junit = "6.0.3"
 mockk = "1.14.9"
+slf4j = "1.7.30"
+guava = "30.1-jre"
+junit-jupiter = "5.11.4"
 jetbrains-compose = "1.10.1"
 agp9 = "9.0.1"
 androidxCompose = "1.10.4"
 androidxActivityCompose = "1.12.4"
+lucene = "10.3.2"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -33,6 +38,8 @@ vanniktech-maven-publish = { id = "com.vanniktech.maven.publish.base", version.r
 gradle-tooling-api = { module = "org.gradle:gradle-tooling-api", version.ref = "gradleToolingApi" }
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
 commons-io = { module = "commons-io:commons-io", version.ref = "commonsIo" }
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
 schema-kenerator-core = { module = "io.github.smiley4:schema-kenerator-core", version.ref = "schemaKenerator" }
 schema-kenerator-serialization = { module = "io.github.smiley4:schema-kenerator-serialization", version.ref = "schemaKenerator" }
 schema-kenerator-jsonschema = { module = "io.github.smiley4:schema-kenerator-jsonschema", version.ref = "schemaKenerator" }
@@ -62,8 +69,13 @@ kotlin-scripting-jvm = { module = "org.jetbrains.kotlin:kotlin-scripting-jvm", v
 kotlin-scripting-jvm-host = { module = "org.jetbrains.kotlin:kotlin-scripting-jvm-host", version.ref = "kotlin" }
 kotlin-compiler-embeddable = { module = "org.jetbrains.kotlin:kotlin-compiler-embeddable", version.ref = "kotlin" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
-junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+
+lucene-core = { group = "org.apache.lucene", name = "lucene-core", version.ref = "lucene" }
+lucene-analysis-common = { group = "org.apache.lucene", name = "lucene-analysis-common", version.ref = "lucene" }
+lucene-queryparser = { group = "org.apache.lucene", name = "lucene-queryparser", version.ref = "lucene" }
+lucene-highlighter = { group = "org.apache.lucene", name = "lucene-highlighter", version.ref = "lucene" }
 
 # so that renovate updates used versions
 #noinspection UnusedVersionCatalogEntry
