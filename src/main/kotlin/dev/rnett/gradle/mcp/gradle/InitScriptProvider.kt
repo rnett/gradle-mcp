@@ -1,6 +1,5 @@
 package dev.rnett.gradle.mcp.gradle
 
-import dev.rnett.gradle.mcp.BuildConfig
 import dev.rnett.gradle.mcp.hash
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
@@ -29,7 +28,11 @@ class DefaultInitScriptProvider(
     }
 
     private fun listResources(): List<String> {
-        return BuildConfig.INIT_SCRIPTS.split(",").filter { it.isNotBlank() }
+        return listOf(
+            "repl-env.init.gradle.kts",
+            "task-out.init.gradle.kts",
+            "dependencies-report.init.gradle.kts"
+        )
     }
 
     /**

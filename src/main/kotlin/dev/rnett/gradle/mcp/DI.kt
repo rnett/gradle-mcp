@@ -32,6 +32,7 @@ import dev.rnett.gradle.mcp.tools.ReplTools
 import dev.rnett.gradle.mcp.tools.dependencies.DependencySearchTools
 import dev.rnett.gradle.mcp.tools.dependencies.DependencySourceTools
 import dev.rnett.gradle.mcp.tools.dependencies.GradleDependencyTools
+import dev.rnett.gradle.mcp.tools.skills.SkillTools
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.serialization.kotlinx.json.*
@@ -158,6 +159,7 @@ object DI {
         GradleDependencyTools(gradleDependencyService),
         DependencySearchTools(mavenRepoService, mavenCentralService),
         DependencySourceTools(sourcesService),
+        SkillTools(),
     )
 
     fun createServer(json: Json, components: List<McpServerComponent>): McpServer {

@@ -9,6 +9,7 @@ object ToolNames {
     const val SEARCH_DEPENDENCY_SOURCES = "search_dependency_sources"
     const val SEARCH_MAVEN_CENTRAL = "search_maven_central"
     const val GRADLE_DOCS = "gradle_docs"
+    const val INSTALL_GRADLE_SKILLS = "install_gradle_skills"
 }
 
 object InitScriptNames {

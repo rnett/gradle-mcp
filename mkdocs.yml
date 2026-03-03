@@ -67,3 +67,4 @@ nav:
       - 'Dependency Source Search': tools/PROJECT_DEPENDENCY_SOURCE_TOOLS.md
       - 'Dependency Search': tools/DEPENDENCY_SEARCH_TOOLS.md
       - 'Gradle Docs': tools/GRADLE_DOCS_TOOLS.md
+      - 'Skill Installation': tools/SKILL_TOOLS.md

@@ -44,6 +44,20 @@ tasks.check {
     dependsOn(verifyToolsList)
 }
 
+val zipSkills by tasks.registering(Zip::class) {
+    from("skills")
+    archiveFileName.set("skills.zip")
+    destinationDirectory.set(layout.buildDirectory.dir("generated/resources/skills"))
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDir(zipSkills.map { it.destinationDirectory.get() })
+        }
+    }
+}
+
 dependencies {
     implementation(project(":repl-shared"))
     implementation(libs.gradle.tooling.api)
@@ -132,17 +146,14 @@ buildConfig {
     buildConfigField("ANDROID_MIN_SDK", "24")
     buildConfigField("ANDROID_TARGET_SDK", "35")
     buildConfigField("ANDROIDX_ACTIVITY_COMPOSE_VERSION", libs.versions.androidxActivityCompose.get())
-    buildConfigField("INIT_SCRIPTS", provider {
-        project.projectDir.resolve("src/main/resources/init-scripts")
-            .listFiles { file -> file.name.endsWith(".init.gradle.kts") }
-            ?.joinToString(",") { it.name } ?: ""
-    })
+
     // need to manage manually
     buildConfigField("REPL_WORKER_JAR", "repl-worker.jar")
     buildConfigField("BUNDLED_JARS", "repl-worker.jar")
-// Ensure build is re-run if init scripts or bundled jars change
+// Ensure build is re-run if init scripts, skills, or bundled jars change
     project.tasks.matching { it.name == "generateBuildConfig" }.configureEach {
         inputs.dir("src/main/resources")
+        inputs.dir("skills")
     }
 }
 
