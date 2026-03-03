@@ -31,6 +31,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.io.path.absolutePathString
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 
@@ -103,57 +104,63 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `lookup tools can read stored build`() = runTest {
+    fun `inspect tools can read stored build`() = runTest {
         val result = syntheticBuildResult()
         val buildResults = server.koin.get<BuildManager>()
         buildResults.storeResult(result)
 
-        // lookup_latest_builds
-        val latestResult = server.client.callTool(ToolNames.LOOKUP_LATEST_BUILDS, mapOf("maxBuilds" to 1))
+        // inspect_gradle_build (dashboard)
+        val latestResult = server.client.callTool(ToolNames.INSPECT_BUILD, emptyMap())
         assert(latestResult != null)
 
-        // lookup_build
+        // inspect_gradle_build (summary)
         val summary = server.client.callTool(
-            ToolNames.LOOKUP_BUILD,
-            mapOf("buildId" to result.id.toString())
+            ToolNames.INSPECT_BUILD,
+            mapOf("buildId" to result.id.toString(), "include" to JsonArray(listOf(JsonPrimitive("summary"))))
         )
         assert(summary != null)
 
-        // lookup_build_console_output pagination from head
-        val page1 = server.client.callTool(
-            ToolNames.LOOKUP_BUILD_CONSOLE_OUTPUT,
+        // inspect_gradle_build (console)
+        val console = server.client.callTool(
+            ToolNames.INSPECT_BUILD,
             mapOf(
                 "buildId" to result.id.toString(),
-                "offsetLines" to 0,
-                "limitLines" to 2,
-                "tail" to false
+                "include" to JsonArray(listOf(JsonPrimitive("console"))),
+                "consoleOptions" to JsonObject(
+                    mapOf(
+                        "offsetLines" to JsonPrimitive(0),
+                        "limitLines" to JsonPrimitive(2),
+                        "tail" to JsonPrimitive(false)
+                    )
+                )
             )
         )
-        assert(page1 != null)
+        assert(console != null)
 
-        // lookup_build_tests summary
-        val testsSummary = server.client.callTool(
-            ToolNames.LOOKUP_BUILD_TESTS,
+        // inspect_gradle_build (tests)
+        val tests = server.client.callTool(
+            ToolNames.INSPECT_BUILD,
             mapOf(
                 "buildId" to result.id.toString(),
-                "summary" to JsonObject(mapOf("limit" to JsonPrimitive(10)))
+                "include" to JsonArray(listOf(JsonPrimitive("tests"))),
+                "testsOptions" to JsonObject(mapOf("summary" to JsonObject(mapOf("limit" to JsonPrimitive(10)))))
             )
         )
-        assert(testsSummary != null)
+        assert(tests != null)
 
-        // lookup_build_problems summary
-        val problemsSummary = server.client.callTool(
-            ToolNames.LOOKUP_BUILD_PROBLEMS,
+        // inspect_gradle_build (problems)
+        val problems = server.client.callTool(
+            ToolNames.INSPECT_BUILD,
             mapOf(
                 "buildId" to result.id.toString(),
-                "summary" to JsonObject(emptyMap<String, JsonPrimitive>())
+                "include" to JsonArray(listOf(JsonPrimitive("problems")))
             )
         )
-        assert(problemsSummary != null)
+        assert(problems != null)
     }
 
     @Test
-    fun `execution works with single MCP root and no projectRoot`() = runTest {
+    fun `gradle_execute works with single MCP root and no projectRoot`() = runTest {
         val result = syntheticBuildResult()
         val runningBuild = mockk<RunningBuild>(relaxed = true) {
             coEvery { awaitFinished() } returns result
@@ -179,7 +186,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
             "commandLine" to JsonArray(listOf(JsonPrimitive("help"))),
             // projectRoot omitted
         )
-        val call = server.client.callTool(ToolNames.RUN_GRADLE_COMMAND, args)
+        val call = server.client.callTool(ToolNames.GRADLEW, args)
         assert(call != null)
 
         coVerify {
@@ -195,7 +202,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `background build workflows`() = runTest {
+    fun `consolidated build workflows`() = runTest {
         val buildId = BuildId.newId()
         val runningBuild = mockk<RunningBuild>(relaxed = true) {
             every { id } returns buildId
@@ -210,6 +217,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
             every { testResults } returns TestResults(emptySet(), emptySet(), emptySet())
             every { publishedScans } returns emptyList()
             every { consoleOutput } returns "line1\nline2\n"
+            every { consoleOutputLines } returns listOf("line1", "line2")
             every { problems } returns emptyList()
         }
 
@@ -228,48 +236,36 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         buildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
-        // test background_run_gradle_command
-        val runCall = server.client.callTool(ToolNames.BACKGROUND_RUN_GRADLE_COMMAND, mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("help")))))
+        // test gradle_execute background
+        val runCall = server.client.callTool(
+            ToolNames.GRADLEW, mapOf(
+                "commandLine" to JsonArray(listOf(JsonPrimitive("help"))),
+                "background" to JsonPrimitive(true)
+            )
+        )
         assert(runCall != null)
 
-        // test background_build_list
-        val listCall = server.client.callTool(ToolNames.BACKGROUND_BUILD_LIST, emptyMap())
+        // test inspect_gradle_build (dashboard)
+        val listCall = server.client.callTool(ToolNames.INSPECT_BUILD, emptyMap())
         assert(listCall != null)
+        val listText = listCall!!.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
+        assertContains(listText, buildId.toString())
+        assertContains(listText, "Running")
 
-        // test background_build_get_status
-        val statusCall = server.client.callTool(ToolNames.BACKGROUND_BUILD_GET_STATUS, mapOf("buildId" to buildId.toString()))
+        // test inspect_gradle_build with buildId
+        val statusCall = server.client.callTool(ToolNames.INSPECT_BUILD, mapOf("buildId" to buildId.toString()))
         assert(statusCall != null)
         val statusText = statusCall!!.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
-        assert(statusText.contains("Status: Running"))
-        assert(statusText.contains("Duration: "))
+        assertContains(statusText, "BUILD IN PROGRESS")
 
-        // test background_build_stop
-        val stopCall = server.client.callTool(ToolNames.BACKGROUND_BUILD_STOP, mapOf("buildId" to buildId.toString()))
+        // test gradle_execute stop
+        val stopCall = server.client.callTool(ToolNames.GRADLEW, mapOf("stopBuildId" to buildId.toString()))
         assert(stopCall != null)
         coVerify { runningBuild.stop() }
-
-        // Step 3: Test that lookup_latest_builds shows background builds
-        val latestCall = server.client.callTool(ToolNames.LOOKUP_LATEST_BUILDS, mapOf("maxBuilds" to JsonPrimitive(5)))
-        assert(latestCall != null)
-        val latestText = latestCall!!.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
-        assert(latestText.contains(buildId.toString()))
-        assert(latestText.contains("Running"))
-
-        // Step 3: Test that lookup_latest_builds with onlyCompleted doesn't show background builds
-        val latestCompletedCall = server.client.callTool(ToolNames.LOOKUP_LATEST_BUILDS, mapOf("maxBuilds" to JsonPrimitive(5), "onlyCompleted" to JsonPrimitive(true)))
-        assert(latestCompletedCall != null)
-        val latestCompletedText = latestCompletedCall!!.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
-        assert(!latestCompletedText.contains(buildId.toString()))
-
-        // Step 3: Test that lookup_build shows "still running" message
-        val lookupCall = server.client.callTool(ToolNames.LOOKUP_BUILD, mapOf("buildId" to buildId.toString()))
-        assert(lookupCall != null)
-        val lookupText = lookupCall!!.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
-        assert(lookupText.contains("still running"))
     }
 
     @Test
-    fun `run_single_task_and_get_output uses arguments`() = runTest {
+    fun `gradle_execute uses arguments`() = runTest {
         val result = syntheticBuildResult()
         val runningBuild = mockk<RunningBuild>(relaxed = true) {
             coEvery { awaitFinished() } returns result
@@ -291,10 +287,9 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         val args = mapOf(
-            "taskPath" to JsonPrimitive(":help"),
-            "arguments" to JsonArray(listOf(JsonPrimitive("--info"), JsonPrimitive("--stacktrace")))
+            "commandLine" to JsonArray(listOf(JsonPrimitive(":help"), JsonPrimitive("--info"), JsonPrimitive("--stacktrace")))
         )
-        server.client.callTool(ToolNames.RUN_SINGLE_TASK_AND_GET_OUTPUT, args)
+        server.client.callTool(ToolNames.GRADLEW, args)
 
         assert(capturedArgs.captured.additionalArguments.contains(":help"))
         assert(capturedArgs.captured.additionalArguments.contains("--info"))

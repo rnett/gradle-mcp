@@ -44,8 +44,8 @@ data class GradleInvocationArguments(
         )
     }
 
-    fun renderCommandLine(envProvider: EnvProvider = EnvHelper): String = buildString {
-        actualEnvVars(envProvider).forEach { (k, v) ->
+    fun renderCommandLine(): String = buildString {
+        additionalEnvVars.forEach { (k, v) ->
             append("$k=$v ")
         }
         if (additionalJvmArgs.isNotEmpty() || additionalSystemProps.isNotEmpty()) {

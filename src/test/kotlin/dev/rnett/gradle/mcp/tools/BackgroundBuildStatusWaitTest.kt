@@ -28,7 +28,7 @@ import kotlin.time.Duration.Companion.milliseconds
 class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
     @Test
-    fun `background_build_get_status waits for completion`() = runTest {
+    fun `inspect_build waits for completion`() = runTest {
         val buildManager = server.koin.get<BuildManager>()
         val buildId = BuildId.newId()
 
@@ -46,6 +46,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { completedTasks } returns MutableSharedFlow<String>().asSharedFlow()
             every { completedTaskPaths } returns emptySet()
             every { consoleOutput } returns "Started\n"
+            every { consoleOutputLines } returns listOf("Started")
             coEvery { awaitFinished() } returns FinishedBuild(
                 id = buildId,
                 args = GradleInvocationArguments(additionalArguments = listOf("help")),
@@ -83,7 +84,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         buildManager.storeResult(mockFinishedBuild)
 
         val statusCall = server.client.callTool(
-            ToolNames.BACKGROUND_BUILD_GET_STATUS, mapOf(
+            ToolNames.INSPECT_BUILD, mapOf(
                 "buildId" to JsonPrimitive(buildId.toString()),
                 "wait" to JsonPrimitive(2.0)
             )
@@ -91,11 +92,11 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         assert(statusCall != null)
         val statusText = statusCall!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
-        assert(statusText.contains("BUILD COMPLETED"))
+        assert(statusText.contains("BUILD FINISHED"))
     }
 
     @Test
-    fun `background_build_get_status waits for waitFor`() = runTest {
+    fun `inspect_build waits for waitFor`() = runTest {
         val buildManager = server.koin.get<BuildManager>()
         val buildId = BuildId.newId()
         val logBuffer = StringBuffer("Started\n")
@@ -113,6 +114,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { completedTasks } returns MutableSharedFlow<String>().asSharedFlow()
             every { completedTaskPaths } returns emptySet()
             every { consoleOutput } returns logBuffer.toString()
+            every { consoleOutputLines } returns logBuffer.toString().lines()
         }
 
         buildManager.registerBuild(runningBuild)
@@ -123,11 +125,12 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             val line = "Ready to go"
             logBuffer.append("$line\n")
             logLinesFlow.emit(line)
+            every { runningBuild.consoleOutputLines } returns logBuffer.toString().lines()
         }
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            ToolNames.BACKGROUND_BUILD_GET_STATUS, mapOf(
+            ToolNames.INSPECT_BUILD, mapOf(
                 "buildId" to JsonPrimitive(buildId.toString()),
                 "wait" to JsonPrimitive(2.0),
                 "waitFor" to JsonPrimitive("Ready")
@@ -146,7 +149,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `background_build_get_status returns immediately if waitFor already matches`() = runTest {
+    fun `inspect_build returns immediately if waitFor already matches`() = runTest {
         val buildManager = server.koin.get<BuildManager>()
         val buildId = BuildId.newId()
         val logBuffer = StringBuffer("Started\nReady to go\n")
@@ -165,6 +168,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { completedTasks } returns MutableSharedFlow<String>().asSharedFlow()
             every { completedTaskPaths } returns emptySet()
             every { consoleOutput } returns logBuffer.toString()
+            every { consoleOutputLines } returns logBuffer.toString().lines()
         }
 
         buildManager.registerBuild(runningBuild)
@@ -172,7 +176,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            ToolNames.BACKGROUND_BUILD_GET_STATUS, mapOf(
+            ToolNames.INSPECT_BUILD, mapOf(
                 "buildId" to JsonPrimitive(buildId.toString()),
                 "wait" to JsonPrimitive(2.0),
                 "waitFor" to JsonPrimitive("Ready")
@@ -190,7 +194,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `background_build_get_status waits for waitForTask`() = runTest {
+    fun `inspect_build waits for waitForTask`() = runTest {
         val buildManager = server.koin.get<BuildManager>()
         val buildId = BuildId.newId()
         val completedTasksFlow = MutableSharedFlow<String>(replay = 1)
@@ -207,6 +211,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { completedTasks } returns completedTasksFlow.asSharedFlow()
             every { completedTaskPaths } returns emptySet()
             every { consoleOutput } returns "Started\n"
+            every { consoleOutputLines } returns listOf("Started")
         }
 
         buildManager.registerBuild(runningBuild)
@@ -220,7 +225,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            ToolNames.BACKGROUND_BUILD_GET_STATUS,
+            ToolNames.INSPECT_BUILD,
             mapOf(
                 "buildId" to JsonPrimitive(buildId.toString()),
                 "wait" to JsonPrimitive(2.0),
@@ -236,7 +241,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `background_build_get_status returns immediately if waitForTask already matches`() = runTest {
+    fun `inspect_build returns immediately if waitForTask already matches`() = runTest {
         val buildManager = server.koin.get<BuildManager>()
         val buildId = BuildId.newId()
         val completedTasksFlow = MutableSharedFlow<String>(replay = 1)
@@ -254,6 +259,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { completedTasks } returns completedTasksFlow.asSharedFlow()
             every { completedTaskPaths } returns setOf(":help")
             every { consoleOutput } returns "Started\n"
+            every { consoleOutputLines } returns listOf("Started")
         }
 
         buildManager.registerBuild(runningBuild)
@@ -261,7 +267,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            ToolNames.BACKGROUND_BUILD_GET_STATUS,
+            ToolNames.INSPECT_BUILD,
             mapOf(
                 "buildId" to JsonPrimitive(buildId.toString()),
                 "wait" to JsonPrimitive(2.0),
@@ -277,7 +283,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `background_build_get_status respects afterCall for waitForTask`() = runTest {
+    fun `inspect_build respects afterCall for waitForTask`() = runTest {
         val buildManager = server.koin.get<BuildManager>()
         val buildId = BuildId.newId()
         val completedTasksFlow = MutableSharedFlow<String>(replay = 1)
@@ -295,6 +301,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { completedTasks } returns completedTasksFlow.asSharedFlow()
             every { completedTaskPaths } returns setOf(":preExisting")
             every { consoleOutput } returns "Started\n"
+            every { consoleOutputLines } returns listOf("Started")
         }
 
         buildManager.registerBuild(runningBuild)
@@ -308,7 +315,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            ToolNames.BACKGROUND_BUILD_GET_STATUS,
+            ToolNames.INSPECT_BUILD,
             mapOf(
                 "buildId" to JsonPrimitive(buildId.toString()),
                 "wait" to JsonPrimitive(2.0),

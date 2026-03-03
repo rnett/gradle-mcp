@@ -12,6 +12,7 @@ import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleProjectDependencies
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleRepository
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleSourceSetDependencies
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleSourceSetDependencyReport
+import dev.rnett.gradle.mcp.tools.InitScriptNames
 import kotlin.io.path.Path
 
 /**
@@ -253,7 +254,7 @@ class DefaultGradleDependencyService(
     ): GradleDependencyReport {
         // Prepare invocation args: include the init script and arguments
         var args = GradleInvocationArguments.DEFAULT
-            .withInitScript("dependencies-report")
+            .withInitScript(InitScriptNames.DEPENDENCIES_REPORT)
 
         val additional = mutableListOf<String>()
         // Append custom dependency report task

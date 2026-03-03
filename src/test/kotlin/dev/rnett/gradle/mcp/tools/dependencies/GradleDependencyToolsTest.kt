@@ -31,7 +31,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `get-dependencies updatesOnly produces consolidated summary`() = runTest {
+    fun `inspect_dependencies updatesOnly produces consolidated summary`() = runTest {
         val report = GradleDependencyReport(
             projects = listOf(
                 GradleProjectDependencies(
@@ -90,7 +90,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
         } returns report
 
         val response = server.client.callTool(
-            ToolNames.GET_DEPENDENCIES, mapOf(
+            ToolNames.INSPECT_DEPENDENCIES, mapOf(
                 "projectPath" to ":",
                 "onlyDirect" to true,
                 "updatesOnly" to true
@@ -115,7 +115,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `get-dependencies marks repeated dependencies`() = runTest {
+    fun `inspect_dependencies marks repeated dependencies`() = runTest {
         val report = GradleDependencyReport(
             projects = listOf(
                 GradleProjectDependencies(
@@ -149,7 +149,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
             dependencyService.getDependencies(any(), any(), any(), any(), checkUpdates = true, versionFilter = any(), onlyDirect = true)
         } returns report
 
-        val response = server.client.callTool(ToolNames.GET_DEPENDENCIES, emptyMap()) as CallToolResult
+        val response = server.client.callTool(ToolNames.INSPECT_DEPENDENCIES, emptyMap()) as CallToolResult
         val result = (response.content.first() as TextContent).text
 
         assertTrue(result!!.contains("Dependency Report"), "Should contain report header")
@@ -294,7 +294,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `get-dependencies shows update message when checkUpdates is true`() = runTest {
+    fun `inspect_dependencies shows update message when checkUpdates is true`() = runTest {
         val report = GradleDependencyReport(
             projects = listOf(
                 GradleProjectDependencies(
@@ -326,7 +326,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
         } returns report
 
         val response = server.client.callTool(
-            ToolNames.GET_DEPENDENCIES, mapOf(
+            ToolNames.INSPECT_DEPENDENCIES, mapOf(
                 "checkUpdates" to true
             )
         ) as CallToolResult

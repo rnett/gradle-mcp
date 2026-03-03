@@ -1,40 +1,14 @@
 package dev.rnett.gradle.mcp.tools
 
 object ToolNames {
-    // Execution Tools
-    const val RUN_GRADLE_COMMAND = "run_gradle_command"
-    const val RUN_SINGLE_TASK_AND_GET_OUTPUT = "run_single_task_and_get_output"
-    const val RUN_TESTS_WITH_GRADLE = "run_tests_with_gradle"
-    const val RUN_MANY_TEST_TASKS_WITH_GRADLE = "run_many_test_tasks_with_gradle"
-
-    // Lookup Tools
-    const val LOOKUP_LATEST_BUILDS = "lookup_latest_builds"
-    const val LOOKUP_BUILD_TESTS = "lookup_build_tests"
-    const val LOOKUP_BUILD_TASKS = "lookup_build_tasks"
-    const val LOOKUP_BUILD = "lookup_build"
-    const val LOOKUP_BUILD_FAILURES = "lookup_build_failures"
-    const val LOOKUP_BUILD_PROBLEMS = "lookup_build_problems"
-    const val LOOKUP_BUILD_CONSOLE_OUTPUT = "lookup_build_console_output"
-
-    // Background Build Tools
-    const val BACKGROUND_RUN_GRADLE_COMMAND = "background_run_gradle_command"
-    const val BACKGROUND_BUILD_LIST = "background_build_list"
-    const val BACKGROUND_BUILD_GET_STATUS = "background_build_get_status"
-    const val BACKGROUND_BUILD_STOP = "background_build_stop"
-
-    // REPL Tools
     const val REPL = "project_repl"
-
-    // Dependency Tools
-    const val GET_DEPENDENCIES = "get_dependencies"
+    const val GRADLEW = "gradlew"
+    const val INSPECT_BUILD = "inspect_build"
+    const val INSPECT_DEPENDENCIES = "inspect_dependencies"
+    const val READ_DEPENDENCY_SOURCES = "read_dependency_sources"
     const val SEARCH_DEPENDENCY_SOURCES = "search_dependency_sources"
-    const val READ_DEPENDENCY_SOURCE_PATH = "read_dependency_source_path"
-
-    // Docs Tools
-    const val GET_ALL_GRADLE_DOCS_PAGES = "get_all_gradle_docs_pages"
-    const val GET_GRADLE_DOCS_PAGE = "get_gradle_docs_page"
-    const val GET_GRADLE_RELEASE_NOTES = "get_gradle_release_notes"
-    const val SEARCH_GRADLE_DOCS = "search_gradle_docs"
+    const val SEARCH_MAVEN_CENTRAL = "search_maven_central"
+    const val GRADLE_DOCS = "gradle_docs"
 }
 
 object InitScriptNames {

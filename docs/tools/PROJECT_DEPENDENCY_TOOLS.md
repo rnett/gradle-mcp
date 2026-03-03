@@ -4,10 +4,17 @@
 
 Tools for querying Gradle dependencies and checking for updates.
 
-## get_dependencies
+## inspect_dependencies
 
-Retrieves a detailed dependency report for a Gradle project. By default, it returns a tree of dependencies. If 'updatesOnly' is true, it instead returns a consolidated summary of all available updates across the specified project and its subprojects.
-Note: 'stableVersionsOnly' and 'versionFilter' are mutually exclusive.
+Query project dependencies, check for available updates, and view repository configurations.
+
+Use this tool for:
+- Viewing the dependency tree for a specific project or configuration.
+- Checking for available library updates across the project.
+- Filtering dependencies by source set or configuration.
+- Identifying repository URLs used for dependency resolution.
+
+For detailed workflows on dependency management, refer to the `gradle-dependencies` skill.
 
 <details>
 
@@ -23,7 +30,7 @@ Note: 'stableVersionsOnly' and 'versionFilter' are mutually exclusive.
     },
     "projectPath": {
       "type": "string",
-      "description": "The Gradle project path, e.g. ':project-a:subproject-b'. Defaults to the root project (':'). Use this to get dependencies for a specific subproject.",
+      "description": "The Gradle project path (e.g., :app). Defaults to root.",
       "examples": [
         ":",
         ":my-project",
@@ -35,37 +42,37 @@ Note: 'stableVersionsOnly' and 'versionFilter' are mutually exclusive.
         "string",
         "null"
       ],
-      "description": "The name of a specific configuration to get dependencies for (e.g., 'implementation', 'runtimeClasspath'). If omitted, all configurations will be included."
+      "description": "Filter by specific configuration (e.g., runtimeClasspath)."
     },
     "sourceSet": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The name of a specific source set to get dependencies for (e.g., 'main', 'test'). If omitted, configurations for all source sets will be included."
+      "description": "Filter by source set (e.g., test)."
     },
     "checkUpdates": {
       "type": "boolean",
-      "description": "Whether to check for dependency updates against the configured repositories. If true, the latest available version will be shown next to the current version. Defaults to true."
+      "description": "Check against repositories for newer versions."
     },
     "onlyDirect": {
       "type": "boolean",
-      "description": "Whether to only return direct dependencies explicitly declared in the project. If false, the full dependency tree (including transitive dependencies) will be included. Defaults to true."
+      "description": "Only show direct dependencies. Defaults to true."
     },
     "updatesOnly": {
       "type": "boolean",
-      "description": "Whether to only return a consolidated summary of available updates, rather than the full dependency report. If true, 'checkUpdates' is implied. Defaults to false."
+      "description": "Only show a summary of available updates."
     },
-    "stableVersionsOnly": {
+    "stableOnly": {
       "type": "boolean",
-      "description": "If true, ignores pre-release versions (e.g., those containing 'beta', 'rc', 'alpha') when checking for updates. Mutually exclusive with versionFilter."
+      "description": "Ignore pre-release versions (alpha, beta, rc, etc.)."
     },
     "versionFilter": {
       "type": [
         "string",
         "null"
       ],
-      "description": "A regex pattern to filter candidate update versions. Only versions matching this regex will be considered. Mutually exclusive with stableVersionsOnly."
+      "description": "Regex for filtering candidate update versions."
     }
   },
   "required": [],

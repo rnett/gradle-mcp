@@ -2,7 +2,9 @@ package dev.rnett.gradle.mcp.tools.dependencies
 
 import dev.rnett.gradle.mcp.gradle.dependencies.SourcesDir
 import dev.rnett.gradle.mcp.gradle.dependencies.SourcesService
+import dev.rnett.gradle.mcp.gradle.dependencies.search.FullTextSearch
 import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResult
+import dev.rnett.gradle.mcp.gradle.dependencies.search.SymbolSearch
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.mockk.coEvery
@@ -29,7 +31,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `search_dependency_sources returns formatted results`() = runTest {
+    fun `search_dependency_sources search returns formatted results`() = runTest {
         val sourcesDir = tempDir.resolve("sources-root-search")
         val sources = sourcesDir.resolve("sources")
         sources.createDirectories()
@@ -39,7 +41,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         } returns SourcesDir(sourcesDir)
 
         coEvery {
-            sourcesService.search(any(), any(), "test-query")
+            sourcesService.search(any(), SymbolSearch, "test-query")
         } returns listOf(
             SearchResult(
                 relativePath = "com/example/Test.kt",
@@ -63,7 +65,42 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `read_dependency_source_path returns file content`() = runTest {
+    fun `search_dependency_sources full-text search returns formatted results`() = runTest {
+        val sourcesDir = tempDir.resolve("sources-root-full-text")
+        val sources = sourcesDir.resolve("sources")
+        sources.createDirectories()
+
+        coEvery {
+            sourcesService.downloadAllSources(any(), any(), any())
+        } returns SourcesDir(sourcesDir)
+
+        coEvery {
+            sourcesService.search(any(), FullTextSearch, "test-query")
+        } returns listOf(
+            SearchResult(
+                relativePath = "com/example/Test.kt",
+                file = sources.resolve("com/example/Test.kt"),
+                line = 10,
+                snippet = "class Test { }",
+                score = 1.0f
+            )
+        )
+
+        val response = server.client.callTool(
+            ToolNames.SEARCH_DEPENDENCY_SOURCES, buildJsonObject {
+                put("query", "test-query")
+                put("searchType", "FULL_TEXT")
+            }
+        ) as CallToolResult
+
+        val result = (response.content.first() as TextContent).text
+        assertTrue(result!!.contains("Found 1 result(s) for 'test-query':"))
+        assertTrue(result.contains("File: com/example/Test.kt:10"))
+        assertTrue(result.contains("class Test { }"))
+    }
+
+    @Test
+    fun `read_dependency_sources read returns file content`() = runTest {
         val sourcesDir = tempDir.resolve("sources-root")
         val sources = sourcesDir.resolve("sources")
         sources.createDirectories()
@@ -76,7 +113,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         } returns SourcesDir(sourcesDir)
 
         val response = server.client.callTool(
-            ToolNames.READ_DEPENDENCY_SOURCE_PATH, buildJsonObject {
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
                 put("path", "com/example/Test.kt")
             }
         ) as CallToolResult
@@ -88,7 +125,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `read_dependency_source_path returns directory tree`() = runTest {
+    fun `read_dependency_sources read returns directory tree`() = runTest {
         val sourcesDir = tempDir.resolve("sources-root-dir")
         val sources = sourcesDir.resolve("sources")
         sources.createDirectories()
@@ -102,7 +139,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         } returns SourcesDir(sourcesDir)
 
         val response = server.client.callTool(
-            ToolNames.READ_DEPENDENCY_SOURCE_PATH, buildJsonObject {
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
                 put("path", "com/example")
             }
         ) as CallToolResult
@@ -115,7 +152,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `read_dependency_source_path prevents path traversal`() = runTest {
+    fun `read_dependency_sources prevents path traversal`() = runTest {
         val sourcesDir = tempDir.resolve("sources-root-traversal")
         val sources = sourcesDir.resolve("sources")
         sources.createDirectories()
@@ -125,7 +162,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         } returns SourcesDir(sourcesDir)
 
         val response = server.client.callTool(
-            ToolNames.READ_DEPENDENCY_SOURCE_PATH, buildJsonObject {
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
                 put("path", "../outside.txt")
             }
         ) as CallToolResult
@@ -135,7 +172,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `read_dependency_source_path returns error for non-existent path`() = runTest {
+    fun `read_dependency_sources returns error for non-existent path`() = runTest {
         val sourcesDir = tempDir.resolve("sources-root-missing")
         val sources = sourcesDir.resolve("sources")
         sources.createDirectories()
@@ -145,12 +182,28 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         } returns SourcesDir(sourcesDir)
 
         val response = server.client.callTool(
-            ToolNames.READ_DEPENDENCY_SOURCE_PATH, buildJsonObject {
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
                 put("path", "missing.kt")
             }
         ) as CallToolResult
 
         val result = (response.content.first() as TextContent).text
         assertEquals("Path not found: missing.kt", result)
+    }
+
+    @Test
+    fun `read_dependency_sources with project path calls correct service method`() = runTest {
+        val sourcesDir = tempDir.resolve("sources-project")
+        sourcesDir.createDirectories()
+
+        coEvery {
+            sourcesService.downloadProjectSources(any(), ":app", any(), any())
+        } returns SourcesDir(sourcesDir)
+
+        server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectPath", ":app")
+            }
+        ) as CallToolResult
     }
 }

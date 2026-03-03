@@ -41,7 +41,7 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
 
         // Call tool without version
         val args = emptyMap<String, kotlinx.serialization.json.JsonElement>()
-        val call = server.client.callTool(ToolNames.GET_ALL_GRADLE_DOCS_PAGES, args)
+        val call = server.client.callTool(ToolNames.GRADLE_DOCS, args)
 
         val text = (call!!.content[0] as TextContent).text ?: ""
         assertContains(text, "Available documentation pages for Gradle 8.5:")
@@ -56,7 +56,7 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
 
         // No MCP roots set, no version provided
         val args = emptyMap<String, kotlinx.serialization.json.JsonElement>()
-        val call = server.client.callTool(ToolNames.GET_ALL_GRADLE_DOCS_PAGES, args)
+        val call = server.client.callTool(ToolNames.GRADLE_DOCS, args)
 
         val text = (call!!.content[0] as TextContent).text ?: ""
         assertContains(text, "Available documentation pages for Gradle current:")
@@ -82,7 +82,7 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
 
         // Call tool with projectRoot
         val args = mapOf("projectRoot" to kotlinx.serialization.json.JsonPrimitive(projectRoot.toString()))
-        val call = server.client.callTool(ToolNames.GET_ALL_GRADLE_DOCS_PAGES, args)
+        val call = server.client.callTool(ToolNames.GRADLE_DOCS, args)
 
         val text = (call!!.content[0] as TextContent).text ?: ""
         assertContains(text, "Available documentation pages for Gradle 7.6.3:")

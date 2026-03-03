@@ -35,11 +35,10 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
         }
         appendLine(
             "Status: ${
-                if (isRunning) {
-                    "Running (still running, some information may be incomplete)"
+                if (this@toOutputString is FinishedBuild) {
+                    if (this@toOutputString.outcome is BuildOutcome.Success) "Success" else "Failure"
                 } else {
-                    val finished = this@toOutputString as FinishedBuild
-                    if (finished.outcome is BuildOutcome.Success) "Success" else "Failure"
+                    "Running (still running, some information may be incomplete)"
                 }
             }"
         )
@@ -52,7 +51,7 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
         }
 
         if (buildFailures.isNotEmpty()) {
-            appendLine("Failures: ${buildFailures.size} - use `${ToolNames.LOOKUP_BUILD_FAILURES}` tool for more details")
+            appendLine("Failures: ${buildFailures.size} - use `${ToolNames.INSPECT_BUILD}` tool for more details")
             appendLine(OutputFormatter.listResults(buildFailures, 10) {
                 buildString {
                     append(it.id.id)
@@ -71,7 +70,7 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
         }
 
         val problemsSummary = problems.toSummary()
-        appendLine("Problems:     ${problemsSummary.totalCount} - use `${ToolNames.LOOKUP_BUILD_PROBLEMS}` tool for more details")
+        appendLine("Problems:     ${problemsSummary.totalCount} - use `${ToolNames.INSPECT_BUILD}` tool for more details")
         if (problemsSummary.errorCounts.isNotEmpty()) {
             appendLine("  Errors:     ${problemsSummary.errorCounts.size}")
             appendLine(OutputFormatter.listResults(problemsSummary.errorCounts.toList(), 5, item = ::formatProblem))
@@ -90,7 +89,7 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
         }
         appendLine()
 
-        appendLine("Tests:      ${testResults.totalCount} - use `${ToolNames.LOOKUP_BUILD_TESTS}` tool for more details")
+        appendLine("Tests:      ${testResults.totalCount} - use `${ToolNames.INSPECT_BUILD}` tool for more details")
         appendLine("  Passed:   ${testResults.passed.size}")
         appendLine("  Skipped:  ${testResults.skipped.size}")
         appendLine("  Failed:   ${testResults.failed.size}")

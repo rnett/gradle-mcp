@@ -4,9 +4,28 @@
 
 Tools for looking up detailed information about past Gradle builds ran by this MCP server.
 
-## lookup_latest_builds
+## inspect_build
 
-Gets the latest builds (both background and completed) ran by this MCP server.
+The central tool for retrieving build information, monitoring progress, and diagnosing failures. It acts as a "Dashboard" and "Deep Dive" tool for all builds (active and historical).
+
+### Usage Overview
+- **Dashboard**: Call without `buildId` to see active and recent builds.
+- **Monitoring**: Use `wait`, `waitFor`, or `waitForTask` with a `buildId` to monitor an active build.
+- **Deep Dive**: Specify a `buildId` and exactly one of the detail sections (`tasks`, `tests`, `failures`, `problems`, or `console`).
+- **Modes**: Use `mode="summary"` (default) for lists and `mode="details"` for deep dives into specific items (requires `name`, `path`, or `id` in the section options).
+- **Pagination**: Use top-level `limit` and `offset` for lists and console output.
+
+### Section Options
+Only one of the following may be specified per call:
+- `tasks`: List tasks or get task output.
+- `tests`: List tests or get test details/stack traces.
+- `failures`: List build failures or get failure trees.
+- `problems`: List build problems or get problem details.
+- `console`: Read console logs with pagination.
+
+If no section is specified, the build summary is returned.
+
+For detailed diagnostic workflows, refer to the `gradle-build` and `gradle-test` skills.
 
 <details>
 
@@ -16,163 +35,72 @@ Gets the latest builds (both background and completed) ran by this MCP server.
 ```json
 {
   "properties": {
-    "maxBuilds": {
+    "buildId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The build to inspect. If omitted, returns the build dashboard (active builds + recent history)."
+    },
+    "mode": {
+      "enum": [
+        "summary",
+        "details"
+      ],
+      "description": "The lookup mode: 'summary' (default) or 'details'."
+    },
+    "wait": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": -1.7976931348623157E308,
+      "maximum": 1.7976931348623157E308,
+      "description": "Max seconds to wait for an active build to reach a state or finish."
+    },
+    "waitFor": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Regex pattern to wait for in the build logs."
+    },
+    "waitForTask": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Task path to wait for completion."
+    },
+    "afterCall": {
+      "type": "boolean",
+      "description": "If true, only look for waitFor or waitForTask matches emitted after this call. Only applies if wait and (waitFor or waitForTask) are also provided."
+    },
+    "limit": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": -2147483648,
+      "maximum": 2147483647,
+      "description": "The maximum number of results to return (applies to tasks, tests, console lines, and the build dashboard)."
+    },
+    "offset": {
       "type": "integer",
       "minimum": -2147483648,
       "maximum": 2147483647,
-      "description": "The maximum number of builds to return. Defaults to 5."
+      "description": "The offset to start from in the results (applies to tasks, tests, and console lines)."
     },
-    "onlyCompleted": {
-      "type": "boolean",
-      "description": "Whether to only show completed builds. Defaults to false."
-    }
-  },
-  "required": [],
-  "type": "object"
-}
-```
-
-
-</details>
-
-
-## lookup_build_tests
-
-For a given build, provides either a summary of test executions or detailed information for a specific test. 
-If `details` is provided, detailed execution info (duration, failure details, metadata, attached file paths, and console output) for that test is returned. If files are attached, be sure to look at them yourself.
-If `summary` is provided (or neither), returns a list of tests matching the provided filters. 
-Only one of `summary` or `details` may be specified. 
-Works for in-progress builds.
-
-
-<details>
-
-<summary>Input schema</summary>
-
-
-```json
-{
-  "properties": {
-    "buildId": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
-    },
-    "summary": {
+    "tasks": {
       "type": [
         "object",
         "null"
       ],
       "required": [],
       "properties": {
-        "testNamePrefix": {
+        "path": {
           "type": "string",
-          "description": "A prefix of the fully-qualified test name (class or method). Matching is case-sensitive and checks startsWith on the full test name. Defaults to empty (aka all tests)."
-        },
-        "offset": {
-          "type": "integer",
-          "minimum": -2147483648,
-          "maximum": 2147483647,
-          "description": "The offset to start from in the results."
-        },
-        "limit": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "minimum": -2147483648,
-          "maximum": 2147483647,
-          "description": "The maximum number of results to return."
-        },
-        "outcome": {
-          "enum": [
-            "PASSED",
-            "FAILED",
-            "SKIPPED"
-          ],
-          "description": "Filter results by outcome."
-        }
-      },
-      "description": "Arguments for test summary mode. Only one of `summary` or `details` may be specified."
-    },
-    "details": {
-      "type": [
-        "object",
-        "null"
-      ],
-      "required": [
-        "testName"
-      ],
-      "properties": {
-        "testName": {
-          "type": "string",
-          "description": "The full name of the test to show details for. If multiple tests have this name, use `testIndex` to select one."
-        },
-        "testIndex": {
-          "type": "integer",
-          "minimum": -2147483648,
-          "maximum": 2147483647,
-          "description": "The index of the test to show if multiple tests have the same name."
-        }
-      },
-      "description": "Arguments for test detail mode. Only one of `summary` or `details` may be specified."
-    }
-  },
-  "required": [],
-  "type": "object"
-}
-```
-
-
-</details>
-
-
-## lookup_build_tasks
-
-For a given build, provides either a summary of task executions or detailed information for a specific task. If `details` is provided, detailed execution info (duration, outcome, and console output) for that task is returned. If `summary` is provided (or neither), returns a list of tasks matching the provided filters. Only one of `summary` or `details` may be specified. Works for in-progress builds.
-
-<details>
-
-<summary>Input schema</summary>
-
-
-```json
-{
-  "properties": {
-    "buildId": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
-    },
-    "summary": {
-      "type": [
-        "object",
-        "null"
-      ],
-      "required": [],
-      "properties": {
-        "taskPathPrefix": {
-          "type": "string",
-          "description": "A prefix of the task path (e.g. ':app:'). Matching is case-sensitive and checks startsWith on the task path. Defaults to empty (aka all tasks)."
-        },
-        "offset": {
-          "type": "integer",
-          "minimum": -2147483648,
-          "maximum": 2147483647,
-          "description": "The offset to start from in the results."
-        },
-        "limit": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "minimum": -2147483648,
-          "maximum": 2147483647,
-          "description": "The maximum number of results to return."
+          "description": "In 'summary' mode, a prefix of the task path to filter by. In 'details' mode, the full path of the task."
         },
         "outcome": {
           "enum": [
@@ -183,213 +111,89 @@ For a given build, provides either a summary of task executions or detailed info
             "FROM_CACHE",
             "NO_SOURCE"
           ],
-          "description": "Filter results by outcome."
+          "description": "Filter results by outcome (summary mode only)."
         }
       },
-      "description": "Arguments for task summary mode. Only one of `summary` or `details` may be specified."
+      "description": "Options for task lookup."
     },
-    "details": {
-      "type": [
-        "object",
-        "null"
-      ],
-      "required": [
-        "taskPath"
-      ],
-      "properties": {
-        "taskPath": {
-          "type": "string",
-          "description": "The full path of the task to show details for."
-        }
-      },
-      "description": "Arguments for task detail mode. Only one of `summary` or `details` may be specified."
-    }
-  },
-  "required": [],
-  "type": "object"
-}
-```
-
-
-</details>
-
-
-## lookup_build
-
-Takes a build ID; returns a summary of that build. Works for in-progress builds.
-
-<details>
-
-<summary>Input schema</summary>
-
-
-```json
-{
-  "properties": {
-    "buildId": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
-    }
-  },
-  "required": [],
-  "type": "object"
-}
-```
-
-
-</details>
-
-
-## lookup_build_failures
-
-Provides a summary of build failures (including test failures) or details for a specific failure. If `details` is provided, detailed information (including causes and stack traces) for that failure is returned. If `summary` is provided (or neither), lists all build failures. Only one of `summary` or `details` may be specified. Works for in-progress builds, but may only show test failures.
-
-<details>
-
-<summary>Input schema</summary>
-
-
-```json
-{
-  "properties": {
-    "buildId": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
-    },
-    "summary": {
+    "tests": {
       "type": [
         "object",
         "null"
       ],
       "required": [],
-      "properties": {},
-      "description": "Arguments for failure summary mode. Only one of `summary` or `details` may be specified."
-    },
-    "details": {
-      "type": [
-        "object",
-        "null"
-      ],
-      "required": [
-        "failureId"
-      ],
       "properties": {
-        "failureId": {
+        "name": {
           "type": "string",
-          "description": "The failure ID to get details for."
+          "description": "In 'summary' mode, a prefix of the test name to filter by. In 'details' mode, the full name of the test."
+        },
+        "outcome": {
+          "enum": [
+            "PASSED",
+            "FAILED",
+            "SKIPPED"
+          ],
+          "description": "Filter results by outcome (summary mode only)."
+        },
+        "testIndex": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647,
+          "description": "The index of the test to show if multiple tests have the same name (details mode only)."
         }
       },
-      "description": "Arguments for failure detail mode. Only one of `summary` or `details` may be specified."
-    }
-  },
-  "required": [],
-  "type": "object"
-}
-```
-
-
-</details>
-
-
-## lookup_build_problems
-
-Provides a summary of all problems reported during a build (errors, warnings, etc.) or details for a specific problem. If `details` is provided, detailed information (locations, details, and potential solutions) for that problem is returned. If `summary` is provided (or neither), returns a summary of all problems. Only one of `summary` or `details` may be specified. Works for in-progress builds.
-
-<details>
-
-<summary>Input schema</summary>
-
-
-```json
-{
-  "properties": {
-    "buildId": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
+      "description": "Options for test lookup."
     },
-    "summary": {
+    "failures": {
       "type": [
         "object",
         "null"
       ],
       "required": [],
-      "properties": {},
-      "description": "Arguments for problem summary mode. Only one of `summary` or `details` may be specified."
+      "properties": {
+        "id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The failure ID to get details for (details mode only)."
+        }
+      },
+      "description": "Options for failure lookup."
     },
-    "details": {
+    "problems": {
       "type": [
         "object",
         "null"
       ],
-      "required": [
-        "problemId"
-      ],
+      "required": [],
       "properties": {
-        "problemId": {
-          "type": "string",
-          "description": "The ProblemId of the problem to look up."
+        "id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The ProblemId of the problem to look up (details mode only)."
         }
       },
-      "description": "Arguments for problem detail mode. Only one of `summary` or `details` may be specified."
+      "description": "Options for problem lookup."
+    },
+    "console": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [],
+      "properties": {
+        "tail": {
+          "type": "boolean",
+          "description": "If true, return the last `limit` lines of the console output instead of the first."
+        }
+      },
+      "description": "Options for console output."
     }
   },
   "required": [],
-  "type": "object"
-}
-```
-
-
-</details>
-
-
-## lookup_build_console_output
-
-Gets up to `limitLines` (default 100, null means no limit) of the console output for a given build, starting at a given offset `offsetLines` (default 0). Can read from the tail instead of the head. Repeatedly call this tool using the `nextOffset` in the response to get all console output. Works for in-progress builds.
-
-<details>
-
-<summary>Input schema</summary>
-
-
-```json
-{
-  "properties": {
-    "buildId": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "description": "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
-    },
-    "offsetLines": {
-      "type": "integer",
-      "minimum": -2147483648,
-      "maximum": 2147483647
-    },
-    "limitLines": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "minimum": -2147483648,
-      "maximum": 2147483647
-    },
-    "tail": {
-      "type": "boolean"
-    }
-  },
-  "required": [
-    "offsetLines"
-  ],
   "type": "object"
 }
 ```

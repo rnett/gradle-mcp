@@ -17,36 +17,40 @@ class GradleDependencyTools(
 ) : McpServerComponent("Project Dependency Tools", "Tools for querying Gradle dependencies and checking for updates.") {
 
     @Serializable
-    data class GetDependenciesArgs(
+    data class InspectDependenciesArgs(
         val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
-        @Description("The Gradle project path, e.g. ':project-a:subproject-b'. Defaults to the root project (':'). Use this to get dependencies for a specific subproject.")
+        @Description("The Gradle project path (e.g., :app). Defaults to root.")
         val projectPath: GradleProjectPath = GradleProjectPath.DEFAULT,
-        @Description("The name of a specific configuration to get dependencies for (e.g., 'implementation', 'runtimeClasspath'). If omitted, all configurations will be included.")
+        @Description("Filter by specific configuration (e.g., runtimeClasspath).")
         val configuration: String? = null,
-        @Description("The name of a specific source set to get dependencies for (e.g., 'main', 'test'). If omitted, configurations for all source sets will be included.")
+        @Description("Filter by source set (e.g., test).")
         val sourceSet: String? = null,
-        @Description("Whether to check for dependency updates against the configured repositories. If true, the latest available version will be shown next to the current version. Defaults to true.")
+        @Description("Check against repositories for newer versions.")
         val checkUpdates: Boolean = true,
-        @Description("Whether to only return direct dependencies explicitly declared in the project. If false, the full dependency tree (including transitive dependencies) will be included. Defaults to true.")
+        @Description("Only show direct dependencies. Defaults to true.")
         val onlyDirect: Boolean = true,
-        @Description("Whether to only return a consolidated summary of available updates, rather than the full dependency report. If true, 'checkUpdates' is implied. Defaults to false.")
+        @Description("Only show a summary of available updates.")
         val updatesOnly: Boolean = false,
-        @Description("If true, ignores pre-release versions (e.g., those containing 'beta', 'rc', 'alpha') when checking for updates. Mutually exclusive with versionFilter.")
-        val stableVersionsOnly: Boolean = false,
-        @Description("A regex pattern to filter candidate update versions. Only versions matching this regex will be considered. Mutually exclusive with stableVersionsOnly.")
+        @Description("Ignore pre-release versions (alpha, beta, rc, etc.).")
+        val stableOnly: Boolean = false,
+        @Description("Regex for filtering candidate update versions.")
         val versionFilter: String? = null
     )
 
-    val getDependencies by tool<GetDependenciesArgs, String>(
-        ToolNames.GET_DEPENDENCIES,
+    val inspectDependencies by tool<InspectDependenciesArgs, String>(
+        ToolNames.INSPECT_DEPENDENCIES,
         """
-            Retrieves a detailed dependency report for a Gradle project. By default, it returns a tree of dependencies. If 'updatesOnly' is true, it instead returns a consolidated summary of all available updates across the specified project and its subprojects.
-            Note: 'stableVersionsOnly' and 'versionFilter' are mutually exclusive.
-            """.trimIndent()
+            |Query project dependencies, check for available updates, and view repository configurations.
+            |
+            |Use this tool for:
+            |- Viewing the dependency tree for a specific project or configuration.
+            |- Checking for available library updates across the project.
+            |- Filtering dependencies by source set or configuration.
+            |- Identifying repository URLs used for dependency resolution.
+            |
+            |For detailed workflows on dependency management, refer to the `gradle-dependencies` skill.
+        """.trimMargin()
     ) {
-        require(!(it.stableVersionsOnly && it.versionFilter != null)) {
-            "stableVersionsOnly and versionFilter are mutually exclusive."
-        }
         val root = with(server) { it.projectRoot.resolveRoot() }
         val report = dependencyService.getDependencies(
             projectRoot = root,
@@ -55,7 +59,7 @@ class GradleDependencyTools(
             sourceSet = it.sourceSet,
             checkUpdates = it.checkUpdates || it.updatesOnly,
             versionFilter = when {
-                it.stableVersionsOnly -> "^(?i).+?(?<![.-](?:alpha|beta|rc|m|milestone|releasecandidate|dev|ea|preview|snapshot|canary)[0-9]*)$"
+                it.stableOnly -> "^(?i).+?(?<![.-](?:alpha|beta|rc|m|milestone|releasecandidate|dev|ea|preview|snapshot|canary)[0-9]*)$"
                 it.versionFilter != null -> it.versionFilter
                 else -> null
             },

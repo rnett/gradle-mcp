@@ -12,15 +12,21 @@ Use the Gradle MCP to interact with Gradle whenever possible.
 * If you have trouble solving or investigating an issue after a few tries, stop and think about what the issues are before proceeding. Do research if necessary, and rubber duck to yourself.
 * When writing skills, remember that skills support progressive disclosure and tune them accordingly. Read the docs on https://agentskills.io/home before creating or eding any skills.
 
+**IMPORTANT:** If you are Gemini, you get stuck when you try to use your built-in file creation and editing tools.
+Use a shell command, MCP tool, or something like that.
+
 ## Project structure notes
 
-* The `test` task should be used to run tests.
-  After making a change, make sure it passes.
+The `test` task should be used to run tests.
+After making a change, make sure it passes.
+
+When changing a tool, make sure that any skills or other tools that reference it are also updated.
 
 On some machines, the Gradle build tool project will be checked out in `./gradle-build-tool`.
 Be careful that your search, run, etc, commands don't involve it, unless that's your intent.
 For example, the "Build everything" operation will build it too, which we don't want.
 However, they make great sources of knowledge when you are working with Gradle's APIs - use them accordingly.
+There is an overview of the project structure [here](./gradle-sources-overview.md).
 
 ## Code style notes
 

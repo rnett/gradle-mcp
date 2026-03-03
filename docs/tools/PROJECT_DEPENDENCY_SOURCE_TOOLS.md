@@ -4,9 +4,9 @@
 
 Tools for searching and inspecting source code of Gradle dependencies.
 
-## search_dependency_sources
+## read_dependency_sources
 
-Downloads and indexes sources for the specified project/configuration/sourceSet (if not already cached), then searches them for the given query.
+Read specific source files or list directories from the combined source code of all external library dependencies within a given scope (project, configuration, or source set).
 
 <details>
 
@@ -25,43 +25,35 @@ Downloads and indexes sources for the specified project/configuration/sourceSet 
         "string",
         "null"
       ],
-      "description": "The Gradle project path to scope dependencies to, e.g. ':project-a:subproject-b'. If omitted, the entire build's dependencies are used.",
-      "examples": [
-        ":",
-        ":my-project",
-        ":my-project:subproject"
-      ]
+      "description": "The project path to get dependencies from (e.g. ':', ':app'). If null, all projects are used."
     },
-    "configuration": {
+    "configurationPath": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The name of a specific configuration to scope to (e.g., 'implementation', `commonMainApi`). If omitted, all configurations are included."
+      "description": "The configuration path to get dependencies from (e.g. ':app:debugCompileClasspath'). If set, projectPath is ignored."
     },
-    "sourceSet": {
+    "sourceSetPath": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The name of a specific source set to scope to (e.g., 'main', `commonMain`). If omitted, all source sets are included."
+      "description": "The source set path to get dependencies from (e.g. ':app:main'). If set, projectPath and configurationPath are ignored."
     },
-    "query": {
-      "type": "string",
-      "description": "The search query. For symbol search, it's the symbol name. For full text search, it's a regex or exact string based on provider implementation."
-    },
-    "searchType": {
-      "type": "string",
-      "description": "The search type. Must be 'symbol' or 'full_text'. Defaults to 'symbol'."
+    "path": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Specific file path within the source to read. This path is relative to the root of the combined sources for the given scope."
     },
     "forceDownload": {
       "type": "boolean",
       "description": "If true, re-downloads and re-indexes the sources even if they are already cached."
     }
   },
-  "required": [
-    "query"
-  ],
+  "required": [],
   "type": "object"
 }
 ```
@@ -70,9 +62,9 @@ Downloads and indexes sources for the specified project/configuration/sourceSet 
 </details>
 
 
-## read_dependency_source_path
+## search_dependency_sources
 
-Reads a file or walks a directory (up to 2 levels) in the downloaded dependency sources.
+Search for symbols or text within the combined source code of all external library dependencies within a given scope (project, configuration, or source set).
 
 <details>
 
@@ -91,30 +83,32 @@ Reads a file or walks a directory (up to 2 levels) in the downloaded dependency 
         "string",
         "null"
       ],
-      "description": "The Gradle project path to scope dependencies to, e.g. ':project-a:subproject-b'. If omitted, the entire build's dependencies are used.",
-      "examples": [
-        ":",
-        ":my-project",
-        ":my-project:subproject"
-      ]
+      "description": "The project path to get dependencies from (e.g. ':', ':app'). If null, all projects are used."
     },
-    "configuration": {
+    "configurationPath": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The name of a specific configuration to scope to (e.g., 'implementation', `commonMainApi`). If omitted, all configurations are included."
+      "description": "The configuration path to get dependencies from (e.g. ':app:debugCompileClasspath'). If set, projectPath is ignored."
     },
-    "sourceSet": {
+    "sourceSetPath": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The name of a specific source set to scope to (e.g., 'main', `commonMain`). If omitted, all source sets are included."
+      "description": "The source set path to get dependencies from (e.g. ':app:main'). If set, projectPath and configurationPath are ignored."
     },
-    "path": {
+    "query": {
       "type": "string",
-      "description": "The relative path within the downloaded sources to read (e.g., as returned by the search tool)."
+      "description": "Search query for symbols or file names."
+    },
+    "searchType": {
+      "enum": [
+        "SYMBOLS",
+        "FULL_TEXT"
+      ],
+      "description": "The type of search to perform. Defaults to SYMBOLS."
     },
     "forceDownload": {
       "type": "boolean",
@@ -122,7 +116,7 @@ Reads a file or walks a directory (up to 2 levels) in the downloaded dependency 
     }
   },
   "required": [
-    "path"
+    "query"
   ],
   "type": "object"
 }

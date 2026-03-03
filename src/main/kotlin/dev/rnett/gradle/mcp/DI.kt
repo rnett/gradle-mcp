@@ -25,7 +25,6 @@ import dev.rnett.gradle.mcp.repl.DefaultReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.DefaultReplManager
 import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.ReplManager
-import dev.rnett.gradle.mcp.tools.BackgroundBuildTools
 import dev.rnett.gradle.mcp.tools.GradleBuildLookupTools
 import dev.rnett.gradle.mcp.tools.GradleDocsTools
 import dev.rnett.gradle.mcp.tools.GradleExecutionTools
@@ -154,7 +153,6 @@ object DI {
     ): List<McpServerComponent> = listOf(
         GradleExecutionTools(provider),
         ReplTools(provider, replManager, replEnvironmentService),
-        BackgroundBuildTools(provider),
         GradleBuildLookupTools(provider.buildManager),
         GradleDocsTools(gradleDocsService),
         GradleDependencyTools(gradleDependencyService),

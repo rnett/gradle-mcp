@@ -9,6 +9,7 @@ import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import io.modelcontextprotocol.kotlin.sdk.Root
 import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import org.koin.core.scope.Scope
 import kotlin.io.path.createDirectories
@@ -44,9 +45,9 @@ class GradleExecutionToolTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `run_single_task_and_get_output --version works with real project`() = runTest {
-        val args = mapOf("taskPath" to JsonPrimitive("--version"))
-        val call = server.client.callTool(ToolNames.RUN_SINGLE_TASK_AND_GET_OUTPUT, args)
+    fun `gradlew --version works with real project`() = runTest {
+        val args = mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("--version"))))
+        val call = server.client.callTool(ToolNames.GRADLEW, args)
 
         val text = call!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         // Should contain Gradle version info
@@ -55,9 +56,9 @@ class GradleExecutionToolTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `run_single_task_and_get_output --help works with real project`() = runTest {
-        val args = mapOf("taskPath" to JsonPrimitive("--help"))
-        val call = server.client.callTool(ToolNames.RUN_SINGLE_TASK_AND_GET_OUTPUT, args)
+    fun `gradlew --help works with real project`() = runTest {
+        val args = mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("--help"))))
+        val call = server.client.callTool(ToolNames.GRADLEW, args)
 
         val text = call!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         // Should contain Gradle help text
@@ -66,9 +67,9 @@ class GradleExecutionToolTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `run_single_task_and_get_output -v works with real project`() = runTest {
-        val args = mapOf("taskPath" to JsonPrimitive("-v"))
-        val call = server.client.callTool(ToolNames.RUN_SINGLE_TASK_AND_GET_OUTPUT, args)
+    fun `gradlew -v works with real project`() = runTest {
+        val args = mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("-v"))))
+        val call = server.client.callTool(ToolNames.GRADLEW, args)
 
         val text = call!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assertContains(text, "Gradle")
@@ -76,9 +77,9 @@ class GradleExecutionToolTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `run_single_task_and_get_output -h works with real project`() = runTest {
-        val args = mapOf("taskPath" to JsonPrimitive("-h"))
-        val call = server.client.callTool(ToolNames.RUN_SINGLE_TASK_AND_GET_OUTPUT, args)
+    fun `gradlew -h works with real project`() = runTest {
+        val args = mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("-h"))))
+        val call = server.client.callTool(ToolNames.GRADLEW, args)
 
         val text = call!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assertContains(text, "USAGE: gradle")

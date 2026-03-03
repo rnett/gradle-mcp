@@ -3,6 +3,7 @@ package dev.rnett.gradle.mcp.tools
 import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.ProblemId
+import dev.rnett.gradle.mcp.gradle.build.Build
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.FailureId
 import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
@@ -12,51 +13,122 @@ import dev.rnett.gradle.mcp.gradle.build.TestOutcome
 import dev.rnett.gradle.mcp.gradle.build.failuresIfFailed
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.onTimeout
+import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import kotlin.io.path.absolutePathString
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
 
 class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponent("Lookup Tools", "Tools for looking up detailed information about past Gradle builds ran by this MCP server.") {
 
-    //TODO consider a single lookup tool with a "kind" argument
+    @Serializable
+    enum class LookupMode {
+        @Description("Return a summary list of items.")
+        summary,
 
-    companion object {
-        const val BUILD_ID_DESCRIPTION = "The build ID of the build to look up. Defaults to the most recent build ran by this MCP server."
+        @Description("Return detailed information about a specific item.")
+        details
     }
 
+    @Serializable
+    data class TestOptions(
+        @Description("In 'summary' mode, a prefix of the test name to filter by. In 'details' mode, the full name of the test.")
+        val name: String = "",
+        @Description("Filter results by outcome (summary mode only).")
+        val outcome: TestOutcome? = null,
+        @Description("The index of the test to show if multiple tests have the same name (details mode only).")
+        val testIndex: Int = 0
+    )
 
     @Serializable
-    data class LatestBuildArgs(
-        @Description("The maximum number of builds to return. Defaults to 5.")
-        val maxBuilds: Int = 5,
-        @Description("Whether to only show completed builds. Defaults to false.")
-        val onlyCompleted: Boolean = false
+    data class TaskOptions(
+        @Description("In 'summary' mode, a prefix of the task path to filter by. In 'details' mode, the full path of the task.")
+        val path: String = "",
+        @Description("Filter results by outcome (summary mode only).")
+        val outcome: TaskOutcome? = null
+    )
+
+    @Serializable
+    data class FailureOptions(
+        @Description("The failure ID to get details for (details mode only).")
+        val id: FailureId? = null
+    )
+
+    @Serializable
+    data class ProblemOptions(
+        @Description("The ProblemId of the problem to look up (details mode only).")
+        val id: ProblemId? = null
+    )
+
+    @Serializable
+    data class ConsoleOptions(
+        @Description("If true, return the last `limit` lines of the console output instead of the first.")
+        val tail: Boolean = false
+    )
+
+    @Serializable
+    data class InspectBuildArgs(
+        @Description("The build to inspect. If omitted, returns the build dashboard (active builds + recent history).")
+        val buildId: BuildId? = null,
+
+        @Description("The lookup mode: 'summary' (default) or 'details'.")
+        val mode: LookupMode = LookupMode.summary,
+
+        @Description("Max seconds to wait for an active build to reach a state or finish.")
+        val wait: Double? = null,
+        @Description("Regex pattern to wait for in the build logs.")
+        val waitFor: String? = null,
+        @Description("Task path to wait for completion.")
+        val waitForTask: String? = null,
+        @Description("If true, only look for waitFor or waitForTask matches emitted after this call. Only applies if wait and (waitFor or waitForTask) are also provided.")
+        val afterCall: Boolean = false,
+
+        @Description("The maximum number of results to return (applies to tasks, tests, console lines, and the build dashboard).")
+        val limit: Int? = null,
+        @Description("The offset to start from in the results (applies to tasks, tests, and console lines).")
+        val offset: Int = 0,
+
+        @Description("Options for task lookup.")
+        val tasks: TaskOptions? = null,
+        @Description("Options for test lookup.")
+        val tests: TestOptions? = null,
+        @Description("Options for failure lookup.")
+        val failures: FailureOptions? = null,
+        @Description("Options for problem lookup.")
+        val problems: ProblemOptions? = null,
+        @Description("Options for console output.")
+        val console: ConsoleOptions? = null
     )
 
     @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
-    val lookupLatestBuilds by tool<LatestBuildArgs, String>(
-        ToolNames.LOOKUP_LATEST_BUILDS,
-        "Gets the latest builds (both background and completed) ran by this MCP server."
-    ) {
-        val completed = buildResults.latestFinished(it.maxBuilds)
-        val active = if (it.onlyCompleted) emptyList() else buildResults.listRunningBuilds()
+    private fun getLatestBuildsOutput(args: InspectBuildArgs, onlyCompleted: Boolean): String {
+        val maxBuilds = args.limit ?: 5
+        val completed = buildResults.latestFinished(maxBuilds)
+        val active = if (onlyCompleted) emptyList() else buildResults.listRunningBuilds()
 
         val all = (completed.map { it to false } + active.map { it to true })
             .sortedByDescending { (b, _) -> b.id.timestamp }
-            .take(it.maxBuilds)
+            .take(maxBuilds)
 
         if (all.isEmpty()) {
-            return@tool "No builds found"
+            return "No builds found"
         }
 
-        buildString {
+        return buildString {
             appendLine("BuildId | Command line | Seconds ago | Status | Build failures | Test failures")
             all.forEach { (build, isActive) ->
                 val id = build.id
                 val commandLine = build.args.renderCommandLine()
-                val secondsAgo = id.timestamp.minus(Clock.System.now()).inWholeSeconds
+                val secondsAgo = Clock.System.now().minus(id.timestamp).inWholeSeconds
 
                 append(id).append(" | ")
                 append(commandLine).append(" | ")
@@ -77,69 +149,28 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         }
     }
 
-    @Serializable
-    data class TestSummaryArgs(
-        @Description("A prefix of the fully-qualified test name (class or method). Matching is case-sensitive and checks startsWith on the full test name. Defaults to empty (aka all tests).")
-        val testNamePrefix: String = "",
-        @Description("The offset to start from in the results.")
-        val offset: Int = 0,
-        @Description("The maximum number of results to return.")
-        val limit: Int? = 20,
-        @Description("Filter results by outcome.")
-        val outcome: TestOutcome? = null,
-    )
-
-    @Serializable
-    data class TestDetailArgs(
-        @Description("The full name of the test to show details for. If multiple tests have this name, use `testIndex` to select one.")
-        val testName: String,
-        @Description("The index of the test to show if multiple tests have the same name.")
-        val testIndex: Int = 0
-    )
-
-    @Serializable
-    data class TestsLookupArgs(
-        @Description(BUILD_ID_DESCRIPTION)
-        val buildId: BuildId? = null,
-        @Description("Arguments for test summary mode. Only one of `summary` or `details` may be specified.")
-        val summary: TestSummaryArgs? = null,
-        @Description("Arguments for test detail mode. Only one of `summary` or `details` may be specified.")
-        val details: TestDetailArgs? = null
-    )
-
-
-    val lookupBuildTests by tool<TestsLookupArgs, String>(
-        name = ToolNames.LOOKUP_BUILD_TESTS,
-        description = """For a given build, provides either a summary of test executions or detailed information for a specific test. 
-            |If `details` is provided, detailed execution info (duration, failure details, metadata, attached file paths, and console output) for that test is returned. If files are attached, be sure to look at them yourself.
-            |If `summary` is provided (or neither), returns a list of tests matching the provided filters. 
-            |Only one of `summary` or `details` may be specified. 
-            |Works for in-progress builds.
-            |""".trimMargin(),
-    ) {
-        require(it.summary == null || it.details == null) { "Only one of `summary` or `details` may be specified." }
-
-        val build = buildResults.require(it.buildId)
-
-        if (it.details != null) {
-            val tests = build.testResults.all.filter { t -> t.testName == it.details.testName }.toList()
+    private fun getTestsOutput(build: Build, args: InspectBuildArgs): String {
+        val testOptions = args.tests ?: TestOptions()
+        if (args.mode == LookupMode.details) {
+            require(testOptions.name.isNotEmpty()) { "Test name is required for details mode" }
+            val tests = build.testResults.all.filter { t -> t.testName == testOptions.name }.toList()
 
             if (tests.isEmpty()) {
                 val isRunning = build is RunningBuild || build.isRunning
                 if (isRunning) {
-                    return@tool "Test not found. The build is still running, so it may not have been executed yet."
+                    return "Test not found. The build is still running, so it may not have been executed yet."
                 } else {
                     error("Test not found")
                 }
             }
 
-            if (tests.size > 1 && it.details.testIndex >= tests.size) {
-                return@tool "${tests.size} test executions with this name found. Pass a valid `testIndex` (0 to ${tests.size - 1}) to select one."
+            if (tests.size > 1 && testOptions.testIndex >= tests.size) {
+                return "${tests.size} test executions with this name found. Pass a valid `testIndex` (0 to ${tests.size - 1}) to select one."
             }
 
-            val test = if (tests.size > 1) tests[it.details.testIndex] else tests.single()
+            val test = if (tests.size > 1) tests[testOptions.testIndex] else tests.single()
 
-            return@tool buildString {
+            return buildString {
                 append(test.testName).append(" - ").appendLine(test.status)
                 appendLine("Duration: ${test.executionDuration}")
 
@@ -160,7 +191,6 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                 if (test.attachments.isNotEmpty()) {
                     appendLine("Attached files:")
                     test.attachments.forEach { attachment ->
-                        //TODO consider adding images to response or using resources. Depends on how good the agent is at using the file paths
                         appendLine("  ${attachment.path.absolutePathString()}")
                     }
                 }
@@ -170,21 +200,20 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             }
         }
 
-        val summary = it.summary ?: TestSummaryArgs()
-
-        require(summary.offset >= 0) { "`offset` must be non-negative" }
-        require(summary.limit == null || summary.limit > 0) { "`limit` must be null or > 0" }
+        require(args.offset >= 0) { "`offset` must be non-negative" }
+        val limit = args.limit ?: 20
+        require(limit > 0) { "`limit` must be > 0" }
 
         val matched = build.testResults.all
-            .filter { tr -> tr.testName.startsWith(summary.testNamePrefix) }
-            .filter { tr -> summary.outcome == null || tr.status == summary.outcome }
+            .filter { tr -> tr.testName.startsWith(testOptions.name) }
+            .filter { tr -> testOptions.outcome == null || tr.status == testOptions.outcome }
 
         val results = matched
-            .drop(summary.offset)
-            .take(summary.limit ?: Int.MAX_VALUE)
+            .drop(args.offset)
+            .take(limit)
             .toList()
 
-        buildString {
+        return buildString {
             appendLine("Total matching results: ${matched.count()}")
             appendLine("Test | Outcome | Metadata")
             results.forEach { tr ->
@@ -199,47 +228,14 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         }
     }
 
-    @Serializable
-    data class TaskSummaryArgs(
-        @Description("A prefix of the task path (e.g. ':app:'). Matching is case-sensitive and checks startsWith on the task path. Defaults to empty (aka all tasks).")
-        val taskPathPrefix: String = "",
-        @Description("The offset to start from in the results.")
-        val offset: Int = 0,
-        @Description("The maximum number of results to return.")
-        val limit: Int? = 50,
-        @Description("Filter results by outcome.")
-        val outcome: TaskOutcome? = null,
-    )
+    private fun getTasksOutput(result: Build, args: InspectBuildArgs): String {
+        val taskOptions = args.tasks ?: TaskOptions()
+        if (args.mode == LookupMode.details) {
+            require(taskOptions.path.isNotEmpty()) { "Task path is required for details mode" }
+            val taskResult = result.taskResults[taskOptions.path]
+                ?: throw IllegalArgumentException("Task not found in build ${result.id}: ${taskOptions.path}")
 
-    @Serializable
-    data class TaskDetailArgs(
-        @Description("The full path of the task to show details for.")
-        val taskPath: String,
-    )
-
-    @Serializable
-    data class TaskLookupArgs(
-        @Description(BUILD_ID_DESCRIPTION)
-        val buildId: BuildId? = null,
-        @Description("Arguments for task summary mode. Only one of `summary` or `details` may be specified.")
-        val summary: TaskSummaryArgs? = null,
-        @Description("Arguments for task detail mode. Only one of `summary` or `details` may be specified.")
-        val details: TaskDetailArgs? = null
-    )
-
-    val lookupBuildTasks by tool<TaskLookupArgs, String>(
-        ToolNames.LOOKUP_BUILD_TASKS,
-        "For a given build, provides either a summary of task executions or detailed information for a specific task. If `details` is provided, detailed execution info (duration, outcome, and console output) for that task is returned. If `summary` is provided (or neither), returns a list of tasks matching the provided filters. Only one of `summary` or `details` may be specified. Works for in-progress builds."
-    ) {
-        val result = buildResults.require(it.buildId)
-        if (it.summary != null && it.details != null)
-            throw IllegalArgumentException("Only one of summary or details may be specified")
-
-        if (it.details != null) {
-            val taskResult = result.taskResults[it.details.taskPath]
-                ?: throw IllegalArgumentException("Task not found in build ${result.id}: ${it.details.taskPath}")
-
-            buildString {
+            return buildString {
                 appendLine("Task: ${taskResult.path}")
                 appendLine("Outcome: ${taskResult.outcome}")
                 appendLine("Duration: ${taskResult.duration}")
@@ -263,91 +259,49 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                 }
             }
         } else {
-            val summary = it.summary ?: TaskSummaryArgs()
             val tasks = result.taskResults.values
                 .asSequence()
-                .filter { it.path.startsWith(summary.taskPathPrefix) }
-                .filter { summary.outcome == null || it.outcome == summary.outcome }
+                .filter { it.path.startsWith(taskOptions.path) }
+                .filter { taskOptions.outcome == null || it.outcome == taskOptions.outcome }
                 .sortedBy { it.path }
                 .toList()
 
-            buildString {
+            val limit = args.limit ?: 50
+            return buildString {
                 if (result.taskOutputCapturingFailed) {
                     appendLine("WARNING: Task output capturing failed for this build. Task outputs may be missing or incomplete.")
                     appendLine()
                 }
                 appendLine("Task Path | Outcome | Duration")
-                tasks.asSequence().drop(summary.offset).let {
-                    if (summary.limit != null) it.take(summary.limit) else it
-                }.forEach { task ->
+                tasks.asSequence().drop(args.offset).take(limit).forEach { task ->
                     append(task.path).append(" | ")
                     append(task.outcome).append(" | ")
                     appendLine(task.duration)
                 }
 
-                if (tasks.size > (summary.offset + (summary.limit ?: Int.MAX_VALUE))) {
+                if (tasks.size > (args.offset + limit)) {
                     appendLine()
-                    appendLine("... and ${tasks.size - (summary.offset + (summary.limit ?: 0))} more tasks")
+                    appendLine("... and ${tasks.size - (args.offset + limit)} more tasks")
                 }
             }
         }
     }
 
-    @Serializable
-    data class BuildIdArgs(
-        @Description(BUILD_ID_DESCRIPTION)
-        val buildId: BuildId? = null,
-    )
-
-    val lookupBuild by tool<BuildIdArgs, String>(
-        name = ToolNames.LOOKUP_BUILD,
-        description = "Takes a build ID; returns a summary of that build. Works for in-progress builds.",
-    ) {
-        val build = buildResults.require(it.buildId)
-        build.toOutputString(true)
-    }
-
-
-    @Serializable
-    class FailureSummaryArgs
-
-    @Serializable
-    data class FailureDetailArgs(
-        @Description("The failure ID to get details for.")
-        val failureId: FailureId
-    )
-
-    @Serializable
-    data class FailureLookupArgs(
-        @Description(BUILD_ID_DESCRIPTION)
-        val buildId: BuildId? = null,
-        @Description("Arguments for failure summary mode. Only one of `summary` or `details` may be specified.")
-        val summary: FailureSummaryArgs? = null,
-        @Description("Arguments for failure detail mode. Only one of `summary` or `details` may be specified.")
-        val details: FailureDetailArgs? = null
-    )
-
-
-    val lookupBuildFailures by tool<FailureLookupArgs, String>(
-        name = ToolNames.LOOKUP_BUILD_FAILURES,
-        description = "Provides a summary of build failures (including test failures) or details for a specific failure. If `details` is provided, detailed information (including causes and stack traces) for that failure is returned. If `summary` is provided (or neither), lists all build failures. Only one of `summary` or `details` may be specified. Works for in-progress builds, but may only show test failures.",
-    ) {
-        require(it.summary == null || it.details == null) { "Only one of `summary` or `details` may be specified." }
-
-        val build = buildResults.require(it.buildId)
-
+    private fun getFailuresOutput(build: Build, args: InspectBuildArgs): String {
+        val failureOptions = args.failures ?: FailureOptions()
         val allFailures = if (build is FinishedBuild) build.allFailures else build.allTestFailures
 
-        if (it.details != null) {
-            val failure = allFailures[it.details.failureId]
-                ?: error("No failure with ID ${it.details.failureId} found for build ${build.id}")
+        if (args.mode == LookupMode.details) {
+            val failureId = failureOptions.id ?: error("Failure ID is required for details mode")
+            val failure = allFailures[failureId]
+                ?: error("No failure with ID $failureId found for build ${build.id}")
 
-            return@tool buildString {
+            return buildString {
                 failure.writeFailureTree(this)
             }
         }
 
-        buildString {
+        return buildString {
             appendLine("Id | Message")
             allFailures.forEach { (id, failure) ->
                 appendLine("${id.id} : ${failure.message}")
@@ -358,37 +312,13 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         }
     }
 
-    @Serializable
-    class ProblemSummaryArgs
-
-    @Serializable
-    data class ProblemDetailArgs(
-        @Description("The ProblemId of the problem to look up.")
-        val problemId: ProblemId
-    )
-
-    @Serializable
-    data class ProblemLookupArgs(
-        @Description(BUILD_ID_DESCRIPTION)
-        val buildId: BuildId? = null,
-        @Description("Arguments for problem summary mode. Only one of `summary` or `details` may be specified.")
-        val summary: ProblemSummaryArgs? = null,
-        @Description("Arguments for problem detail mode. Only one of `summary` or `details` may be specified.")
-        val details: ProblemDetailArgs? = null,
-    )
-
-    val lookupBuildProblems by tool<ProblemLookupArgs, String>(
-        name = ToolNames.LOOKUP_BUILD_PROBLEMS,
-        description = "Provides a summary of all problems reported during a build (errors, warnings, etc.) or details for a specific problem. If `details` is provided, detailed information (locations, details, and potential solutions) for that problem is returned. If `summary` is provided (or neither), returns a summary of all problems. Only one of `summary` or `details` may be specified. Works for in-progress builds.",
-    ) {
-        require(it.summary == null || it.details == null) { "Only one of `summary` or `details` may be specified." }
-
-        val build = buildResults.require(it.buildId)
-
-        if (it.details != null) {
-            val problem = build.problems.firstOrNull { p -> p.definition.id == it.details.problemId }
-                ?: error("No problem with id ${it.details.problemId} found for build ${it.buildId}")
-            return@tool buildString {
+    private fun getProblemsOutput(build: Build, args: InspectBuildArgs): String {
+        val problemOptions = args.problems ?: ProblemOptions()
+        if (args.mode == LookupMode.details) {
+            val problemId = problemOptions.id ?: error("Problem ID is required for details mode")
+            val problem = build.problems.firstOrNull { p -> p.definition.id == problemId }
+                ?: error("No problem with id $problemId found for build ${build.id}")
+            return buildString {
                 append(problem.definition.id)
                 if (problem.definition.displayName != null) {
                     appendLine(": ${problem.definition.displayName}")
@@ -425,7 +355,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             }
         }
 
-        buildString {
+        return buildString {
             appendLine("Severity | Id | Display Name | Occurrences")
             build.problems.sortedBy { it.definition.severity }.forEach {
                 append(it.definition.severity)
@@ -439,48 +369,169 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         }
     }
 
-    @Serializable
-    data class ConsoleOutputArgs(
-        @Description(BUILD_ID_DESCRIPTION)
-        val buildId: BuildId? = null,
-        val offsetLines: Int,
-        val limitLines: Int? = 100,
-        val tail: Boolean = false
-    )
+    private fun getConsoleOutput(build: Build, args: InspectBuildArgs): String {
+        val consoleOptions = args.console ?: ConsoleOptions()
+        require(args.offset >= 0) { "`offset` must be non-negative" }
+        val limit = args.limit ?: 100
+        require(limit > 0) { "`limit` must be > 0" }
 
-    val lookupBuildConsoleOutput by tool<ConsoleOutputArgs, String>(
-        ToolNames.LOOKUP_BUILD_CONSOLE_OUTPUT,
-        "Gets up to `limitLines` (default 100, null means no limit) of the console output for a given build, starting at a given offset `offsetLines` (default 0). Can read from the tail instead of the head. Repeatedly call this tool using the `nextOffset` in the response to get all console output. Works for in-progress builds."
-    ) {
-        require(it.offsetLines >= 0) { "`offsetLines` must be non-negative" }
-        require(it.limitLines == null || it.limitLines > 0) { "`limitLines` must be null or > 0" }
-
-        val build = buildResults.require(it.buildId)
         val start: Int
         val end: Int
         val lines: List<String>
         val nextOffset: Int?
         when {
-            it.tail -> {
-                end = build.consoleOutputLines.size - it.offsetLines
-                start = if (it.limitLines == null) 0 else end - it.limitLines
+            consoleOptions.tail -> {
+                end = build.consoleOutputLines.size - args.offset
+                start = end - limit
                 nextOffset = start.takeIf { it > 0 }
                 lines = build.consoleOutputLines.subList(start.coerceAtLeast(0), end.coerceIn(0, build.consoleOutputLines.size))
             }
 
             else -> {
-                end = (it.offsetLines + (it.limitLines ?: build.consoleOutputLines.size))
-                start = it.offsetLines
+                end = (args.offset + limit)
+                start = args.offset
                 nextOffset = end.takeIf { it < build.consoleOutputLines.size }
-                lines = build.consoleOutputLines.subList(it.offsetLines, end.coerceAtMost(build.consoleOutputLines.size))
+                lines = build.consoleOutputLines.subList(args.offset, end.coerceAtMost(build.consoleOutputLines.size))
             }
         }
 
-        buildString {
+        return buildString {
             appendLine("Lines $start to $end of ${build.consoleOutputLines.size} lines, ${if (nextOffset != null) "next offset: $nextOffset" else "reached end of stream"}")
             appendLine()
             append(lines.joinToString("\n"))
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val inspectBuild by tool<InspectBuildArgs, String>(
+        ToolNames.INSPECT_BUILD,
+        """
+            |The central tool for retrieving build information, monitoring progress, and diagnosing failures. It acts as a "Dashboard" and "Deep Dive" tool for all builds (active and historical).
+            |
+            |### Usage Overview
+            |- **Dashboard**: Call without `buildId` to see active and recent builds.
+            |- **Monitoring**: Use `wait`, `waitFor`, or `waitForTask` with a `buildId` to monitor an active build.
+            |- **Deep Dive**: Specify a `buildId` and exactly one of the detail sections (`tasks`, `tests`, `failures`, `problems`, or `console`).
+            |- **Modes**: Use `mode="summary"` (default) for lists and `mode="details"` for deep dives into specific items (requires `name`, `path`, or `id` in the section options).
+            |- **Pagination**: Use top-level `limit` and `offset` for lists and console output.
+            |
+            |### Section Options
+            |Only one of the following may be specified per call:
+            |- `tasks`: List tasks or get task output.
+            |- `tests`: List tests or get test details/stack traces.
+            |- `failures`: List build failures or get failure trees.
+            |- `problems`: List build problems or get problem details.
+            |- `console`: Read console logs with pagination.
+            |
+            |If no section is specified, the build summary is returned.
+            |
+            |For detailed diagnostic workflows, refer to the `gradle-build` and `gradle-test` skills.
+        """.trimMargin()
+    ) {
+        if (it.buildId == null) {
+            return@tool getLatestBuildsOutput(it, false)
+        }
+
+        var build = buildResults.getBuild(it.buildId)
+            ?: throw IllegalArgumentException("Unknown or expired build ID: ${it.buildId}")
+
+        val startLines = if (it.afterCall && build is RunningBuild) build.consoleOutputLines.size else 0
+
+        if (it.wait != null && build is RunningBuild) {
+            val waitForRegex = it.waitFor?.toRegex()
+            val waitForTask = it.waitForTask
+
+            withTimeoutOrNull(it.wait.seconds) {
+                coroutineScope {
+                    select {
+                        onTimeout(it.wait.seconds) {}
+                        if (waitForRegex != null) {
+                            if (!it.afterCall && waitForRegex.containsMatchIn(build.logBuffer)) {
+                                launch { }.onJoin {}
+                            } else {
+                                async {
+                                    build.logLines.firstOrNull { line: String ->
+                                        waitForRegex.containsMatchIn(line)
+                                    }
+                                }.onAwait { }
+                            }
+                        }
+                        if (waitForTask != null) {
+                            if (!it.afterCall && build.completedTaskPaths.contains(waitForTask)) {
+                                launch { }.onJoin {}
+                            } else {
+                                async {
+                                    build.completedTasks.firstOrNull { taskPath: String ->
+                                        taskPath == waitForTask
+                                    }
+                                }.onAwait { }
+                            }
+                        }
+                        async { build.awaitFinished() }.onAwait { }
+                    }
+                }
+            }
+            // re-get build to pick up any changes (e.g. it might have finished)
+            build = buildResults.getBuild(it.buildId)!!
+        }
+
+        val setOptions = listOfNotNull(it.tasks, it.tests, it.failures, it.problems, it.console)
+        require(setOptions.size <= 1) { "Only one of tasks, tests, failures, problems, or console may be specified." }
+
+        buildString {
+            if (build is RunningBuild) {
+                appendLine("--- BUILD IN PROGRESS ---")
+            } else {
+                appendLine("--- BUILD FINISHED ---")
+            }
+
+            val waitForRegex = it.waitFor?.toRegex()
+            if (waitForRegex != null) {
+                val matchingLines = build.consoleOutputLines.drop(startLines).filter { line -> line.isNotBlank() && waitForRegex.containsMatchIn(line) }
+                if (matchingLines.isNotEmpty()) {
+                    appendLine("Matching lines for '${it.waitFor}':")
+                    matchingLines.forEach { appendLine("    $it") }
+                    appendLine()
+                } else if (it.wait != null) {
+                    appendLine("No matched lines - build completed or wait timed out")
+                    appendLine()
+                }
+            }
+
+            if (setOptions.isEmpty()) {
+                if (it.mode == LookupMode.details) {
+                    appendLine("WARNING: Details mode requires a section (tasks, tests, etc.) to be specified. Showing build summary instead.")
+                }
+                appendLine("--- Summary ---")
+                appendLine(build.toOutputString(true))
+                appendLine()
+            } else {
+                if (it.tasks != null) {
+                    appendLine("--- Tasks ---")
+                    appendLine(getTasksOutput(build, it))
+                    appendLine()
+                }
+                if (it.failures != null) {
+                    appendLine("--- Failures ---")
+                    appendLine(getFailuresOutput(build, it))
+                    appendLine()
+                }
+                if (it.problems != null) {
+                    appendLine("--- Problems ---")
+                    appendLine(getProblemsOutput(build, it))
+                    appendLine()
+                }
+                if (it.tests != null) {
+                    appendLine("--- Tests ---")
+                    appendLine(getTestsOutput(build, it))
+                    appendLine()
+                }
+                if (it.console != null) {
+                    appendLine("--- Console Output ---")
+                    appendLine(getConsoleOutput(build, it))
+                    appendLine()
+                }
+            }
+        }
+    }
 }

@@ -14,7 +14,7 @@ class McpServerBasicTest : BaseMcpServerTest() {
     fun `client can initialize and list tools`() = runTest {
         val tools = server.client.listTools()
         assert(tools.tools.isNotEmpty())
-        assert(tools.tools.any { it.name == ToolNames.RUN_TESTS_WITH_GRADLE })
+        assert(tools.tools.any { it.name == ToolNames.GRADLEW })
     }
 
 }

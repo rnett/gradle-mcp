@@ -236,6 +236,20 @@ class GradleInvocationArgumentsTest {
     }
 
     @Test
+    fun `renderCommandLine only prints additionalEnvVars`() {
+        val args = GradleInvocationArguments(
+            additionalEnvVars = mapOf("MY_VAR" to "my_value"),
+            additionalArguments = listOf("tasks"),
+            envSource = EnvSource.INHERIT
+        )
+        val rendered = args.renderCommandLine()
+        assert(rendered.contains("MY_VAR=my_value"))
+        // It shouldn't contain any other inherited env vars (we can't easily know what's there, but we know it should start with MY_VAR)
+        assert(rendered.startsWith("MY_VAR=my_value"))
+        assert(rendered.endsWith("gradle tasks"))
+    }
+
+    @Test
     fun `isHelp detects help flags`() {
         assert(GradleInvocationArguments(additionalArguments = listOf("--help")).isHelp)
         assert(GradleInvocationArguments(additionalArguments = listOf("-h")).isHelp)
