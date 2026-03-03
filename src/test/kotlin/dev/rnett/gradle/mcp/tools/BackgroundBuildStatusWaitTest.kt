@@ -18,6 +18,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import org.gradle.tooling.CancellationTokenSource
@@ -116,6 +117,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { consoleOutput } answers { logBuffer.toString() }
             every { consoleOutputLines } answers { logBuffer.toString().lines() }
         }
+        coEvery { runningBuild.awaitFinished() } coAnswers { suspendCancellableCoroutine { } }
 
         buildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
@@ -212,6 +214,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { consoleOutput } returns "Started\n"
             every { consoleOutputLines } returns listOf("Started")
         }
+        coEvery { runningBuild.awaitFinished() } coAnswers { suspendCancellableCoroutine { } }
 
         buildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
