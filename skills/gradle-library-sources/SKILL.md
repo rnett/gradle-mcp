@@ -15,10 +15,12 @@ Instructions and examples for searching and reading the source code of external 
 ## Directives
 
 - **Identify the scope**: You can target dependencies from the entire project, a specific project path (e.g., `:app`), a configuration (e.g., `:app:debugCompileClasspath`), or a source set (e.g., `:app:main`).
-- **Search for symbols**: Use `search_dependency_sources` with the `query` argument to find specific classes, methods, or symbols. By default, this uses regex-based symbol search.
-- **Full-text search**: Use `search_dependency_sources` with `searchType: "FULL_TEXT"` and a `query` to perform a Lucene-based full-text search.
-- **Read specific files**: Use `read_dependency_sources` with the `path` argument to read a specific source file.
-- **List files**: Use `read_dependency_sources` without a `path` to list the directory structure of the sources.
+- **Use `read_dependency_sources` for exploration**: Use the `read_dependency_sources` tool to list the directory structure of library sources or to read specific source files once identified.
+- **Use `search_dependency_sources` for discovery**: Use the `search_dependency_sources` tool to find specific classes, methods, or text within library dependencies.
+- **Search for symbols**: Use the `search_dependency_sources` tool with the `query` argument to find specific classes, methods, or symbols. By default, this uses regex-based symbol search.
+- **Full-text search**: Use the `search_dependency_sources` tool with `searchType: "FULL_TEXT"` and a `query` to perform a Lucene-based full-text search.
+- **Read specific files**: Use the `read_dependency_sources` tool with the `path` argument to read a specific source file.
+- **List files**: Use the `read_dependency_sources` tool without a `path` to list the directory structure of the sources.
 - **Force download**: Set `forceDownload: true` if you suspect the cached sources are outdated or incomplete.
 - **Progressive Disclosure**: For details on how indexing and search work, refer to `references/source-indexing.md`.
 

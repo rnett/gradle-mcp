@@ -6,7 +6,15 @@ Tools for querying and reading Gradle documentation.
 
 ## gradle_docs
 
-Search and read the Gradle User Guide, release notes, and version documentation. `releaseNotes` takes precedence over `path`, which takes precedence over `query` - only one will be used.
+Search and read the Gradle User Guide, release notes, and version documentation.
+
+Use this tool for:
+- Searching the Gradle documentation using the `query` argument.
+- Reading a specific documentation page using its `path`.
+- Fetching the release notes for a specific Gradle version using `releaseNotes: true`.
+
+Note: `releaseNotes` takes precedence over `path`, which takes precedence over `query`.
+For detailed workflows on accessing Gradle help, refer to the `gradle-docs` skill.
 
 <details>
 

@@ -14,6 +14,8 @@ Use this tool for:
 - Filtering dependencies by source set or configuration.
 - Identifying repository URLs used for dependency resolution.
 
+To search for new libraries or see all versions of a library on Maven Central, use the `search_maven_central` tool.
+For built-in Gradle dependency tasks, use the `gradlew` tool with `captureTaskOutput`.
 For detailed workflows on dependency management, refer to the `gradle-dependencies` skill.
 
 <details>

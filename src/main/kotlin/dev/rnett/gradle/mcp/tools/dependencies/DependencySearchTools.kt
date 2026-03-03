@@ -27,7 +27,12 @@ class DependencySearchTools(
 
     val searchMavenCentral by tool<SearchMavenArtifactsArgs, String>(
         ToolNames.SEARCH_MAVEN_CENTRAL,
-        "Find libraries or view version history on Maven Central."
+        """
+            |Find libraries or view version history on Maven Central.
+            |
+            |Use this tool to discover new dependencies or to find available versions of a library.
+            |Once you have found a dependency, you can check if it is already used in your project using the `inspect_dependencies` tool.
+        """.trimMargin()
     ) { args ->
         if (args.versions) {
             val parts = args.query.split(":")

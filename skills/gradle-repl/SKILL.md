@@ -14,13 +14,13 @@ Instructions and examples for using the project's REPL to run Kotlin code with t
 
 ## Directives
 
-- **Use the correct source set**: When starting a REPL session, ensure you select the appropriate `projectPath` and `sourceSet`.
+- **Use the correct source set**: When starting a REPL session, ensure you select the appropriate `projectPath` and `sourceSet` in the `project_repl` tool.
     - `projectPath`: The Gradle project path (e.g., `:app`, `:lib`). Use `:` for the root project.
     - `sourceSet`: Usually `main` for application code or `test` for test code.
-- **Restart for code changes**: The REPL uses a snapshot of the classpath. If you change project code, you must `stop` and `start` the REPL again to pick up the changes.
+- **Restart for code changes**: The REPL uses a snapshot of the classpath. If you change project code, you must call `project_repl` with `command: "stop"` and then `command: "start"` again to pick up the changes.
 - **Use the responder**: Use `responder.render(value)` or specialized methods (`markdown`, `image`, `html`) to return rich content to the MCP output. The last expression in a `run` command is also automatically rendered.
 - **Imports are required**: Most classes from your project or dependencies must be imported unless they are in the default Kotlin/Java packages.
-- **Investigate build failures**: If the REPL fails to start, it's often due to a configuration or build error. See the `gradle-build` skill for details on how to investigate these failures using `lookup_build_failures`.
+- **Investigate build failures**: If the REPL fails to start, it's often due to a configuration or build error. See the `gradle-build` skill for details on how to investigate these failures using the `inspect_build` tool.
 
 ## When to Use
 

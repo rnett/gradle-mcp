@@ -14,6 +14,7 @@ Use this tool for:
 - Stopping active background builds using their `BuildId`.
 - Getting clean output from a specific task using `captureTaskOutput`.
 
+After running a build, use the `inspect_build` tool with the returned `BuildId` to monitor progress or investigate failures.
 For detailed workflows on background monitoring and failure analysis, refer to the `gradle-build` skill.
 
 <details>

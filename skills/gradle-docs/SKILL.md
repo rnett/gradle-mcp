@@ -14,11 +14,11 @@ Instructions and examples for searching and reading the Gradle User Guide, relea
 
 ## Directives
 
-- **Use `gradle_docs` for all queries**: This is the primary tool for accessing Gradle help and documentation.
-- **Search first**: Use the `query` argument to find relevant documentation pages.
-- **Read specific pages**: Use the `path` argument to read a specific documentation page as markdown.
-- **Check release notes**: Set `releaseNotes: true` to fetch the release notes for a specific Gradle version.
-- **Target specific versions**: Use the `version` argument to target documentation for a specific Gradle version. Defaults to the project's version if detectable.
+- **Use `gradle_docs` for all queries**: Always use the `gradle_docs` tool as the primary method for accessing Gradle help and documentation.
+- **Search first**: Use the `query` argument in `gradle_docs` to find relevant documentation pages.
+- **Read specific pages**: Use the `path` argument in `gradle_docs` to read a specific documentation page as markdown.
+- **Check release notes**: Set `releaseNotes: true` in `gradle_docs` to fetch the release notes for a specific Gradle version.
+- **Target specific versions**: Use the `version` argument in `gradle_docs` to target documentation for a specific Gradle version. Defaults to the project's version if detectable.
 
 ## When to Use
 

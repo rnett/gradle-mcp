@@ -8,6 +8,9 @@ Tools for querying maven repositories for dependency information.
 
 Find libraries or view version history on Maven Central.
 
+Use this tool to discover new dependencies or to find available versions of a library.
+Once you have found a dependency, you can check if it is already used in your project using the `inspect_dependencies` tool.
+
 <details>
 
 <summary>Input schema</summary>

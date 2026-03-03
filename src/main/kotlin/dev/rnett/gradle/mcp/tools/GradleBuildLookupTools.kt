@@ -415,6 +415,8 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             |- **Modes**: Use `mode="summary"` (default) for lists and `mode="details"` for deep dives into specific items (requires `name`, `path`, or `id` in the section options).
             |- **Pagination**: Use top-level `limit` and `offset` for lists and console output.
             |
+            |To start a new build, use the `gradlew` tool.
+            |
             |### Section Options
             |Only one of the following may be specified per call:
             |- `tasks`: List tasks or get task output.

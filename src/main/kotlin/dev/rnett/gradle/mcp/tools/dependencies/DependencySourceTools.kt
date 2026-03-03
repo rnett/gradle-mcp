@@ -48,7 +48,12 @@ class DependencySourceTools(
 
     val readDependencySources by tool<ReadDependencySourcesArgs, String>(
         ToolNames.READ_DEPENDENCY_SOURCES,
-        "Read specific source files or list directories from the combined source code of all external library dependencies within a given scope (project, configuration, or source set)."
+        """
+            |Read specific source files or list directories from the combined source code of all external library dependencies within a given scope (project, configuration, or source set).
+            |
+            |Use this tool to explore the implementation of a library once you have identified the file path.
+            |To find specific classes or methods across all dependencies, use the `search_dependency_sources` tool.
+        """.trimMargin()
     ) { args ->
         val root = with(server) { args.projectRoot.resolveRoot() }
         val sources = when {
@@ -102,7 +107,12 @@ class DependencySourceTools(
 
     val searchDependencySources by tool<SearchDependencySourcesArgs, String>(
         ToolNames.SEARCH_DEPENDENCY_SOURCES,
-        "Search for symbols or text within the combined source code of all external library dependencies within a given scope (project, configuration, or source set)."
+        """
+            |Search for symbols or text within the combined source code of all external library dependencies within a given scope (project, configuration, or source set).
+            |
+            |Use this tool to find specific classes, methods, or text in library source code.
+            |Once you have found the file path, you can read the file using the `read_dependency_sources` tool.
+        """.trimMargin()
     ) { args ->
         val root = with(server) { args.projectRoot.resolveRoot() }
         val sources = when {

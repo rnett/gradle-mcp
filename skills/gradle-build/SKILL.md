@@ -16,11 +16,11 @@ Instructions and examples for running Gradle commands, managing long-running job
 
 - **Prefer MCP tools over shell**: Always use the provided Gradle MCP tools instead of executing `./gradlew` via a shell or command line.
 - **Identify project root**: If not specified, the project root is usually the current directory or the directory containing `settings.gradle(.kts)` or `gradlew` scripts.
-- **Use `gradlew` for all runs**: Use this tool for both foreground and background builds.
-- **Use `captureTaskOutput` for clean output**: When running tasks like `dependencies` or `help`, set `captureTaskOutput` to the task path to get clean output.
+- **Use `gradlew` for all runs**: Use the `gradlew` tool for both foreground and background builds.
+- **Use `captureTaskOutput` for clean output**: When running tasks like `dependencies` or `help`, set `captureTaskOutput` in `gradlew` to the task path to get clean output.
 - **Background for long tasks**: Set `background: true` in `gradlew` for tasks that take a long time or are persistent (e.g. `bootRun`, `continuous` builds).
-- **Monitor with `inspect_build`**: Use this tool to check the status of background builds or to get detailed information about any build.
-- **Check the dashboard**: Call `inspect_build()` without arguments to see the build dashboard (active and recent builds).
+- **Monitor with `inspect_build`**: Use the `inspect_build` tool to check the status of background builds or to get detailed information about any build.
+- **Check the dashboard**: Call the `inspect_build` tool without arguments to see the build dashboard (active and recent builds).
 - **Progressive Disclosure**: For complex failure analysis or background monitoring patterns, refer to the documents in `references/`.
 
 ## When to Use

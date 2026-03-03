@@ -16,8 +16,9 @@ Instructions and examples for querying project dependencies, checking for availa
 
 - **Identify project path**: Use the Gradle project path (e.g., `:app`) when querying dependencies. Defaults to the root project.
 - **Use `inspect_dependencies` for local info**: This is the primary tool for viewing the dependency graph and checking for updates within your project.
-- **Filter for updates**: Use `updatesOnly: true` in `inspect_dependencies` to get a concise list of available library updates.
-- **Use `search_maven_central` for discovery**: Use this tool to find new libraries or check the version history of an artifact on Maven Central.
+- **Filter for updates**: Use `updatesOnly: true` in the `inspect_dependencies` tool to get a concise list of available library updates.
+- **Use `search_maven_central` for discovery**: Use the `search_maven_central` tool to find new libraries or check the version history of an artifact on Maven Central.
+- **Use `gradlew` for introspection**: For built-in Gradle dependency tasks like `dependencies` or `dependencyInsight`, use the `gradlew` tool with `captureTaskOutput`. See the `gradle-introspection` skill for details.
 - **Check versions**: When using `search_maven_central`, set `versions: true` to see all available versions for a specific `group:artifact`.
 
 ## When to Use

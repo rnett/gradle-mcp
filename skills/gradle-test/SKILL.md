@@ -14,11 +14,11 @@ Instructions and examples for running tests with Gradle and analyzing test failu
 
 ## Directives
 
-- **Use `gradlew`**: Run tests by passing the appropriate command line arguments (e.g., `["test"]`).
-- **Use test filters**: Always filter tests using the `--tests` flag in `commandLine` to save time and resources (e.g., `["test", "--tests", "MyTestClass*"]`).
-- **Identify task and project**: Ensure you specify the correct task path (e.g., `[":app:test"]`).
-- **Check for build failures**: If a test run fails with a general error, use `inspect_build` with `failures: {}` and `problems: {}` to check if it's a compilation or configuration error.
-- **Investigate specifically**: Use `inspect_build` with `tests: {}` to get structured output and stack traces for failed tests. For detailed investigation workflows, see [Test Diagnostics](references/test-diagnostics.md).
+- **Use `gradlew`**: Run tests using the `gradlew` tool by passing the appropriate command line arguments (e.g., `["test"]`).
+- **Use test filters**: Always filter tests using the `--tests` flag in the `commandLine` of `gradlew` to save time and resources (e.g., `["test", "--tests", "MyTestClass*"]`).
+- **Identify task and project**: Ensure you specify the correct task path in `gradlew` (e.g., `[":app:test"]`).
+- **Check for build failures**: If a test run fails with a general error, use the `inspect_build` tool with `failures: {}` and `problems: {}` to check if it's a compilation or configuration error.
+- **Investigate specifically**: Use the `inspect_build` tool with `tests: {}` to get structured output and stack traces for failed tests. For detailed investigation workflows, see [Test Diagnostics](references/test-diagnostics.md).
 
 ## When to Use
 

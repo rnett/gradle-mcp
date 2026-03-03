@@ -1,4 +1,3 @@
-- Introspection skill, using --help, --version, tasks, task help, etc.
 - A install skills tool.
 - A gradle sources skill/tool, like the library ones. Skill should be about Gradle build editing and mention things like the best practices.
 - More skills in general.
