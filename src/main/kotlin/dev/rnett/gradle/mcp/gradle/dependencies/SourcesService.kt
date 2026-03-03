@@ -125,8 +125,8 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
         val indices = deps.mapNotNull {
             val ext = it.sourcesFile!!.extension
             val stream = when (ext) {
-                "jar" -> JarInputStream(it.sourcesFile.inputStream())
-                "zip" -> ZipInputStream(it.sourcesFile.inputStream())
+                "jar" -> JarInputStream(it.sourcesFile.inputStream().buffered())
+                "zip" -> ZipInputStream(it.sourcesFile.inputStream().buffered())
                 else -> {
                     LOGGER.warn("Sources artifact with unrecognized extension: {}", it.sourcesFile)
                     return@mapNotNull null

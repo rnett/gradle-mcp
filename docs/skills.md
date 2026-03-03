@@ -45,6 +45,6 @@ The following skills are included in the `skills/` directory of the repository:
 * **[gradle-test](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-test/SKILL.md)**: Workflows for running tests, filtering tests, and investigating test failures.
 * **[gradle-dependencies](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-dependencies/SKILL.md)**: Querying project dependencies, checking for updates, and searching Maven Central.
 * **[gradle-introspection](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-introspection/SKILL.md)**: Using Gradle's built-in introspection tasks and flags to query project structure, tasks, and environment.
-* **[gradle-library-sources](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-library-sources/SKILL.md)**: Searching and exploring the source code of library dependencies.
+* **[gradle-library-sources](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-library-sources/SKILL.md)**: Searching and exploring the source code of library dependencies and Gradle itself.
 * **[gradle-repl](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-repl/SKILL.md)**: Using the project REPL to run code in the project's environment, inspect state, and test logic.
 * **[gradle-docs](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-docs/SKILL.md)**: Searching and reading the Gradle User Guide.

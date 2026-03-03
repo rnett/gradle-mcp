@@ -9,8 +9,10 @@ import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.gradle.dependencies.DefaultGradleDependencyService
+import dev.rnett.gradle.mcp.gradle.dependencies.DefaultGradleSourceService
 import dev.rnett.gradle.mcp.gradle.dependencies.DefaultSourcesService
 import dev.rnett.gradle.mcp.gradle.dependencies.GradleDependencyService
+import dev.rnett.gradle.mcp.gradle.dependencies.GradleSourceService
 import dev.rnett.gradle.mcp.gradle.dependencies.SourcesService
 import dev.rnett.gradle.mcp.gradle.dependencies.search.DefaultIndexService
 import dev.rnett.gradle.mcp.gradle.dependencies.search.IndexService
@@ -89,6 +91,7 @@ object DI {
         single<MavenCentralService> { DefaultMavenCentralService(get()) }
         single<IndexService> { DefaultIndexService(get()) }
         single<SourcesService> { DefaultSourcesService(get(), get(), get()) }
+        single<GradleSourceService> { DefaultGradleSourceService(get(), get(), get()) }
         single { BuildManager() }
         single<GradleProvider> {
             DefaultGradleProvider(
@@ -107,6 +110,7 @@ object DI {
             val mavenRepoService: MavenRepoService = get()
             val mavenCentralService: MavenCentralService = get()
             val sourcesService: SourcesService = get()
+            val gradleSourceService: GradleSourceService = get()
             components(
                 provider,
                 replManager,
@@ -115,7 +119,8 @@ object DI {
                 gradleDependencyService,
                 mavenRepoService,
                 mavenCentralService,
-                sourcesService
+                sourcesService,
+                gradleSourceService
             )
         }
 
@@ -151,6 +156,7 @@ object DI {
         mavenRepoService: MavenRepoService,
         mavenCentralService: MavenCentralService,
         sourcesService: SourcesService,
+        gradleSourceService: GradleSourceService
     ): List<McpServerComponent> = listOf(
         GradleExecutionTools(provider),
         ReplTools(provider, replManager, replEnvironmentService),
@@ -158,7 +164,7 @@ object DI {
         GradleDocsTools(gradleDocsService),
         GradleDependencyTools(gradleDependencyService),
         DependencySearchTools(mavenRepoService, mavenCentralService),
-        DependencySourceTools(sourcesService),
+        DependencySourceTools(sourcesService, gradleSourceService),
         SkillTools(),
     )
 

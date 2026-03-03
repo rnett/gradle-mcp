@@ -14,6 +14,7 @@ import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.gradle.dependencies.GradleDependencyService
+import dev.rnett.gradle.mcp.gradle.dependencies.GradleSourceService
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.repl.DefaultReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
@@ -59,6 +60,7 @@ abstract class BaseMcpServerTest {
         single<dev.rnett.gradle.mcp.maven.MavenRepoService> { mockk<dev.rnett.gradle.mcp.maven.MavenRepoService>(relaxed = true) }
         single<dev.rnett.gradle.mcp.maven.MavenCentralService> { mockk<dev.rnett.gradle.mcp.maven.MavenCentralService>(relaxed = true) }
         single<dev.rnett.gradle.mcp.gradle.dependencies.SourcesService> { mockk<dev.rnett.gradle.mcp.gradle.dependencies.SourcesService>(relaxed = true) }
+        single<GradleSourceService> { mockk<GradleSourceService>(relaxed = true) }
 
         single<GradleProvider> {
             createProvider()
@@ -73,7 +75,8 @@ abstract class BaseMcpServerTest {
             val mavenRepoService: dev.rnett.gradle.mcp.maven.MavenRepoService = get()
             val mavenCentralService: dev.rnett.gradle.mcp.maven.MavenCentralService = get()
             val sourcesService: dev.rnett.gradle.mcp.gradle.dependencies.SourcesService = get()
-            components(provider, replManager, replEnvironmentService, gradleDocsService, gradleDependencyService, mavenRepoService, mavenCentralService, sourcesService)
+            val gradleSourceService: GradleSourceService = get()
+            components(provider, replManager, replEnvironmentService, gradleDocsService, gradleDependencyService, mavenRepoService, mavenCentralService, sourcesService, gradleSourceService)
         }
 
         single {

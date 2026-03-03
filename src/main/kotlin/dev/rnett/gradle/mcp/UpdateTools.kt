@@ -7,6 +7,7 @@ import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleScanTosAcceptRequest
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.gradle.dependencies.GradleDependencyService
+import dev.rnett.gradle.mcp.gradle.dependencies.GradleSourceService
 import dev.rnett.gradle.mcp.gradle.dependencies.SourcesDir
 import dev.rnett.gradle.mcp.gradle.dependencies.SourcesService
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleConfigurationDependencies
@@ -64,6 +65,11 @@ object UpdateTools {
         appendLine()
     }
 
+    private val throwingGradleSourceService = object : GradleSourceService {
+        override suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean): SourcesDir =
+            throw UnsupportedOperationException("Not supported in tool generator")
+    }
+
     @OptIn(ExperimentalPathApi::class)
     @JvmStatic
     fun main(args: Array<String>) {
@@ -82,7 +88,8 @@ object UpdateTools {
             throwingGradleDependencyService,
             throwingMavenRepoService,
             throwingMavenCentralService,
-            throwingSourcesService
+            throwingSourcesService,
+            throwingGradleSourceService
         ).mapNotNull {
             val file = directory?.resolve("${it.name.replace(" ", "_").uppercase()}.md")
             executeForComponent(it, file, verify)

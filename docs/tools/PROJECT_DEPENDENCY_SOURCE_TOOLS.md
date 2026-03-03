@@ -6,9 +6,9 @@ Tools for searching and inspecting source code of Gradle dependencies.
 
 ## read_dependency_sources
 
-Read specific source files or list directories from the combined source code of all external library dependencies within a given scope (project, configuration, or source set).
+Read specific source files or list directories from the combined source code of all external library dependencies or Gradle's internal sources within a given scope.
 
-Use this tool to explore the implementation of a library once you have identified the file path.
+Use this tool to explore the implementation of a library or Gradle itself, and to read a source file once you have identified the file path.
 To find specific classes or methods across all dependencies, use the `search_dependency_sources` tool.
 
 <details>
@@ -44,6 +44,10 @@ To find specific classes or methods across all dependencies, use the `search_dep
       ],
       "description": "The source set path to get dependencies from (e.g. ':app:main'). If set, projectPath and configurationPath are ignored."
     },
+    "gradleSource": {
+      "type": "boolean",
+      "description": "If true, searches/reads Gradle's internal source code instead of external dependencies. If set, projectPath, sourceSetPath, and configurationPath are ignored."
+    },
     "path": {
       "type": [
         "string",
@@ -67,10 +71,11 @@ To find specific classes or methods across all dependencies, use the `search_dep
 
 ## search_dependency_sources
 
-Search for symbols or text within the combined source code of all external library dependencies within a given scope (project, configuration, or source set).
+Search for symbols or text within the combined source code of all external library dependencies or Gradle's internal sources within a given scope.
 
-Use this tool to find specific classes, methods, or text in library source code.
+Use this tool to find specific classes, methods, or text in library source code or Gradle itself.
 Once you have found the file path, you can read the file using the `read_dependency_sources` tool.
+When searching for symbols, the results may have some false-positives - look at the included snippets.
 
 <details>
 
@@ -104,6 +109,10 @@ Once you have found the file path, you can read the file using the `read_depende
         "null"
       ],
       "description": "The source set path to get dependencies from (e.g. ':app:main'). If set, projectPath and configurationPath are ignored."
+    },
+    "gradleSource": {
+      "type": "boolean",
+      "description": "If true, searches/reads Gradle's internal source code instead of external dependencies. If set, projectPath, sourceSetPath, and configurationPath are ignored."
     },
     "query": {
       "type": "string",

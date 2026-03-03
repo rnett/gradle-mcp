@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.tools.dependencies
 
+import dev.rnett.gradle.mcp.gradle.dependencies.GradleSourceService
 import dev.rnett.gradle.mcp.gradle.dependencies.SourcesDir
 import dev.rnett.gradle.mcp.gradle.dependencies.SourcesService
 import dev.rnett.gradle.mcp.gradle.dependencies.search.FullTextSearch
@@ -23,10 +24,12 @@ import kotlin.test.assertTrue
 class DependencySourceToolsTest : BaseMcpServerTest() {
 
     private lateinit var sourcesService: SourcesService
+    private lateinit var gradleSourceService: GradleSourceService
 
     @BeforeTest
     fun setupTest() {
         sourcesService = server.koin.get()
+        gradleSourceService = server.koin.get()
         server.setServerRoots(io.modelcontextprotocol.kotlin.sdk.Root(tempDir.toUri().toString(), "root"))
     }
 
@@ -205,5 +208,50 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
                 put("projectPath", ":app")
             }
         ) as CallToolResult
+    }
+
+    @Test
+    fun `read_dependency_sources with gradleSource calls gradleSourceService`() = runTest {
+        val sourcesDir = tempDir.resolve("sources-gradle")
+        sourcesDir.createDirectories()
+
+        coEvery {
+            gradleSourceService.getGradleSources(any(), any())
+        } returns SourcesDir(sourcesDir)
+
+        server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("gradleSource", true)
+            }
+        ) as CallToolResult
+
+        coEvery {
+            gradleSourceService.getGradleSources(any(), any())
+        }
+    }
+
+    @Test
+    fun `search_dependency_sources with gradleSource calls gradleSourceService`() = runTest {
+        val sourcesDir = tempDir.resolve("sources-gradle-search")
+        sourcesDir.createDirectories()
+
+        coEvery {
+            gradleSourceService.getGradleSources(any(), any())
+        } returns SourcesDir(sourcesDir)
+
+        coEvery {
+            sourcesService.search(any(), any(), any())
+        } returns emptyList()
+
+        server.client.callTool(
+            ToolNames.SEARCH_DEPENDENCY_SOURCES, buildJsonObject {
+                put("gradleSource", true)
+                put("query", "test")
+            }
+        ) as CallToolResult
+
+        coEvery {
+            gradleSourceService.getGradleSources(any(), any())
+        }
     }
 }

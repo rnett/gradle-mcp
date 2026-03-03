@@ -11,12 +11,14 @@ import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleProjectDependencies
 import io.mockk.coEvery
 import io.mockk.mockk
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.io.path.createDirectories
 import kotlin.io.path.outputStream
+import kotlin.test.assertTrue
 
 abstract class SearchIntegrationTestBase {
 
@@ -71,5 +73,43 @@ abstract class SearchIntegrationTestBase {
             )
         )
         coEvery { dependencyService.downloadAllSources(projectRoot) } returns report
+    }
+
+    @Test
+    fun `test that only source files are indexed`() = kotlinx.coroutines.test.runTest {
+        val zip = createSourceZip(
+            "test-sources", mapOf(
+                "com/example/MyClass.kt" to "class MyClass",
+                "com/example/config.xml" to "<config></config>",
+                "com/example/readme.txt" to "This is a readme",
+                "com/example/build.gradle" to "apply plugin: 'java'"
+            )
+        )
+
+        mockDependencyReport(
+            GradleDependency(
+                id = "com.example:test:1.0",
+                group = "com.example",
+                name = "test",
+                version = "1.0",
+                sourcesFile = zip
+            )
+        )
+
+        val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
+
+        // MyClass should be found (it's .kt)
+        val resultsKt = sourcesService.search(sourcesDir, searchProvider, "MyClass")
+        assertTrue(resultsKt.isNotEmpty(), "Kotlin file should be indexed")
+
+        // Others should NOT be found
+        val resultsXml = sourcesService.search(sourcesDir, searchProvider, "config")
+        assertTrue(resultsXml.isEmpty(), "XML file should NOT be indexed, but found: $resultsXml")
+
+        val resultsTxt = sourcesService.search(sourcesDir, searchProvider, "readme")
+        assertTrue(resultsTxt.isEmpty(), "TXT file should NOT be indexed, but found: $resultsTxt")
+
+        val resultsGradle = sourcesService.search(sourcesDir, searchProvider, "plugin")
+        assertTrue(resultsGradle.isEmpty(), "Gradle file should NOT be indexed, but found: $resultsGradle")
     }
 }

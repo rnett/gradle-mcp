@@ -1,6 +1,6 @@
 ---
 name: gradle-library-sources
-description: Searching and exploring the source code of library dependencies.
+description: Searching and exploring the source code of library dependencies and Gradle itself.
 license: Apache-2.0
 allowed-tools: read_dependency_sources, search_dependency_sources
 metadata:
@@ -8,15 +8,17 @@ metadata:
   version: "3.0"
 ---
 
-# Exploring Library Sources
+# Exploring Library and Gradle Sources
 
-Instructions and examples for searching and reading the source code of external library dependencies using `read_dependency_sources` and `search_dependency_sources`.
+Instructions and examples for searching and reading the source code of external library dependencies and Gradle's internal sources using `read_dependency_sources` and `search_dependency_sources`.
 
 ## Directives
 
-- **Identify the scope**: You can target dependencies from the entire project, a specific project path (e.g., `:app`), a configuration (e.g., `:app:debugCompileClasspath`), or a source set (e.g., `:app:main`).
-- **Use `read_dependency_sources` for exploration**: Use the `read_dependency_sources` tool to list the directory structure of library sources or to read specific source files once identified.
-- **Use `search_dependency_sources` for discovery**: Use the `search_dependency_sources` tool to find specific classes, methods, or text within library dependencies.
+- **Identify the scope**: You can target dependencies from the entire project, a specific project path (e.g., `:app`), a configuration (e.g., `:app:debugCompileClasspath`), a source set (e.g., `:app:main`), or Gradle's own internal source
+  code.
+- **Search Gradle sources**: Use the `gradleSource: true` argument to search or read Gradle's internal source code instead of external dependencies. This is useful for deep dives into Gradle's behavior.
+- **Use `read_dependency_sources` for exploration**: Use the `read_dependency_sources` tool to list the directory structure of library or Gradle sources or to read specific source files once identified.
+- **Use `search_dependency_sources` for discovery**: Use the `search_dependency_sources` tool to find specific classes, methods, or text within library dependencies or Gradle itself.
 - **Search for symbols**: Use the `search_dependency_sources` tool with the `query` argument to find specific classes, methods, or symbols. By default, this uses regex-based symbol search.
 - **Full-text search**: Use the `search_dependency_sources` tool with `searchType: "FULL_TEXT"` and a `query` to perform a Lucene-based full-text search.
 - **Read specific files**: Use the `read_dependency_sources` tool with the `path` argument to read a specific source file.
@@ -65,6 +67,15 @@ Instructions and examples for searching and reading the source code of external 
 }
 ```
 
+### Search for the `Project` interface in Gradle's internal sources
+
+```json
+{
+  "query": "interface Project",
+  "gradleSource": true
+}
+```
+
 ### Full-text search for "thread-safe" in a specific configuration
 
 ```json
@@ -81,6 +92,15 @@ Instructions and examples for searching and reading the source code of external 
 {
   "path": "kotlinx/coroutines/Job.kt",
   "projectPath": ":app"
+}
+```
+
+### Read a specific file from Gradle's internal sources
+
+```json
+{
+  "path": "org/gradle/api/Project.java",
+  "gradleSource": true
 }
 ```
 

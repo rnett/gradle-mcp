@@ -21,13 +21,19 @@ import org.apache.lucene.queryparser.flexible.standard.StandardQueryParser
 import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.search.ScoreMode
 import org.apache.lucene.store.FSDirectory
+import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
+import kotlin.io.path.extension
+import kotlin.io.path.isRegularFile
 import kotlin.io.path.readText
 import kotlin.io.path.relativeTo
 import kotlin.io.path.walk
+import kotlin.time.measureTime
+import kotlin.time.measureTimedValue
 
 object FullTextSearch : SearchProvider {
+    private val LOGGER = LoggerFactory.getLogger(FullTextSearch::class.java)
     override val name: String = "full-text"
 
     private const val CONTENTS = "contents"
@@ -77,63 +83,76 @@ object FullTextSearch : SearchProvider {
     }
 
     override suspend fun search(indexDir: Path, query: String): List<RelativeSearchResult> = withContext(Dispatchers.IO) {
-        val idxDir = indexDir.resolve(v2IndexDirName)
-        val reader = readerCache.get(idxDir)
-        val indexSearcher = IndexSearcher(reader)
-        createAnalyzer().use { analyzer ->
-            val q = StandardQueryParser(analyzer).parse(query, CONTENTS)
+        val (results, duration) = measureTimedValue {
+            val idxDir = indexDir.resolve(v2IndexDirName)
+            val reader = readerCache.get(idxDir)
+            val indexSearcher = IndexSearcher(reader)
+            createAnalyzer().use { analyzer ->
+                val q = StandardQueryParser(analyzer).parse(query, CONTENTS)
 
-            //TODO handle this somehow
-            val results = indexSearcher.search(q, 1000)
-            val weight = indexSearcher.createWeight(indexSearcher.rewrite(q), ScoreMode.COMPLETE_NO_SCORES, 1.0f)
-            val stored = indexSearcher.storedFields()
+                //TODO handle this somehow
+                val results = indexSearcher.search(q, 1000)
+                val weight = indexSearcher.createWeight(indexSearcher.rewrite(q), ScoreMode.COMPLETE_NO_SCORES, 1.0f)
+                val stored = indexSearcher.storedFields()
 
-            val leaves = reader.leaves()
+                val leaves = reader.leaves()
 
-            return@withContext results.scoreDocs.flatMap { r ->
-                val leafContext = leaves[ReaderUtil.subIndex(r.doc, leaves)]
-                val localDocId = r.doc - leafContext.docBase
-                val matches = weight.matches(leafContext, localDocId) ?: return@flatMap emptyList()
-                val matchesIterator = matches.getMatches(CONTENTS) ?: return@flatMap emptyList()
+                results.scoreDocs.flatMap { r ->
+                    val leafContext = leaves[ReaderUtil.subIndex(r.doc, leaves)]
+                    val localDocId = r.doc - leafContext.docBase
+                    val matches = weight.matches(leafContext, localDocId) ?: return@flatMap emptyList()
+                    val matchesIterator = matches.getMatches(CONTENTS) ?: return@flatMap emptyList()
 
-                val doc = stored.document(r.doc)
-                val path = doc.get(PATH)
+                    val doc = stored.document(r.doc)
+                    val path = doc.get(PATH)
 
-                val results = mutableListOf<RelativeSearchResult>()
-                while (matchesIterator.next()) {
-                    results.add(RelativeSearchResult(path, offset = matchesIterator.startOffset(), score = r.score))
+                    val results = mutableListOf<RelativeSearchResult>()
+                    while (matchesIterator.next()) {
+                        results.add(RelativeSearchResult(path, offset = matchesIterator.startOffset(), score = r.score))
+                    }
+                    results
                 }
-                results
             }
         }
+        LOGGER.info("Full-text search for \"$query\" took $duration (${results.size} results)")
+        return@withContext results
     }
 
     override suspend fun index(dependencyDir: Path, outputDir: Path) = withContext(Dispatchers.IO) {
-        val indexDir = outputDir.resolve(v2IndexDirName)
-        indexDir.createDirectories()
+        LOGGER.info("Starting full-text indexing for $dependencyDir")
+        val (fileCount, duration) = measureTimedValue {
+            val indexDir = outputDir.resolve(v2IndexDirName)
+            indexDir.createDirectories()
 
-        val dir = FSDirectory.open(indexDir)
-        createAnalyzer().use { analyzer ->
-            val iwc = IndexWriterConfig(analyzer)
-            iwc.openMode = IndexWriterConfig.OpenMode.CREATE
+            val dir = FSDirectory.open(indexDir)
+            createAnalyzer().use { analyzer ->
+                val iwc = IndexWriterConfig(analyzer)
+                iwc.openMode = IndexWriterConfig.OpenMode.CREATE
 
-            iwc.ramBufferSizeMB = 100.0
-            IndexWriter(dir, iwc).use { writer ->
-                dependencyDir.walk().filter { !it.toFile().isDirectory }.forEach {
-                    val doc = Document()
-                    doc.add(KeywordField(PATH, it.relativeTo(dependencyDir).toString().replace('\\', '/'), Field.Store.YES))
-                    doc.add(Field(CONTENTS, it.readText(), contentFieldType))
+                iwc.ramBufferSizeMB = 100.0
+                var count = 0
+                IndexWriter(dir, iwc).use { writer ->
+                    dependencyDir.walk()
+                        .filter { it.isRegularFile() && it.extension in SearchProvider.SOURCE_EXTENSIONS }
+                        .forEach {
+                            val doc = Document()
+                            doc.add(KeywordField(PATH, it.relativeTo(dependencyDir).toString().replace('\\', '/'), Field.Store.YES))
+                            doc.add(Field(CONTENTS, it.readText(), contentFieldType))
 
-                    writer.addDocument(
-                        doc
-                    )
+                            writer.addDocument(
+                                doc
+                            )
+                            count++
+                        }
+                    writer.forceMerge(1)
+                    writer.flush()
+                    writer.commit()
                 }
-                writer.forceMerge(1)
-                writer.flush()
-                writer.commit()
+                invalidateCache(indexDir)
+                count
             }
-            invalidateCache(indexDir)
         }
+        LOGGER.info("Full-text indexing for $dependencyDir took $duration ($fileCount files)")
     }
 
     /**
@@ -141,37 +160,40 @@ object FullTextSearch : SearchProvider {
      * Merged results will have paths relative to the combined set.
      */
     override suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path) = withContext(Dispatchers.IO) {
-        val indexDir = outputDir.resolve(v2IndexDirName)
-        indexDir.createDirectories()
+        val duration = measureTime {
+            val indexDir = outputDir.resolve(v2IndexDirName)
+            indexDir.createDirectories()
 
-        val dir = FSDirectory.open(indexDir)
-        createAnalyzer().use { analyzer ->
-            val iwc = IndexWriterConfig(analyzer)
-            iwc.openMode = IndexWriterConfig.OpenMode.CREATE
+            val dir = FSDirectory.open(indexDir)
+            createAnalyzer().use { analyzer ->
+                val iwc = IndexWriterConfig(analyzer)
+                iwc.openMode = IndexWriterConfig.OpenMode.CREATE
 
-            IndexWriter(dir, iwc).use { writer ->
-                indexDirs.forEach { (idxParentDir, relativePrefix) ->
-                    val srcIndexDir = idxParentDir.resolve(v2IndexDirName)
-                    DirectoryReader.open(FSDirectory.open(srcIndexDir)).use { reader ->
-                        val storedFields = reader.storedFields()
-                        for (i in 0 until reader.maxDoc()) {
-                            val oldDoc = storedFields.document(i)
-                            val oldPath = oldDoc.get(PATH)
-                            val newPath = relativePrefix.resolve(oldPath).toString().replace('\\', '/')
-                            val content = oldDoc.get(CONTENTS)
+                IndexWriter(dir, iwc).use { writer ->
+                    indexDirs.forEach { (idxParentDir, relativePrefix) ->
+                        val srcIndexDir = idxParentDir.resolve(v2IndexDirName)
+                        DirectoryReader.open(FSDirectory.open(srcIndexDir)).use { reader ->
+                            val storedFields = reader.storedFields()
+                            for (i in 0 until reader.maxDoc()) {
+                                val oldDoc = storedFields.document(i)
+                                val oldPath = oldDoc.get(PATH)
+                                val newPath = relativePrefix.resolve(oldPath).toString().replace('\\', '/')
+                                val content = oldDoc.get(CONTENTS)
 
-                            val newDoc = Document()
-                            newDoc.add(KeywordField(PATH, newPath, Field.Store.YES))
-                            newDoc.add(Field(CONTENTS, content, contentFieldType))
-                            writer.addDocument(newDoc)
+                                val newDoc = Document()
+                                newDoc.add(KeywordField(PATH, newPath, Field.Store.YES))
+                                newDoc.add(Field(CONTENTS, content, contentFieldType))
+                                writer.addDocument(newDoc)
+                            }
                         }
                     }
+                    writer.forceMerge(1)
+                    writer.flush()
+                    writer.commit()
                 }
-                writer.forceMerge(1)
-                writer.flush()
-                writer.commit()
+                invalidateCache(indexDir)
             }
-            invalidateCache(indexDir)
         }
+        LOGGER.info("Full-text index merging took $duration (${indexDirs.size} indices)")
     }
 }

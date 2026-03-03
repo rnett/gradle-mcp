@@ -1,7 +1,11 @@
 package dev.rnett.gradle.mcp.gradle.dependencies.search
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
+import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
@@ -12,46 +16,105 @@ import kotlin.io.path.createParentDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.extension
 import kotlin.io.path.isRegularFile
-import kotlin.io.path.readText
 import kotlin.io.path.relativeTo
 import kotlin.io.path.walk
 import kotlin.io.path.writeText
+import kotlin.time.measureTime
+import kotlin.time.measureTimedValue
 
 object SymbolSearch : SearchProvider {
+    private val LOGGER = LoggerFactory.getLogger(SymbolSearch::class.java)
     override val name: String = "symbols"
 
-    val typeRegex = Regex("(?<!\\w)(?:class|enum(?:\\s+class)?|interface|@interface|object|record|typealias|(?:sealed|non-sealed|annotation)\\s+class)\\s+([a-zA-Z_]\\w*)")
-    val memberRegex =
-        Regex("(?<!\\w)(?!(?:package|import|return|if|else|while|for|do|try|catch|finally|throw|new|class|interface|enum|object|record|typealias)\\b)(?:(?:val|fun|var|void|int|long|double|float|char|boolean|byte|short|public|private|protected|internal|static|final|abstract|open|override|suspend|inline|[a-zA-Z_][\\w<>\\[\\]]*)\\s+)+(?:[a-zA-Z_][\\w<>\\[\\]\\.]*\\.)?([a-zA-Z_]\\w*)\\s*(?:[(={:;,)]|by)")
+    // needs to support Java, Kotlin, and Groovy
+    // some false positives are ok for the regexes - they need to be simple and fast
+    val kotlinTypeRegex =
+        Regex("(?:^|\\s)(?:class|enum\\s+class|interface|object|typealias|sealed\\s+class|annotation\\s+class)\\s+([a-zA-Z_]\\w*)")
+    val kotlinMemberRegex =
+        Regex("(?:^|\\s)(?:(?:private|public|protected|internal|expect|actual|inline|external|tailrec|operator|infix|suspend|abstract|override|open|final|lateinit|sealed)\\s+)*(?:val|fun|var)\\s+(?:<[\\w\\s,<>]+>\\s+)?(?:[\\w<>.]+?\\.)?([a-zA-Z_]\\w*)")
 
-    private val sourceExtensions = setOf("kt", "kts", "java")
+    val javaTypeRegex =
+        Regex("(?:^|\\s)(?:class|enum|interface|@interface|record|non-sealed\\s+class|sealed\\s+class)\\s+([a-zA-Z_]\\w*)")
+    val javaMemberRegex =
+        Regex("(?:^|\\s)(?:(?:public|private|protected|static|final|native|synchronized|abstract|transient|volatile)\\s+)*(?!class|interface|enum|record)(?:void|int|long|double|float|char|boolean|byte|short|[a-zA-Z_][\\w\\[\\]<>]*)\\s+([a-zA-Z_]\\w*)")
 
-    private const val v2FileName = "symbols-v2.txt"
+    val groovyTypeRegex = Regex("(?:^|\\s)(?:class|enum|interface|trait)\\s+([a-zA-Z_]\\w*)")
+    val groovyMemberRegex =
+        Regex("(?:^|\\s)(?:(?:public|private|protected|static|final|abstract|native|synchronized|transient|volatile)\\s+)*(?!class|interface|enum|trait|record)(?:def|void|int|long|double|float|char|boolean|byte|short|[a-zA-Z_][\\w\\[\\]<>]*)\\s+([a-zA-Z_]\\w*)")
 
-    override suspend fun index(dependencyDir: Path, outputDir: Path) = withContext(Dispatchers.IO) {
-        val allSymbols = dependencyDir.walk().filter { it.isRegularFile() && it.extension in sourceExtensions }.flatMap { findSymbols(it, dependencyDir) }.toList()
+    private const val v1FileName = "symbols-v1.txt"
+    val indexDispatcher = Dispatchers.Default.limitedParallelism(maxOf(1, Runtime.getRuntime().availableProcessors() / 2), "indexing")
+
+    override suspend fun index(dependencyDir: Path, outputDir: Path) {
+        LOGGER.info("Starting symbol indexing for $dependencyDir")
+        val (allSymbols, duration) = measureTimedValue {
+            val sourceFiles = withContext(Dispatchers.IO) {
+                dependencyDir.walk().filter { it.isRegularFile() && it.extension in SearchProvider.SOURCE_EXTENSIONS }.toList()
+            }
+            val fileCount = sourceFiles.size
+            val symbols = coroutineScope {
+                sourceFiles.chunked(maxOf(1, fileCount / (Runtime.getRuntime().availableProcessors() / 2)))
+                    .map { chunk ->
+                        async(indexDispatcher) {
+                            chunk.flatMap { findSymbols(it, dependencyDir) }
+                        }
+                    }.awaitAll().flatten()
+            }
+            fileCount to symbols
+        }
+        val (fileCount, symbols) = allSymbols
+        LOGGER.info("Symbol indexing for $dependencyDir took $duration ($fileCount files, ${symbols.size} symbols)")
+
         outputDir.createDirectories()
-        val file = outputDir.resolve(v2FileName)
-        writeIndices(file, allSymbols)
+        val file = outputDir.resolve(v1FileName)
+        writeIndices(file, symbols)
     }
 
     data class Symbol(val name: String, val path: String, val line: Int, val offset: Int)
 
-    private fun findSymbols(file: Path, root: Path): Sequence<Symbol> {
-        val text = file.readText()
-        val typeMatches = typeRegex.findAll(text)
-        val memberMatches = memberRegex.findAll(text)
-
-        return (typeMatches + memberMatches).map {
-            val offset = it.range.first
-            val line = text.substring(0, offset).count { it == '\n' } + 1
-            Symbol(
-                it.groupValues[1],
-                file.relativeTo(root).toString().replace('\\', '/'),
-                line,
-                offset
-            )
+    private suspend fun findSymbols(file: Path, root: Path): List<Symbol> = withContext(Dispatchers.IO) {
+        val extension = file.extension
+        val (typeRegex, memberRegex) = when (extension) {
+            "kt" -> kotlinTypeRegex to kotlinMemberRegex
+            "java" -> javaTypeRegex to javaMemberRegex
+            "groovy" -> groovyTypeRegex to groovyMemberRegex
+            else -> return@withContext emptyList()
         }
+
+        val relativePath = file.relativeTo(root).toString().replace('\\', '/')
+        val symbols = mutableListOf<Symbol>()
+        var currentOffset = 0
+        var currentLine = 1
+
+        file.bufferedReader().use { reader ->
+            reader.forEachLine { line ->
+                if (line.isNotBlank()) {
+                    typeRegex.findAll(line).forEach { match ->
+                        symbols.add(
+                            Symbol(
+                                match.groupValues[1],
+                                relativePath,
+                                currentLine,
+                                currentOffset + match.range.first
+                            )
+                        )
+                    }
+                    memberRegex.findAll(line).forEach { match ->
+                        symbols.add(
+                            Symbol(
+                                match.groupValues[1],
+                                relativePath,
+                                currentLine,
+                                currentOffset + match.range.first
+                            )
+                        )
+                    }
+                }
+                currentOffset += line.length + 1 // +1 for the newline
+                currentLine++
+            }
+        }
+        return@withContext symbols
     }
 
     @OptIn(ExperimentalContracts::class)
@@ -59,9 +122,9 @@ object SymbolSearch : SearchProvider {
         contract {
             callsInPlace(block, InvocationKind.EXACTLY_ONCE)
         }
-        file.bufferedReader().use {
-            return it.useLines {
-                block(it.mapNotNull {
+        return file.bufferedReader().use { reader ->
+            reader.useLines { lines ->
+                block(lines.mapNotNull {
                     val parts = it.split("||")
                     if (parts.size != 4) return@mapNotNull null
                     Symbol(parts[0], parts[1], parts[2].toInt(), parts[3].toInt())
@@ -76,27 +139,34 @@ object SymbolSearch : SearchProvider {
     }
 
     override suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path) = withContext(Dispatchers.IO) {
-        val symbols = mutableSetOf<Symbol>()
-        indexDirs.forEach { (idxDir, relativePath) ->
-            readIndices(idxDir.resolve(v2FileName)) { symbols.addAll(it.map { it.copy(path = relativePath.resolve(it.path).toString().replace('\\', '/')) }) }
+        val duration = measureTime {
+            val symbols = mutableSetOf<Symbol>()
+            indexDirs.forEach { (idxDir, relativePath) ->
+                readIndices(idxDir.resolve(v1FileName)) { symbols.addAll(it.map { it.copy(path = relativePath.resolve(it.path).toString().replace('\\', '/')) }) }
+            }
+            writeIndices(outputDir.resolve(v1FileName), symbols)
         }
-        writeIndices(outputDir.resolve(v2FileName), symbols)
+        LOGGER.info("Symbol index merging took $duration (${indexDirs.size} indices)")
     }
 
     override suspend fun search(indexDir: Path, query: String): List<RelativeSearchResult> = withContext(Dispatchers.IO) {
-        val indexFile = indexDir.resolve(v2FileName)
-        if (!indexFile.exists()) {
-            return@withContext emptyList()
+        val (results, duration) = measureTimedValue {
+            val indexFile = indexDir.resolve(v1FileName)
+            if (!indexFile.exists()) {
+                return@measureTimedValue emptyList()
+            }
+
+            val allSymbols = readIndices(indexFile) { it.toList() }
+
+            val queryRegex = Regex(query, RegexOption.IGNORE_CASE)
+
+            allSymbols.asSequence().filter { it.name.matches(queryRegex) }
+                .map {
+                    RelativeSearchResult(it.path, offset = it.offset, line = it.line, score = null)
+                }.toList()
         }
-
-        val allSymbols = readIndices(indexFile) { it.toList() }
-
-        val queryRegex = Regex(query, RegexOption.IGNORE_CASE)
-
-        return@withContext allSymbols.asSequence().filter { it.name.matches(queryRegex) }
-            .map {
-                RelativeSearchResult(it.path, offset = it.offset, line = it.line, score = null)
-            }.toList()
+        LOGGER.info("Symbol search for \"$query\" took $duration (${results.size} results)")
+        return@withContext results
     }
 
 }

@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.tools.dependencies
 
+import dev.rnett.gradle.mcp.gradle.dependencies.GradleSourceService
 import dev.rnett.gradle.mcp.gradle.dependencies.SourcesService
 import dev.rnett.gradle.mcp.gradle.dependencies.search.FullTextSearch
 import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResult
@@ -19,7 +20,8 @@ import kotlin.io.path.name
 import kotlin.io.path.readText
 
 class DependencySourceTools(
-    private val sourcesService: SourcesService
+    private val sourcesService: SourcesService,
+    private val gradleSourceService: GradleSourceService
 ) : McpServerComponent("Project Dependency Source Tools", "Tools for searching and inspecting source code of Gradle dependencies.") {
 
     @Serializable
@@ -40,6 +42,8 @@ class DependencySourceTools(
         val configurationPath: String? = null,
         @Description("The source set path to get dependencies from (e.g. ':app:main'). If set, projectPath and configurationPath are ignored.")
         val sourceSetPath: String? = null,
+        @Description("If true, searches/reads Gradle's internal source code instead of external dependencies. If set, projectPath, sourceSetPath, and configurationPath are ignored.")
+        val gradleSource: Boolean = false,
         @Description("Specific file path within the source to read. This path is relative to the root of the combined sources for the given scope.")
         val path: String? = null,
         @Description("If true, re-downloads and re-indexes the sources even if they are already cached.")
@@ -49,14 +53,15 @@ class DependencySourceTools(
     val readDependencySources by tool<ReadDependencySourcesArgs, String>(
         ToolNames.READ_DEPENDENCY_SOURCES,
         """
-            |Read specific source files or list directories from the combined source code of all external library dependencies within a given scope (project, configuration, or source set).
+            |Read specific source files or list directories from the combined source code of all external library dependencies or Gradle's internal sources within a given scope.
             |
-            |Use this tool to explore the implementation of a library once you have identified the file path.
+            |Use this tool to explore the implementation of a library or Gradle itself, and to read a source file once you have identified the file path.
             |To find specific classes or methods across all dependencies, use the `search_dependency_sources` tool.
         """.trimMargin()
     ) { args ->
         val root = with(server) { args.projectRoot.resolveRoot() }
         val sources = when {
+            args.gradleSource -> gradleSourceService.getGradleSources(root, forceDownload = args.forceDownload)
             args.sourceSetPath != null -> sourcesService.downloadSourceSetSources(root, args.sourceSetPath, forceDownload = args.forceDownload)
             args.configurationPath != null -> sourcesService.downloadConfigurationSources(root, args.configurationPath, forceDownload = args.forceDownload)
             args.projectPath != null -> sourcesService.downloadProjectSources(root, args.projectPath, forceDownload = args.forceDownload)
@@ -97,6 +102,8 @@ class DependencySourceTools(
         val configurationPath: String? = null,
         @Description("The source set path to get dependencies from (e.g. ':app:main'). If set, projectPath and configurationPath are ignored.")
         val sourceSetPath: String? = null,
+        @Description("If true, searches/reads Gradle's internal source code instead of external dependencies. If set, projectPath, sourceSetPath, and configurationPath are ignored.")
+        val gradleSource: Boolean = false,
         @Description("Search query for symbols or file names.")
         val query: String,
         @Description("The type of search to perform. Defaults to SYMBOLS.")
@@ -108,14 +115,16 @@ class DependencySourceTools(
     val searchDependencySources by tool<SearchDependencySourcesArgs, String>(
         ToolNames.SEARCH_DEPENDENCY_SOURCES,
         """
-            |Search for symbols or text within the combined source code of all external library dependencies within a given scope (project, configuration, or source set).
+            |Search for symbols or text within the combined source code of all external library dependencies or Gradle's internal sources within a given scope.
             |
-            |Use this tool to find specific classes, methods, or text in library source code.
+            |Use this tool to find specific classes, methods, or text in library source code or Gradle itself.
             |Once you have found the file path, you can read the file using the `read_dependency_sources` tool.
+            |When searching for symbols, the results may have some false-positives - look at the included snippets.
         """.trimMargin()
     ) { args ->
         val root = with(server) { args.projectRoot.resolveRoot() }
         val sources = when {
+            args.gradleSource -> gradleSourceService.getGradleSources(root, forceDownload = args.forceDownload)
             args.sourceSetPath != null -> sourcesService.downloadSourceSetSources(root, args.sourceSetPath, forceDownload = args.forceDownload)
             args.configurationPath != null -> sourcesService.downloadConfigurationSources(root, args.configurationPath, forceDownload = args.forceDownload)
             args.projectPath != null -> sourcesService.downloadProjectSources(root, args.projectPath, forceDownload = args.forceDownload)

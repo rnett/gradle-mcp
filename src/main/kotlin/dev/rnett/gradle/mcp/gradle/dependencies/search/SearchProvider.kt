@@ -14,6 +14,10 @@ interface SearchProvider {
      * [indexDirs] a map of index dirs to the relative path of that origin in the combined set
      */
     suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path)
+
+    companion object {
+        val SOURCE_EXTENSIONS = setOf("kt", "kts", "java", "groovy")
+    }
 }
 
 data class RelativeSearchResult(
@@ -38,8 +42,8 @@ fun Collection<RelativeSearchResult>.toSearchResults(sourcesRoot: Path): List<Se
             val actualLine = if (res.line != null) res.line else {
                 content.substring(0, res.offset).count { it == '\n' } + 1
             }
-            val startLine = (actualLine - 1 - SearchResult.defaultSnippetRange).coerceAtLeast(0)
-            val endLine = (actualLine - 1 + SearchResult.defaultSnippetRange).coerceAtMost(lines.size - 1)
+            val startLine = (actualLine - 1 - SearchResult.DEFAULT_SNIPPET_RANGE).coerceAtLeast(0)
+            val endLine = (actualLine - 1 + SearchResult.DEFAULT_SNIPPET_RANGE).coerceAtMost(lines.size - 1)
             val snippet = lines.subList(startLine, endLine + 1).joinToString("\n")
             SearchResult(relativePath, file, actualLine, snippet, res.score)
         }.distinctBy { it.line }
@@ -54,8 +58,8 @@ data class SearchResult(
     val score: Float?
 ) {
     companion object {
-        val defaultSnippetRange = 2
-        fun fromFile(relativePath: String, file: Path, offset: Int, line: Int? = null, score: Float?, snippetRange: Int = defaultSnippetRange): SearchResult {
+        const val DEFAULT_SNIPPET_RANGE = 1
+        fun fromFile(relativePath: String, file: Path, offset: Int, line: Int? = null, score: Float?, snippetRange: Int = DEFAULT_SNIPPET_RANGE): SearchResult {
             val content = file.readText()
             val actualLine = if (line != null) line else {
                 content.substring(0, offset).count { it == '\n' } + 1
