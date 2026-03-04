@@ -14,13 +14,20 @@ Execute and manage Gradle commands with ease, whether in the foreground or as pe
 
 ## Directives
 
-- **Prefer MCP tools over shell**: Always use the provided Gradle MCP tools instead of executing `./gradlew` via a shell or command line.
-- **Identify project root**: If not specified, the project root is usually the current directory or the directory containing `settings.gradle(.kts)` or `gradlew` scripts.
-- **Use `gradlew` for all runs**: Use the `gradlew` tool for both foreground and background builds.
-- **Use `captureTaskOutput` for clean output**: When running tasks like `dependencies` or `help`, set `captureTaskOutput` in `gradlew` to the task path to get clean output.
-- **Background for long tasks**: Set `background: true` in `gradlew` for tasks that take a long time or are persistent (e.g. `bootRun`, `continuous` builds).
-- **Monitor with `inspect_build`**: Use the `inspect_build` tool to check the status of background builds or to get detailed information about any build.
-- **Check the dashboard**: Call the `inspect_build` tool without arguments to see the build dashboard (active and recent builds).
+- **ONLY use MCP tools**: NEVER use `./gradlew` via a shell unless you have exhausted all attempts to use the `gradlew` tool and it repeatedly fails to meet your requirements. Falling back to the shell is a **last resort** for edge cases
+  where the Tooling API or the server's output capturing is demonstrably insufficient.
+- **Background for long tasks**: ALWAYS set `background: true` in `gradlew` for tasks that take a long time or are persistent (e.g. `bootRun`, `continuous` builds, long-running test suites). This allows you to continue working while
+  monitoring the build's progress.
+- **Use `captureTaskOutput` for clean results**: When running tasks where you need specific, clean output (e.g., `dependencies`, `help`, `properties`), set `captureTaskOutput` in `gradlew` to the task path. This avoids noise and makes the
+  output much easier to parse.
+- **Monitor with `inspect_build`**: Use the `inspect_build` tool to check the status of background builds or to get detailed information about any build started by the server.
+- **Provide absolute `projectRoot` when in doubt**: Provide `projectRoot` as an **absolute file system path** to any Gradle MCP tool that supports it unless you are certain it is not required. The project root is the directory containing
+  the `gradlew` script and `settings.gradle(.kts)` file. **Relative paths are not supported.**
+- **Task Path Syntax**: When specifying tasks, understand the distinction:
+    - `:task` (starts with colon): Targets the task in the **root project only**.
+    - `task` (no leading colon): Targets the task in **all projects** (root and all subprojects).
+    - `:app:task`: Targets the task in the `app` subproject.
+- **Check the dashboard frequently**: Call `inspect_build` without arguments to see the build dashboard (active and recent builds).
 - **Progressive Disclosure**: For complex failure analysis or background monitoring patterns, refer to the documents in `references/`.
 
 ## When to Use

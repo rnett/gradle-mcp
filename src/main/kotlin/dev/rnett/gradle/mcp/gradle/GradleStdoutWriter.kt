@@ -11,6 +11,7 @@ abstract class GradleStdoutWriter(val checkForTosRequest: Boolean, lineLogger: (
 
     abstract fun onScansTosRequest(tosAcceptRequest: GradleScanTosAcceptRequest)
     abstract fun onScanPublication(url: String)
+    abstract fun onScanHint()
 
     private var lastLineWasPublishNotification: Boolean = false
 
@@ -21,6 +22,7 @@ abstract class GradleStdoutWriter(val checkForTosRequest: Boolean, lineLogger: (
         }
         if (line.lowercase() in SCAN_LINES) {
             lastLineWasPublishNotification = true
+            onScanHint()
         }
     }
 

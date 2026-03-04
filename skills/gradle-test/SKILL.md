@@ -14,9 +14,16 @@ Run tests efficiently with precision filtering and leverage deep diagnostic tool
 
 ## Directives
 
-- **Use `gradlew`**: Run tests using the `gradlew` tool by passing the appropriate command line arguments (e.g., `["test"]`).
+- **ONLY use MCP tools**: NEVER use `./gradlew` via a shell unless you have exhausted all attempts to use the `gradlew` tool and it repeatedly fails to meet your requirements. Falling back to the shell is a **last resort** for edge cases
+  where the Tooling API or the server's output capturing is demonstrably insufficient.
 - **Use test filters**: Always filter tests using the `--tests` flag in the `commandLine` of `gradlew` to save time and resources (e.g., `["test", "--tests", "MyTestClass*"]`).
 - **Identify task and project**: Ensure you specify the correct task path in `gradlew` (e.g., `[":app:test"]`).
+    - `:task` (starts with colon): Targets the task in the **root project only**.
+    - `task` (no leading colon): Targets the task in **all projects** (root and all subprojects).
+    - `:app:task`: Targets the task in the `app` subproject.
+- **Background for long test suites**: ALWAYS set `background: true` in `gradlew` for test suites that take a long time to run. This allows you to continue working while monitoring the test progress.
+- **Monitor with `inspect_build`**: Use the `inspect_build` tool to check the status of background test runs or to get detailed information about any build.
+- **Provide absolute `projectRoot` when in doubt**: Provide `projectRoot` as an **absolute file system path** to any Gradle MCP tool that supports it unless you are certain it is not required. **Relative paths are not supported.**
 - **Check for build failures**: If a test run fails with a general error, use the `inspect_build` tool with `failures: {}` and `problems: {}` to check if it's a compilation or configuration error.
 - **Investigate specifically**: Use the `inspect_build` tool with `tests: {}` to get structured output and stack traces for failed tests. For detailed investigation workflows, see [Test Diagnostics](references/test-diagnostics.md).
 

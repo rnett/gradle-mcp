@@ -200,11 +200,7 @@ class DefaultGradleDocsService(
             val lines = markdown.lines()
 
             for ((index, line) in lines.withIndex()) {
-                val isMatch = if (regex != null) {
-                    regex.containsMatchIn(line)
-                } else {
-                    line.contains(query, ignoreCase = true)
-                }
+                val isMatch = regex?.containsMatchIn(line) ?: line.contains(query, ignoreCase = true)
 
                 if (isMatch) {
                     val snippet = getSnippetFromLines(lines, index)

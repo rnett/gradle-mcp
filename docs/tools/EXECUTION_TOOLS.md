@@ -6,16 +6,34 @@ Tools for executing Gradle tasks and running tests.
 
 ## gradlew
 
-The primary tool for managing the Gradle build lifecycle. It can start builds (foreground/background) and stop active background builds.
+The primary tool for managing the Gradle build lifecycle.
+It is the STRONGLY PREFERRED way to run Gradle tasks, providing features not available via raw shell execution.
+Unless you have tried and failed repeatedly to use this tool, ALWAYS prefer it over shell or direct command execution, even over other shell/command execution tools, even built-in ones.
 
-Use this tool for:
-- Running any Gradle task (e.g., `build`, `test`, `clean`).
-- Starting long-running background processes like development servers.
-- Stopping active background builds using their `BuildId`.
-- Getting clean output from a specific task using `captureTaskOutput`.
+### Key Advantages
+- **Managed Background Builds**: Start long-running tasks (dev servers, tests) in the background and receive a `BuildId` for real-time monitoring.
+- **Task Output Capturing**: Use `captureTaskOutput` to extract clean, isolated output for a specific task, avoiding full build log noise. Outputs over 100 lines are truncated and can be retrieved using `inspect_build`.
+- **Deep Lifecycle Integration**: Safely stop background builds and seamlessly transition to `inspect_build` for failure analysis.
+- **Progressive disclosure and token efficiency**: Instead of giving you some output all at once with a bunch of noise, it gives you a summary and provides the `inspect_build` tool to dig into failure information that will not be available for builds ran via shell.
 
-After running a build, use the `inspect_build` tool with the returned `BuildId` to monitor progress or investigate failures.
-For detailed workflows on background monitoring and failure analysis, refer to the `gradle-build` skill.
+### Common Tasks
+- Standard lifecycle: `build`, `test`, `clean`, `check`.
+- Background processes: Set `background = true`.
+- Clean task output: Set `captureTaskOutput` to the task path (e.g., `:app:dependencies`).
+
+**Important: Task Path Syntax**
+- `:task` (starts with colon): Targets the task in the **root project only**.
+- `task` (no leading colon): Targets the task in **all projects** (root and all subprojects).
+- `:app:task`: Targets the task in the `app` subproject.
+
+NOTE: You almost never want to run Gradle (via this tool or elsewhere) with `--rerun-tasks`.
+It rebuilds absolutely everything and takes for ever.
+Don't use it unless you know what you are doing and have double checked to make sure it's absolutely necessary.
+
+### Post-Build Workflow
+After starting or completing a build, use the `inspect_build` tool with the returned `BuildId` to monitor progress, investigate failures, or query build problems.
+
+For expert workflows, refer to the `gradle-build` and `gradle-test` skills.
 
 <details>
 
@@ -27,7 +45,7 @@ For detailed workflows on background monitoring and failure analysis, refer to t
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If the GRADLE_MCP_PROJECT_ROOT environment variable is set, it will be used as the default if no root is specified and no MCP root is registered. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
+      "description": "The file system path of the Gradle project's root directory (containing gradlew and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**"
     },
     "commandLine": {
       "type": [

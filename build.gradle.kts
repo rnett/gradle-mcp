@@ -5,10 +5,11 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.power.assert)
-    alias(libs.plugins.ktor)
+    `application`
     `maven-publish`
     alias(libs.plugins.buildconfig)
     alias(libs.plugins.vanniktech.maven.publish)
+    alias(libs.plugins.shadow)
 }
 
 repositories {
@@ -91,6 +92,7 @@ dependencies {
     implementation(libs.logback.classic)
 
     implementation(libs.lucene.core)
+    implementation(libs.lucene.codecs)
     implementation(libs.lucene.analysis.common)
     implementation(libs.lucene.queryparser)
 
@@ -103,10 +105,6 @@ dependencies {
     testImplementation(libs.ktor.client.cio)
     testImplementation(libs.ktor.client.content.negotiation)
     testImplementation(libs.ktor.client.mock)
-}
-
-ktor {
-    development = false
 }
 
 kotlin {
@@ -165,6 +163,7 @@ tasks.processResources {
 
 tasks.shadowJar {
     archiveClassifier = ""
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
     mergeServiceFiles()
 }
 

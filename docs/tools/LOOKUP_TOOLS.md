@@ -6,26 +6,21 @@ Tools for looking up detailed information about past Gradle builds ran by this M
 
 ## inspect_build
 
-The central tool for retrieving build information, monitoring progress, and diagnosing failures. It acts as a "Dashboard" and "Deep Dive" tool for all builds (active and historical).
+The central tool for retrieving build information, monitoring progress, and diagnosing failures. It acts as a "Dashboard" and "Deep Dive" tool for all builds started via the `gradlew` tool.
 
-### Usage Overview
-- **Dashboard**: Call without `buildId` to see active and recent builds.
-- **Monitoring**: Use `wait`, `waitFor`, or `waitForTask` with a `buildId` to monitor an active build.
-- **Deep Dive**: Specify a `buildId` and exactly one of the detail sections (`tasks`, `tests`, `failures`, `problems`, or `console`).
-- **Modes**: Use `mode="summary"` (default) for lists and `mode="details"` for deep dives into specific items (requires `name`, `path`, or `id` in the section options).
-- **Pagination**: Use top-level `limit` and `offset` for lists and console output.
+### Core Features
+- **Build Dashboard**: Call without `buildId` to see active and recently completed builds.
+- **Real-time Monitoring**: Use `wait`, `waitFor`, or `waitForTask` to block until a background build reaches a specific state or logs a specific pattern.
+- **Surgical Diagnostics**: Specify a `buildId` and a section (`tasks`, `tests`, `failures`, `problems`, or `console`) to deep-dive into build results.
+- **Contextual Details**: Use `mode="details"` with specific section options (like task path or test name) for exhaustive information.
+
+### Usage Patterns
+1. **Dashboard**: `inspect_build()`
+2. **Wait for Success**: `inspect_build(buildId=ID, wait=60)`
+3. **Wait for Log**: `inspect_build(buildId=ID, wait=60, waitFor="Server started")`
+4. **Analyze Failure**: `inspect_build(buildId=ID, failures={})`
 
 To start a new build, use the `gradlew` tool.
-
-### Section Options
-Only one of the following may be specified per call:
-- `tasks`: List tasks or get task output.
-- `tests`: List tests or get test details/stack traces.
-- `failures`: List build failures or get failure trees.
-- `problems`: List build problems or get problem details.
-- `console`: Read console logs with pagination.
-
-If no section is specified, the build summary is returned.
 
 For detailed diagnostic workflows, refer to the `gradle-build` and `gradle-test` skills.
 

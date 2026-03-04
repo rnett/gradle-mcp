@@ -9,6 +9,7 @@ import dev.rnett.gradle.mcp.gradle.ProblemSeverity
 import dev.rnett.gradle.mcp.gradle.toId
 import dev.rnett.gradle.mcp.mapToSet
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -54,15 +55,15 @@ data class RunningBuild(
     val publishedScansInternal = ConcurrentLinkedQueue<GradleBuildScan>()
     override val publishedScans: List<GradleBuildScan> get() = publishedScansInternal.toList()
     override val taskResults = ConcurrentHashMap<String, TaskResult>()
-    val taskOutputsAccumulator = ConcurrentHashMap<String, StringBuilder>()
+    val taskOutputsAccumulator = ConcurrentHashMap<String, StringBuffer>()
     override val taskOutputs: Map<String, String> get() = taskOutputsAccumulator.mapValues { it.value.toString() }
     override var taskOutputCapturingFailed: Boolean = false
 
-    private val _logLines = MutableSharedFlow<String>(replay = 1)
+    private val _logLines = MutableSharedFlow<String>(replay = 10, extraBufferCapacity = 500, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     val logLines: SharedFlow<String> = _logLines.asSharedFlow()
 
-    private val _completedTasks = MutableSharedFlow<String>(replay = 1)
-    val completedTasks: SharedFlow<String> = _completedTasks.asSharedFlow()
+    private val _completingTasks = MutableSharedFlow<String>(replay = 1, extraBufferCapacity = 100, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    val completingTasks: SharedFlow<String> = _completingTasks.asSharedFlow()
 
     private val _taskPaths: MutableSet<String> = Collections.newSetFromMap(ConcurrentHashMap())
     val completedTaskPaths: Set<String> get() = _taskPaths.toSet()
@@ -120,18 +121,18 @@ data class RunningBuild(
     internal fun addTaskResult(taskPath: String, outcome: TaskOutcome, duration: Duration, consoleOutput: String?) {
         taskResults[taskPath] = TaskResult(taskPath, outcome, duration, consoleOutput)
         _taskPaths.add(taskPath)
-        _completedTasks.tryEmit(taskPath)
+        _completingTasks.tryEmit(taskPath)
     }
 
     internal fun addTaskCompleted(taskPath: String) {
         if (!taskResults.containsKey(taskPath)) {
             _taskPaths.add(taskPath)
-            _completedTasks.tryEmit(taskPath)
+            _completingTasks.tryEmit(taskPath)
         }
     }
 
     internal fun addTaskOutput(taskPath: String, output: String) {
-        taskOutputsAccumulator.getOrPut(taskPath) { StringBuilder() }.appendLine(output)
+        taskOutputsAccumulator.getOrPut(taskPath) { StringBuffer() }.appendLine(output)
     }
 }
 

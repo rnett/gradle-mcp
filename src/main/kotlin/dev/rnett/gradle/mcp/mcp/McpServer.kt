@@ -61,7 +61,7 @@ class McpServer(
                         else -> null
                     }
                 }.distinct().forEach {
-                    if (it is AutoCloseable) it.close()
+                    it.close()
                 }
             }
             scope.cancel("Server closing")

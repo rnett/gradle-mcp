@@ -24,6 +24,7 @@ import org.apache.lucene.store.FSDirectory
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
+import kotlin.io.path.exists
 import kotlin.io.path.extension
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.readText
@@ -85,7 +86,19 @@ object FullTextSearch : SearchProvider {
     override suspend fun search(indexDir: Path, query: String): List<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (results, duration) = measureTimedValue {
             val idxDir = indexDir.resolve(v2IndexDirName)
-            val reader = readerCache.get(idxDir)
+            if (!idxDir.exists()) {
+                throw IllegalStateException("Lucene index directory does not exist: $idxDir")
+            }
+
+            val reader = try {
+                readerCache.get(idxDir)
+            } catch (e: Exception) {
+                val cause = e.cause
+                if (cause is org.apache.lucene.index.IndexNotFoundException) {
+                    throw IllegalStateException("Lucene index not found in $idxDir", cause)
+                }
+                throw e
+            }
             val indexSearcher = IndexSearcher(reader)
             createAnalyzer().use { analyzer ->
                 val q = StandardQueryParser(analyzer).parse(query, CONTENTS)

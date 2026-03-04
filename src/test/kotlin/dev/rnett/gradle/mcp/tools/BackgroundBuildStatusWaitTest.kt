@@ -14,18 +14,22 @@ import io.mockk.every
 import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.Root
 import io.modelcontextprotocol.kotlin.sdk.TextContent
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import org.gradle.tooling.CancellationTokenSource
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
     @Test
@@ -44,7 +48,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { stop() } returns Unit
             every { cancellationTokenSource } returns mockk<CancellationTokenSource>()
             every { logLines } returns MutableSharedFlow<String>().asSharedFlow()
-            every { completedTasks } returns MutableSharedFlow<String>().asSharedFlow()
+            every { completingTasks } returns MutableSharedFlow<String>().asSharedFlow()
             every { completedTaskPaths } returns emptySet()
             every { consoleOutput } returns "Started\n"
             every { consoleOutputLines } returns listOf("Started")
@@ -112,7 +116,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { stop() } returns Unit
             every { cancellationTokenSource } returns mockk<CancellationTokenSource>()
             every { logLines } returns logLinesFlow.asSharedFlow()
-            every { completedTasks } returns MutableSharedFlow<String>().asSharedFlow()
+            every { completingTasks } returns MutableSharedFlow<String>().asSharedFlow()
             every { completedTaskPaths } answers { emptySet() }
             every { consoleOutput } answers { logBuffer.toString() }
             every { consoleOutputLines } answers { logBuffer.toString().lines() }
@@ -166,7 +170,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { stop() } returns Unit
             every { cancellationTokenSource } returns mockk<CancellationTokenSource>()
             every { logLines } returns logLinesFlow.asSharedFlow()
-            every { completedTasks } returns MutableSharedFlow<String>().asSharedFlow()
+            every { completingTasks } returns MutableSharedFlow<String>().asSharedFlow()
             every { completedTaskPaths } returns emptySet()
             every { consoleOutput } returns logBuffer.toString()
             every { consoleOutputLines } returns logBuffer.toString().lines()
@@ -209,7 +213,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { stop() } returns Unit
             every { cancellationTokenSource } returns mockk<CancellationTokenSource>()
             every { logLines } returns MutableSharedFlow<String>().asSharedFlow()
-            every { completedTasks } returns completedTasksFlow.asSharedFlow()
+            every { completingTasks } returns completedTasksFlow.asSharedFlow()
             every { completedTaskPaths } returns emptySet()
             every { consoleOutput } returns "Started\n"
             every { consoleOutputLines } returns listOf("Started")
@@ -258,7 +262,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { stop() } returns Unit
             every { cancellationTokenSource } returns mockk<CancellationTokenSource>()
             every { logLines } returns MutableSharedFlow<String>().asSharedFlow()
-            every { completedTasks } returns completedTasksFlow.asSharedFlow()
+            every { completingTasks } returns completedTasksFlow.asSharedFlow()
             every { completedTaskPaths } returns setOf(":help")
             every { consoleOutput } returns "Started\n"
             every { consoleOutputLines } returns listOf("Started")
@@ -300,7 +304,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { stop() } returns Unit
             every { cancellationTokenSource } returns mockk<CancellationTokenSource>()
             every { logLines } returns MutableSharedFlow<String>().asSharedFlow()
-            every { completedTasks } returns completedTasksFlow.asSharedFlow()
+            every { completingTasks } returns completedTasksFlow.asSharedFlow()
             every { completedTaskPaths } returns setOf(":preExisting")
             every { consoleOutput } returns "Started\n"
             every { consoleOutputLines } returns listOf("Started")
@@ -331,5 +335,30 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         assert(duration >= 500)
         val statusText = statusCall!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assert(statusText.contains("BUILD IN PROGRESS"))
+    }
+
+    @Test
+    fun `gradlew with background=true returns immediately without waiting for build to finish`() = runTest {
+        val buildId = BuildId.newId()
+        val runningBuild = mockk<RunningBuild>(relaxed = true) {
+            every { id } returns buildId
+            // awaitFinished() suspends forever — the tool must NOT call it in the background path
+            coEvery { awaitFinished() } coAnswers { suspendCancellableCoroutine { } }
+        }
+        every { provider.runBuild(any(), any(), any(), any(), any(), any()) } returns runningBuild
+        server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
+
+        val result = server.client.callTool(
+            ToolNames.GRADLEW, mapOf(
+                "commandLine" to JsonArray(listOf(JsonPrimitive("build"))),
+                "background" to JsonPrimitive(true),
+            )
+        )
+
+        // If the tool waited for the build to finish, this test would hang/timeout.
+        // The fact that it completes proves the background path returns immediately.
+        assert(result != null)
+        val text = result!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        assertEquals(buildId.toString(), text)
     }
 }

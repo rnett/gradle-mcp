@@ -15,6 +15,7 @@ Map out project modules, discover all available tasks, and gain total visibility
 ## Directives
 
 - **Use `gradlew` for introspection**: Always use the `gradlew` tool to run introspection tasks or flags.
+- **Provide `projectRoot` when in doubt**: Provide `projectRoot` to any Gradle MCP tool that supports it (like `gradlew`) unless you are certain it is not required by the current MCP configuration.
 - **Use `captureTaskOutput` for clean results**: When running a specific introspection task (e.g., `:app:tasks`), set `captureTaskOutput` to that task path to get only the relevant output.
 - **Use `inspect_build` for status**: Use the `inspect_build` tool to check if a build is currently running or to see the history of previous builds.
 - **Identify project structure**: Use the `projects` task to see the multi-project structure and identify valid project paths for other tools.

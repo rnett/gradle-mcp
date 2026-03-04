@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.power.assert)
-    id("io.ktor.plugin")
+    alias(libs.plugins.shadow)
 }
 
 kotlin {

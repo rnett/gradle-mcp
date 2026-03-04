@@ -1,6 +1,10 @@
-- Make the Gradle docs tool download the distribution from https://services.gradle.org/distributions/, and have options to include javadocs and samples. Maybe have "kind": userguide, javadoc, release-notes, samples.
+- Rename gradlew tool to gradle
+- Try to get progress % from gradle events and sent it to mcp client
+- Remove scans interaction in favor of an init script like https://github.com/gradle/gradle/issues/26316#issuecomment-1739245349I
+- Make the Gradle docs tool download the distribution from https://services.gradle.org/distributions/, and have options to include javadocs and samples. Maybe have "kind": userguide, javadoc, release-notes, samples. Use lucene indexing.
 - Pagination for the search tools. Can I use built-in MCP pagination? Maybe extend this to the lookup tools.
 - A "gradle expert/build authoring" skill, which should be about Gradle build editing and mention things like the best practices.
+- Progress notifications for search, download, indexing, etc.
 - Make symbol indexing and extraction more performant, especially for the Gradle sources. Look at using lucene, or doing the full text search first and then searching for symbols.
 - More skills in general.
 - Test with continuous builds

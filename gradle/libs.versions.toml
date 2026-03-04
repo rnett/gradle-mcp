@@ -25,12 +25,14 @@ agp9 = "9.1.0"
 androidxCompose = "1.10.4"
 androidxActivityCompose = "1.12.4"
 lucene = "10.4.0"
+shadow = "9.3.2"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 kotlin-power-assert = { id = "org.jetbrains.kotlin.plugin.power-assert", version.ref = "kotlin" }
 ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 buildconfig = { id = "com.github.gmazzo.buildconfig", version.ref = "buildconfig" }
 vanniktech-maven-publish = { id = "com.vanniktech.maven.publish.base", version.ref = "vanniktechPublish" }
 
@@ -73,6 +75,7 @@ junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "jun
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 
 lucene-core = { group = "org.apache.lucene", name = "lucene-core", version.ref = "lucene" }
+lucene-codecs = { group = "org.apache.lucene", name = "lucene-codecs", version.ref = "lucene" }
 lucene-analysis-common = { group = "org.apache.lucene", name = "lucene-analysis-common", version.ref = "lucene" }
 lucene-queryparser = { group = "org.apache.lucene", name = "lucene-queryparser", version.ref = "lucene" }
 lucene-highlighter = { group = "org.apache.lucene", name = "lucene-highlighter", version.ref = "lucene" }

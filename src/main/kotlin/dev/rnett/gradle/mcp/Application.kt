@@ -2,10 +2,8 @@ package dev.rnett.gradle.mcp
 
 import dev.rnett.gradle.mcp.Application.Companion.LOGGER
 import dev.rnett.gradle.mcp.mcp.McpServer
-import io.ktor.server.engine.CommandLineConfig
-import io.ktor.server.engine.EmbeddedServer
-import io.ktor.server.netty.EngineMain
-import io.ktor.server.netty.NettyApplicationEngine
+import io.ktor.server.engine.*
+import io.ktor.server.netty.*
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
 import io.modelcontextprotocol.kotlin.sdk.server.mcp
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -144,7 +142,9 @@ class Application(val args: Array<String>, val transport: Transport) {
 
         @JvmStatic
         fun stdio(args: Array<String>) = runBlocking {
-            Application(args, Transport.Stdio(System.`in`.asSource().buffered(), System.out.asSink().buffered())).start()
+            val out = System.out
+            System.setOut(System.err)
+            Application(args, Transport.Stdio(System.`in`.asSource().buffered(), out.asSink().buffered())).start()
         }
 
         @JvmStatic

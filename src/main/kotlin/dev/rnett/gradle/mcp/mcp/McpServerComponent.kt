@@ -86,10 +86,12 @@ abstract class McpServerComponent(val name: String, val description: String) {
         server.addTool(
             tool,
         ) { request ->
+            McpToolHelper.logger.info("Executing tool call {} (request={})", tool.name, request)
             val input = server.json.decodeFromJsonElement(inputSerializer, request.arguments)
             val (output, aux) = McpToolContext(server, request, request).use {
                 runCatchingExceptCancellation { handler(it, input) } to it.auxiliaryResults()
             }
+            McpToolHelper.logger.info("Finished tool call {} (request={})", tool.name, request)
             output.fold(
                 {
 

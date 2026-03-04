@@ -10,11 +10,13 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -144,6 +146,18 @@ class DefaultReplManager(
                         logStdout(sessionId, line)
                     }
                 }
+
+                // If scanner finishes and process is dead, emit error so any pending requests stop waiting
+                if (!process.isAlive) {
+                    val exitCode = process.exitValue()
+                    if (exitCode != 0) {
+                        session.emitResponse(
+                            ReplResponse.Result.InternalError(
+                                "The REPL worker process terminated unexpectedly with exit code $exitCode."
+                            )
+                        )
+                    }
+                }
             }
         )
         session.logJobs.add(
@@ -236,17 +250,44 @@ class DefaultReplManager(
     override suspend fun sendRequest(sessionId: String, command: ReplRequest): Flow<ReplResponse> {
         val session = sessions[sessionId] ?: error("No active REPL session with ID $sessionId")
 
+        if (!session.process.isAlive) {
+            val exitCode = session.process.exitValue()
+            return flowOf(
+                ReplResponse.Result.InternalError(
+                    "The REPL worker process terminated unexpectedly with exit code $exitCode."
+                )
+            )
+        }
+
         val json = Json.encodeToString(command)
 
         session.clearResponsesBuffer()
-        withContext(Dispatchers.IO) {
-            val line = ReplResponse.RPC_PREFIX + json + '\n'
-            session.process.outputStream.write(line.encodeToByteArray())
-            session.process.outputStream.flush()
+        try {
+            withContext(Dispatchers.IO) {
+                val line = ReplResponse.RPC_PREFIX + json + '\n'
+                session.process.outputStream.write(line.encodeToByteArray())
+                session.process.outputStream.flush()
+            }
+        } catch (e: java.io.IOException) {
+            LOGGER.warn("IOException while sending request: ${e.message}")
+            val exitCode = if (!session.process.isAlive) {
+                session.process.exitValue()
+            } else {
+                null
+            }
+
+            val errorMessage = if (exitCode != null) {
+                "The REPL worker process terminated unexpectedly with exit code $exitCode. " +
+                        "This usually indicates a fatal error during initialization or code execution. " +
+                        "Check the logs for details."
+            } else {
+                "Failed to send request to REPL worker: ${e.message}"
+            }
+
+            return flowOf(ReplResponse.Result.InternalError(errorMessage, e.stackTraceToString()))
         }
 
-
-        LOGGER.info("Request written")
+        LOGGER.info("Request written to session $sessionId")
         return flow {
             session.responses
                 .collect {
@@ -266,7 +307,7 @@ class DefaultReplManager(
     override suspend fun closeAll() {
         sessions.keys().toList().forEach { terminateSession(it) }
         // Give the OS a brief moment to release any file handles on Windows
-        kotlinx.coroutines.delay(250)
+        delay(100)
         scope.cancel()
     }
 

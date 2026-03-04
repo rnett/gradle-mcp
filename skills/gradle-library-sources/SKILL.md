@@ -14,6 +14,8 @@ Deep-dive into the implementation details of any library or Gradle itself. Searc
 
 ## Directives
 
+- **Provide `projectRoot` when in doubt**: Provide `projectRoot` to any Gradle MCP tool that supports it (like `read_dependency_sources` or `search_dependency_sources`) unless you are certain it is not required by the current MCP
+  configuration.
 - **Identify the scope**: You can target dependencies from the entire project, a specific project path (e.g., `:app`), a configuration (e.g., `:app:debugCompileClasspath`), a source set (e.g., `:app:main`), or Gradle's own internal source
   code.
 - **Search Gradle sources**: Use the `gradleSource: true` argument to search or read Gradle's internal source code instead of external dependencies. This is useful for deep dives into Gradle's behavior.

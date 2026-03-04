@@ -20,7 +20,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.future.asDeferred
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.apache.commons.io.output.WriterOutputStream
 import org.gradle.tooling.ConfigurableLauncher
 import org.gradle.tooling.Failure
@@ -51,7 +52,8 @@ import org.gradle.tooling.model.Model
 import org.gradle.tooling.model.build.BuildEnvironment
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
-import java.io.ByteArrayInputStream
+import java.io.PipedInputStream
+import java.io.PipedOutputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
@@ -180,8 +182,10 @@ class DefaultGradleProvider(
         }
 
     private suspend fun getConnectionWrapper(projectRoot: Path): ProjectConnectionWrapper {
+        LOGGER.debug("Getting connection for project root {}", projectRoot)
         var connection = connectionCache.get(projectRoot).asDeferred().await()
         if (!connection.isAlive()) {
+            LOGGER.debug("Connection for project root {} is stale, invalidating", projectRoot)
             connectionCache.synchronous().invalidate(projectRoot)
             connection = connectionCache.get(projectRoot).asDeferred().await()
         }
@@ -551,35 +555,78 @@ class DefaultGradleProvider(
             // Build scan TOS acceptance
 
             val tosHolder = CompletableDeferred<Deferred<Boolean>>()
-            val inputStream = DeferredInputStream(GradleScanTosAcceptRequest.TIMEOUT + 30.seconds, scope.async(start = CoroutineStart.LAZY) {
+            val scanHint = CompletableDeferred<Unit>()
+            val pipeOut = PipedOutputStream()
+            val readStarted = CompletableDeferred<Unit>()
+            val pipeIn = object : PipedInputStream() {
+                override fun read(): Int {
+                    readStarted.complete(Unit)
+                    return super.read()
+                }
+
+                override fun read(b: ByteArray, off: Int, len: Int): Int {
+                    readStarted.complete(Unit)
+                    return super.read(b, off, len)
+                }
+            }
+
+            scope.launch(Dispatchers.IO) {
+                pipeOut.connect(pipeIn)
+            }
+
+            scope.launch(Dispatchers.IO) {
                 try {
-                    val query = withTimeout(3.seconds) {
-                        tosHolder.await()
+                    // Wait for the build to actually attempt to read from standard input.
+                    readStarted.await()
+                    LOGGER.debug("Build started reading from stdin (buildId={})", buildId)
+
+                    // Adaptive timeout: wait a short time by default, longer if we suspect a scan is happening.
+                    var query = withTimeoutOrNull(500.milliseconds) { tosHolder.await() }
+
+                    if (query == null && (args.publishScan || args.additionalArguments.contains("--scan") || scanHint.isCompleted)) {
+                        LOGGER.debug("No ToS request yet but scan hint detected, extending wait (buildId={})", buildId)
+                        query = withTimeoutOrNull(2500.milliseconds) { tosHolder.await() }
                     }
 
-                    ByteArrayInputStream(
-                        (if (query.await()) "yes\n" else "no\n").encodeToByteArray()
-                    )
+                    if (query != null) {
+                        LOGGER.info("Build Scan ToS request detected, eliciting response (buildId={})", buildId)
+                        val accepted = query.await()
+                        LOGGER.info("User response to ToS request: {} (buildId={})", if (accepted) "ACCEPTED" else "DECLINED", buildId)
+                        pipeOut.write((if (accepted) "yes\n" else "no\n").toByteArray())
+                        pipeOut.flush()
+
+                        // Small delay to ensure Gradle can read the input before we close the pipe.
+                        kotlinx.coroutines.delay(200)
+                    } else {
+                        LOGGER.debug("No Build Scan ToS request detected, providing EOF to stdin (buildId={})", buildId)
+                    }
                 } catch (e: Exception) {
-                    LOGGER.debug("Error or timeout waiting for ToS holder", e)
-                    ByteArrayInputStream(byteArrayOf())
+                    if (e !is CancellationException)
+                        LOGGER.error("Error or timeout handling stdin/ToS for build (buildId={})", buildId, e)
+                } finally {
+                    try {
+                        LOGGER.debug("Closing stdin pipe (buildId={})", buildId)
+                        pipeOut.close()
+                    } catch (e: Exception) {
+                        // Ignore
+                    }
                 }
-            })
+            }
 
             setStandardOutput(
                 WriterOutputStream.builder().apply {
                     charset = StandardCharsets.UTF_8
-                    bufferSize = 80
+                    bufferSize = 8192
                     writer = object : GradleStdoutWriter(config.allowPublicScansPublishing, {
                         if (it.contains("Failed to set up gradle-mcp output capturing", ignoreCase = true)) {
                             runningBuild.taskOutputCapturingFailed = true
                         }
-                        processTaskOutput(it, runningBuild, false, buildId, stdoutLineHandler ?: {})
+                        processTaskOutput(it, runningBuild, false, buildId, stdoutLineHandler)
                     }) {
                         override fun onScansTosRequest(tosAcceptRequest: GradleScanTosAcceptRequest) {
                             if (tosHolder.isActive) {
                                 tosHolder.complete(
-                                    scope.async(Dispatchers.IO) {
+                                    scope.async(Dispatchers.IO, start = CoroutineStart.LAZY) {
                                         runCatchingExceptCancellation { tosAccepter.invoke(tosAcceptRequest) }
                                             .getOrElse {
                                                 LOGGER.warn("Error asking for ToS acceptance - assuming 'no'", it)
@@ -594,36 +641,45 @@ class DefaultGradleProvider(
                             runningBuild.publishedScansInternal += GradleBuildScan.fromUrl(url)
                         }
 
+                        override fun onScanHint() {
+                            scanHint.complete(Unit)
+                        }
+
                     }
-                }.get()
+                }.get().buffered()
             )
 
             setStandardError(
                 WriterOutputStream.builder().apply {
                     charset = StandardCharsets.UTF_8
-                    bufferSize = 80
+                    bufferSize = 8192
                     writer = LineEmittingWriter {
-                        processTaskOutput(it, runningBuild, true, buildId, stderrLineHandler ?: {})
+                        processTaskOutput(it, runningBuild, true, buildId, stderrLineHandler)
                     }
-                }.get()
+                }.get().buffered()
             )
 
-            setStandardInput(inputStream)
+            setStandardInput(pipeIn)
 
-            scope.async {
-                invoker(this@invokeBuild)
-            }.await()
+            pipeOut.use {
+                val result = scope.async {
+                    LOGGER.info("Starting Gradle build (buildId={}, args={})", buildId, allArguments)
+                    invoker(this@invokeBuild)
+                }.await()
+                LOGGER.info("Gradle build finished (buildId={})", buildId)
+                result
+            }
         }
     }
 
     private val taskOutputRegex = Regex("\\[gradle-mcp] \\[(.+)] \\[(.+)]: (.*)")
 
-    private inline fun processTaskOutput(
+    private fun processTaskOutput(
         line: String,
         runningBuild: RunningBuild,
         isError: Boolean,
         buildId: BuildId,
-        lineHandler: (String) -> Unit
+        lineHandler: ((String) -> Unit)?
     ) {
         val taskMatch = taskOutputRegex.matchEntire(line)
         if (taskMatch != null) {
@@ -638,7 +694,7 @@ class DefaultGradleProvider(
         } else {
             val logLine = if (isError) "ERR: $line" else line
             runningBuild.addLogLine(logLine)
-            lineHandler.invoke(line)
+            lineHandler?.invoke(line)
             LOGGER.makeLoggingEventBuilder(Level.INFO)
                 .addKeyValue("buildId", buildId)
                 .log("Build ${if (isError) "stderr" else "stdout"}: $line")

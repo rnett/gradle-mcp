@@ -8,6 +8,8 @@ Tools for searching and inspecting source code of Gradle dependencies.
 
 Read specific source files or list directories from the combined source code of all external library dependencies or Gradle's internal sources within a given scope.
 
+**projectRoot** should be the file system path of the Gradle project's root directory (containing gradlew and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**
+
 Use this tool to explore the implementation of a library or Gradle itself, and to read a source file once you have identified the file path.
 To find specific classes or methods across all dependencies, use the `search_dependency_sources` tool.
 
@@ -21,7 +23,7 @@ To find specific classes or methods across all dependencies, use the `search_dep
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If the GRADLE_MCP_PROJECT_ROOT environment variable is set, it will be used as the default if no root is specified and no MCP root is registered. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
+      "description": "The file system path of the Gradle project's root directory (containing gradlew and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**"
     },
     "projectPath": {
       "type": [
@@ -46,7 +48,7 @@ To find specific classes or methods across all dependencies, use the `search_dep
     },
     "gradleSource": {
       "type": "boolean",
-      "description": "If true, searches/reads Gradle's internal source code instead of external dependencies. If set, projectPath, sourceSetPath, and configurationPath are ignored."
+      "description": "If true, searches/reads Gradle Build Tool's own source code instead of the project's dependencies. If set, projectPath, sourceSetPath, and configurationPath are ignored."
     },
     "path": {
       "type": [
@@ -73,6 +75,8 @@ To find specific classes or methods across all dependencies, use the `search_dep
 
 Search for symbols or text within the combined source code of all external library dependencies or Gradle's internal sources within a given scope.
 
+**projectRoot** should be the file system path of the Gradle project's root directory (containing gradlew and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**
+
 Use this tool to find specific classes, methods, or text in library source code or Gradle itself.
 Once you have found the file path, you can read the file using the `read_dependency_sources` tool.
 When searching for symbols, the results may have some false-positives - look at the included snippets.
@@ -87,7 +91,7 @@ When searching for symbols, the results may have some false-positives - look at 
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory, where the gradlew script and settings.gradle(.kts) files are located. REQUIRED IF NO MCP ROOTS CONFIGURED, or more than one. If the GRADLE_MCP_PROJECT_ROOT environment variable is set, it will be used as the default if no root is specified and no MCP root is registered. If MCP roots are configured, it must be within them, may be a root name instead of path, and if there is only one root, will default to it."
+      "description": "The file system path of the Gradle project's root directory (containing gradlew and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**"
     },
     "projectPath": {
       "type": [

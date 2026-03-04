@@ -15,6 +15,7 @@ Easily query project dependencies, check for available updates, and find new lib
 ## Directives
 
 - **Identify project path**: Use the Gradle project path (e.g., `:app`) when querying dependencies. Defaults to the root project.
+- **Provide `projectRoot` when in doubt**: Provide `projectRoot` to any Gradle MCP tool that supports it unless you are certain it is not required by the current MCP configuration.
 - **Use `inspect_dependencies` for local info**: This is the primary tool for viewing the dependency graph and checking for updates within your project.
 - **Filter for updates**: Use `updatesOnly: true` in the `inspect_dependencies` tool to get a concise list of available library updates.
 - **Use `search_maven_central` for discovery**: Use the `search_maven_central` tool to find new libraries or check the version history of an artifact on Maven Central.

@@ -4,64 +4,46 @@ import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleResult
 import dev.rnett.gradle.mcp.mcp.McpContext
-import org.gradle.tooling.model.Model
-
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.flow.sample
+import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 context(ctx: McpContext)
-suspend inline fun <reified T : Model> GradleProvider.getBuildModel(
-    projectRoot: GradleProjectRootInput,
-    invocationArgs: GradleInvocationArguments,
-    requiresGradleProject: Boolean = true
-): GradleResult<T> {
-    val root = projectRoot.resolve()
-    return getBuildModel(
-        root,
-        T::class,
-        invocationArgs.withInitScript(InitScriptNames.TASK_OUT),
-        { ScansTosManager.askForScansTos(root, it) },
-        stdoutLineHandler = {
+suspend inline fun <T> withProgressEmissions(
+    crossinline block: suspend ((String) -> Unit) -> T
+): T = coroutineScope {
+    val channel = Channel<String>(Channel.UNLIMITED)
+    val job = launch {
+        channel.consumeAsFlow().sample(500.milliseconds).collect {
             ctx.emitProgressNotification(0.0, 0.0, it)
-        },
-        requiresGradleProject = requiresGradleProject
-    )
+        }
+    }
+    try {
+        block { line ->
+            channel.trySend(line)
+        }
+    } finally {
+        job.cancel()
+    }
 }
-
 
 context(ctx: McpContext)
 suspend inline fun GradleProvider.doBuild(
     projectRoot: GradleProjectRootInput,
     invocationArgs: GradleInvocationArguments,
-): GradleResult<Unit> {
+): GradleResult<Unit> = withProgressEmissions { emit ->
     val root = projectRoot.resolve()
     val running = runBuild(
         root,
         invocationArgs.withInitScript(InitScriptNames.TASK_OUT),
         { ScansTosManager.askForScansTos(root, it) },
-        stdoutLineHandler = {
-            ctx.emitProgressNotification(0.0, 0.0, it)
-        }
+        stdoutLineHandler = emit,
+        stderrLineHandler = { emit("ERR: ${it}") },
     )
     val finished = running.awaitFinished()
-    return GradleResult(finished, Result.success(Unit))
-}
-
-context(ctx: McpContext)
-suspend inline fun GradleProvider.doTests(
-    projectRoot: GradleProjectRootInput,
-    testPatterns: Map<String, Set<String>>,
-    invocationArgs: GradleInvocationArguments,
-): GradleResult<Unit> {
-    val root = projectRoot.resolve()
-    val running = runTests(
-        root,
-        testPatterns,
-        invocationArgs.withInitScript(InitScriptNames.TASK_OUT),
-        { ScansTosManager.askForScansTos(root, it) },
-        stdoutLineHandler = {
-            ctx.emitProgressNotification(0.0, 0.0, it)
-        }
-    )
-    val finished = running.awaitFinished()
-    return GradleResult(finished, Result.success(Unit))
+    GradleResult(finished, Result.success(Unit))
 }
 

@@ -34,7 +34,9 @@ data class RelativeSearchResult(
 fun Collection<RelativeSearchResult>.toSearchResults(sourcesRoot: Path): List<SearchResult> {
     return this.groupBy { it.relativePath }.flatMap { (relativePath, results) ->
         val file = sourcesRoot.resolve(relativePath)
-        if (!file.exists()) return@flatMap emptyList()
+        if (!file.exists()) {
+            throw IllegalStateException("Search result points to non-existent source file: $file")
+        }
         val content = file.readText()
         val lines = content.lines()
 

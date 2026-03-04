@@ -254,4 +254,40 @@ class ReplManagerTest {
 
         manager.closeAll()
     }
+
+    @Test
+    fun `sendRequest handles broken pipe gracefully when worker crashes`() = runTest {
+        val jarPath = tempDir.resolve("repl-worker-crash.jar")
+        compileAndJar(
+            jarPath, "ReplWorkerCrash", """
+            public class ReplWorkerCrash {
+                public static void main(String[] args) {
+                    // Just exit immediately
+                    System.exit(1);
+                }
+            }
+        """.trimIndent()
+        )
+
+        val provider = mockk<BundledJarProvider>()
+        every { provider.extractJar(any()) } returns jarPath
+
+        val manager = DefaultReplManager(provider)
+        manager.startSession("session1", config1, "java")
+
+        // Wait for it to die
+        delay(500)
+
+        val process = manager.getSession("session1")
+        println("TEST DEBUG: session after 500ms = $process")
+
+        val responses = manager.sendRequest("session1", ReplRequest("1 + 1")).toList()
+
+        assert(responses.size == 1)
+        assert(responses[0] is ReplResponse.Result.InternalError)
+        val error = responses[0] as ReplResponse.Result.InternalError
+        assert(error.message.contains("terminated unexpectedly with exit code 1"))
+
+        manager.closeAll()
+    }
 }

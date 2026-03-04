@@ -22,6 +22,7 @@ import java.nio.file.attribute.BasicFileAttributes
 import java.util.zip.ZipInputStream
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createDirectories
+import kotlin.io.path.createFile
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
@@ -58,11 +59,9 @@ class DefaultGradleSourceService(
             ?: throw IllegalStateException("Could not determine Gradle version for $rootPath")
 
         val targetDir = SourcesDir(gradleSourcesDir.resolve(version))
+        val markerFile = targetDir.path.resolve(".completed")
 
-        if (targetDir.sources.exists() && !forceDownload) {
-            if (!targetDir.index.exists()) {
-                indexInternal(version, null, targetDir)
-            }
+        if (markerFile.exists() && !forceDownload) {
             return@withContext targetDir
         }
 
@@ -74,7 +73,12 @@ class DefaultGradleSourceService(
         val sourceZip = downloadGradleSources(version)
         try {
             extractAndIndex(version, sourceZip, targetDir)
+            markerFile.createFile()
             return@withContext targetDir
+        } catch (e: Exception) {
+            LOGGER.error("Failed to extract and index Gradle sources for version $version", e)
+            targetDir.path.deleteRecursively()
+            throw e
         } finally {
             sourceZip.deleteIfExists()
         }

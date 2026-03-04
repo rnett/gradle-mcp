@@ -15,6 +15,7 @@ Instantly search and read the official Gradle User Guide, release notes, and ver
 ## Directives
 
 - **Use `gradle_docs` for all queries**: Always use the `gradle_docs` tool as the primary method for accessing Gradle help and documentation.
+- **Provide `projectRoot` when in doubt**: Provide `projectRoot` to any Gradle MCP tool that supports it (like `gradle_docs`) unless you are certain it is not required by the current MCP configuration.
 - **Search first**: Use the `query` argument in `gradle_docs` to find relevant documentation pages.
 - **Read specific pages**: Use the `path` argument in `gradle_docs` to read a specific documentation page as markdown.
 - **Check release notes**: Set `releaseNotes: true` in `gradle_docs` to fetch the release notes for a specific Gradle version.

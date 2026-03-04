@@ -19,7 +19,7 @@ try {
 
     val inListener = ThreadLocal<Boolean>()
 
-    val operations = mutableMapOf<Long?, Pair<Long?, String?>>()
+    val operations = java.util.concurrent.ConcurrentHashMap<Long, Pair<Long?, String?>>()
 
     val listener = object : org.gradle.internal.logging.events.OutputEventListener {
         override fun onOutput(event: org.gradle.internal.logging.events.OutputEvent) {
@@ -39,22 +39,36 @@ try {
                         if (!text.startsWith("[gradle-mcp]")) {
                             var currentId = event.buildOperationId?.id
                             var taskPath: String? = null
+                            val hierarchy = mutableListOf<String>()
                             while (currentId != null) {
                                 val op = operations[currentId]
                                 val displayName = op?.second
-                                if (displayName != null && (displayName.startsWith("Task :") || displayName.startsWith("Run Task :"))) {
-                                    taskPath = if (displayName.startsWith("Task :")) {
-                                        displayName.substringAfter("Task ")
-                                    } else {
-                                        displayName.substringAfter("Run Task ")
+                                if (displayName != null) {
+                                    hierarchy.add(displayName)
+                                    if (displayName.startsWith("Task :") || displayName.startsWith("Run Task :")) {
+                                        taskPath = if (displayName.startsWith("Task :")) {
+                                            displayName.substringAfter("Task ")
+                                        } else {
+                                            displayName.substringAfter("Run Task ")
+                                        }
+                                        break
                                     }
-                                    break
                                 }
                                 currentId = op?.first
                             }
 
                             if (taskPath != null) {
-                                System.out.println("[gradle-mcp] [${taskPath}] [${event.category}]: ${text}")
+                                val lines = text.split("\n")
+                                for (line in lines) {
+                                    System.out.println("[gradle-mcp] [${taskPath}] [${event.category}]: ${line.trimEnd('\r')}")
+                                }
+                            } else {
+                                // If we can't find a task path, it might be build-level output.
+                                // We don't prefix it, so it will be handled as raw output in the provider.
+                                // But let's log the hierarchy to help debug.
+                                if (gradle.startParameter.projectProperties.containsKey("gradle-mcp.init-scripts.debug")) {
+                                    System.err.println("[gradle-mcp-debug] No task path found for output. Category: ${event.category}, Text: ${text.take(20)}, Hierarchy: ${hierarchy.joinToString(" -> ")}")
+                                }
                             }
                         }
                     }
@@ -72,7 +86,10 @@ try {
             buildOperation: org.gradle.internal.operations.BuildOperationDescriptor,
             startEvent: org.gradle.internal.operations.OperationStartEvent
         ) {
-            operations[buildOperation.id?.id] = buildOperation.parentId?.id to buildOperation.displayName
+            val id = buildOperation.id?.id
+            if (id != null) {
+                operations[id] = buildOperation.parentId?.id to buildOperation.displayName
+            }
         }
 
         override fun progress(
@@ -86,7 +103,10 @@ try {
             buildOperation: org.gradle.internal.operations.BuildOperationDescriptor,
             finishEvent: org.gradle.internal.operations.OperationFinishEvent
         ) {
-            operations.remove(buildOperation.id?.id)
+            val id = buildOperation.id?.id
+            if (id != null) {
+                operations.remove(id)
+            }
             if (buildOperation.parentId == null) {
                 buildOperationsListenerManager.removeListener(this)
                 loggingManager.removeOutputEventListener(listener)

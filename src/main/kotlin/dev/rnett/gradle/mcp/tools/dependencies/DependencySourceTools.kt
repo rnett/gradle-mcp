@@ -42,7 +42,7 @@ class DependencySourceTools(
         val configurationPath: String? = null,
         @Description("The source set path to get dependencies from (e.g. ':app:main'). If set, projectPath and configurationPath are ignored.")
         val sourceSetPath: String? = null,
-        @Description("If true, searches/reads Gradle's internal source code instead of external dependencies. If set, projectPath, sourceSetPath, and configurationPath are ignored.")
+        @Description("If true, searches/reads Gradle Build Tool's own source code instead of the project's dependencies. If set, projectPath, sourceSetPath, and configurationPath are ignored.")
         val gradleSource: Boolean = false,
         @Description("Specific file path within the source to read. This path is relative to the root of the combined sources for the given scope.")
         val path: String? = null,
@@ -54,6 +54,8 @@ class DependencySourceTools(
         ToolNames.READ_DEPENDENCY_SOURCES,
         """
             |Read specific source files or list directories from the combined source code of all external library dependencies or Gradle's internal sources within a given scope.
+            |
+            |**projectRoot** should be the file system path of the Gradle project's root directory (containing gradlew and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**
             |
             |Use this tool to explore the implementation of a library or Gradle itself, and to read a source file once you have identified the file path.
             |To find specific classes or methods across all dependencies, use the `search_dependency_sources` tool.
@@ -89,7 +91,7 @@ class DependencySourceTools(
                 return@tool "Path is neither a file nor a directory: ${args.path}"
             }
         } else {
-            walkDirectory(baseDir, 1)
+            walkDirectory(baseDir, 3)
         }
     }
 
@@ -116,6 +118,8 @@ class DependencySourceTools(
         ToolNames.SEARCH_DEPENDENCY_SOURCES,
         """
             |Search for symbols or text within the combined source code of all external library dependencies or Gradle's internal sources within a given scope.
+            |
+            |**projectRoot** should be the file system path of the Gradle project's root directory (containing gradlew and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**
             |
             |Use this tool to find specific classes, methods, or text in library source code or Gradle itself.
             |Once you have found the file path, you can read the file using the `read_dependency_sources` tool.

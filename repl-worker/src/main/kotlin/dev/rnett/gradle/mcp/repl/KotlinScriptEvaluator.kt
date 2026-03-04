@@ -166,7 +166,15 @@ class KotlinScriptEvaluator(val config: ReplConfig, val responseSender: (ReplRes
 
 class HostLastClassLoader(classpath: List<URL>, private val hostClassLoader: ClassLoader) :
     URLClassLoader(classpath.toTypedArray(), null) {
+
+    private val hostFirstPackages = listOf(
+        "dev.rnett.gradle.mcp.repl."
+    )
+
     override fun loadClass(name: String, resolve: Boolean): Class<*> {
+        if (hostFirstPackages.any { name.startsWith(it) }) {
+            return hostClassLoader.loadClass(name)
+        }
         return try {
             super.loadClass(name, resolve)
         } catch (e: ClassNotFoundException) {

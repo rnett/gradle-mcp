@@ -153,7 +153,7 @@ object SymbolSearch : SearchProvider {
         val (results, duration) = measureTimedValue {
             val indexFile = indexDir.resolve(v1FileName)
             if (!indexFile.exists()) {
-                return@measureTimedValue emptyList()
+                throw IllegalStateException("Symbol index file does not exist: $indexFile")
             }
 
             val allSymbols = readIndices(indexFile) { it.toList() }

@@ -14,6 +14,8 @@ Execute Kotlin code interactively in the exact environment of your project's sou
 
 ## Directives
 
+- **ONLY use the MCP REPL**: NEVER use a shell-based Kotlin REPL or a raw Kotlin runner. The `project_repl` tool provides full access to your project's classpath, source sets, and dependencies, which is not available in a standalone REPL.
+- **Provide `projectRoot` when in doubt**: Provide `projectRoot` to any Gradle MCP tool that supports it (like `project_repl`) unless you are certain it is not required.
 - **Use the correct source set**: When starting a REPL session, ensure you select the appropriate `projectPath` and `sourceSet` in the `project_repl` tool.
     - `projectPath`: The Gradle project path (e.g., `:app`, `:lib`). Use `:` for the root project.
     - `sourceSet`: Usually `main` for application code or `test` for test code.

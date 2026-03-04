@@ -14,6 +14,7 @@ See your UI as you build it. Render any @Composable or @Preview directly to high
 
 ## Directives
 
+- **Provide `projectRoot` when in doubt**: Provide `projectRoot` to any Gradle MCP tool that supports it (like `project_repl`) unless you are certain it is not required by the current MCP configuration.
 - **Search for Previews**: Use `search_project` with a query like `"@Preview"` to find existing preview functions in the project's source code.
 - **Ensure Dependencies**: Compose UI testing dependencies (e.g., `androidx.compose.ui:ui-test-junit4` or `org.jetbrains.compose.ui:ui-test-junit4-desktop`) must be on the classpath. If they are not in the selected `sourceSet`, add them
   using `additionalDependencies`.
