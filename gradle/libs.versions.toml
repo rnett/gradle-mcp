@@ -2,7 +2,7 @@
 # For renovate to work right, every version referenced here MUST have a coresponding dependency in the catalog, which is used to detect updates for it
 
 kotlin = "2.3.10"
-ktor = "3.3.3"
+ktor = "3.4.1"
 logback = "1.5.32"
 caffeine = "3.2.3"
 commonsIo = "2.21.0"
