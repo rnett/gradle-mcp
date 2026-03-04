@@ -338,7 +338,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `gradlew with background=true returns immediately without waiting for build to finish`() = runTest {
+    fun `gradle with background=true returns immediately without waiting for build to finish`() = runTest {
         val buildId = BuildId.newId()
         val runningBuild = mockk<RunningBuild>(relaxed = true) {
             every { id } returns buildId
@@ -349,7 +349,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         val result = server.client.callTool(
-            ToolNames.GRADLEW, mapOf(
+            ToolNames.GRADLE, mapOf(
                 "commandLine" to JsonArray(listOf(JsonPrimitive("build"))),
                 "background" to JsonPrimitive(true),
             )

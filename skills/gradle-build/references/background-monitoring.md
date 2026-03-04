@@ -1,6 +1,6 @@
 # Background Monitoring Patterns
 
-This guide provides advanced patterns for monitoring and managing long-running background builds using `gradlew` and `inspect_build`.
+This guide provides advanced patterns for monitoring and managing long-running background builds using `gradle` and `inspect_build`.
 
 ## Common Monitoring Patterns
 

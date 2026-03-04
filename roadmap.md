@@ -1,4 +1,3 @@
-- Rename gradlew tool to gradle
 - Try to get progress % from gradle events and sent it to mcp client
 - Remove scans interaction in favor of an init script like https://github.com/gradle/gradle/issues/26316#issuecomment-1739245349I
 - Make the Gradle docs tool download the distribution from https://services.gradle.org/distributions/, and have options to include javadocs and samples. Maybe have "kind": userguide, javadoc, release-notes, samples. Use lucene indexing.

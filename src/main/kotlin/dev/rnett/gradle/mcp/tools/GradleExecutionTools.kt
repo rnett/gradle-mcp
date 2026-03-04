@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory
 import kotlin.time.ExperimentalTime
 
 class GradleExecutionTools(
-    val gradle: GradleProvider,
+    val gradleProvider: GradleProvider,
 ) : McpServerComponent("Execution Tools", "Tools for executing Gradle tasks and running tests.") {
     companion object {
         private const val TASK_OUTPUT_MAX_LINES = 100
@@ -21,7 +21,7 @@ class GradleExecutionTools(
     @Serializable
     data class GradleExecuteArgs(
         val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
-        @Description("The arguments for gradlew (e.g., [\":app:test\", \"--tests\", \"MyTest\"]). Required if not stopping a build.")
+        @Description("The arguments for gradle (e.g., [\":app:test\", \"--tests\", \"MyTest\"]). Required if not stopping a build.")
         val commandLine: List<String>? = null,
         @Description("If true, starts in background and returns BuildId. Defaults to false.")
         val background: Boolean = false,
@@ -33,8 +33,8 @@ class GradleExecutionTools(
     )
 
     @OptIn(ExperimentalTime::class)
-    val gradlew by tool<GradleExecuteArgs, String>(
-        ToolNames.GRADLEW,
+    val gradle by tool<GradleExecuteArgs, String>(
+        ToolNames.GRADLE,
         """
             |The primary tool for managing the Gradle build lifecycle.
             |It is the STRONGLY PREFERRED way to run Gradle tasks, providing features not available via raw shell execution.
@@ -67,7 +67,7 @@ class GradleExecutionTools(
         """.trimMargin(),
     ) {
         if (it.stopBuildId != null) {
-            val build = gradle.buildManager.getBuild(it.stopBuildId) as? RunningBuild
+            val build = gradleProvider.buildManager.getBuild(it.stopBuildId) as? RunningBuild
                 ?: throw IllegalArgumentException("Build ${it.stopBuildId} is not running or not found")
             build.stop()
             return@tool "Build ${it.stopBuildId} stopped"
@@ -81,14 +81,14 @@ class GradleExecutionTools(
         LoggerFactory.getLogger(GradleExecutionTools::class.java).info("Test log")
         if (it.background) {
             val root = it.projectRoot.resolve()
-            val running = gradle.runBuild(
+            val running = gradleProvider.runBuild(
                 root,
                 invocationArgs.withInitScript(InitScriptNames.TASK_OUT),
                 { ScansTosManager.askForScansTos(root, it) }
             )
             return@tool running.id.toString()
         } else {
-            val result = gradle.doBuild(
+            val result = gradleProvider.doBuild(
                 it.projectRoot,
                 invocationArgs
             )

@@ -2,7 +2,7 @@
 name: gradle-test
 description: Execute and diagnose tests at scale with intelligent filtering and specialized workflows for rapid failure resolution. Use to run specific tests or investigate test failures.
 license: Apache-2.0
-allowed-tools: gradlew inspect_build
+allowed-tools: gradle inspect_build
 metadata:
   author: rnett
   version: "2.8"
@@ -14,14 +14,14 @@ Run tests efficiently with precision filtering and leverage deep diagnostic tool
 
 ## Directives
 
-- **ONLY use MCP tools**: NEVER use `./gradlew` via a shell unless you have exhausted all attempts to use the `gradlew` tool and it repeatedly fails to meet your requirements. Falling back to the shell is a **last resort** for edge cases
+- **ONLY use MCP tools**: NEVER use `./gradlew` via a shell unless you have exhausted all attempts to use the `gradle` tool and it repeatedly fails to meet your requirements. Falling back to the shell is a **last resort** for edge cases
   where the Tooling API or the server's output capturing is demonstrably insufficient.
-- **Use test filters**: Always filter tests using the `--tests` flag in the `commandLine` of `gradlew` to save time and resources (e.g., `["test", "--tests", "MyTestClass*"]`).
-- **Identify task and project**: Ensure you specify the correct task path in `gradlew` (e.g., `[":app:test"]`).
+- **Use test filters**: Always filter tests using the `--tests` flag in the `commandLine` of `gradle` to save time and resources (e.g., `["test", "--tests", "MyTestClass*"]`).
+- **Identify task and project**: Ensure you specify the correct task path in `gradle` (e.g., `[":app:test"]`).
     - `:task` (starts with colon): Targets the task in the **root project only**.
     - `task` (no leading colon): Targets the task in **all projects** (root and all subprojects).
     - `:app:task`: Targets the task in the `app` subproject.
-- **Background for long test suites**: ALWAYS set `background: true` in `gradlew` for test suites that take a long time to run. This allows you to continue working while monitoring the test progress.
+- **Background for long test suites**: ALWAYS set `background: true` in `gradle` for test suites that take a long time to run. This allows you to continue working while monitoring the test progress.
 - **Monitor with `inspect_build`**: Use the `inspect_build` tool to check the status of background test runs or to get detailed information about any build.
 - **Provide absolute `projectRoot` when in doubt**: Provide `projectRoot` as an **absolute file system path** to any Gradle MCP tool that supports it unless you are certain it is not required. **Relative paths are not supported.**
 - **Check for build failures**: If a test run fails with a general error, use the `inspect_build` tool with `failures: {}` and `problems: {}` to check if it's a compilation or configuration error.
@@ -38,7 +38,7 @@ Run tests efficiently with precision filtering and leverage deep diagnostic tool
 ### Running Specific Tests
 
 1. Identify the project path (e.g., `:app`) and the test task name (usually `test`).
-2. Use `gradlew` with `commandLine` including `--tests` (e.g., `["test", "--tests", "com.example.MyTestClass*"]`).
+2. Use `gradle` with `commandLine` including `--tests` (e.g., `["test", "--tests", "com.example.MyTestClass*"]`).
 3. If the tool reports failures, review the included console output.
 
 ### Investigating Test Failures
@@ -113,4 +113,4 @@ Run tests efficiently with precision filtering and leverage deep diagnostic tool
 
 - **No Tests Found**: Ensure your test pattern is correct. Patterns are prefixes of the fully qualified name. Try `*ClassName` if you're unsure of the package.
 - **Results Truncated**: If there are many tests, use `inspect_build` with pagination (`offset` and `limit`).
-- **Task Not Found**: In some projects (like Android), the test task might not be `test`. Use `inspect_build(tasks={})` or `gradlew(commandLine=["tasks"])` to find the correct task name.
+- **Task Not Found**: In some projects (like Android), the test task might not be `test`. Use `inspect_build(tasks={})` or `gradle(commandLine=["tasks"])` to find the correct task name.

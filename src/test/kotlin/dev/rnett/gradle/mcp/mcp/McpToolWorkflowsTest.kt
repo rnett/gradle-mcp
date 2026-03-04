@@ -186,7 +186,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
             "commandLine" to JsonArray(listOf(JsonPrimitive("help"))),
             // projectRoot omitted
         )
-        val call = server.client.callTool(ToolNames.GRADLEW, args)
+        val call = server.client.callTool(ToolNames.GRADLE, args)
         assert(call != null)
 
         coVerify {
@@ -238,7 +238,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
 
         // test gradle_execute background
         val runCall = server.client.callTool(
-            ToolNames.GRADLEW, mapOf(
+            ToolNames.GRADLE, mapOf(
                 "commandLine" to JsonArray(listOf(JsonPrimitive("help"))),
                 "background" to JsonPrimitive(true)
             )
@@ -259,7 +259,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         assertContains(statusText, "BUILD IN PROGRESS")
 
         // test gradle_execute stop
-        val stopCall = server.client.callTool(ToolNames.GRADLEW, mapOf("stopBuildId" to buildId.toString()))
+        val stopCall = server.client.callTool(ToolNames.GRADLE, mapOf("stopBuildId" to buildId.toString()))
         assert(stopCall != null)
         coVerify { runningBuild.stop() }
     }
@@ -289,7 +289,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         val args = mapOf(
             "commandLine" to JsonArray(listOf(JsonPrimitive(":help"), JsonPrimitive("--info"), JsonPrimitive("--stacktrace")))
         )
-        server.client.callTool(ToolNames.GRADLEW, args)
+        server.client.callTool(ToolNames.GRADLE, args)
 
         assert(capturedArgs.captured.additionalArguments.contains(":help"))
         assert(capturedArgs.captured.additionalArguments.contains("--info"))

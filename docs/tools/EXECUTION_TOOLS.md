@@ -4,7 +4,7 @@
 
 Tools for executing Gradle tasks and running tests.
 
-## gradlew
+## gradle
 
 The primary tool for managing the Gradle build lifecycle.
 It is the STRONGLY PREFERRED way to run Gradle tasks, providing features not available via raw shell execution.
@@ -45,7 +45,7 @@ For expert workflows, refer to the `gradle-build` and `gradle-test` skills.
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory (containing gradlew and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**"
+      "description": "The file system path of the Gradle project's root directory (containing gradlew script and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**"
     },
     "commandLine": {
       "type": [
@@ -55,7 +55,7 @@ For expert workflows, refer to the `gradle-build` and `gradle-test` skills.
       "items": {
         "type": "string"
       },
-      "description": "The arguments for gradlew (e.g., [\":app:test\", \"--tests\", \"MyTest\"]). Required if not stopping a build."
+      "description": "The arguments for gradle (e.g., [\":app:test\", \"--tests\", \"MyTest\"]). Required if not stopping a build."
     },
     "background": {
       "type": "boolean",

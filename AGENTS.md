@@ -59,7 +59,7 @@ Skills in this project are used by other agents to understand how to interact wi
 - **Name**: Must exactly match the directory name (e.g., `gradle-build`).
 - **Description**: Sell the skill! Start with a strong action verb. Clearly state *what* it does and *when* it should be used.
 - **Allowed Tools**: List all MCP tools used in the skill, separated by spaces.
-- **Accuracy**: Only use tools defined in `ToolNames.kt`. Never use legacy names like `inspect_gradle_build` (use `inspect_build`) or `gradle_execute` (use `gradlew`).
+- **Accuracy**: Only use tools defined in `ToolNames.kt`. Never use legacy names like `inspect_gradle_build` (use `inspect_build`) or `gradle_execute` (use `gradle`).
 - **Versioning**: Increment the `version` field in metadata when making functional changes or significant documentation updates.
 
 ### Content and Best Practices

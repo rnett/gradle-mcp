@@ -62,7 +62,7 @@ class ReplTools(
             |Interacts with a Kotlin REPL session. The REPL runs with the classpath and compiler configuration (plugins, args) of a Gradle source set. The source set must be for a JVM target.
             |The REPL uses a classpath that includes the source set and all of its dependencies. The REPL must be restarted to pick up changes to the classpath, compile configuration, or the source code.
             |
-            |**projectRoot** should be the file system path of the Gradle project's root directory (containing gradlew and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**
+            |**projectRoot** should be the file system path of the Gradle project's root directory (containing gradlew script and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**
             |
             |### Example Use Cases
             |- **Testing Project Logic**: Quickly test functions or classes from your project without writing a full test suite or main method.

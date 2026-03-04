@@ -56,7 +56,7 @@ class McpServer(
                 components.mapNotNull {
                     when (it) {
                         is dev.rnett.gradle.mcp.tools.ReplTools -> it.replManager
-                        is dev.rnett.gradle.mcp.tools.GradleExecutionTools -> it.gradle
+                        is dev.rnett.gradle.mcp.tools.GradleExecutionTools -> it.gradleProvider
                         is dev.rnett.gradle.mcp.tools.GradleBuildLookupTools -> it.buildResults
                         else -> null
                     }

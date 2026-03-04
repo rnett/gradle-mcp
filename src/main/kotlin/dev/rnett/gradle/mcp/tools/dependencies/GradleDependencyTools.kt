@@ -42,7 +42,7 @@ class GradleDependencyTools(
         """
             |Query project dependencies, check for available updates, and view repository configurations.
             |
-            |**projectRoot** should be the file system path of the Gradle project's root directory (containing gradlew and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**
+            |**projectRoot** should be the file system path of the Gradle project's root directory (containing gradlew script and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**
             |
             |Use this tool for:
             |- Viewing the dependency tree for a specific project or configuration.
@@ -51,7 +51,7 @@ class GradleDependencyTools(
             |- Identifying repository URLs used for dependency resolution.
             |
             |To search for new libraries or see all versions of a library on Maven Central, use the `search_maven_central` tool.
-            |For built-in Gradle dependency tasks, use the `gradlew` tool with `captureTaskOutput`.
+            |For built-in Gradle dependency tasks, use the `gradle` tool with `captureTaskOutput`.
             |For detailed workflows on dependency management, refer to the `gradle-dependencies` skill.
         """.trimMargin()
     ) {

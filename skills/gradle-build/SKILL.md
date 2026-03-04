@@ -2,7 +2,7 @@
 name: gradle-build
 description: Execute any Gradle task with robust background management and integrated failure analysis. Use for common build tasks like 'build', 'assemble', or starting development servers.
 license: Apache-2.0
-allowed-tools: gradlew inspect_build
+allowed-tools: gradle inspect_build
 metadata:
   author: rnett
   version: "2.2"
@@ -14,11 +14,11 @@ Execute and manage Gradle commands with ease, whether in the foreground or as pe
 
 ## Directives
 
-- **ONLY use MCP tools**: NEVER use `./gradlew` via a shell unless you have exhausted all attempts to use the `gradlew` tool and it repeatedly fails to meet your requirements. Falling back to the shell is a **last resort** for edge cases
+- **ONLY use MCP tools**: NEVER use `./gradlew` via a shell unless you have exhausted all attempts to use the `gradle` tool and it repeatedly fails to meet your requirements. Falling back to the shell is a **last resort** for edge cases
   where the Tooling API or the server's output capturing is demonstrably insufficient.
-- **Background for long tasks**: ALWAYS set `background: true` in `gradlew` for tasks that take a long time or are persistent (e.g. `bootRun`, `continuous` builds, long-running test suites). This allows you to continue working while
+- **Background for long tasks**: ALWAYS set `background: true` in `gradle` for tasks that take a long time or are persistent (e.g. `bootRun`, `continuous` builds, long-running test suites). This allows you to continue working while
   monitoring the build's progress.
-- **Use `captureTaskOutput` for clean results**: When running tasks where you need specific, clean output (e.g., `dependencies`, `help`, `properties`), set `captureTaskOutput` in `gradlew` to the task path. This avoids noise and makes the
+- **Use `captureTaskOutput` for clean results**: When running tasks where you need specific, clean output (e.g., `dependencies`, `help`, `properties`), set `captureTaskOutput` in `gradle` to the task path. This avoids noise and makes the
   output much easier to parse.
 - **Monitor with `inspect_build`**: Use the `inspect_build` tool to check the status of background builds or to get detailed information about any build started by the server.
 - **Provide absolute `projectRoot` when in doubt**: Provide `projectRoot` as an **absolute file system path** to any Gradle MCP tool that supports it unless you are certain it is not required. The project root is the directory containing
@@ -41,16 +41,16 @@ Execute and manage Gradle commands with ease, whether in the foreground or as pe
 
 ### Running a Foreground Command
 
-1. Use `gradlew` with the `commandLine` as an array of strings (e.g. `["clean", "build"]`).
+1. Use `gradle` with the `commandLine` as an array of strings (e.g. `["clean", "build"]`).
 2. If you only need output from a single task (e.g. `:app:help`), set `captureTaskOutput: ":app:help"`.
 3. If the build fails, use `inspect_build` with the returned `buildId` to investigate.
 
 ### Running and Managing Background Jobs
 
-1. Use `gradlew` with `background: true`. This returns a `buildId`.
+1. Use `gradle` with `background: true`. This returns a `buildId`.
 2. Use `inspect_build(buildId=ID, wait=..., waitFor=...)` to monitor progress.
 3. Use `inspect_build()` (no arguments) to see all active background jobs in the dashboard.
-4. Use `gradlew(stopBuildId=ID)` when the job is no longer needed.
+4. Use `gradle(stopBuildId=ID)` when the job is no longer needed.
 5. See [Background Monitoring](references/background-monitoring.md) for advanced patterns.
 
 ### Investigating Build Failures

@@ -406,7 +406,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
     val inspectBuild by tool<InspectBuildArgs, String>(
         ToolNames.INSPECT_BUILD,
         """
-            |The central tool for retrieving build information, monitoring progress, and diagnosing failures. It acts as a "Dashboard" and "Deep Dive" tool for all builds started via the `gradlew` tool.
+            |The central tool for retrieving build information, monitoring progress, and diagnosing failures. It acts as a "Dashboard" and "Deep Dive" tool for all builds started via the `gradle` tool.
             |
             |### Core Features
             |- **Build Dashboard**: Call without `buildId` to see active and recently completed builds.
@@ -420,7 +420,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             |3. **Wait for Log**: `inspect_build(buildId=ID, wait=60, waitFor="Server started")`
             |4. **Analyze Failure**: `inspect_build(buildId=ID, failures={})`
             |
-            |To start a new build, use the `gradlew` tool.
+            |To start a new build, use the `gradle` tool.
             |
             |For detailed diagnostic workflows, refer to the `gradle-build` and `gradle-test` skills.
         """.trimMargin()

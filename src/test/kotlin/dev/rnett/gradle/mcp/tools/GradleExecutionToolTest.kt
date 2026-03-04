@@ -45,9 +45,9 @@ class GradleExecutionToolTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `gradlew --version works with real project`() = runTest {
+    fun `gradle --version works with real project`() = runTest {
         val args = mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("--version"))))
-        val call = server.client.callTool(ToolNames.GRADLEW, args)
+        val call = server.client.callTool(ToolNames.GRADLE, args)
 
         val text = call!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         // Should contain Gradle version info
@@ -56,9 +56,9 @@ class GradleExecutionToolTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `gradlew --help works with real project`() = runTest {
+    fun `gradle --help works with real project`() = runTest {
         val args = mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("--help"))))
-        val call = server.client.callTool(ToolNames.GRADLEW, args)
+        val call = server.client.callTool(ToolNames.GRADLE, args)
 
         val text = call!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         // Should contain Gradle help text
@@ -67,9 +67,9 @@ class GradleExecutionToolTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `gradlew -v works with real project`() = runTest {
+    fun `gradle -v works with real project`() = runTest {
         val args = mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("-v"))))
-        val call = server.client.callTool(ToolNames.GRADLEW, args)
+        val call = server.client.callTool(ToolNames.GRADLE, args)
 
         val text = call!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assertContains(text, "Gradle")
@@ -77,9 +77,9 @@ class GradleExecutionToolTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `gradlew -h works with real project`() = runTest {
+    fun `gradle -h works with real project`() = runTest {
         val args = mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("-h"))))
-        val call = server.client.callTool(ToolNames.GRADLEW, args)
+        val call = server.client.callTool(ToolNames.GRADLE, args)
 
         val text = call!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assertContains(text, "USAGE: gradle")
