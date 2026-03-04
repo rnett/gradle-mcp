@@ -6,18 +6,22 @@ Tools for searching and inspecting source code of Gradle dependencies.
 
 ## read_dependency_sources
 
-Read specific source files or list directories from the combined source code of all external library dependencies or Gradle's internal sources within a given scope.
+The authoritative tool for reading source files and exploring directory structures from the combined source code of all external library dependencies or Gradle's internal engine.
+It provides surgical access to the implementation details of your project's ecosystem, cached for high-performance retrieval.
 
-Sources are downloaded and indexed per scope (project, configuration, or source set) and cached for reuse across tool calls.
-By default, if cached sources exist for the scope, they are used without refreshing the dependency list from Gradle (fresh = false). 
-It is strongly recommended to set **fresh = true** if the project dependencies have changed since the last refresh. 
-You can check the currently indexed libraries by reading the root directory of the sources (providing no path).
+### Authoritative Features
+- **Deep Source Exploration**: Navigate the entire directory structure of your project's dependencies or Gradle's own source code.
+- **Surgical File Retrieval**: Read the full content of any identified source file. Ideal for verifying library behavior or researching undocumented APIs.
+- **Managed Lifecycle**: Sources and indices are cached per scope (project, configuration, or source set). Subsequent reads are nearly instantaneous.
+- **Contextual Precedence**: Precisely target your search using `gradleSource`, `sourceSetPath`, `configurationPath`, or `projectPath`.
 
-**projectRoot** should be the file system path of the Gradle project's root directory (containing gradlew script and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**
+### Common Usage Patterns
+- **Explore App Dependencies**: `read_dependency_sources(projectPath=":app")`
+- **Read Gradle Source**: `read_dependency_sources(path="org/gradle/api/Project.java", gradleSource=true)`
+- **List Library Structure**: `read_dependency_sources(path="org/junit/", configurationPath=":app:testCompileClasspath")`
 
-Use this tool to explore the implementation of a library or Gradle itself, and to read a source file once you have identified the file path.
-If the provided path is a directory, its contents will be listed.
-To find specific classes or methods across all dependencies, use the `search_dependency_sources` tool.
+To find specific classes or methods across all dependencies before reading, use the `search_dependency_sources` tool.
+For detailed source navigation strategies, refer to the `gradle-library-sources` skill.
 
 <details>
 
@@ -29,47 +33,47 @@ To find specific classes or methods across all dependencies, use the `search_dep
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory (containing gradlew script and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**"
+      "description": "The absolute path to the project root directory. Defaults to the current workspace root. Always provide this if you are working in a multi-root workspace to ensure the correct project is targeted."
     },
     "projectPath": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The project path to get dependencies from (e.g. ':', ':app'). If null, all projects are used. This has the lowest precedence."
+      "description": "The project path to target (e.g., ':', ':app'). If null, all project dependencies are included. This has the lowest precedence."
     },
     "configurationPath": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The configuration path to get dependencies from (e.g. ':app:debugCompileClasspath'). If set, projectPath is ignored. This has higher precedence than projectPath."
+      "description": "Target a specific configuration (e.g., ':app:debugCompileClasspath'). If set, projectPath is ignored. Higher precedence than projectPath."
     },
     "sourceSetPath": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The source set path to get dependencies from (e.g. ':app:main'). If set, projectPath and configurationPath are ignored. This has higher precedence than configurationPath."
+      "description": "Target a specific source set (e.g., ':app:main'). If set, projectPath and configurationPath are ignored. Higher precedence than configurationPath."
     },
     "gradleSource": {
       "type": "boolean",
-      "description": "If true, searches/reads Gradle Build Tool's own source code instead of the project's dependencies. If set, projectPath, sourceSetPath, and configurationPath are ignored. This has the highest precedence."
+      "description": "If true, targets Gradle Build Tool's own authoritative source code instead of project dependencies. This has the HIGHEST precedence."
     },
     "path": {
       "type": [
         "string",
         "null"
       ],
-      "description": "Specific file path within the source to read. This path is relative to the root of the combined sources for the given scope, i.e. it should start with the group/filename that is present in the search result paths."
+      "description": "The specific file or directory path to read, relative to the combined source root. Use exact paths from 'search_dependency_sources'. Providing no path will list the top-level source directory."
     },
     "forceDownload": {
       "type": "boolean",
-      "description": "If true, re-downloads and re-indexes the sources even if they are already cached. This is only necessary for snapshots or things that change.."
+      "description": "If true, forces a re-download and re-indexing of all targeted sources. Use this only if you suspect cached data is corrupt or significantly outdated."
     },
     "fresh": {
       "type": "boolean",
-      "description": "If true, a fresh list of dependencies and their sources is retrieved from Gradle. If false (default), the cached list for the scope is used if it exists. It is strongly recommended to set this to true if the project dependencies have changed since the last refresh. You can check the currently indexed libraries by reading the root directory of the sources."
+      "description": "If true, retrieves a fresh dependency list from Gradle before processing. STRONGLY RECOMMENDED if your project dependencies have changed since the last source retrieval."
     }
   },
   "required": [],
@@ -83,19 +87,23 @@ To find specific classes or methods across all dependencies, use the `search_dep
 
 ## search_dependency_sources
 
-Search for symbols or text within the combined source code of all external library dependencies or Gradle's internal sources within a given scope.
+The authoritative tool for searching for symbols or text within the combined source code of all external library dependencies or Gradle's internal engine.
+It provides high-performance, indexed search capabilities that far exceed basic grep-based exploration.
 
-Sources are downloaded and indexed per scope (project, configuration, or source set) and cached for reuse. Subsequent searches in the same scope will be much faster.
-By default, if cached sources exist for the scope, they are used without refreshing the dependency list from Gradle (fresh = false). 
-It is strongly recommended to set **fresh = true** if the project dependencies have changed since the last refresh. 
-You can check the currently indexed libraries by reading the root directory of the sources with **read_dependency_sources**.
+### High-Performance Features
+- **Precision Symbol Lookup**: Use authoritative regex patterns to find classes, methods, or interfaces across your entire dependency graph.
+- **Exhaustive Full-Text Indexing**: Perform surgical text searches using high-performance Lucene indexing. Ideal for finding constants, strings, or specific implementation patterns.
+- **Managed Search Scopes**: Narrow your search to specific projects, configurations, or source sets to maintain token efficiency and reduce noise.
+- **Deep Engine Access**: Search the authoritative source code of the Gradle Build Tool itself to understand core system behavior.
 
-**projectRoot** should be the file system path of the Gradle project's root directory (containing gradlew script and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**
+### Common Usage Patterns
+- **Find Class**: `search_dependency_sources(query="Assert", projectPath=":")`
+- **Search Constants**: `search_dependency_sources(query="THREAD_POOL_SIZE", searchType="FULL_TEXT")`
+- **Find Gradle Interface**: `search_dependency_sources(query="interface Project", gradleSource=true)`
 
-Use this tool to find specific classes, methods, or text in library source code or Gradle itself.
-Once you have found the file path, you can read the file using the `read_dependency_sources` tool.
-Note that all paths are relative to the combined source root, and are exactly what you should use with read_dependency_sources.
-When searching for symbols, the results may have some false-positives - look at the included snippets.
+Once you have identified a file path from the search results, use the `read_dependency_sources` tool to read the full content.
+Note: All returned paths are relative to the combined source root.
+For detailed search strategies, refer to the `gradle-library-sources` skill.
 
 <details>
 
@@ -107,51 +115,51 @@ When searching for symbols, the results may have some false-positives - look at 
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory (containing gradlew script and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**"
+      "description": "The absolute path to the project root directory. Defaults to the current workspace root. Always provide this if you are working in a multi-root workspace to ensure the correct project is targeted."
     },
     "projectPath": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The project path to get dependencies from (e.g. ':', ':app'). If null, all projects are used. This has the lowest precedence."
+      "description": "The project path to search (e.g., ':', ':app'). If null, all project dependencies are searched. This has the lowest precedence."
     },
     "configurationPath": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The configuration path to get dependencies from (e.g. ':app:debugCompileClasspath'). If set, projectPath is ignored. This has higher precedence than projectPath."
+      "description": "Target a specific configuration (e.g., ':app:debugCompileClasspath'). If set, projectPath is ignored. Higher precedence than projectPath."
     },
     "sourceSetPath": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The source set path to get dependencies from (e.g. ':app:main'). If set, projectPath and configurationPath are ignored. This has higher precedence than configurationPath."
+      "description": "Target a specific source set (e.g., ':app:main'). If set, projectPath and configurationPath are ignored. Higher precedence than configurationPath."
     },
     "gradleSource": {
       "type": "boolean",
-      "description": "If true, searches/reads Gradle's internal source code instead of external dependencies. If set, projectPath, sourceSetPath, and configurationPath are ignored. This has the highest precedence."
+      "description": "If true, searches Gradle Build Tool's own authoritative source code instead of project dependencies. This has the HIGHEST precedence."
     },
     "query": {
       "type": "string",
-      "description": "Search query for symbols or file names."
+      "description": "The search query. For SYMBOLS search (default), use regex for classes or methods. For FULL_TEXT, use high-performance Lucene queries."
     },
     "searchType": {
       "enum": [
         "SYMBOLS",
         "FULL_TEXT"
       ],
-      "description": "The type of search to perform. Defaults to SYMBOLS."
+      "description": "The type of search to perform. SYMBOLS (default) is ideal for class/method lookup; FULL_TEXT is best for finding specific strings or constants."
     },
     "forceDownload": {
       "type": "boolean",
-      "description": "If true, re-downloads and re-indexes the sources even if they are already downloaded. This is only necessary for snapshots or things that change."
+      "description": "If true, re-downloads and re-indexes the targeted sources. Use this only if you suspect cached data is corrupt or significantly outdated."
     },
     "fresh": {
       "type": "boolean",
-      "description": "If true, a fresh list of dependencies and their sources is retrieved from Gradle. If false (default), the cached list for the scope is used if it exists. It is strongly recommended to set this to true if the project dependencies have changed since the last refresh. You can check the currently indexed libraries by reading the root directory of the sources."
+      "description": "If true, retrieves a fresh dependency list from Gradle before searching. STRONGLY RECOMMENDED if your project dependencies have changed since the last search."
     }
   },
   "required": [

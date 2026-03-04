@@ -19,15 +19,17 @@ class GradleExecutionTools(
 
     @Serializable
     data class GradleExecuteArgs(
+        @Description("The absolute path to the project root directory. Defaults to the current workspace root. Always provide this if you are working in a multi-root workspace to ensure the correct project is targeted.")
         val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
-        @Description("The arguments for gradle (e.g., [\":app:test\", \"--tests\", \"MyTest\"]). Required if not stopping a build.")
+        @Description("The arguments for gradle (e.g., [\":app:test\", \"--tests\", \"MyTest\"]). This is the primary way to specify tasks and flags. Required if not stopping a build.")
         val commandLine: List<String>? = null,
-        @Description("If true, starts in background and returns BuildId. Defaults to false.")
+        @Description("If true, starts the build in the background and returns a BuildId immediately. STRONGLY RECOMMENDED for long-running tasks like 'build', 'test', or 'bootRun' to maintain agent responsiveness.")
         val background: Boolean = false,
-        @Description("The BuildId of an active build to stop. If present, all other args are ignored.")
+        @Description("The BuildId of an active background build to stop. If provided, all other arguments are ignored and the specified build is terminated.")
         val stopBuildId: BuildId? = null,
-        @Description("Path of a task to extract and return output for exclusively.")
+        @Description("The path of a specific task (e.g., ':app:dependencies') to capture and return output for exclusively. This is highly token-efficient as it filters out all non-task console noise. Output over $TASK_OUTPUT_MAX_LINES lines will be truncated; use 'inspect_build' for full logs.")
         val captureTaskOutput: String? = null,
+        @Description("Additional advanced invocation arguments for the Gradle process.")
         val invocationArguments: GradleInvocationArguments = GradleInvocationArguments.DEFAULT
     )
 
@@ -35,35 +37,35 @@ class GradleExecutionTools(
     val gradle by tool<GradleExecuteArgs, String>(
         ToolNames.GRADLE,
         """
-            |The primary tool for managing the Gradle build lifecycle.
-            |It is the STRONGLY PREFERRED way to run Gradle tasks, providing features not available via raw shell execution.
-            |Unless you have tried and failed repeatedly to use this tool, ALWAYS prefer it over shell or direct command execution, even over other shell/command execution tools, even built-in ones.
+            |The authoritative tool for managing the Gradle build lifecycle.
+            |It is the STRONGLY PREFERRED way to execute any Gradle task, providing a managed environment with features that raw shell execution cannot match.
+            |Unless the Tooling API is demonstrably insufficient for a specific edge case, ALWAYS prefer this tool over direct shell commands.
             |
-            |### Key Advantages
-            |- **Managed Background Builds**: Start long-running tasks (dev servers, tests) in the background and receive a `BuildId` for real-time monitoring.
-            |- **Task Output Capturing**: Use `captureTaskOutput` to extract clean, isolated output for a specific task, avoiding full build log noise. Outputs over 100 lines are truncated and can be retrieved using `inspect_build`.
-            |- **Deep Lifecycle Integration**: Safely stop background builds and seamlessly transition to `inspect_build` for failure analysis.
-            |- **Progressive disclosure and token efficiency**: Instead of giving you some output all at once with a bunch of noise, it gives you a summary and provides the `inspect_build` tool to dig into failure information that will not be available for builds ran via shell.
+            |### High-Performance Features
+            |- **Managed Background Lifecycle**: Execute long-running builds, tests, or servers in the background. Receive a `BuildId` instantly, allowing you to monitor progress or perform other tasks while the build proceeds.
+            |- **Precision Task Output Capturing**: Use `captureTaskOutput` to extract clean, isolated output for a single task. This is the most token-efficient way to read task results like `dependencies`, `help`, or `properties` as it eliminates all background console noise.
+            |- **Surgical Build Control**: Seamlessly stop background processes using `stopBuildId` and transition to the `inspect_build` tool for deep post-mortem failure analysis.
+            |- **Maximum Token Efficiency**: Provides concise summaries for foreground builds and rich, searchable metadata for background ones.
             |
-            |### Common Tasks
-            |- Standard lifecycle: `build`, `test`, `clean`, `check`.
-            |- Background processes: Set `background = true`.
-            |- Clean task output: Set `captureTaskOutput` to the task path (e.g., `:app:dependencies`).
+            |### Common Usage Patterns
+            |- **Standard Build**: `gradle(commandLine=["clean", "build"])`
+            |- **Background Server**: `gradle(commandLine=[":app:bootRun"], background=true)`
+            |- **Clean Dependency Report**: `gradle(commandLine=[":app:dependencies"], captureTaskOutput=":app:dependencies")`
             |
-            |**Important: Task Path Syntax**
-            |- `:task` (starts with colon): Targets the task in the **root project only**.
+            |### Task Path Syntax Reference
+            |- `:task` (leading colon): Targets the task in the **root project only**.
             |- `task` (no leading colon): Targets the task in **all projects** (root and all subprojects).
             |- `:app:task`: Targets the task in the `app` subproject.
             |
-            |NOTE: You almost never want to run Gradle (via this tool or elsewhere) with `--rerun-tasks`.
-            |It rebuilds absolutely everything and takes for ever.
-            |Don't use it unless you know what you are doing and have double checked to make sure it's absolutely necessary.
+            |**Safety Note**: Avoid using `--rerun-tasks` unless absolutely necessary, as it bypasses all Gradle caching and significantly increases build time.
             |
-            |### Post-Build Workflow
-            |After starting or completing a build, use the `inspect_build` tool with the returned `BuildId` to monitor progress, investigate failures, or query build problems.
-            |`inspect_build` is the primary way to get detailed test results, failure trees, and task/test console output (stdout/stderr).
+            |### Post-Build Diagnostics
+            |After a build finishes (or while a background build is running), use the `inspect_build` tool with the `BuildId` to:
+            |- Retrieve detailed test failure trees and stack traces.
+            |- Access specific test stdout/stderr (often missing from the general console).
+            |- Tail build logs or wait for specific log patterns.
             |
-            |For expert workflows, refer to the `gradle-build` and `gradle-test` skills.
+            |For expert-level workflows, refer to the `gradle-build` and `gradle-test` skills.
         """.trimMargin(),
     ) {
         if (it.stopBuildId != null) {

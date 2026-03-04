@@ -6,17 +6,23 @@ Tools for querying and reading Gradle documentation.
 
 ## gradle_docs
 
-Search and read the Gradle User Guide, release notes, and version documentation.
+The authoritative tool for searching and reading official Gradle documentation, release notes, and version-specific guides.
+It provides high-performance access to the entire Gradle User Guide, rendered as markdown for seamless agent consumption.
 
-**projectRoot** should be the file system path of the Gradle project's root directory (containing gradlew script and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**
+### Authoritative Features
+- **Precision Search**: Use `query` to find specific sections, DSL elements, or plugin documentation across the entire authoritative guide.
+- **Exhaustive Content Retrieval**: Read full documentation pages directly in your context using the `path` argument.
+- **Authoritative Release Insights**: Set `releaseNotes=true` to retrieve the definitive list of changes, improvements, and deprecations for any Gradle version.
+- **Version-Specific Targeting**: Automatically targets your project's Gradle version or allows for surgical manual version selection.
 
-Use this tool for:
-- Searching the Gradle documentation using the `query` argument.
-- Reading a specific documentation page using its `path`.
-- Fetching the release notes for a specific Gradle version using `releaseNotes: true`.
+### Common Usage Patterns
+- **Search User Guide**: `gradle_docs(query="kotlin dsl configuration")`
+- **Read Guide Section**: `gradle_docs(path="working_with_files.html")`
+- **Check Version Changes**: `gradle_docs(releaseNotes=true, version="8.5")`
+- **List Available Pages**: `gradle_docs()`
 
 Note: `releaseNotes` takes precedence over `path`, which takes precedence over `query`.
-For detailed workflows on accessing Gradle help, refer to the `gradle-docs` skill.
+For detailed documentation navigation strategies, refer to the `gradle-docs` skill.
 
 <details>
 
@@ -31,32 +37,32 @@ For detailed workflows on accessing Gradle help, refer to the `gradle-docs` skil
         "string",
         "null"
       ],
-      "description": "Search query for the documentation."
+      "description": "The authoritative search query for the documentation. Supports keywords and phrases to find relevant User Guide sections."
     },
     "path": {
       "type": [
         "string",
         "null"
       ],
-      "description": "Specific documentation page path to read. If not set, a list of all pages will be returned."
+      "description": "The specific documentation page path to read (e.g., 'command_line_interface.html'). If omitted, a searchable list of all pages is returned."
     },
     "version": {
       "type": [
         "string",
         "null"
       ],
-      "description": "Specific Gradle version documentation to target. Defaults to project version. Uses the latest if no project root is available."
+      "description": "The specific Gradle version documentation to target (e.g., '8.6'). Defaults to the project's detected version or the latest release."
     },
     "releaseNotes": {
       "type": "boolean",
-      "description": "If true, fetch the release notes for the version"
+      "description": "If true, fetches the authoritative release notes for the specified version. Ideal for researching breaking changes and new features."
     },
     "projectRoot": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The Gradle project root to detect the version from. If not provided, it will be autodetected from the current working directory or MCP roots if possible. Ignored and not needed if the version is specified."
+      "description": "The absolute path to the project root directory. Used to automatically detect the project's Gradle version for high-resolution documentation targeting."
     }
   },
   "required": [],

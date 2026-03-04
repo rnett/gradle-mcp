@@ -6,24 +6,25 @@ Tools for looking up detailed information about past Gradle builds ran by this M
 
 ## inspect_build
 
-The central tool for retrieving build information, monitoring progress, and diagnosing failures. It acts as a "Dashboard" and "Deep Dive" tool for all builds started via the `gradle` tool.
+The authoritative tool for retrieving detailed build information, monitoring progress, and performing surgical failure diagnostics.
+It acts as both a high-level "Build Dashboard" and a "Surgical Deep Dive" tool for all builds initiated via the `gradle` tool.
 
-### Core Features
-- **Build Dashboard**: Call without `buildId` to see active and recently completed builds.
-- **Real-time Monitoring**: Use `wait`, `waitFor`, or `waitForTask` to block until a background build reaches a specific state or logs a specific pattern.
-- **Surgical Diagnostics**: Specify a `buildId` and a section (`tasks`, `tests`, `failures`, `problems`, or `console`) to deep-dive into build results.
-- **Contextual Details**: Use `mode="details"` with specific section options (like task path or test name) for exhaustive information. This is the preferred way to get test stdout/stderr and failure details. Note that test stdout/stderr is often found here rather than in the build's general console output.
+### Authoritative Features
+- **Build Dashboard**: Call without a `buildId` to see an authoritative overview of active and recently completed builds, including their status and failure counts.
+- **Managed Real-time Monitoring**: Use `wait`, `waitFor`, or `waitForTask` to block until a background build reaches a specific state or logs a specific authoritative pattern. This is the professionally recommended way to monitor background services or long-running test suites.
+- **Surgical Failure Diagnostics**: Specify a `buildId` and a targeted section (`tasks`, `tests`, `failures`, `problems`, or `console`) to perform high-resolution analysis of build results.
+- **Exhaustive Detail Mode**: Use `mode="details"` with specific section options (like task path or test name) to retrieve exhaustive information. This is the STRONGLY PREFERRED way to access test stdout/stderr, detailed failure trees, and stack traces that are often hidden in general console output.
 
-### Usage Patterns
-1. **Dashboard**: `inspect_build()`
+### Common Usage Patterns
+1. **View Dashboard**: `inspect_build()`
 2. **Wait for Success**: `inspect_build(buildId=ID, wait=60)`
-3. **Wait for Log**: `inspect_build(buildId=ID, wait=60, waitFor="Server started")`
-4. **Analyze Failure**: `inspect_build(buildId=ID, failures={})`
-5. **Test Details & Output**: `inspect_build(buildId=ID, mode="details", tests={name="MyTestClass"})`
+3. **Monitor Log Pattern**: `inspect_build(buildId=ID, wait=60, waitFor="Server started")`
+4. **Surgical Failure Analysis**: `inspect_build(buildId=ID, failures={})`
+5. **Exhaustive Test Details**: `inspect_build(buildId=ID, mode="details", tests={name="com.example.MyTestClass"})`
 
 To start a new build, use the `gradle` tool.
 
-For detailed diagnostic workflows, refer to the `gradle-build` and `gradle-test` skills.
+For detailed, expert-level diagnostic workflows, refer to the `gradle-build` and `gradle-test` skills.
 
 <details>
 
@@ -38,14 +39,14 @@ For detailed diagnostic workflows, refer to the `gradle-build` and `gradle-test`
         "string",
         "null"
       ],
-      "description": "The build to inspect. If omitted, returns the build dashboard (active builds + recent history)."
+      "description": "The BuildId to inspect. If omitted, returns the build dashboard showing active and recently completed builds."
     },
     "mode": {
       "enum": [
         "summary",
         "details"
       ],
-      "description": "The lookup mode: 'summary' (default) or 'details'."
+      "description": "The lookup mode: 'summary' (default) or 'details'. Use 'details' for authoritative, deep-dive information."
     },
     "wait": {
       "type": [
@@ -54,25 +55,25 @@ For detailed diagnostic workflows, refer to the `gradle-build` and `gradle-test`
       ],
       "minimum": -1.7976931348623157E308,
       "maximum": 1.7976931348623157E308,
-      "description": "Max seconds to wait for an active build to reach a state or finish."
+      "description": "Max seconds to wait for an active build to reach a state or finish. Use this for managed progress monitoring."
     },
     "waitFor": {
       "type": [
         "string",
         "null"
       ],
-      "description": "Regex pattern to wait for in the build logs."
+      "description": "Regex pattern to wait for in the build logs. Ideal for detecting when a server has started or a specific event has occurred."
     },
     "waitForTask": {
       "type": [
         "string",
         "null"
       ],
-      "description": "Task path to wait for completion."
+      "description": "Task path to wait for completion. Surgical way to monitor specific task progress."
     },
     "afterCall": {
       "type": "boolean",
-      "description": "If true, only look for waitFor or waitForTask matches emitted after this call. Only applies if wait and (waitFor or waitForTask) are also provided."
+      "description": "If true, only look for matches emitted after this call. Only applies if 'wait' and ('waitFor' or 'waitForTask') are provided."
     },
     "limit": {
       "type": [
@@ -81,13 +82,13 @@ For detailed diagnostic workflows, refer to the `gradle-build` and `gradle-test`
       ],
       "minimum": -2147483648,
       "maximum": 2147483647,
-      "description": "The maximum number of results to return (applies to tasks, tests, console lines, and the build dashboard)."
+      "description": "The maximum number of results to return. Use a smaller limit for large projects to maintain token efficiency and reduce noise."
     },
     "offset": {
       "type": "integer",
       "minimum": -2147483648,
       "maximum": 2147483647,
-      "description": "The offset to start from in the results (applies to tasks, tests, and console lines)."
+      "description": "The offset to start from in the results. Use this with 'limit' for efficient pagination through large lists."
     },
     "tasks": {
       "type": [
@@ -112,7 +113,7 @@ For detailed diagnostic workflows, refer to the `gradle-build` and `gradle-test`
           "description": "Filter results by outcome (summary mode only)."
         }
       },
-      "description": "Options for task lookup."
+      "description": "Options for surgical task lookup and diagnostics."
     },
     "tests": {
       "type": [
@@ -140,7 +141,7 @@ For detailed diagnostic workflows, refer to the `gradle-build` and `gradle-test`
           "description": "The index of the test to show if multiple tests have the same name (details mode only)."
         }
       },
-      "description": "Options for test lookup."
+      "description": "Options for authoritative test result analysis and stdout/stderr retrieval."
     },
     "failures": {
       "type": [
@@ -154,10 +155,10 @@ For detailed diagnostic workflows, refer to the `gradle-build` and `gradle-test`
             "string",
             "null"
           ],
-          "description": "The failure ID to get details for (details mode only)."
+          "description": "The failure ID to get details for (details mode only). Use this for surgical analysis of build-level failures."
         }
       },
-      "description": "Options for failure lookup."
+      "description": "Options for deep-dive failure tree analysis."
     },
     "problems": {
       "type": [
@@ -174,7 +175,7 @@ For detailed diagnostic workflows, refer to the `gradle-build` and `gradle-test`
           "description": "The ProblemId of the problem to look up (details mode only)."
         }
       },
-      "description": "Options for problem lookup."
+      "description": "Options for structured build problem lookup."
     },
     "console": {
       "type": [
@@ -185,10 +186,10 @@ For detailed diagnostic workflows, refer to the `gradle-build` and `gradle-test`
       "properties": {
         "tail": {
           "type": "boolean",
-          "description": "If true, return the last `limit` lines of the console output instead of the first."
+          "description": "If true, return the last 'limit' lines of the console output instead of the first. Useful for checking the end of long logs."
         }
       },
-      "description": "Options for console output."
+      "description": "Options for managed console output retrieval."
     }
   },
   "required": [],

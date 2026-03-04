@@ -32,10 +32,10 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
 
     @Serializable
     enum class LookupMode {
-        @Description("Return a summary list of items.")
+        @Description("Return a summary list of items. Ideal for high-level overviews.")
         summary,
 
-        @Description("Return detailed information about a specific item.")
+        @Description("Return authoritative, exhaustive information about a specific item. This is the professionally recommended way to get full test failures, stack traces, and console logs.")
         details
     }
 
@@ -59,7 +59,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
 
     @Serializable
     data class FailureOptions(
-        @Description("The failure ID to get details for (details mode only).")
+        @Description("The failure ID to get details for (details mode only). Use this for surgical analysis of build-level failures.")
         val id: FailureId? = null
     )
 
@@ -71,41 +71,41 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
 
     @Serializable
     data class ConsoleOptions(
-        @Description("If true, return the last `limit` lines of the console output instead of the first.")
+        @Description("If true, return the last 'limit' lines of the console output instead of the first. Useful for checking the end of long logs.")
         val tail: Boolean = false
     )
 
     @Serializable
     data class InspectBuildArgs(
-        @Description("The build to inspect. If omitted, returns the build dashboard (active builds + recent history).")
+        @Description("The BuildId to inspect. If omitted, returns the build dashboard showing active and recently completed builds.")
         val buildId: BuildId? = null,
 
-        @Description("The lookup mode: 'summary' (default) or 'details'.")
+        @Description("The lookup mode: 'summary' (default) or 'details'. Use 'details' for authoritative, deep-dive information.")
         val mode: LookupMode = LookupMode.summary,
 
-        @Description("Max seconds to wait for an active build to reach a state or finish.")
+        @Description("Max seconds to wait for an active build to reach a state or finish. Use this for managed progress monitoring.")
         val wait: Double? = null,
-        @Description("Regex pattern to wait for in the build logs.")
+        @Description("Regex pattern to wait for in the build logs. Ideal for detecting when a server has started or a specific event has occurred.")
         val waitFor: String? = null,
-        @Description("Task path to wait for completion.")
+        @Description("Task path to wait for completion. Surgical way to monitor specific task progress.")
         val waitForTask: String? = null,
-        @Description("If true, only look for waitFor or waitForTask matches emitted after this call. Only applies if wait and (waitFor or waitForTask) are also provided.")
+        @Description("If true, only look for matches emitted after this call. Only applies if 'wait' and ('waitFor' or 'waitForTask') are provided.")
         val afterCall: Boolean = false,
 
-        @Description("The maximum number of results to return (applies to tasks, tests, console lines, and the build dashboard).")
+        @Description("The maximum number of results to return. Use a smaller limit for large projects to maintain token efficiency and reduce noise.")
         val limit: Int? = null,
-        @Description("The offset to start from in the results (applies to tasks, tests, and console lines).")
+        @Description("The offset to start from in the results. Use this with 'limit' for efficient pagination through large lists.")
         val offset: Int = 0,
 
-        @Description("Options for task lookup.")
+        @Description("Options for surgical task lookup and diagnostics.")
         val tasks: TaskOptions? = null,
-        @Description("Options for test lookup.")
+        @Description("Options for authoritative test result analysis and stdout/stderr retrieval.")
         val tests: TestOptions? = null,
-        @Description("Options for failure lookup.")
+        @Description("Options for deep-dive failure tree analysis.")
         val failures: FailureOptions? = null,
-        @Description("Options for problem lookup.")
+        @Description("Options for structured build problem lookup.")
         val problems: ProblemOptions? = null,
-        @Description("Options for console output.")
+        @Description("Options for managed console output retrieval.")
         val console: ConsoleOptions? = null
     )
 
@@ -406,24 +406,25 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
     val inspectBuild by tool<InspectBuildArgs, String>(
         ToolNames.INSPECT_BUILD,
         """
-            |The central tool for retrieving build information, monitoring progress, and diagnosing failures. It acts as a "Dashboard" and "Deep Dive" tool for all builds started via the `gradle` tool.
+            |The authoritative tool for retrieving detailed build information, monitoring progress, and performing surgical failure diagnostics.
+            |It acts as both a high-level "Build Dashboard" and a "Surgical Deep Dive" tool for all builds initiated via the `gradle` tool.
             |
-            |### Core Features
-            |- **Build Dashboard**: Call without `buildId` to see active and recently completed builds.
-            |- **Real-time Monitoring**: Use `wait`, `waitFor`, or `waitForTask` to block until a background build reaches a specific state or logs a specific pattern.
-            |- **Surgical Diagnostics**: Specify a `buildId` and a section (`tasks`, `tests`, `failures`, `problems`, or `console`) to deep-dive into build results.
-            |- **Contextual Details**: Use `mode="details"` with specific section options (like task path or test name) for exhaustive information. This is the preferred way to get test stdout/stderr and failure details. Note that test stdout/stderr is often found here rather than in the build's general console output.
+            |### Authoritative Features
+            |- **Build Dashboard**: Call without a `buildId` to see an authoritative overview of active and recently completed builds, including their status and failure counts.
+            |- **Managed Real-time Monitoring**: Use `wait`, `waitFor`, or `waitForTask` to block until a background build reaches a specific state or logs a specific authoritative pattern. This is the professionally recommended way to monitor background services or long-running test suites.
+            |- **Surgical Failure Diagnostics**: Specify a `buildId` and a targeted section (`tasks`, `tests`, `failures`, `problems`, or `console`) to perform high-resolution analysis of build results.
+            |- **Exhaustive Detail Mode**: Use `mode="details"` with specific section options (like task path or test name) to retrieve exhaustive information. This is the STRONGLY PREFERRED way to access test stdout/stderr, detailed failure trees, and stack traces that are often hidden in general console output.
             |
-            |### Usage Patterns
-            |1. **Dashboard**: `inspect_build()`
+            |### Common Usage Patterns
+            |1. **View Dashboard**: `inspect_build()`
             |2. **Wait for Success**: `inspect_build(buildId=ID, wait=60)`
-            |3. **Wait for Log**: `inspect_build(buildId=ID, wait=60, waitFor="Server started")`
-            |4. **Analyze Failure**: `inspect_build(buildId=ID, failures={})`
-            |5. **Test Details & Output**: `inspect_build(buildId=ID, mode="details", tests={name="MyTestClass"})`
+            |3. **Monitor Log Pattern**: `inspect_build(buildId=ID, wait=60, waitFor="Server started")`
+            |4. **Surgical Failure Analysis**: `inspect_build(buildId=ID, failures={})`
+            |5. **Exhaustive Test Details**: `inspect_build(buildId=ID, mode="details", tests={name="com.example.MyTestClass"})`
             |
             |To start a new build, use the `gradle` tool.
             |
-            |For detailed diagnostic workflows, refer to the `gradle-build` and `gradle-test` skills.
+            |For detailed, expert-level diagnostic workflows, refer to the `gradle-build` and `gradle-test` skills.
         """.trimMargin()
     ) {
         if (it.buildId == null) {

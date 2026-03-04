@@ -1,16 +1,23 @@
 ---
 name: gradle-library-sources
-description: Deep-dive into the implementation details of any library or Gradle itself with high-performance symbol search and full-text navigation. Use when debugging library issues or learning from implementation.
+description: >
+  Authoritatively explore and navigate the internal implementation of any library or Gradle itself 
+  with high-performance symbol search and full-text indexing. 
+  This skill is the STRONGLY PREFERRED way to understand the behavior of your dependencies, 
+  offering surgical source code retrieval, authoritative symbol lookup across entire configurations, 
+  and deep-dive access to Gradle's internal engine. Use it when debugging complex library interactions, 
+  researching undocumented API behaviors, or learning from the high-quality implementations of 
+  established frameworks without leaving your development environment.
 license: Apache-2.0
 allowed-tools: read_dependency_sources search_dependency_sources
 metadata:
   author: rnett
-  version: "3.2"
+  version: "3.3"
 ---
 
 # Ultimate Library & Gradle Source Explorer
 
-Deep-dive into the implementation details of any library or Gradle itself. Search, navigate, and understand the source code of your dependencies with ease.
+Deep-dive into the implementation details of any library or Gradle itself. Search, navigate, and understand the source code of your dependencies with ease and absolute precision.
 
 ## Directives
 
@@ -32,10 +39,11 @@ Deep-dive into the implementation details of any library or Gradle itself. Searc
 
 ## When to Use
 
-- When you need to understand how a library's API is implemented.
-- When you are looking for the correct usage of a library's class or method.
-- When you need to debug an issue that might be caused by a library's behavior.
-- When you want to explore the source code of a dependency to learn from its implementation.
+- **Library Behavior Debugging**: When you suspect a bug or unexpected behavior originates in a dependency and you need to perform high-resolution analysis of its internal logic.
+- **Undocumented API Research**: When a library's documentation is insufficient and you need to understand the exact implementation of a class, method, or internal protocol.
+- **Gradle Engine Exploration**: When performing deep-dives into Gradle's own behavior or troubleshooting issues related to core Gradle plugins and APIs (using `gradleSource: true`).
+- **Architectural Learning & Best Practices**: When you want to study high-quality source code from established libraries to learn new patterns or understand complex implementations.
+- **Symbol Discovery Across Scopes**: When you need to find all occurrences of a specific symbol or pattern across all dependencies in a specific configuration or source set.
 
 ## Workflows
 

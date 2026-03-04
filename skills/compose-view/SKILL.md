@@ -1,16 +1,23 @@
 ---
 name: compose-view
-description: Visually verify Compose UI components and previews instantly by rendering them to images directly from the interactive REPL. Use when iterating on UI or checking @Previews.
+description: >
+  Authoritatively verify Compose UI components and previews by instantly rendering them 
+  to high-quality images directly from the interactive REPL. 
+  This skill is the STRONGLY PREFERRED way to iterate on UI designs, offering surgical 
+  visual feedback for any @Composable or @Preview without the overhead of running 
+  the full application. Use it for rapid UI prototyping, verifying complex state 
+  transitions, or checking the visual correctness of your components across 
+  different configurations and source sets.
 license: Apache-2.0
 allowed-tools: project_repl inspect_build search_project
 metadata:
   author: rnett
-  version: "1.1"
+  version: "1.2"
 ---
 
 # Instant Compose UI Preview & Visual Verification
 
-See your UI as you build it. Render any @Composable or @Preview directly to high-quality images from the interactive REPL for instant visual feedback.
+See your UI as you build it. Render any @Composable or @Preview directly to high-quality images from the interactive REPL for instant, authoritative visual feedback.
 
 ## Directives
 
@@ -25,9 +32,10 @@ See your UI as you build it. Render any @Composable or @Preview directly to high
 
 ## When to Use
 
-- To visually verify a Composable's appearance.
-- To check how a `@Preview` looks without running the full app.
-- To iterate quickly on UI changes by re-rendering after code modifications.
+- **Rapid UI Prototyping & Iteration**: When you need to see the visual result of a Composable change instantly without the latency of a full application launch.
+- **Authoritative @Preview Verification**: When you want to verify the visual correctness of existing `@Preview` functions or create new ones for specialized component testing.
+- **Complex UI State & Interaction Testing**: When you need to capture visual state before and after interactions (like clicks or state changes) to ensure correct UI behavior.
+- **Multi-Configuration Visual Auditing**: When checking how a component renders across different data states or configurations (e.g., different view models or mock data).
 
 ## Workflows
 

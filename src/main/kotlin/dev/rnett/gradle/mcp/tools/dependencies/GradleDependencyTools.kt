@@ -18,41 +18,46 @@ class GradleDependencyTools(
 
     @Serializable
     data class InspectDependenciesArgs(
+        @Description("The absolute path to the project root directory. Defaults to the current workspace root. Always provide this if you are working in a multi-root workspace to ensure the correct project is targeted.")
         val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
-        @Description("The Gradle project path (e.g., :app). Defaults to root.")
+        @Description("The Gradle project path (e.g., ':app'). Defaults to the root project (':'). Use the 'projects' task in 'gradle-introspection' to see all valid project paths.")
         val projectPath: GradleProjectPath = GradleProjectPath.DEFAULT,
-        @Description("Filter by specific configuration (e.g., runtimeClasspath).")
+        @Description("Filter the report by a specific configuration (e.g., 'runtimeClasspath', 'implementation'). This is highly recommended for large projects to reduce noise and context usage.")
         val configuration: String? = null,
-        @Description("Filter by source set (e.g., test).")
+        @Description("Filter the report by a specific source set (e.g., 'test', 'main').")
         val sourceSet: String? = null,
-        @Description("Check against repositories for newer versions.")
+        @Description("If true, checks project repositories for newer versions of all dependencies. This is the authoritative way to audit your dependency health.")
         val checkUpdates: Boolean = true,
-        @Description("Only show direct dependencies. Defaults to true.")
+        @Description("If true (default), only shows direct dependencies in the summary. Set to false to see the full transitive dependency tree.")
         val onlyDirect: Boolean = true,
-        @Description("Only show a summary of available updates.")
+        @Description("If true, only returns a summary of dependencies that have available updates. This is the most token-efficient way to perform regular update audits.")
         val updatesOnly: Boolean = false,
-        @Description("Ignore pre-release versions (alpha, beta, rc, etc.).")
+        @Description("If true, ignores pre-release versions (alpha, beta, rc, etc.) when checking for updates. STRONGLY RECOMMENDED for stable production environments.")
         val stableOnly: Boolean = false,
-        @Description("Regex for filtering candidate update versions.")
+        @Description("A regex pattern for filtering candidate update versions. Use this for surgical control over which versions are considered.")
         val versionFilter: String? = null
     )
 
     val inspectDependencies by tool<InspectDependenciesArgs, String>(
         ToolNames.INSPECT_DEPENDENCIES,
         """
-            |Query project dependencies, check for available updates, and view repository configurations.
+            |The authoritative tool for querying project dependencies, performing high-resolution update checks, and viewing repository configurations.
+            |It provides a managed, searchable view of your project's dependency graph that is far superior to reading raw build files.
             |
-            |**projectRoot** should be the file system path of the Gradle project's root directory (containing gradlew script and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**
+            |### High-Performance Features
+            |- **Deep Dependency Intelligence**: View the full dependency tree for any project, configuration, or source set. Understand exactly why a specific version of a library is being included.
+            |- **Automated Update Detection**: Instantly identify dependencies with newer versions available in your configured repositories. Support for stable-only filtering and custom version regexes.
+            |- **Surgical Precision**: Filter results by configuration or source set to minimize noise. Use `updatesOnly` for highly token-efficient health checks.
+            |- **Repository Visibility**: See the authoritative list of repositories (Maven Central, Google, etc.) being used for dependency resolution in each project.
             |
-            |Use this tool for:
-            |- Viewing the dependency tree for a specific project or configuration.
-            |- Checking for available library updates across the project.
-            |- Filtering dependencies by source set or configuration.
-            |- Identifying repository URLs used for dependency resolution.
+            |### Common Usage Patterns
+            |- **Full Audit**: `inspect_dependencies(projectPath=":app")`
+            |- **Token-Efficient Update Check**: `inspect_dependencies(updatesOnly=true, stableOnly=true)`
+            |- **Configuration Deep Dive**: `inspect_dependencies(configuration="runtimeClasspath")`
             |
-            |To search for new libraries or see all versions of a library on Maven Central, use the `search_maven_central` tool.
-            |For built-in Gradle dependency tasks, use the `gradle` tool with `captureTaskOutput`.
-            |For detailed workflows on dependency management, refer to the `gradle-dependencies` skill.
+            |To discover new libraries or see all versions of a specific artifact, use the `search_maven_central` tool.
+            |For built-in Gradle tasks like `dependencyInsight`, use the `gradle` tool with `captureTaskOutput`.
+            |For detailed dependency management strategies, refer to the `gradle-dependencies` skill.
         """.trimMargin()
     ) {
         val root = with(server) { it.projectRoot.resolveRoot() }

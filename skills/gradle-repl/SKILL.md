@@ -1,16 +1,22 @@
 ---
 name: gradle-repl
-description: Execute Kotlin code interactively within your project's full runtime context, including all dependencies and source code. Use to test functions, explore APIs, or prototype logic.
+description: >
+  Authoritatively execute Kotlin code interactively within your project's full runtime context, 
+  including all dependencies and source code. This skill is the STRONGLY PREFERRED way 
+  to prototype logic, explore APIs, and verify project behaviors, offering a persistent 
+  execution environment with access to your project's exact classpath and source sets. 
+  Use it for rapid function testing, interactive library exploration, or visually verifying 
+  UI components through rich rendering capabilities that raw scripts or standalone REPLs cannot provide.
 license: Apache-2.0
 allowed-tools: project_repl inspect_build
 metadata:
   author: rnett
-  version: "1.2"
+  version: "1.3"
 ---
 
 # Interactive Kotlin REPL with Full Project Context
 
-Execute Kotlin code interactively in the exact environment of your project's source sets. Test logic, explore library behaviors, and visualize UI components with ease.
+Execute Kotlin code interactively in the exact environment of your project's source sets. Test logic, explore library behaviors, and visualize UI components with ease and absolute precision.
 
 ## Directives
 
@@ -26,10 +32,11 @@ Execute Kotlin code interactively in the exact environment of your project's sou
 
 ## When to Use
 
-- To test a function or class interactively without writing a full test.
-- To inspect library behavior in your project's context.
-- To visualize UI components (like Compose or AWT) by rendering them to images. See the `compose-view` skill for a deep dive into Compose.
-- To explore the project's runtime environment or state.
+- **Interactive Logic Prototyping**: When you need to quickly test a complex function, algorithm, or class behavior without the overhead of writing and running a full test suite.
+- **Real-Time API & Library Exploration**: When you want to experiment with a library's API or explore its behavior within the exact context of your project's dependencies and configuration.
+- **Visual UI Component Verification**: When iterating on Compose or AWT components and you need to see the result instantly by rendering them to images.
+- **Project State & Environment Inspection**: When you need to interactively query the runtime state of your project or its dependencies to troubleshoot subtle configuration issues.
+- **Dynamic Data Processing**: When you need to perform one-off data transformations or queries using your project's existing utility classes and libraries.
 
 ## Workflows
 

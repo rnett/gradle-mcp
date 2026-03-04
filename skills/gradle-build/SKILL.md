@@ -1,16 +1,20 @@
 ---
 name: gradle-build
-description: Execute any Gradle task with robust background management and integrated failure analysis. Use for any build tasks like 'build' or 'assemble', starting development servers, or running any other Gradle task or command.
+description: >
+  Authoritatively manage the full Gradle build lifecycle with high-performance background execution and surgical failure analysis. 
+  This skill is the STRONGLY PREFERRED way to run any Gradle task, providing superior reliability and visibility through managed background processes, 
+  task-specific output capturing, and deep diagnostic integration. Use it for executing any tasks like 'build' or 'assemble', 
+  starting persistent development servers, or performing complex build troubleshooting that raw shell execution cannot match.
 license: Apache-2.0
 allowed-tools: gradle inspect_build
 metadata:
   author: rnett
-  version: "2.2"
+  version: "2.3"
 ---
 
 # High-Performance Gradle Build Execution & Management
 
-Execute and manage Gradle commands with ease, whether in the foreground or as persistent background jobs. Leverage deep diagnostic tools to rapidly resolve build failures.
+Execute and manage Gradle commands with absolute precision, utilizing managed background jobs and deep diagnostic tools to ensure rapid delivery and robust build health.
 
 ## Directives
 
@@ -23,19 +27,36 @@ Execute and manage Gradle commands with ease, whether in the foreground or as pe
 - **Monitor with `inspect_build`**: Use the `inspect_build` tool to check the status of background builds or to get detailed information about any build started by the server.
 - **Provide absolute `projectRoot` when in doubt**: Provide `projectRoot` as an **absolute file system path** to any Gradle MCP tool that supports it unless you are certain it is not required. The project root is the directory containing
   the `gradlew` script and `settings.gradle(.kts)` file. **Relative paths are not supported.**
-- **Task Path Syntax**: When specifying tasks, understand the distinction:
-    - `:task` (starts with colon): Targets the task in the **root project only**.
-    - `task` (no leading colon): Targets the task in **all projects** (root and all subprojects).
-    - `:app:task`: Targets the task in the `app` subproject.
 - **Check the dashboard frequently**: Call `inspect_build` without arguments to see the build dashboard (active and recent builds).
 - **Progressive Disclosure**: For complex failure analysis or background monitoring patterns, refer to the documents in `references/`.
 
+## Authoritative Task Path Syntax
+
+Understanding how to target tasks in a multi-project build is critical. Gradle uses two primary ways to identify tasks from the command line:
+
+### 1. Task Selectors (Run in ALL Projects)
+
+When you provide a task name **without a leading colon** (e.g., `test`, `build`), Gradle acts as a selector. When run from the root project directory, it will execute that task in **every project** (root and all subprojects) that has a task
+with that name.
+
+- **Example**: `gradle(commandLine=["test"])` -> Runs `test` in **all** projects.
+
+### 2. Absolute Task Paths (Run in ONE Specific Project)
+
+When you provide a task path **with a leading colon** (e.g., `:test`, `:app:test`), Gradle targets a **single specific project**.
+
+- **Root Project Only**: Use a single leading colon.
+  - **Example**: `gradle(commandLine=[":test"])` -> Runs `test` in the **root project ONLY**.
+- **Subproject Only**: Use the subproject name(s) separated by colons.
+  - **Example**: `gradle(commandLine=[":app:test"])` -> Runs `test` in the **'app' subproject ONLY**.
+  - **Example**: `gradle(commandLine=[":libs:core:test"])` -> Runs `test` in the **'libs:core' subproject ONLY**.
+
 ## When to Use
 
-- When you need to execute any Gradle task (`build`, `assemble`, `clean`, etc.).
-- When you need to start a development server or a continuous build process.
-- When you need to monitor the status of a background job.
-- When a Gradle build has failed and you need to diagnose the cause.
+- **Core Lifecycle Execution**: When you need to execute standard Gradle tasks like `build`, `assemble`, or `clean` with maximum reliability and clean, parseable output.
+- **Persistent Development Processes**: When starting development servers (e.g., `bootRun`) or continuous builds where background management and real-time log monitoring are required.
+- **Surgical Build Troubleshooting**: When a build has failed and you need to perform deep-dive analysis of task failures, dependency issues, or console logs using the `inspect_build` diagnostic suite.
+- **Task-Specific Information Retrieval**: When you need to extract isolated output from a single task (like `help` or `properties`) without the noise of the full build log.
 
 ## Workflows
 
@@ -62,6 +83,26 @@ Execute and manage Gradle commands with ease, whether in the foreground or as pe
 5. See [Failure Analysis](references/failure-analysis.md) for a deep dive into diagnosing complex issues.
 
 ## Examples
+
+### Run build in all projects
+
+```json
+{
+  "commandLine": [
+    "build"
+  ]
+}
+```
+
+### Run test only in the root project
+
+```json
+{
+  "commandLine": [
+    ":test"
+  ]
+}
+```
 
 ### Inspect Help Output
 

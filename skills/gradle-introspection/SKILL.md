@@ -1,11 +1,18 @@
 ---
 name: gradle-introspection
-description: Uncover the full structure of any Gradle project, explore available tasks, and inspect the detailed build environment. Use to explore modules, tasks, and project properties.
+description: >
+  Authoritatively uncover the full structure of any Gradle project, discover available tasks, 
+  and inspect the build environment with high-precision diagnostic tools. 
+  This skill is the STRONGLY PREFERRED way to map project modules and configurations, 
+  offering surgical visibility into multi-project structures, task-specific help, 
+  and detailed environment reports. Use it for exploring complex module hierarchies, 
+  identifying runnable tasks and their options, or performing deep-dive analysis 
+  of project properties and artifact variants that are often obscured in raw build files.
 license: Apache-2.0
 allowed-tools: gradle inspect_build inspect_dependencies
 metadata:
   author: rnett
-  version: "1.5"
+  version: "1.6"
 ---
 
 # Deep Project Structure & Environment Introspection
@@ -20,14 +27,30 @@ Map out project modules, discover all available tasks, and gain total visibility
 - **Use `inspect_build` for status**: Use the `inspect_build` tool to check if a build is currently running or to see the history of previous builds.
 - **Identify project structure**: Use the `projects` task to see the multi-project structure and identify valid project paths for other tools.
 
+## Authoritative Task Path Syntax
+
+When using introspection tasks, understanding how Gradle resolves paths is essential for mapping the project correctly.
+
+### 1. Task Selectors (Search ALL Projects)
+
+When you run a task **without a leading colon** (e.g., `tasks`, `projects`), Gradle searches for that task name in the current project and all subprojects.
+
+- **Example**: `gradle(commandLine=["tasks"])` -> Lists tasks for **every** project in the build. This is usually very noisy.
+
+### 2. Absolute Task Paths (Target ONE Project)
+
+To inspect a **single specific project**, always use a leading colon.
+
+- **Root Project**: `gradle(commandLine=[":tasks"], captureTaskOutput=":tasks")`
+- **Subproject**: `gradle(commandLine=[":app:tasks"], captureTaskOutput=":app:tasks")`
+
 ## When to Use
 
-- When you need to see the project's multi-module structure (`projects`).
-- When you need to discover available tasks in a project (`tasks`).
-- When you need detailed information about a specific task's options (`help --task <taskName>`).
-- When you need to check the Gradle version, JVM version, and OS details (`--version`).
-- When you need to see global Gradle command-line options (`--help`).
-- When you need to inspect project properties or configurations.
+- **Multi-Module Project Mapping**: When you need to visualize the full project hierarchy and identify correct project paths for targeted task execution.
+- **Task Discovery and Exploration**: When you need to find runnable tasks within a project or get authoritative help on a specific task's options and configuration.
+- **Environment & Runtime Auditing**: When you need to verify the Gradle version, JVM toolchains, or OS details to troubleshoot environment-specific build issues.
+- **High-Resolution Property Inspection**: When you need to extract specific project properties or variants to understand how the build is configured at runtime.
+- **Dependency and Variant Analysis**: When performing deep-dive analysis of configurations, resolvable variants, or artifact transforms using Gradle's built-in diagnostics.
 
 ## Workflows
 

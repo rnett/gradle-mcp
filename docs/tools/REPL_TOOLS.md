@@ -6,84 +6,28 @@ Tools for interacting with a Kotlin REPL session.
 
 ## project_repl
 
-Interacts with a Kotlin REPL session. The REPL runs with the classpath and compiler configuration (plugins, args) of a Gradle source set. The source set must be for a JVM target.
-The REPL uses a classpath that includes the source set and all of its dependencies. The REPL must be restarted to pick up changes to the classpath, compile configuration, or the source code.
+The authoritative tool for executing Kotlin code interactively within your project's full runtime context.
+It provides a managed execution environment with direct access to your project's source sets, dependencies, and compiler configuration.
 
-**projectRoot** should be the file system path of the Gradle project's root directory (containing gradlew script and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**
+### Authoritative Features
+- **Deep Context Integration**: Unlike standalone REPLs, this tool uses your project's exact classpath. Call your project's functions, instantiate its classes, and use its libraries with absolute precision.
+- **Persistent Execution State**: Maintain variables, functions, and imports across multiple `run` calls within a single session.
+- **Rich Output Rendering**: Authoritatively render images (Compose/AWT), Markdown, and HTML directly to your context via the `responder` API.
+- **Managed Lifecycle**: Explicit `start` and `stop` commands ensure resources are managed efficiently.
 
-### Example Use Cases
-- **Testing Project Logic**: Quickly test functions or classes from your project without writing a full test suite or main method.
-- **Compose UI Inspection**: Render Compose components to images for visual verification.
-- **Rapid Prototyping**: Experiment with new libraries or Kotlin features in the context of your project's environment.
-- **Debugging**: Inspect the state of your project or dependencies interactively.
+### Common Usage Patterns
+- **Prototyping Logic**: Rapidly test a complex algorithm or project utility without writing a full test suite.
+- **API Exploration**: Interactively explore a new library's API within your project's environment.
+- **UI Verification**: Render Compose components to images for instant visual feedback (see the `compose-view` skill).
+- **Debugging**: Authoritatively inspect the state of your project or its dependencies at runtime.
 
-### Commands
-- `start`: Starts a new REPL session (replacing any existing one). Requires `projectPath` (e.g., `:app`) and `sourceSet` (e.g., `main`). Can set env vars via `env` and add additional dependencies to the classpath via `additionalDependencies`.
-- `stop`: Stops the currently active REPL session.
-- `run`: Executes a Kotlin code snippet in the current session. Requires `code`, and an active REPL session.
+### Execution and Result Handling
+- **Standard Streams**: Both `stdout` and `stderr` are captured and returned as authoritative text.
+- **Automatic Rendering**: The result of the last expression in a `run` call is automatically rendered.
+- **The Responder API**: Use the `responder: dev.rnett.gradle.mcp.repl.Responder` property for manual, rich output (e.g., `responder.render(myBitmap)`).
 
-### Execution and Output
-- **stdout/stderr**: Captured and returned as text.
-- **Last Expression**: The result of the last expression in your snippet is automatically rendered.
-- **Responder**: A `responder: dev.rnett.gradle.mcp.repl.Responder` top-level property is available for manual output (no import necessary). Use it to return multiple items or specific formats to the MCP output.
-
-### Automatic Rendering and Content Types
-The tool returns a list of content items (text, images, etc.) in order of execution. 
-Use `responder.render(value: Any?, mime: String? = null)` to respond with output.
-Some common types will render as the corresponding MCP spec mime type:
-
-- Common image types (AWT `BufferedImage`, Compose `ImageBitmap`, Android `Bitmap`, or `ByteArray` with image headers) are automatically rendered as images.
-- Markdown can be returned via `responder.markdown(md)`.
-- HTML fragments can be returned via `responder.html(fragment)`.
-- All other types are rendered via `toString()`.
-- Standard out and error is also included in the tool result.
-
-### Examples
-
-#### Basic Usage
-```kotlin
-val x = 10
-val y = 20
-x + y // Result: 30
-```
-
-#### Using Project Classes
-```kotlin
-import com.example.MyService
-val service = MyService()
-service.doSomething()
-```
-
-#### Using the Responder
-```kotlin
-println("Generating plot...")
-responder.image(plotBytes, "image/png")
-println("Plot generated.")
-"Success" // Last expression
-```
-
-#### Compose UI Preview
-```kotlin
-import androidx.compose.ui.test.*
-import com.example.MyComposable
-
-runComposeUiTest {
-    setContent {
-        MyComposable()
-    }
-    val node = onRoot()
-    val bitmap = node.captureToImage()
-    responder.render(bitmap) // Renders the composable as an image
-}
-```
-
-### Important Notes
-- **Source Changes**: Changes to the project's source code will **not** be reflected in an active REPL session. You must `stop` and `start` the REPL to pick up changes to project classes.
-- **Methods on Responder**:
-  - `render(value: Any?, mime: String? = null)`: Manually render a value. If `mime` is null, it is automatically detected.
-  - `markdown(md: String)`: Render a markdown string.
-  - `html(fragment: String)`: Render an HTML fragment.
-  - `image(bytes: ByteArray, mime: String = "image/png")`: Render an image from bytes.
+**Safety Note**: Changes to project source code are NOT reflected in an active session. You MUST `stop` and `start` the REPL to pick up changes to project classes.
+For detailed interactive workflows, refer to the `gradle-repl` skill.
 
 <details>
 
@@ -98,46 +42,47 @@ runComposeUiTest {
         "start",
         "stop",
         "run"
-      ]
+      ],
+      "description": "The authoritative command to execute: 'start', 'stop', or 'run'."
     },
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory (containing gradlew script and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**"
+      "description": "The absolute path to the project root directory. Defaults to the current workspace root. Always provide this if you are working in a multi-root workspace to ensure the correct project context."
     },
     "projectPath": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The Gradle project path (e.g., ':app'). Required for 'start'."
+      "description": "The Gradle project path (e.g., ':app', ':library'). Required for the 'start' command to establish the classpath."
     },
     "sourceSet": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The source set to use (e.g., 'main'). Required for 'start'."
+      "description": "The source set to use (e.g., 'main', 'test'). Required for the 'start' command. Must be a JVM-compatible source set."
     },
     "additionalDependencies": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "Additional dependencies to add to the repl classpath, in Gradle dependency notation. Optional for 'start'."
+      "description": "Additional dependencies to add to the REPL classpath, using authoritative Gradle dependency notation (e.g., 'group:artifact:version'). Optional for 'start'."
     },
     "env": {
       "type": "object",
       "additionalProperties": {
         "type": "string"
       },
-      "description": "Environment variables to set in the REPL worker process Optional for 'start'."
+      "description": "A map of environment variables to set in the REPL worker process. Optional for 'start'."
     },
     "code": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The Kotlin code snippet to execute. Required for 'run'."
+      "description": "The Kotlin code snippet to execute within the active session. Required for the 'run' command."
     }
   },
   "required": [
