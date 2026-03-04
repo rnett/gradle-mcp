@@ -50,7 +50,7 @@ class ReplToolTest : BaseMcpServerTest() {
         val runningBuild = mockk<RunningBuild>(relaxed = true)
         coEvery { runningBuild.awaitFinished() } returns finishedBuild
 
-        every { provider.runBuild(any(), any(), any()) } returns runningBuild
+        every { provider.runBuild(any(), any(), any(), any(), any(), any(), any()) } returns runningBuild
 
         val response = server.client.callTool(
             ToolNames.REPL, mapOf(
@@ -65,7 +65,7 @@ class ReplToolTest : BaseMcpServerTest() {
         assert(text!!.startsWith("REPL session started with ID: "))
 
         // Verify provider was called with the custom root
-        io.mockk.verify { provider.runBuild(GradleProjectRoot(customRoot.toString()), any(), any()) }
+        io.mockk.verify { provider.runBuild(GradleProjectRoot(customRoot.toString()), any(), any(), any(), any(), any(), any()) }
     }
 
     @Test
@@ -89,7 +89,7 @@ class ReplToolTest : BaseMcpServerTest() {
         val runningBuild = mockk<RunningBuild>(relaxed = true)
         coEvery { runningBuild.awaitFinished() } returns finishedBuild
 
-        every { provider.runBuild(any(), any(), any()) } returns runningBuild
+        every { provider.runBuild(any(), any(), any(), any(), any(), any(), any()) } returns runningBuild
 
         val response = server.client.callTool(
             ToolNames.REPL, mapOf(
@@ -116,7 +116,7 @@ class ReplToolTest : BaseMcpServerTest() {
         val runningBuild = mockk<RunningBuild>(relaxed = true)
         coEvery { runningBuild.awaitFinished() } returns finishedBuild
 
-        every { provider.runBuild(any(), any(), any()) } returns runningBuild
+        every { provider.runBuild(any(), any(), any(), any(), any(), any(), any()) } returns runningBuild
 
         server.client.callTool(
             ToolNames.REPL, mapOf(
@@ -161,7 +161,7 @@ class ReplToolTest : BaseMcpServerTest() {
         val runningBuild = mockk<RunningBuild>(relaxed = true)
         coEvery { runningBuild.awaitFinished() } returns finishedBuild
 
-        every { provider.runBuild(any(), any(), any()) } returns runningBuild
+        every { provider.runBuild(any(), any(), any(), any(), any(), any(), any()) } returns runningBuild
 
         val response = server.client.callTool(
             ToolNames.REPL, mapOf(
@@ -195,7 +195,7 @@ class ReplToolTest : BaseMcpServerTest() {
         val runningBuild = mockk<RunningBuild>(relaxed = true)
         coEvery { runningBuild.awaitFinished() } returns finishedBuild
 
-        every { provider.runBuild(any(), any(), any()) } returns runningBuild
+        every { provider.runBuild(any(), any(), any(), any(), any(), any(), any()) } returns runningBuild
 
         val response = server.client.callTool(
             ToolNames.REPL, mapOf(

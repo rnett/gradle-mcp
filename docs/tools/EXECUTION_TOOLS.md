@@ -32,6 +32,7 @@ Don't use it unless you know what you are doing and have double checked to make 
 
 ### Post-Build Workflow
 After starting or completing a build, use the `inspect_build` tool with the returned `BuildId` to monitor progress, investigate failures, or query build problems.
+`inspect_build` is the primary way to get detailed test results, failure trees, and task/test console output (stdout/stderr).
 
 For expert workflows, refer to the `gradle-build` and `gradle-test` skills.
 

@@ -170,7 +170,8 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         buildManager.storeResult(result)
         coEvery {
             provider.runBuild(
-                GradleProjectRoot(tempDir.absolutePathString()),
+                any(),
+                any(),
                 any(),
                 any(),
                 any(),
@@ -192,6 +193,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         coVerify {
             provider.runBuild(
                 GradleProjectRoot(tempDir.absolutePathString()),
+                any(),
                 any(),
                 any(),
                 any(),
@@ -223,6 +225,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
 
         coEvery {
             provider.runBuild(
+                any(),
                 any(),
                 any(),
                 any(),
@@ -277,6 +280,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
             provider.runBuild(
                 any(),
                 capture(capturedArgs),
+                any(),
                 any(),
                 any(),
                 any(),

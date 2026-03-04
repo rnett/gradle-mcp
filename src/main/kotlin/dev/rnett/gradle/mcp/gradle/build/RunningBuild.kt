@@ -26,6 +26,7 @@ import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.io.path.Path
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -41,6 +42,11 @@ data class RunningBuild(
     val logBuffer: StringBuffer = StringBuffer(),
     val cancellationTokenSource: CancellationTokenSource,
 ) : Build {
+    val totalItems = AtomicLong(0)
+    val completedItems = AtomicLong(0)
+    var currentPhase: String? = null
+        private set
+
     internal val problemsAccumulator = ProblemsAccumulator()
     override val problems: List<ProblemAggregation> get() = problemsAccumulator.aggregate()
     override val problemAggregations: Map<ProblemSeverity, List<ProblemAggregation>> get() = problemsAccumulator.aggregateBySeverity()
@@ -134,6 +140,16 @@ data class RunningBuild(
     internal fun addTaskOutput(taskPath: String, output: String) {
         taskOutputsAccumulator.getOrPut(taskPath) { StringBuffer() }.appendLine(output)
     }
+
+    internal fun onPhaseStart(phase: String, total: Int) {
+        currentPhase = phase
+        totalItems.set(total.toLong())
+        completedItems.set(0)
+    }
+
+    internal fun onItemFinish() {
+        completedItems.incrementAndGet()
+    }
 }
 
 private class RefFinishedBuild(val runningBuild: RunningBuild, override val finishTime: Instant, override val outcome: BuildOutcome) : FinishedBuild, Build by runningBuild {
@@ -148,6 +164,8 @@ private class RefFinishedBuild(val runningBuild: RunningBuild, override val fini
             result
         }
     }
+    override val status: BuildStatus
+        get() = runningBuild.status
 }
 
 data class FailureContent(

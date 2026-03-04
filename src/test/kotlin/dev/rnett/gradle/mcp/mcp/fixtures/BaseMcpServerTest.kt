@@ -87,9 +87,11 @@ abstract class BaseMcpServerTest {
 
     val provider: GradleProvider get() = server.koin.get<GradleProvider>()
 
+    open fun createFixture(): McpServerFixture = McpServerFixture(koinModules = listOf(createTestModule()))
+
     @BeforeTest
     open fun setup() = runTest {
-        server = McpServerFixture(koinModules = listOf(createTestModule()))
+        server = createFixture()
         server.start()
     }
 

@@ -170,6 +170,7 @@ class GradleDependencyParsingTest {
             additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
             stdoutLineHandler: ((String) -> Unit)?,
             stderrLineHandler: ((String) -> Unit)?,
+            progressHandler: ((Double, Double?, String?) -> Unit)?,
             requiresGradleProject: Boolean
         ): GradleResult<T> = throw UnsupportedOperationException()
 
@@ -179,7 +180,8 @@ class GradleDependencyParsingTest {
             tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
             additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
             stdoutLineHandler: ((String) -> Unit)?,
-            stderrLineHandler: ((String) -> Unit)?
+            stderrLineHandler: ((String) -> Unit)?,
+            progressHandler: ((Double, Double?, String?) -> Unit)?
         ): RunningBuild = throw UnsupportedOperationException()
 
         override fun runTests(
@@ -189,7 +191,8 @@ class GradleDependencyParsingTest {
             tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
             additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
             stdoutLineHandler: ((String) -> Unit)?,
-            stderrLineHandler: ((String) -> Unit)?
+            stderrLineHandler: ((String) -> Unit)?,
+            progressHandler: ((Double, Double?, String?) -> Unit)?
         ): RunningBuild = throw UnsupportedOperationException()
 
         override val buildManager: BuildManager

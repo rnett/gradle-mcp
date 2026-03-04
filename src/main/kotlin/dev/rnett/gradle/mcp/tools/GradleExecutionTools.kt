@@ -8,7 +8,6 @@ import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
-import org.slf4j.LoggerFactory
 import kotlin.time.ExperimentalTime
 
 class GradleExecutionTools(
@@ -62,6 +61,7 @@ class GradleExecutionTools(
             |
             |### Post-Build Workflow
             |After starting or completing a build, use the `inspect_build` tool with the returned `BuildId` to monitor progress, investigate failures, or query build problems.
+            |`inspect_build` is the primary way to get detailed test results, failure trees, and task/test console output (stdout/stderr).
             |
             |For expert workflows, refer to the `gradle-build` and `gradle-test` skills.
         """.trimMargin(),
@@ -78,13 +78,19 @@ class GradleExecutionTools(
 
         val invocationArgs = it.invocationArguments.copy(additionalArguments = commandLine)
 
-        LoggerFactory.getLogger(GradleExecutionTools::class.java).info("Test log")
         if (it.background) {
             val root = it.projectRoot.resolve()
+
+            @OptIn(kotlinx.coroutines.FlowPreview::class)
             val running = gradleProvider.runBuild(
                 root,
                 invocationArgs.withInitScript(InitScriptNames.TASK_OUT),
-                { ScansTosManager.askForScansTos(root, it) }
+                { ScansTosManager.askForScansTos(root, it) },
+                progressHandler = { p, total, msg ->
+                    // For background builds, we don't have an easy way to emit progress notifications 
+                    // via the current tool call result, but DefaultGradleProvider will still update 
+                    // the RunningBuild state which can be inspected via inspect_build.
+                }
             )
             return@tool running.id.toString()
         } else {
@@ -92,14 +98,12 @@ class GradleExecutionTools(
                 it.projectRoot,
                 invocationArgs
             )
-            LoggerFactory.getLogger(GradleExecutionTools::class.java).info("Build started successfully")
 
             val finished = result.build.awaitFinished()
             val isSpecial = finished.args.isHelp || finished.args.isVersion
             if (finished.outcome !is BuildOutcome.Success && !isSpecial) {
                 isError = true
             }
-            LoggerFactory.getLogger(GradleExecutionTools::class.java).info("Build finished with outcome: ${finished.outcome}")
 
             if (isSpecial) {
                 return@tool finished.toOutputString()

@@ -195,7 +195,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                     }
                 }
 
-                appendLine("Console output:")
+                appendLine("Test console output:")
                 appendLine(test.consoleOutput)
             }
         }
@@ -412,13 +412,14 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             |- **Build Dashboard**: Call without `buildId` to see active and recently completed builds.
             |- **Real-time Monitoring**: Use `wait`, `waitFor`, or `waitForTask` to block until a background build reaches a specific state or logs a specific pattern.
             |- **Surgical Diagnostics**: Specify a `buildId` and a section (`tasks`, `tests`, `failures`, `problems`, or `console`) to deep-dive into build results.
-            |- **Contextual Details**: Use `mode="details"` with specific section options (like task path or test name) for exhaustive information.
+            |- **Contextual Details**: Use `mode="details"` with specific section options (like task path or test name) for exhaustive information. This is the preferred way to get test stdout/stderr and failure details. Note that test stdout/stderr is often found here rather than in the build's general console output.
             |
             |### Usage Patterns
             |1. **Dashboard**: `inspect_build()`
             |2. **Wait for Success**: `inspect_build(buildId=ID, wait=60)`
             |3. **Wait for Log**: `inspect_build(buildId=ID, wait=60, waitFor="Server started")`
             |4. **Analyze Failure**: `inspect_build(buildId=ID, failures={})`
+            |5. **Test Details & Output**: `inspect_build(buildId=ID, mode="details", tests={name="MyTestClass"})`
             |
             |To start a new build, use the `gradle` tool.
             |

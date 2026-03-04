@@ -57,7 +57,7 @@ open class McpContext(
     private val request: Request,
     val requestWithMeta: WithMeta
 ) : AutoCloseable {
-    private val notificationQueue = MutableSharedFlow<Notification>(0, 50, BufferOverflow.DROP_OLDEST)
+    private val notificationQueue = MutableSharedFlow<Notification>(0, 500, BufferOverflow.DROP_OLDEST)
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     @PublishedApi
@@ -117,7 +117,7 @@ open class McpContext(
     }
 
     init {
-        scope.launch {
+        scope.launch(Dispatchers.IO) {
             notificationQueue.collect { notification ->
                 sendNotification(notification)
             }

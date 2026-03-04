@@ -220,6 +220,7 @@ object UpdateTools {
             additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
             stdoutLineHandler: ((String) -> Unit)?,
             stderrLineHandler: ((String) -> Unit)?,
+            progressHandler: ((Double, Double?, String?) -> Unit)?,
             requiresGradleProject: Boolean
         ): dev.rnett.gradle.mcp.gradle.GradleResult<T> {
             throw UnsupportedOperationException("Not used for tool listing")
@@ -232,6 +233,7 @@ object UpdateTools {
             additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
             stdoutLineHandler: ((String) -> Unit)?,
             stderrLineHandler: ((String) -> Unit)?,
+            progressHandler: ((Double, Double?, String?) -> Unit)?
         ): RunningBuild {
             throw UnsupportedOperationException("Not used for tool listing")
         }
@@ -244,6 +246,7 @@ object UpdateTools {
             additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
             stdoutLineHandler: ((String) -> Unit)?,
             stderrLineHandler: ((String) -> Unit)?,
+            progressHandler: ((Double, Double?, String?) -> Unit)?
         ): RunningBuild {
             throw UnsupportedOperationException("Not used for tool listing")
         }

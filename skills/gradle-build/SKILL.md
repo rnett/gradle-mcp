@@ -1,6 +1,6 @@
 ---
 name: gradle-build
-description: Execute any Gradle task with robust background management and integrated failure analysis. Use for common build tasks like 'build', 'assemble', or starting development servers.
+description: Execute any Gradle task with robust background management and integrated failure analysis. Use for any build tasks like 'build' or 'assemble', starting development servers, or running any other Gradle task or command.
 license: Apache-2.0
 allowed-tools: gradle inspect_build
 metadata:
@@ -56,9 +56,10 @@ Execute and manage Gradle commands with ease, whether in the foreground or as pe
 ### Investigating Build Failures
 
 1. Identify the `buildId` from the execution result or the dashboard.
-2. Use `inspect_build(buildId=ID, include=["failures", "problems"])` to get structured diagnostic information.
-3. If needed, use `include=["console"]` with `consoleOptions` to see specific parts of the log.
-4. See [Failure Analysis](references/failure-analysis.md) for a deep dive into diagnosing complex issues.
+2. Use `inspect_build(buildId=ID, mode="details", tasks={path=":taskPath"})` to see the output of a specific failed task.
+3. Use `inspect_build(buildId=ID, failures={})` to get structured diagnostic information and failure trees.
+4. Use `inspect_build(buildId=ID, console={})` to see the full console log.
+5. See [Failure Analysis](references/failure-analysis.md) for a deep dive into diagnosing complex issues.
 
 ## Examples
 

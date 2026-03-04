@@ -35,6 +35,25 @@ Run tests efficiently with precision filtering and leverage deep diagnostic tool
 
 ## Workflows
 
+### Analyzing Test Results
+
+The `inspect_build` tool is the primary way to perform deep dives into test results. Use the `mode="details"` setting with the `tests` option to retrieve:
+
+- Full test status and execution duration.
+- Failure details and stack traces.
+- Metadata and attached files (e.g., screenshots for UI tests).
+- **Console output (stdout/stderr)** for the specific test. Note that test stdout/stderr is often found here rather than in the build's general console output.
+
+```json
+{
+  "buildId": "ID",
+  "mode": "details",
+  "tests": {
+    "name": "com.example.MyTest.myTestMethod"
+  }
+}
+```
+
 ### Running Specific Tests
 
 1. Identify the project path (e.g., `:app`) and the test task name (usually `test`).

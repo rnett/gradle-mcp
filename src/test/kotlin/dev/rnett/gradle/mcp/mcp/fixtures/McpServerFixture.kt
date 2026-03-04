@@ -15,7 +15,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonObject
 import org.koin.core.module.Module
 import org.koin.dsl.koinApplication
 import org.slf4j.LoggerFactory
@@ -25,6 +24,9 @@ import org.slf4j.LoggerFactory
  */
 class McpServerFixture(
     private val clientSupportsElicitation: Boolean = true,
+    private val clientCapabilities: ClientCapabilities = ClientCapabilities(
+        elicitation = kotlinx.serialization.json.buildJsonObject { }.takeIf { clientSupportsElicitation }
+    ),
     private val koinModules: List<Module> = emptyList(),
 ) {
     private val LOGGER = LoggerFactory.getLogger(McpServerFixture::class.java)
@@ -45,11 +47,7 @@ class McpServerFixture(
     
     val client = Client(
         Implementation("gradle-mcp-test-client", "test"),
-        ClientOptions(
-            ClientCapabilities(
-                elicitation = JsonObject(emptyMap()).takeIf { clientSupportsElicitation }
-            )
-        )
+        ClientOptions(clientCapabilities)
     )
 
     suspend fun start() {

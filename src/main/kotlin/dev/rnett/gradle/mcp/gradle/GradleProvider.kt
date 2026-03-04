@@ -1,3 +1,5 @@
+@file:Suppress("UnstableApiUsage")
+
 package dev.rnett.gradle.mcp.gradle
 
 import com.github.benmanes.caffeine.cache.Caffeine
@@ -30,6 +32,10 @@ import org.gradle.tooling.ProjectConnection
 import org.gradle.tooling.events.OperationType
 import org.gradle.tooling.events.ProgressEvent
 import org.gradle.tooling.events.ProgressListener
+import org.gradle.tooling.events.StatusEvent
+import org.gradle.tooling.events.configuration.ProjectConfigurationFinishEvent
+import org.gradle.tooling.events.lifecycle.BuildPhaseOperationDescriptor
+import org.gradle.tooling.events.lifecycle.BuildPhaseStartEvent
 import org.gradle.tooling.events.problems.ProblemAggregationEvent
 import org.gradle.tooling.events.problems.SingleProblemEvent
 import org.gradle.tooling.events.task.TaskFailureResult
@@ -76,6 +82,7 @@ interface GradleProvider : AutoCloseable {
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
         stdoutLineHandler: ((String) -> Unit)? = null,
         stderrLineHandler: ((String) -> Unit)? = null,
+        progressHandler: ((progress: Double, total: Double?, message: String?) -> Unit)? = null,
         requiresGradleProject: Boolean = true
     ): GradleResult<T>
 
@@ -86,6 +93,7 @@ interface GradleProvider : AutoCloseable {
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
         stdoutLineHandler: ((String) -> Unit)? = null,
         stderrLineHandler: ((String) -> Unit)? = null,
+        progressHandler: ((progress: Double, total: Double?, message: String?) -> Unit)? = null,
     ): RunningBuild
 
     fun runTests(
@@ -96,6 +104,7 @@ interface GradleProvider : AutoCloseable {
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
         stdoutLineHandler: ((String) -> Unit)? = null,
         stderrLineHandler: ((String) -> Unit)? = null,
+        progressHandler: ((progress: Double, total: Double?, message: String?) -> Unit)? = null,
     ): RunningBuild
 
     val buildManager: BuildManager
@@ -304,6 +313,7 @@ class DefaultGradleProvider(
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
         stdoutLineHandler: ((String) -> Unit)?,
         stderrLineHandler: ((String) -> Unit)?,
+        progressHandler: ((progress: Double, total: Double?, message: String?) -> Unit)?,
         tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
         launcherProvider: suspend (ProjectConnection) -> I,
         invoker: (I) -> R,
@@ -336,6 +346,7 @@ class DefaultGradleProvider(
                         additionalProgressListeners,
                         stdoutLineHandler,
                         stderrLineHandler,
+                        progressHandler,
                         requiresGradleProject
                     )
                     val text = model.value.getOrThrow().renderedText
@@ -355,6 +366,7 @@ class DefaultGradleProvider(
                         additionalProgressListeners,
                         stdoutLineHandler,
                         stderrLineHandler,
+                        progressHandler,
                         requiresGradleProject
                     )
                     val text = "Gradle ${model.value.getOrThrow().gradle.gradleVersion}"
@@ -372,6 +384,7 @@ class DefaultGradleProvider(
                                 additionalProgressListeners,
                                 stdoutLineHandler,
                                 stderrLineHandler,
+                                progressHandler,
                                 tosAccepter,
                                 buildId,
                                 runningBuild,
@@ -403,6 +416,7 @@ class DefaultGradleProvider(
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
         stdoutLineHandler: ((String) -> Unit)?,
         stderrLineHandler: ((String) -> Unit)?,
+        progressHandler: ((progress: Double, total: Double?, message: String?) -> Unit)?,
         requiresGradleProject: Boolean
     ): GradleResult<T> {
         val (running, deferred) = startBuild(
@@ -410,6 +424,7 @@ class DefaultGradleProvider(
             additionalProgressListeners = additionalProgressListeners,
             stdoutLineHandler = stdoutLineHandler,
             stderrLineHandler = stderrLineHandler,
+            progressHandler = progressHandler,
             tosAccepter = tosAccepter,
             launcherProvider = { it.model(kClass.java) },
             invoker = { it.get() },
@@ -428,12 +443,14 @@ class DefaultGradleProvider(
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
         stdoutLineHandler: ((String) -> Unit)?,
         stderrLineHandler: ((String) -> Unit)?,
+        progressHandler: ((progress: Double, total: Double?, message: String?) -> Unit)?,
     ): RunningBuild {
         return startBuild(
             args = args,
             additionalProgressListeners = additionalProgressListeners,
             stdoutLineHandler = stdoutLineHandler,
             stderrLineHandler = stderrLineHandler,
+            progressHandler = progressHandler,
             tosAccepter = tosAccepter,
             launcherProvider = { it.newBuild() },
             invoker = { it.run() },
@@ -450,12 +467,14 @@ class DefaultGradleProvider(
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
         stdoutLineHandler: ((String) -> Unit)?,
         stderrLineHandler: ((String) -> Unit)?,
+        progressHandler: ((progress: Double, total: Double?, message: String?) -> Unit)?,
     ): RunningBuild {
         return startBuild(
             args = args,
             additionalProgressListeners = additionalProgressListeners,
             stdoutLineHandler = stdoutLineHandler,
             stderrLineHandler = stderrLineHandler,
+            progressHandler = progressHandler,
             tosAccepter = tosAccepter,
             launcherProvider = { connection ->
                 connection.newTestLauncher().apply {
@@ -476,6 +495,7 @@ class DefaultGradleProvider(
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
         stdoutLineHandler: ((String) -> Unit)?,
         stderrLineHandler: ((String) -> Unit)?,
+        progressHandler: ((progress: Double, total: Double?, message: String?) -> Unit)?,
         tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
         buildId: BuildId,
         runningBuild: RunningBuild,
@@ -506,10 +526,6 @@ class DefaultGradleProvider(
                     runningBuild.stop()
             }
 
-            additionalProgressListeners.forEach {
-                addProgressListener(it.key, it.value)
-            }
-
             addProgressListener(runningBuild.testResultsInternal, runningBuild.testResultsInternal.operations)
 
             addProgressListener({ event ->
@@ -518,6 +534,15 @@ class DefaultGradleProvider(
                 if (event is SingleProblemEvent)
                     runningBuild.problemsAccumulator.add(event.problem)
             }, OperationType.PROBLEMS)
+
+            addProgressListener({ event ->
+                if (event is BuildPhaseStartEvent) {
+                    val descriptor = event.descriptor
+                    if (descriptor is BuildPhaseOperationDescriptor) {
+                        runningBuild.onPhaseStart(descriptor.buildPhase, descriptor.buildItemsCount)
+                    }
+                }
+            }, OperationType.BUILD_PHASE)
 
             addProgressListener({ event ->
                 if (event is TaskFinishEvent) {
@@ -546,11 +571,44 @@ class DefaultGradleProvider(
                         val endTime = event.eventTime
                         val duration = if (startTime > 0) (endTime - startTime).milliseconds else 0.seconds
                         runningBuild.addTaskResult(taskPath, outcome, duration, runningBuild.taskOutputs[taskPath])
+                        runningBuild.onItemFinish()
+
+                        val total = runningBuild.totalItems.get()
+                        if (total > 0) {
+                            val completed = runningBuild.completedItems.get()
+                            progressHandler?.invoke(completed.toDouble() / total, 1.0, "Finished task: $taskPath")
+                        }
                     } else {
                         runningBuild.addTaskCompleted(event.descriptor.displayName)
                     }
+                } else if (event is ProjectConfigurationFinishEvent) {
+                    runningBuild.onItemFinish()
+
+                    val total = runningBuild.totalItems.get()
+                    if (total > 0) {
+                        val completed = runningBuild.completedItems.get()
+                        progressHandler?.invoke(completed.toDouble() / total, 1.0, "Finished configuration: ${event.descriptor.displayName}")
+                    }
                 }
-            }, OperationType.TASK)
+            }, OperationType.TASK, OperationType.PROJECT_CONFIGURATION)
+
+            addProgressListener({ event ->
+                if (event is StatusEvent) {
+                    val total = runningBuild.totalItems.get()
+                    if (total > 0) {
+                        val completed = runningBuild.completedItems.get()
+                        val currentProgress = if (event.total > 0) event.progress.toLong().toDouble() / event.total else 0.0
+                        val phaseProgress = (completed + currentProgress) / total
+                        progressHandler?.invoke(phaseProgress, 1.0, event.descriptor.displayName)
+                    } else {
+                        progressHandler?.invoke(0.0, null, event.descriptor.displayName)
+                    }
+                }
+            }, OperationType.GENERIC)
+
+            additionalProgressListeners.forEach {
+                addProgressListener(it.key, it.value)
+            }
 
             // Build scan TOS acceptance
 
