@@ -278,9 +278,6 @@ class ReplManagerTest {
         // Wait for it to die
         delay(500)
 
-        val process = manager.getSession("session1")
-        println("TEST DEBUG: session after 500ms = $process")
-
         val responses = manager.sendRequest("session1", ReplRequest("1 + 1")).toList()
 
         assert(responses.size == 1)

@@ -11,7 +11,8 @@ Use the Gradle MCP to interact with Gradle whenever possible.
 * **Use Gradle MCP**: Always use the Gradle MCP tools to run builds and tests whenever possible. When using a Gradle tool that supports a `projectRoot` argument, provide it when in doubt, unless you are certain it is not required by the
   current MCP configuration.
 * If you have trouble solving or investigating an issue after a few tries, stop and think about what the issues are before proceeding. Do research if necessary, and rubber duck to yourself.
-* When writing skills, remember that skills support progressive disclosure and tune them accordingly. Read the docs on https://agentskills.io/home before creating or eding any skills.
+* When writing skills, remember that skills support progressive disclosure and tune them accordingly. Read the docs on https://agentskills.io/home before creating or editing any skills.
+* Add your changes to git that you want to persist (i.e. not temp files), but don't EVER create commits or push.
 
 **IMPORTANT:** If you are Gemini, you get stuck when you try to use your built-in file creation and editing tools.
 Use a shell command, MCP tool, or something like that.

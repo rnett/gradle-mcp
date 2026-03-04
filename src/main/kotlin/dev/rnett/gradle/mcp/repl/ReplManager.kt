@@ -65,9 +65,14 @@ class DefaultReplManager(
         val outputBuffer: java.util.Queue<String> = java.util.concurrent.ConcurrentLinkedQueue(),
         private val _responses: MutableSharedFlow<ReplResponse> = MutableSharedFlow(200, extraBufferCapacity = 50, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     ) {
+        @Volatile
+        var terminalError: ReplResponse.Result.InternalError? = null
         val responses = _responses.asSharedFlow()
 
         suspend fun emitResponse(response: ReplResponse) {
+            if (response is ReplResponse.Result.InternalError) {
+                terminalError = response
+            }
             _responses.emit(response)
         }
 
@@ -250,6 +255,8 @@ class DefaultReplManager(
     override suspend fun sendRequest(sessionId: String, command: ReplRequest): Flow<ReplResponse> {
         val session = sessions[sessionId] ?: error("No active REPL session with ID $sessionId")
 
+        session.terminalError?.let { return flowOf(it) }
+
         if (!session.process.isAlive) {
             val exitCode = session.process.exitValue()
             return flowOf(
@@ -262,6 +269,9 @@ class DefaultReplManager(
         val json = Json.encodeToString(command)
 
         session.clearResponsesBuffer()
+
+        // Check again after clearing buffer to catch races with the log monitoring coroutines
+        session.terminalError?.let { return flowOf(it) }
         try {
             withContext(Dispatchers.IO) {
                 val line = ReplResponse.RPC_PREFIX + json + '\n'
