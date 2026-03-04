@@ -16,7 +16,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.future.asDeferred
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -128,40 +129,47 @@ class DefaultReplManager(
         val session = ReplSessionState(process, config)
         sessions[sessionId] = session
 
+        // Independent watchdog coroutine to catch crashes immediately, even if streams are hung by zombie subprocesses
         session.logJobs.add(
             scope.launch(Dispatchers.IO) {
-                val scanner = Scanner(process.inputStream)
-                while (scanner.hasNextLine()) {
-                    val line = scanner.nextLine() ?: break
-                    if (line.startsWith(ReplResponse.RPC_PREFIX)) {
-                        val jsonLine = line.removePrefix(ReplResponse.RPC_PREFIX)
-                        try {
-                            val response = Json.decodeFromString<ReplResponse>(jsonLine)
-                            session.emitResponse(response)
-                            if (response is ReplResponse.Logging) {
-                                logMessage(process, sessionId, response)
+                process.onExit().asDeferred().await()
+                if (isActive && session.terminalError == null) {
+                    val exitCode = process.exitValue()
+                    session.emitResponse(
+                        ReplResponse.Result.InternalError(
+                            "The REPL worker process terminated unexpectedly with exit code $exitCode."
+                        )
+                    )
+                }
+            }
+        )
+
+        session.logJobs.add(
+            scope.launch(Dispatchers.IO) {
+                try {
+                    val scanner = Scanner(process.inputStream)
+                    while (scanner.hasNextLine()) {
+                        val line = scanner.nextLine() ?: break
+                        if (line.startsWith(ReplResponse.RPC_PREFIX)) {
+                            val jsonLine = line.removePrefix(ReplResponse.RPC_PREFIX)
+                            try {
+                                val response = Json.decodeFromString<ReplResponse>(jsonLine)
+                                session.emitResponse(response)
+                                if (response is ReplResponse.Logging) {
+                                    logMessage(process, sessionId, response)
+                                }
+                            } catch (e: Exception) {
+                                LOGGER.error("Failed to decode REPL RPC message: $line", e)
+                                session.addOutput("STDOUT: $line")
+                                logStdout(sessionId, line)
                             }
-                        } catch (e: Exception) {
-                            LOGGER.error("Failed to decode REPL RPC message: $line", e)
+                        } else {
                             session.addOutput("STDOUT: $line")
                             logStdout(sessionId, line)
                         }
-                    } else {
-                        session.addOutput("STDOUT: $line")
-                        logStdout(sessionId, line)
                     }
-                }
-
-                // If scanner finishes and process is dead, emit error so any pending requests stop waiting
-                if (!process.isAlive) {
-                    val exitCode = process.exitValue()
-                    if (exitCode != 0) {
-                        session.emitResponse(
-                            ReplResponse.Result.InternalError(
-                                "The REPL worker process terminated unexpectedly with exit code $exitCode."
-                            )
-                        )
-                    }
+                } catch (e: Exception) {
+                    LOGGER.error("Error reading REPL worker output (sessionId={})", sessionId, e)
                 }
             }
         )
@@ -252,18 +260,22 @@ class DefaultReplManager(
         }
     }
 
-    override suspend fun sendRequest(sessionId: String, command: ReplRequest): Flow<ReplResponse> {
+    override suspend fun sendRequest(sessionId: String, command: ReplRequest): Flow<ReplResponse> = flow {
         val session = sessions[sessionId] ?: error("No active REPL session with ID $sessionId")
 
-        session.terminalError?.let { return flowOf(it) }
+        session.terminalError?.let {
+            emit(it)
+            return@flow
+        }
 
         if (!session.process.isAlive) {
             val exitCode = session.process.exitValue()
-            return flowOf(
-                ReplResponse.Result.InternalError(
-                    "The REPL worker process terminated unexpectedly with exit code $exitCode."
-                )
+            val error = ReplResponse.Result.InternalError(
+                "The REPL worker process terminated unexpectedly with exit code $exitCode."
             )
+            session.emitResponse(error)
+            emit(error)
+            return@flow
         }
 
         val json = Json.encodeToString(command)
@@ -271,7 +283,11 @@ class DefaultReplManager(
         session.clearResponsesBuffer()
 
         // Check again after clearing buffer to catch races with the log monitoring coroutines
-        session.terminalError?.let { return flowOf(it) }
+        session.terminalError?.let {
+            emit(it)
+            return@flow
+        }
+
         try {
             withContext(Dispatchers.IO) {
                 val line = ReplResponse.RPC_PREFIX + json + '\n'
@@ -294,21 +310,23 @@ class DefaultReplManager(
                 "Failed to send request to REPL worker: ${e.message}"
             }
 
-            return flowOf(ReplResponse.Result.InternalError(errorMessage, e.stackTraceToString()))
+            val error = ReplResponse.Result.InternalError(errorMessage, e.stackTraceToString())
+            session.terminalError = error
+            session.emitResponse(error)
+            emit(error)
+            return@flow
         }
 
         LOGGER.info("Request written to session $sessionId")
-        return flow {
-            session.responses
-                .collect {
-                    emit(it)
-                    if (it is ReplResponse.Result) {
-                        throw CancellationException("Found result")
-                    }
-                }
-        }.catch { e ->
-            if (e !is CancellationException || e.message != "Found result") throw e
+
+        session.responses.collect {
+            emit(it)
+            if (it is ReplResponse.Result) {
+                throw CancellationException("Found result")
+            }
         }
+    }.catch { e ->
+        if (e !is CancellationException || e.message != "Found result") throw e
     }
 
     /**
