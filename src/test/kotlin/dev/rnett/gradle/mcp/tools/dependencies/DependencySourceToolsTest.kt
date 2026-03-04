@@ -40,7 +40,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         sources.createDirectories()
 
         coEvery {
-            sourcesService.downloadAllSources(any(), any(), any())
+            sourcesService.downloadAllSources(any(), any(), any(), any())
         } returns SourcesDir(sourcesDir)
 
         coEvery {
@@ -74,7 +74,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         sources.createDirectories()
 
         coEvery {
-            sourcesService.downloadAllSources(any(), any(), any())
+            sourcesService.downloadAllSources(any(), any(), any(), any())
         } returns SourcesDir(sourcesDir)
 
         coEvery {
@@ -112,7 +112,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         testFile.writeText("package com.example\n\nclass Test")
 
         coEvery {
-            sourcesService.downloadAllSources(any(), any(), any())
+            sourcesService.downloadAllSources(any(), any(), any(), any())
         } returns SourcesDir(sourcesDir)
 
         val response = server.client.callTool(
@@ -138,7 +138,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         sources.resolve("com/example/z_file.kt").writeText("")
 
         coEvery {
-            sourcesService.downloadAllSources(any(), any(), any())
+            sourcesService.downloadAllSources(any(), any(), any(), any())
         } returns SourcesDir(sourcesDir)
 
         val response = server.client.callTool(
@@ -161,7 +161,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         sources.createDirectories()
 
         coEvery {
-            sourcesService.downloadAllSources(any(), any(), any())
+            sourcesService.downloadAllSources(any(), any(), any(), any())
         } returns SourcesDir(sourcesDir)
 
         val response = server.client.callTool(
@@ -181,7 +181,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         sources.createDirectories()
 
         coEvery {
-            sourcesService.downloadAllSources(any(), any(), any())
+            sourcesService.downloadAllSources(any(), any(), any(), any())
         } returns SourcesDir(sourcesDir)
 
         val response = server.client.callTool(
@@ -200,7 +200,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         sourcesDir.createDirectories()
 
         coEvery {
-            sourcesService.downloadProjectSources(any(), ":app", any(), any())
+            sourcesService.downloadProjectSources(any(), ":app", any(), any(), any())
         } returns SourcesDir(sourcesDir)
 
         server.client.callTool(
@@ -253,5 +253,44 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         coEvery {
             gradleSourceService.getGradleSources(any(), any())
         }
+    }
+
+    @Test
+    fun `read_dependency_sources returns last refresh message`() = runTest {
+        val sourcesDir = tempDir.resolve("sources-refresh")
+        val sources = sourcesDir.resolve("sources")
+        sources.createDirectories()
+        val metadata = sourcesDir.resolve("metadata")
+        metadata.createDirectories()
+        val lastRefresh = java.time.Instant.now().minusSeconds(3600) // 1 hour ago
+        metadata.resolve(".last_refresh").writeText(lastRefresh.toString())
+
+        coEvery {
+            sourcesService.downloadAllSources(any(), any(), any(), any())
+        } returns SourcesDir(sourcesDir)
+
+        val response = server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject { }
+        ) as CallToolResult
+
+        val result = (response.content.first() as TextContent).text
+        assertTrue(result!!.contains("Sources last refreshed at"))
+        assertTrue(result.contains("(1 hour(s) ago)"))
+    }
+
+    @Test
+    fun `read_dependency_sources passes fresh parameter`() = runTest {
+        val sourcesDir = tempDir.resolve("sources-fresh")
+        sourcesDir.createDirectories()
+
+        coEvery {
+            sourcesService.downloadAllSources(any(), any(), any(), fresh = true)
+        } returns SourcesDir(sourcesDir)
+
+        server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("fresh", true)
+            }
+        ) as CallToolResult
     }
 }

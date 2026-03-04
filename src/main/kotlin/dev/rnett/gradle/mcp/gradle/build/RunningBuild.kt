@@ -111,7 +111,7 @@ data class RunningBuild(
     }
 
     internal fun replaceLastLogLine(oldLine: String, newLine: String) {
-        if (lastLine == oldLine || lastLine == "ERR: $oldLine") {
+        if (lastLine == oldLine || lastLine == "STDERR: $oldLine") {
             val toRemove = (lastLine ?: "") + System.lineSeparator()
             logBuffer.setLength(logBuffer.length - toRemove.length)
         }

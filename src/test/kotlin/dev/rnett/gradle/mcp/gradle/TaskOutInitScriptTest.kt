@@ -100,7 +100,7 @@ class TaskOutInitScriptTest {
             // Should NOT contain the original unprefixed lines (they should have been replaced)
             val lines = result.consoleOutput.lines()
             assert(!lines.contains("Hello from task"))
-            assert(!lines.contains("ERR: Error from task"))
+            assert(!lines.contains("STDERR: Error from task"))
 
             assert(result.getTaskOutput(":printMessage") == "Hello from task\nError from task")
 

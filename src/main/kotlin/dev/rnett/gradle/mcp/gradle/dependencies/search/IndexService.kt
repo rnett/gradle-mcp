@@ -8,9 +8,12 @@ import java.nio.file.Path
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createFile
+import kotlin.io.path.createParentDirectories
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
 import kotlin.io.path.nameWithoutExtension
+import kotlin.io.path.readText
+import kotlin.io.path.writeText
 import kotlin.time.measureTimedValue
 
 @JvmInline
@@ -72,8 +75,10 @@ class DefaultIndexService(
     ) {
         val (unit, duration) = measureTimedValue {
             val dir = sourcesDir.index
-            val markerFile = dir.resolve(".merged")
-            if (markerFile.exists()) {
+            val hashFile = dir.resolve(".merged.hash")
+            val currentHash = includedDeps.hashCode().toString()
+
+            if (hashFile.exists() && hashFile.readText() == currentHash) {
                 return@measureTimedValue
             }
 
@@ -88,7 +93,8 @@ class DefaultIndexService(
                     providerDir.createDirectories()
                     provider.mergeIndices(includedIndices.entries.associate { it.value.resolve(provider.name) to it.key }, providerDir)
                 }
-                markerFile.createFile()
+                hashFile.createParentDirectories()
+                hashFile.writeText(currentHash)
             } catch (e: Exception) {
                 LOGGER.error("Failed to merge indices for ${sourcesDir.path}", e)
                 dir.deleteRecursively()

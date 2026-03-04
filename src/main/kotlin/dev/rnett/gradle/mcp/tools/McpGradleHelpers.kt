@@ -41,7 +41,7 @@ suspend inline fun GradleProvider.doBuild(
         invocationArgs.withInitScript(InitScriptNames.TASK_OUT),
         { ScansTosManager.askForScansTos(root, it) },
         stdoutLineHandler = emit,
-        stderrLineHandler = { emit("ERR: ${it}") },
+        stderrLineHandler = { emit("STDERR: ${it}") },
     )
     val finished = running.awaitFinished()
     GradleResult(finished, Result.success(Unit))

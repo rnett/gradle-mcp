@@ -268,7 +268,7 @@ class DefaultGradleProvider(
 
                 is TestOutputEvent -> {
                     val testName = (event.descriptor.parent as? TestOperationDescriptor)?.testName() ?: return
-                    val prefix = if (event.descriptor.destination == Destination.StdErr) "Err: " else ""
+                    val prefix = if (event.descriptor.destination == Destination.StdErr) "STDERR: " else ""
                     output.getOrPut(testName) { StringBuilder() }.append(prefix + event.descriptor.message)
                 }
 
@@ -692,7 +692,7 @@ class DefaultGradleProvider(
             runningBuild.addTaskOutput(taskPath, text)
             runningBuild.replaceLastLogLine(text, formattedLine)
         } else {
-            val logLine = if (isError) "ERR: $line" else line
+            val logLine = if (isError) "STDERR: $line" else line
             runningBuild.addLogLine(logLine)
             lineHandler?.invoke(line)
             LOGGER.makeLoggingEventBuilder(Level.INFO)

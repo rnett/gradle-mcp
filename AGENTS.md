@@ -16,6 +16,17 @@ Use the Gradle MCP to interact with Gradle whenever possible.
 **IMPORTANT:** If you are Gemini, you get stuck when you try to use your built-in file creation and editing tools.
 Use a shell command, MCP tool, or something like that.
 
+## Changes and specs
+
+When making significant changes to the code, e.g. using an openspec process, here are some guidelines:
+
+* **Always run the `check` task** before declaring a change or spec completed. This ensures that all tests, linting, and generated documentation are correct and up-to-date.
+* **Ensure that your changes have automated tests**. We don't need or go for 100% coverage, but ensure that there's a decent amount, especially of any delicated or complex parts.
+* Ensure that the tests are meaningful, with meaningful assertions that will actually catch bugs or mistakes. Take a step back when writing the tests and focus more on the original goals than the implementation - the goal is to ensure that
+  the implementation meets the original goals, and does not have bugs.
+* Test classes should always be named after the service, not the implementation (e.g. no Default*Test).
+* Keep test performance in mind. Our tests already take quite some time to run, and we don't want to make things worse. Keep this in mind when deciding how many tests to add, and when writing the tests.
+
 ## Project structure notes
 
 The `test` task should be used to run tests.
