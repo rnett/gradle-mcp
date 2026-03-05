@@ -17,7 +17,7 @@ data class TaskResult(
 data class TestResults(
     val passed: Set<TestResult>,
     val skipped: Set<TestResult>,
-    val failed: Set<TestResult>,
+    val failed: Set<TestResult>
 ) {
     val totalCount = passed.size + skipped.size + failed.size
     val isEmpty = totalCount == 0

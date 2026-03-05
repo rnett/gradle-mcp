@@ -5,7 +5,6 @@ import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleResult
-import dev.rnett.gradle.mcp.gradle.GradleScanTosAcceptRequest
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import org.gradle.tooling.events.OperationType
 import org.gradle.tooling.events.ProgressListener
@@ -166,7 +165,6 @@ class GradleDependencyParsingTest {
             projectRoot: GradleProjectRoot,
             kClass: KClass<T>,
             args: GradleInvocationArguments,
-            tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
             additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
             stdoutLineHandler: ((String) -> Unit)?,
             stderrLineHandler: ((String) -> Unit)?,
@@ -177,7 +175,6 @@ class GradleDependencyParsingTest {
         override fun runBuild(
             projectRoot: GradleProjectRoot,
             args: GradleInvocationArguments,
-            tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
             additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
             stdoutLineHandler: ((String) -> Unit)?,
             stderrLineHandler: ((String) -> Unit)?,
@@ -188,7 +185,6 @@ class GradleDependencyParsingTest {
             projectRoot: GradleProjectRoot,
             testPatterns: Map<String, Set<String>>,
             args: GradleInvocationArguments,
-            tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
             additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
             stdoutLineHandler: ((String) -> Unit)?,
             stderrLineHandler: ((String) -> Unit)?,

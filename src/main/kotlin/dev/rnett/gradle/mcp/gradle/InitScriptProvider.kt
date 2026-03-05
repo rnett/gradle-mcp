@@ -31,12 +31,13 @@ class DefaultInitScriptProvider(
         return listOf(
             "repl-env.init.gradle.kts",
             "task-out.init.gradle.kts",
-            "dependencies-report.init.gradle.kts"
+            "dependencies-report.init.gradle.kts",
+            "scans.init.gradle"
         )
     }
 
     /**
-     * Extracts requested .init.gradle.kts files from resources to the working directory.
+     * Extracts requested init scripts from resources to the working directory.
      * Returns a list of absolute paths to the extracted scripts.
      */
     override fun extractInitScripts(scriptNames: List<String>): List<Path> {
@@ -48,7 +49,7 @@ class DefaultInitScriptProvider(
         return buildList {
 
             scriptNames.forEach { requestedName ->
-                val resourceName = resourceNames.find { it == "$requestedName.init.gradle.kts" }
+                val resourceName = resourceNames.find { it == "$requestedName.init.gradle.kts" || it == "$requestedName.init.gradle" }
                 if (resourceName == null) {
                     LOGGER.warn("Init script $requestedName not found in resources")
                     return@forEach
@@ -63,8 +64,10 @@ class DefaultInitScriptProvider(
 
                 val bytes = inputStream.readAllBytes()
                 val hash = bytes.hash()
-                val baseName = resourceName.removeSuffix(".init.gradle.kts")
-                val targetFileName = "$baseName-$hash.init.gradle.kts"
+
+                val extension = if (resourceName.endsWith(".kts")) ".init.gradle.kts" else ".init.gradle"
+                val baseName = resourceName.removeSuffix(extension)
+                val targetFileName = "$baseName-$hash$extension"
                 val targetPath = initScriptsDir.resolve(targetFileName)
 
                 if (!targetPath.exists()) {

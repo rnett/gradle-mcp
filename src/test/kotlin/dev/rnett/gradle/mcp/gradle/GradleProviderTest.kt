@@ -51,8 +51,7 @@ class GradleProviderTest {
             // Start a build
             val runningBuild = testProvider.runBuild(
                 projectRoot = projectRoot,
-                args = args,
-                tosAccepter = { false }
+                args = args
             )
 
             // Close provider
@@ -95,7 +94,6 @@ class GradleProviderTest {
             projectRoot = projectRoot,
             kClass = BuildEnvironment::class,
             args = args,
-            tosAccepter = { false },
             requiresGradleProject = true
         )
 
@@ -122,7 +120,6 @@ class GradleProviderTest {
         val runningBuild = provider.runBuild(
             projectRoot = projectRoot,
             args = args,
-            tosAccepter = { false },
             stdoutLineHandler = { line -> capturedLines.add(line) }
         )
         val result = runningBuild.awaitFinished()
@@ -143,8 +140,7 @@ class GradleProviderTest {
 
         val runningBuild = provider.runBuild(
             projectRoot = projectRoot,
-            args = args,
-            tosAccepter = { false }
+            args = args
         )
 
         val buildId = runningBuild.id
@@ -171,8 +167,7 @@ class GradleProviderTest {
         val runningBuild = provider.runTests(
             projectRoot = projectRoot,
             testPatterns = mapOf(":test" to emptySet()),
-            args = args,
-            tosAccepter = { false }
+            args = args
         )
         val result = runningBuild.awaitFinished()
 
@@ -184,8 +179,7 @@ class GradleProviderTest {
         val runningBuildFiltered = provider.runTests(
             projectRoot = projectRoot,
             testPatterns = mapOf(":test" to setOf("com.example.HelloTest.testGreet")),
-            args = args,
-            tosAccepter = { false }
+            args = args
         )
         val resultFiltered = runningBuildFiltered.awaitFinished()
 
@@ -202,8 +196,7 @@ class GradleProviderTest {
 
         val runningBuild = provider.runBuild(
             projectRoot = projectRoot,
-            args = args,
-            tosAccepter = { false }
+            args = args
         )
 
         val result = runningBuild.awaitFinished()
@@ -221,14 +214,12 @@ class GradleProviderTest {
 
         val runningBuild1 = provider.runBuild(
             projectRoot = projectRoot1,
-            args = args,
-            tosAccepter = { false }
+            args = args
         )
 
         val runningBuild2 = provider.runBuild(
             projectRoot = projectRoot2,
-            args = args,
-            tosAccepter = { false }
+            args = args
         )
 
         assert(runningBuild1 != null)
@@ -256,8 +247,7 @@ class GradleProviderTest {
         // Use a task that takes some time or just cancel immediately
         val runningBuild = provider.runBuild(
             projectRoot = projectRoot,
-            args = GradleInvocationArguments(additionalArguments = listOf("help")),
-            tosAccepter = { false }
+            args = GradleInvocationArguments(additionalArguments = listOf("help"))
         )
 
         assert(runningBuild != null)
@@ -293,8 +283,7 @@ class GradleProviderTest {
 
                 val runningBuild = provider.runBuild(
                     projectRoot = projectRoot,
-                    args = args,
-                    tosAccepter = { true }
+                    args = args
                 )
                 val buildResult = runningBuild.awaitFinished()
 

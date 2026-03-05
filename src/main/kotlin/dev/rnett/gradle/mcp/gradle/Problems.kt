@@ -25,7 +25,7 @@ data class ProblemAggregation(
         val id: ProblemId,
         val displayName: String?,
         val severity: ProblemSeverity,
-        val documentationLink: String?,
+        val documentationLink: String?
     )
 
     val numberOfOccurrences: Int = occurences.size

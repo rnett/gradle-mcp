@@ -110,7 +110,7 @@ fun List<ProblemAggregation>.toSummary(): ProblemsSummary {
         errorCounts = counts(ProblemSeverity.ERROR),
         warningCounts = counts(ProblemSeverity.WARNING),
         adviceCounts = counts(ProblemSeverity.ADVICE),
-        otherCounts = counts(ProblemSeverity.OTHER),
+        otherCounts = counts(ProblemSeverity.OTHER)
     )
 }
 
@@ -120,7 +120,7 @@ data class ProblemsSummary(
     val errorCounts: Map<ProblemId, ProblemSummary>,
     val warningCounts: Map<ProblemId, ProblemSummary>,
     val adviceCounts: Map<ProblemId, ProblemSummary>,
-    val otherCounts: Map<ProblemId, ProblemSummary>,
+    val otherCounts: Map<ProblemId, ProblemSummary>
 ) {
     val totalCount = errorCounts.values.sumOf { it.occurences } + warningCounts.values.sumOf { it.occurences } + adviceCounts.values.sumOf { it.occurences } + otherCounts.values.sumOf { it.occurences }
 

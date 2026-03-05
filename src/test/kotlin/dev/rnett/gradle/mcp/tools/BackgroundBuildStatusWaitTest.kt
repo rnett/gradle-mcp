@@ -345,13 +345,13 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             // awaitFinished() suspends forever — the tool must NOT call it in the background path
             coEvery { awaitFinished() } coAnswers { suspendCancellableCoroutine { } }
         }
-        every { provider.runBuild(any(), any(), any(), any(), any(), any(), any()) } returns runningBuild
+        every { provider.runBuild(any(), any(), any(), any(), any(), any()) } returns runningBuild
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         val result = server.client.callTool(
             ToolNames.GRADLE, mapOf(
                 "commandLine" to JsonArray(listOf(JsonPrimitive("build"))),
-                "background" to JsonPrimitive(true),
+                "background" to JsonPrimitive(true)
             )
         )
 

@@ -27,7 +27,7 @@ class McpServerFixture(
     private val clientCapabilities: ClientCapabilities = ClientCapabilities(
         elicitation = kotlinx.serialization.json.buildJsonObject { }.takeIf { clientSupportsElicitation }
     ),
-    private val koinModules: List<Module> = emptyList(),
+    private val koinModules: List<Module> = emptyList()
 ) {
     private val LOGGER = LoggerFactory.getLogger(McpServerFixture::class.java)
 
@@ -44,7 +44,7 @@ class McpServerFixture(
     val koin = koinApp.koin
 
     val server = koin.get<McpServer>()
-    
+
     val client = Client(
         Implementation("gradle-mcp-test-client", "test"),
         ClientOptions(clientCapabilities)

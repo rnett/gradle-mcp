@@ -40,7 +40,7 @@ data class RunningBuild(
     override val startTime: Instant,
     val projectRoot: Path,
     val logBuffer: StringBuffer = StringBuffer(),
-    val cancellationTokenSource: CancellationTokenSource,
+    val cancellationTokenSource: CancellationTokenSource
 ) : Build {
     val totalItems = AtomicLong(0)
     val completedItems = AtomicLong(0)
@@ -56,7 +56,7 @@ data class RunningBuild(
         get() = TestResults(
             testResultsInternal.results().passed.map { it.toModel(indexer, TestOutcome.PASSED) }.toSet(),
             testResultsInternal.results().skipped.map { it.toModel(indexer, TestOutcome.SKIPPED) }.toSet(),
-            testResultsInternal.results().failed.map { it.toModel(indexer, TestOutcome.FAILED) }.toSet(),
+            testResultsInternal.results().failed.map { it.toModel(indexer, TestOutcome.FAILED) }.toSet()
         )
     val publishedScansInternal = ConcurrentLinkedQueue<GradleBuildScan>()
     override val publishedScans: List<GradleBuildScan> get() = publishedScansInternal.toList()
@@ -172,7 +172,7 @@ data class FailureContent(
     val message: String?,
     val description: String?,
     val causes: Set<FailureContent>,
-    val problemAggregations: Map<ProblemSeverity, List<ProblemAggregation>>,
+    val problemAggregations: Map<ProblemSeverity, List<ProblemAggregation>>
 )
 
 class FailureIndexer {

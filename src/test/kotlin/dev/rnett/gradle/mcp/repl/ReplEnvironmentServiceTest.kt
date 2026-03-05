@@ -315,8 +315,7 @@ class ReplEnvironmentServiceTest {
 
         val runningBuild = provider.runBuild(
             projectRoot = projectRoot,
-            args = args,
-            tosAccepter = { false }
+            args = args
         )
         val result = runningBuild.awaitFinished()
         assert(result.outcome is BuildOutcome.Success)

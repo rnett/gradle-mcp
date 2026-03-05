@@ -80,11 +80,11 @@ abstract class McpServerComponent(val name: String, val description: String) {
             title = title,
             annotations = toolAnnotations,
             inputSchema = inputSchema.toInput(),
-            outputSchema = outputSchema,
+            outputSchema = outputSchema
         )
 
         server.addTool(
-            tool,
+            tool
         ) { request ->
             McpToolHelper.logger.info("Executing tool call {} (request={})", tool.name, request)
             val input = server.json.decodeFromJsonElement(inputSerializer, request.arguments)

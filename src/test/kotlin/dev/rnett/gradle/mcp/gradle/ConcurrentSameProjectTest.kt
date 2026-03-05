@@ -58,8 +58,7 @@ class ConcurrentSameProjectTest {
             // Build 1: Long task
             val runningBuild1 = provider.runBuild(
                 projectRoot = projectRoot,
-                args = GradleInvocationArguments(additionalArguments = listOf("longTask")),
-                tosAccepter = { false }
+                args = GradleInvocationArguments(additionalArguments = listOf("longTask"))
             )
 
             // Wait a bit for build 1 to actually start and get connection
@@ -68,8 +67,7 @@ class ConcurrentSameProjectTest {
             // Build 2: Fast task (help)
             val runningBuild2 = provider.runBuild(
                 projectRoot = projectRoot,
-                args = GradleInvocationArguments(additionalArguments = listOf("help")),
-                tosAccepter = { false }
+                args = GradleInvocationArguments(additionalArguments = listOf("help"))
             )
 
             // Wait for Build 2 to finish. It should finish before Build 1.

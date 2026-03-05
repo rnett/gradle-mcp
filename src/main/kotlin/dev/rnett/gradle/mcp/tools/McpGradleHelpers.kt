@@ -39,14 +39,13 @@ suspend inline fun <T> withProgressEmissions(
 context(ctx: McpContext)
 suspend inline fun GradleProvider.doBuild(
     projectRoot: GradleProjectRootInput,
-    invocationArgs: GradleInvocationArguments,
+    invocationArgs: GradleInvocationArguments
 ): GradleResult<Unit> = withProgressEmissions { progress ->
     val root = projectRoot.resolve()
     lateinit var running: RunningBuild
     running = runBuild(
         root,
         invocationArgs.withInitScript(InitScriptNames.TASK_OUT),
-        { ScansTosManager.askForScansTos(root, it) },
         stdoutLineHandler = { /* captured via RunningBuild.consoleOutput */ },
         stderrLineHandler = { /* captured via RunningBuild.consoleOutput */ },
         progressHandler = { p, total, msg ->

@@ -165,7 +165,7 @@ object DI {
         GradleDependencyTools(gradleDependencyService),
         DependencySearchTools(mavenRepoService, mavenCentralService),
         DependencySourceTools(sourcesService, gradleSourceService),
-        SkillTools(),
+        SkillTools()
     )
 
     fun createServer(json: Json, components: List<McpServerComponent>): McpServer {

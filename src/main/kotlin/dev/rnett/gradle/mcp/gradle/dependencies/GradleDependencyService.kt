@@ -3,7 +3,6 @@ package dev.rnett.gradle.mcp.gradle.dependencies
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.GradleProvider
-import dev.rnett.gradle.mcp.gradle.GradleScanTosAcceptRequest
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleConfigurationDependencies
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
@@ -61,8 +60,7 @@ interface GradleDependencyService {
      */
     suspend fun getConfigurationDependencies(
         projectRoot: GradleProjectRoot,
-        configurationPath: String,
-        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean = { false }
+        configurationPath: String
     ): GradleConfigurationDependencies
 
     /**
@@ -229,29 +227,6 @@ class DefaultGradleDependencyService(
         onlyDirect: Boolean,
         downloadSources: Boolean
     ): GradleDependencyReport {
-        return getDependencies(
-            projectRoot,
-            projectPath,
-            configuration,
-            sourceSet,
-            checkUpdates,
-            versionFilter,
-            onlyDirect,
-            downloadSources
-        ) { false }
-    }
-
-    private suspend fun getDependencies(
-        projectRoot: GradleProjectRoot,
-        projectPath: String?,
-        configuration: String?,
-        sourceSet: String?,
-        checkUpdates: Boolean,
-        versionFilter: String?,
-        onlyDirect: Boolean,
-        downloadSources: Boolean,
-        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean
-    ): GradleDependencyReport {
         // Prepare invocation args: include the init script and arguments
         var args = GradleInvocationArguments.DEFAULT
             .withInitScript(InitScriptNames.DEPENDENCIES_REPORT)
@@ -291,7 +266,6 @@ class DefaultGradleDependencyService(
         val running: RunningBuild = gradle.runBuild(
             projectRoot = projectRoot,
             args = args,
-            tosAccepter = tosAccepter,
             stdoutLineHandler = { /* captured via RunningBuild.consoleOutput; handlers optional */ },
             stderrLineHandler = { /* same */ },
             progressHandler = { progress, total, message ->
@@ -366,17 +340,15 @@ class DefaultGradleDependencyService(
 
     override suspend fun getConfigurationDependencies(
         projectRoot: GradleProjectRoot,
-        configurationPath: String,
-        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean
+        configurationPath: String
     ): GradleConfigurationDependencies {
-        return getConfigurationDependencies(projectRoot, configurationPath, false, tosAccepter)
+        return getConfigurationDependencies(projectRoot, configurationPath, false)
     }
 
     private suspend fun getConfigurationDependencies(
         projectRoot: GradleProjectRoot,
         configurationPath: String,
-        downloadSources: Boolean,
-        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean
+        downloadSources: Boolean
     ): GradleConfigurationDependencies {
         val lastColon = configurationPath.lastIndexOf(':')
         require(lastColon != -1) { "configurationPath must be an absolute Gradle path (e.g. :project:foo:implementation)" }
@@ -391,8 +363,7 @@ class DefaultGradleDependencyService(
             checkUpdates = false,
             versionFilter = null,
             onlyDirect = false,
-            downloadSources = downloadSources,
-            tosAccepter = tosAccepter
+            downloadSources = downloadSources
         )
         val project = report.projects.find { it.path == projectPath }
             ?: throw IllegalArgumentException("Project not found in report: $projectPath")
@@ -426,7 +397,7 @@ class DefaultGradleDependencyService(
         projectRoot: GradleProjectRoot,
         configurationPath: String
     ): GradleConfigurationDependencies {
-        return getConfigurationDependencies(projectRoot, configurationPath, true) { false }
+        return getConfigurationDependencies(projectRoot, configurationPath, true)
     }
 
     override suspend fun downloadSourceSetSources(

@@ -54,8 +54,7 @@ class TaskOutInitScriptTest {
 
             val runningBuild = provider.runBuild(
                 projectRoot = projectRoot,
-                args = args,
-                tosAccepter = { false }
+                args = args
             )
             val result = runningBuild.awaitFinished()
 
@@ -86,8 +85,7 @@ class TaskOutInitScriptTest {
 
             val runningBuild = provider.runBuild(
                 projectRoot = projectRoot,
-                args = args,
-                tosAccepter = { false }
+                args = args
             )
             val result = runningBuild.awaitFinished()
 
@@ -138,8 +136,7 @@ class TaskOutInitScriptTest {
 
             val runningBuild = provider.runBuild(
                 projectRoot = projectRoot,
-                args = args,
-                tosAccepter = { false }
+                args = args
             )
             val result = runningBuild.awaitFinished()
 
@@ -174,8 +171,7 @@ class TaskOutInitScriptTest {
 
             val runningBuild = provider.runBuild(
                 projectRoot = projectRoot,
-                args = args,
-                tosAccepter = { false }
+                args = args
             )
             val result = runningBuild.awaitFinished()
 

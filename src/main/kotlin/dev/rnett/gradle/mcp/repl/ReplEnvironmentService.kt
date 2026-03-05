@@ -44,11 +44,10 @@ class DefaultReplEnvironmentService(private val gradle: GradleProvider) : ReplEn
                     taskPath,
                     "-Pgradle-mcp.repl.project=$projectPath",
                     "-Pgradle-mcp.repl.sourceSet=$sourceSet",
-                    "-Pgradle-mcp.repl.additionalDependencies=${additionalDependencies.joinToString(";|;")}",
+                    "-Pgradle-mcp.repl.additionalDependencies=${additionalDependencies.joinToString(";|;")}"
                 ),
                 requestedInitScripts = listOf(InitScriptNames.REPL_ENV)
-            ),
-            { false }
+            )
         )
 
         val finished = running.awaitFinished()

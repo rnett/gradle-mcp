@@ -11,7 +11,7 @@ import kotlinx.serialization.Serializable
 import kotlin.time.ExperimentalTime
 
 class GradleExecutionTools(
-    val gradleProvider: GradleProvider,
+    val gradleProvider: GradleProvider
 ) : McpServerComponent("Execution Tools", "Tools for executing Gradle tasks and running tests.") {
     companion object {
         private const val TASK_OUTPUT_MAX_LINES = 100
@@ -66,7 +66,7 @@ class GradleExecutionTools(
             |- Tail build logs or wait for specific log patterns.
             |
             |For expert-level workflows, refer to the `gradle-build` and `gradle-test` skills.
-        """.trimMargin(),
+        """.trimMargin()
     ) {
         if (it.stopBuildId != null) {
             val build = gradleProvider.buildManager.getBuild(it.stopBuildId) as? RunningBuild
@@ -87,7 +87,6 @@ class GradleExecutionTools(
             val running = gradleProvider.runBuild(
                 root,
                 invocationArgs.withInitScript(InitScriptNames.TASK_OUT),
-                { ScansTosManager.askForScansTos(root, it) },
                 progressHandler = { p, total, msg ->
                     // For background builds, we don't have an easy way to emit progress notifications 
                     // via the current tool call result, but DefaultGradleProvider will still update 

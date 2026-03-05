@@ -7,13 +7,10 @@ import dev.rnett.gradle.mcp.gradle.build.GradleBuildScan
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.gradle.build.TaskOutcome
 import dev.rnett.gradle.mcp.localSupervisorScope
-import dev.rnett.gradle.mcp.runCatchingExceptCancellation
 import dev.rnett.gradle.mcp.tools.GradlePathUtils
 import dev.rnett.gradle.mcp.utils.EnvHelper
 import dev.rnett.gradle.mcp.utils.EnvProvider
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -22,8 +19,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.future.asDeferred
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import org.apache.commons.io.output.WriterOutputStream
 import org.gradle.tooling.ConfigurableLauncher
 import org.gradle.tooling.Failure
@@ -58,8 +53,6 @@ import org.gradle.tooling.model.Model
 import org.gradle.tooling.model.build.BuildEnvironment
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
-import java.io.PipedInputStream
-import java.io.PipedOutputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
@@ -78,7 +71,7 @@ interface GradleProvider : AutoCloseable {
         projectRoot: GradleProjectRoot,
         kClass: KClass<T>,
         args: GradleInvocationArguments,
-        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
+
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
         stdoutLineHandler: ((String) -> Unit)? = null,
         stderrLineHandler: ((String) -> Unit)? = null,
@@ -89,22 +82,22 @@ interface GradleProvider : AutoCloseable {
     fun runBuild(
         projectRoot: GradleProjectRoot,
         args: GradleInvocationArguments,
-        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
+
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
         stdoutLineHandler: ((String) -> Unit)? = null,
         stderrLineHandler: ((String) -> Unit)? = null,
-        progressHandler: ((progress: Double, total: Double?, message: String?) -> Unit)? = null,
+        progressHandler: ((progress: Double, total: Double?, message: String?) -> Unit)? = null
     ): RunningBuild
 
     fun runTests(
         projectRoot: GradleProjectRoot,
         testPatterns: Map<String, Set<String>>,
         args: GradleInvocationArguments,
-        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
+
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
         stdoutLineHandler: ((String) -> Unit)? = null,
         stderrLineHandler: ((String) -> Unit)? = null,
-        progressHandler: ((progress: Double, total: Double?, message: String?) -> Unit)? = null,
+        progressHandler: ((progress: Double, total: Double?, message: String?) -> Unit)? = null
     ): RunningBuild
 
     val buildManager: BuildManager
@@ -227,7 +220,7 @@ class DefaultGradleProvider(
         data class Results(
             val passed: Set<Result>,
             val skipped: Set<Result>,
-            val failed: Set<Result>,
+            val failed: Set<Result>
         )
 
         data class Result(
@@ -236,7 +229,7 @@ class DefaultGradleProvider(
             val duration: Duration,
             val failures: List<Failure>?,
             val metadata: Map<String, String>,
-            val attachments: List<FileAttachment>,
+            val attachments: List<FileAttachment>
         )
 
         private fun TestOperationDescriptor.testName(): String? {
@@ -257,7 +250,7 @@ class DefaultGradleProvider(
                         (event.result.endTime - event.result.startTime).milliseconds,
                         null,
                         metadata.remove(testName) ?: emptyMap(),
-                        attachments.remove(testName) ?: emptyList(),
+                        attachments.remove(testName) ?: emptyList()
                     )
                     val output = output.remove(testName)?.toString() ?: ""
                     when (val result = event.result) {
@@ -314,11 +307,10 @@ class DefaultGradleProvider(
         stdoutLineHandler: ((String) -> Unit)?,
         stderrLineHandler: ((String) -> Unit)?,
         progressHandler: ((progress: Double, total: Double?, message: String?) -> Unit)?,
-        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
         launcherProvider: suspend (ProjectConnection) -> I,
         invoker: (I) -> R,
         requiresGradleProject: Boolean = true,
-        projectRootInput: GradleProjectRoot,
+        projectRootInput: GradleProjectRoot
     ): Pair<RunningBuild, Deferred<Result<R>>> {
         val projectRoot = GradlePathUtils.getRootProjectPath(projectRootInput, requiresGradleProject)
         val buildId = BuildId.newId()
@@ -328,7 +320,7 @@ class DefaultGradleProvider(
             args = args,
             startTime = buildId.timestamp,
             projectRoot = projectRoot,
-            cancellationTokenSource = cancellationTokenSource,
+            cancellationTokenSource = cancellationTokenSource
         ).also { buildManager.registerBuild(it) }
 
         val deferred = scope.async {
@@ -342,7 +334,6 @@ class DefaultGradleProvider(
                             publishScan = false,
                             requestedInitScripts = emptyList()
                         ),
-                        tosAccepter,
                         additionalProgressListeners,
                         stdoutLineHandler,
                         stderrLineHandler,
@@ -362,7 +353,6 @@ class DefaultGradleProvider(
                             publishScan = false,
                             requestedInitScripts = emptyList()
                         ),
-                        tosAccepter,
                         additionalProgressListeners,
                         stdoutLineHandler,
                         stderrLineHandler,
@@ -385,7 +375,6 @@ class DefaultGradleProvider(
                                 stdoutLineHandler,
                                 stderrLineHandler,
                                 progressHandler,
-                                tosAccepter,
                                 buildId,
                                 runningBuild,
                                 invoker
@@ -412,7 +401,6 @@ class DefaultGradleProvider(
         projectRoot: GradleProjectRoot,
         kClass: KClass<T>,
         args: GradleInvocationArguments,
-        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
         stdoutLineHandler: ((String) -> Unit)?,
         stderrLineHandler: ((String) -> Unit)?,
@@ -425,7 +413,6 @@ class DefaultGradleProvider(
             stdoutLineHandler = stdoutLineHandler,
             stderrLineHandler = stderrLineHandler,
             progressHandler = progressHandler,
-            tosAccepter = tosAccepter,
             launcherProvider = { it.model(kClass.java) },
             invoker = { it.get() },
             requiresGradleProject = requiresGradleProject,
@@ -439,11 +426,10 @@ class DefaultGradleProvider(
     override fun runBuild(
         projectRoot: GradleProjectRoot,
         args: GradleInvocationArguments,
-        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
         stdoutLineHandler: ((String) -> Unit)?,
         stderrLineHandler: ((String) -> Unit)?,
-        progressHandler: ((progress: Double, total: Double?, message: String?) -> Unit)?,
+        progressHandler: ((progress: Double, total: Double?, message: String?) -> Unit)?
     ): RunningBuild {
         return startBuild(
             args = args,
@@ -451,7 +437,6 @@ class DefaultGradleProvider(
             stdoutLineHandler = stdoutLineHandler,
             stderrLineHandler = stderrLineHandler,
             progressHandler = progressHandler,
-            tosAccepter = tosAccepter,
             launcherProvider = { it.newBuild() },
             invoker = { it.run() },
             projectRootInput = projectRoot
@@ -463,11 +448,10 @@ class DefaultGradleProvider(
         projectRoot: GradleProjectRoot,
         testPatterns: Map<String, Set<String>>,
         args: GradleInvocationArguments,
-        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
         stdoutLineHandler: ((String) -> Unit)?,
         stderrLineHandler: ((String) -> Unit)?,
-        progressHandler: ((progress: Double, total: Double?, message: String?) -> Unit)?,
+        progressHandler: ((progress: Double, total: Double?, message: String?) -> Unit)?
     ): RunningBuild {
         return startBuild(
             args = args,
@@ -475,7 +459,6 @@ class DefaultGradleProvider(
             stdoutLineHandler = stdoutLineHandler,
             stderrLineHandler = stderrLineHandler,
             progressHandler = progressHandler,
-            tosAccepter = tosAccepter,
             launcherProvider = { connection ->
                 connection.newTestLauncher().apply {
                     testPatterns.forEach { (task, patterns) ->
@@ -496,10 +479,9 @@ class DefaultGradleProvider(
         stdoutLineHandler: ((String) -> Unit)?,
         stderrLineHandler: ((String) -> Unit)?,
         progressHandler: ((progress: Double, total: Double?, message: String?) -> Unit)?,
-        tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
         buildId: BuildId,
         runningBuild: RunningBuild,
-        invoker: (I) -> R,
+        invoker: (I) -> R
     ): R {
         return localSupervisorScope(exceptionHandler = {
             LOGGER.makeLoggingEventBuilder(Level.WARN)
@@ -513,7 +495,9 @@ class DefaultGradleProvider(
             withSystemProperties(args.additionalSystemProps)
             addJvmArguments(args.additionalJvmArgs + "-Dscan.tag.MCP")
             withDetailedFailure()
-            val initScripts = initScriptProvider.extractInitScripts(args.requestedInitScripts)
+            val initScripts = initScriptProvider.extractInitScripts(
+                args.requestedInitScripts + if (args.publishScan || args.additionalArguments.contains("--scan")) listOf("scans") else emptyList()
+            )
             val allArguments = initScripts.flatMap { listOf("-I", it.toString()) } + args.allAdditionalArguments
             withArguments(allArguments)
             setColorOutput(false)
@@ -610,99 +594,19 @@ class DefaultGradleProvider(
                 addProgressListener(it.key, it.value)
             }
 
-            // Build scan TOS acceptance
-
-            val tosHolder = CompletableDeferred<Deferred<Boolean>>()
-            val scanHint = CompletableDeferred<Unit>()
-            val pipeOut = PipedOutputStream()
-            val readStarted = CompletableDeferred<Unit>()
-            val pipeIn = object : PipedInputStream() {
-                override fun read(): Int {
-                    readStarted.complete(Unit)
-                    return super.read()
-                }
-
-                override fun read(b: ByteArray, off: Int, len: Int): Int {
-                    readStarted.complete(Unit)
-                    return super.read(b, off, len)
-                }
-            }
-
-            scope.launch(Dispatchers.IO) {
-                pipeOut.connect(pipeIn)
-            }
-
-            scope.launch(Dispatchers.IO) {
-                try {
-                    // Wait for the build to actually attempt to read from standard input.
-                    readStarted.await()
-                    LOGGER.debug("Build started reading from stdin (buildId={})", buildId)
-
-                    // Adaptive timeout: wait a short time by default, longer if we suspect a scan is happening.
-                    var query = withTimeoutOrNull(500.milliseconds) { tosHolder.await() }
-
-                    if (query == null && (args.publishScan || args.additionalArguments.contains("--scan") || scanHint.isCompleted)) {
-                        LOGGER.debug("No ToS request yet but scan hint detected, extending wait (buildId={})", buildId)
-                        query = withTimeoutOrNull(2500.milliseconds) { tosHolder.await() }
-                    }
-
-                    if (query != null) {
-                        LOGGER.info("Build Scan ToS request detected, eliciting response (buildId={})", buildId)
-                        val accepted = query.await()
-                        LOGGER.info("User response to ToS request: {} (buildId={})", if (accepted) "ACCEPTED" else "DECLINED", buildId)
-                        pipeOut.write((if (accepted) "yes\n" else "no\n").toByteArray())
-                        pipeOut.flush()
-
-                        // Small delay to ensure Gradle can read the input before we close the pipe.
-                        kotlinx.coroutines.delay(200)
-                    } else {
-                        LOGGER.debug("No Build Scan ToS request detected, providing EOF to stdin (buildId={})", buildId)
-                    }
-                } catch (e: Exception) {
-                    if (e !is CancellationException)
-                        LOGGER.error("Error or timeout handling stdin/ToS for build (buildId={})", buildId, e)
-                } finally {
-                    try {
-                        LOGGER.debug("Closing stdin pipe (buildId={})", buildId)
-                        pipeOut.close()
-                    } catch (e: Exception) {
-                        // Ignore
-                    }
-                }
-            }
-
             setStandardOutput(
                 WriterOutputStream.builder().apply {
                     charset = StandardCharsets.UTF_8
                     bufferSize = 8192
-                    writer = object : GradleStdoutWriter(config.allowPublicScansPublishing, {
+                    writer = object : GradleStdoutWriter({
                         if (it.contains("Failed to set up gradle-mcp output capturing", ignoreCase = true)) {
                             runningBuild.taskOutputCapturingFailed = true
                         }
                         processTaskOutput(it, runningBuild, false, buildId, stdoutLineHandler)
                     }) {
-                        override fun onScansTosRequest(tosAcceptRequest: GradleScanTosAcceptRequest) {
-                            if (tosHolder.isActive) {
-                                tosHolder.complete(
-                                    scope.async(Dispatchers.IO, start = CoroutineStart.LAZY) {
-                                        runCatchingExceptCancellation { tosAccepter.invoke(tosAcceptRequest) }
-                                            .getOrElse {
-                                                LOGGER.warn("Error asking for ToS acceptance - assuming 'no'", it)
-                                                false
-                                            }
-                                    }
-                                )
-                            }
-                        }
-
                         override fun onScanPublication(url: String) {
                             runningBuild.publishedScansInternal += GradleBuildScan.fromUrl(url)
                         }
-
-                        override fun onScanHint() {
-                            scanHint.complete(Unit)
-                        }
-
                     }
                 }.get().buffered()
             )
@@ -717,16 +621,12 @@ class DefaultGradleProvider(
                 }.get().buffered()
             )
 
-            setStandardInput(pipeIn)
-
-            pipeOut.use {
-                val result = scope.async {
-                    LOGGER.info("Starting Gradle build (buildId={}, args={})", buildId, allArguments)
-                    invoker(this@invokeBuild)
-                }.await()
-                LOGGER.info("Gradle build finished (buildId={})", buildId)
-                result
-            }
+            val result = scope.async {
+                LOGGER.info("Starting Gradle build (buildId={}, args={})", buildId, allArguments)
+                invoker(this@invokeBuild)
+            }.await()
+            LOGGER.info("Gradle build finished (buildId={})", buildId)
+            result
         }
     }
 

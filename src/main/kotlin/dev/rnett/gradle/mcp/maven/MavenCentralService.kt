@@ -36,7 +36,7 @@ class DefaultMavenCentralService(private val client: HttpClient) : MavenCentralS
 
 @Serializable
 data class MavenCentralSearchResponse(
-    val response: Response,
+    val response: Response
 ) {
     @Serializable
     data class Response(

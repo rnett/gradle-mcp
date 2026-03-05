@@ -30,7 +30,7 @@ data class GradleInvocationArguments(
     val envSource: EnvSource = EnvSource.INHERIT,
     @Description("The names of the init scripts to load. Defaults to empty list.")
     @Transient
-    val requestedInitScripts: List<String> = emptyList(),
+    val requestedInitScripts: List<String> = emptyList()
 ) {
     operator fun plus(other: GradleInvocationArguments): GradleInvocationArguments {
         return GradleInvocationArguments(

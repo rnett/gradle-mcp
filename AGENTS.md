@@ -21,6 +21,8 @@ Use a shell command, MCP tool, or something like that.
 
 ## Changes and specs
 
+When instructed to create a proposal, look at [the roadmap](./roadmap.md) first, it's usually coming from there.
+
 When making significant changes to the code, e.g. using an openspec process, here are some guidelines:
 
 * **Always run the `check` task** before declaring a change or spec completed. This ensures that all tests, linting, and generated documentation are correct and up-to-date.

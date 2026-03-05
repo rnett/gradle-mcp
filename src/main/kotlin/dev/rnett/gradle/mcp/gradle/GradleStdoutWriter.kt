@@ -1,36 +1,22 @@
 package dev.rnett.gradle.mcp.gradle
 
-abstract class GradleStdoutWriter(val checkForTosRequest: Boolean, lineLogger: (String) -> Unit) : LineEmittingWriter(lineLogger) {
+abstract class GradleStdoutWriter(lineLogger: (String) -> Unit) : LineEmittingWriter(lineLogger) {
     companion object {
-        val TOS_ACCEPT_REGEX = Regex("Publishing a Build Scan to (.+) requires accepting the Gradle Terms of Use defined at (.+). Do you accept these terms\\?", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
-        val SCAN_LINES = setOf(
-            "Publishing build scan...",
-            "Publishing Build Scan to Develocity..."
-        ).map { it.lowercase() }.toSet()
+        private const val SCAN_MARKER = "[MCP-BUILD-SCAN] "
     }
 
-    abstract fun onScansTosRequest(tosAcceptRequest: GradleScanTosAcceptRequest)
     abstract fun onScanPublication(url: String)
-    abstract fun onScanHint()
-
-    private var lastLineWasPublishNotification: Boolean = false
 
     override fun onLine(line: String) {
-        if (lastLineWasPublishNotification) {
-            onScanPublication(line.trim())
-            lastLineWasPublishNotification = false
-        }
-        if (line.lowercase() in SCAN_LINES) {
-            lastLineWasPublishNotification = true
-            onScanHint()
+        if (line.startsWith(SCAN_MARKER)) {
+            val url = line.removePrefix(SCAN_MARKER).trim()
+            if (url.isNotEmpty()) {
+                onScanPublication(url)
+            }
         }
     }
 
     override fun onLineOrFlush(current: String) {
-        if (checkForTosRequest) {
-            TOS_ACCEPT_REGEX.find(current)?.let {
-                onScansTosRequest(GradleScanTosAcceptRequest(it.groupValues[0], it.groupValues[1], it.groupValues[2]))
-            }
-        }
+        // Nothing needed here anymore
     }
 }

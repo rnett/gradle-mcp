@@ -37,12 +37,12 @@ sealed class Transport(val name: String) {
             started = true
             val transport = StdioServerTransport(
                 input,
-                output,
+                output
             )
             val mcpServer: McpServer = try {
                 application.koinContext.get<McpServer>()
             } catch (t: Throwable) {
-                Application.LOGGER.error("Failed to initialize MCP Server", t)
+                LOGGER.error("Failed to initialize MCP Server", t)
                 throw t
             }
             val job = application.scope.launch {

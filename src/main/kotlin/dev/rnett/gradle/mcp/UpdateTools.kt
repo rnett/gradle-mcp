@@ -4,7 +4,6 @@ import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.GradleProvider
-import dev.rnett.gradle.mcp.gradle.GradleScanTosAcceptRequest
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.gradle.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.gradle.dependencies.GradleSourceService
@@ -216,7 +215,6 @@ object UpdateTools {
             projectRoot: GradleProjectRoot,
             kClass: kotlin.reflect.KClass<T>,
             args: GradleInvocationArguments,
-            tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
             additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
             stdoutLineHandler: ((String) -> Unit)?,
             stderrLineHandler: ((String) -> Unit)?,
@@ -229,7 +227,6 @@ object UpdateTools {
         override fun runBuild(
             projectRoot: GradleProjectRoot,
             args: GradleInvocationArguments,
-            tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
             additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
             stdoutLineHandler: ((String) -> Unit)?,
             stderrLineHandler: ((String) -> Unit)?,
@@ -242,7 +239,6 @@ object UpdateTools {
             projectRoot: GradleProjectRoot,
             testPatterns: Map<String, Set<String>>,
             args: GradleInvocationArguments,
-            tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean,
             additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
             stdoutLineHandler: ((String) -> Unit)?,
             stderrLineHandler: ((String) -> Unit)?,
@@ -335,9 +331,7 @@ object UpdateTools {
 
         override suspend fun getConfigurationDependencies(
             projectRoot: GradleProjectRoot,
-            configurationPath: String,
-            tosAccepter: suspend (GradleScanTosAcceptRequest) -> Boolean
-        ): GradleConfigurationDependencies {
+            configurationPath: String): GradleConfigurationDependencies {
             throw UnsupportedOperationException("Not used for tool listing")
         }
 

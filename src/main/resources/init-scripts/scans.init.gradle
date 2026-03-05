@@ -1,0 +1,72 @@
+import org.gradle.util.GradleVersion
+
+def isTopLevelBuild = !gradle.parent
+if (!isTopLevelBuild) {
+    return
+}
+
+if (GradleVersion.current() < GradleVersion.version('6.0')) {
+    logger.warn("Gradle MCP: Build scan capture and TOS auto-acceptance requires Gradle 6.0 or newer.")
+    return
+}
+
+class BuildScanCollector {
+    void captureBuildScanLink(String url) {
+        println("[MCP-BUILD-SCAN] $url")
+    }
+}
+
+def buildScanCollector = new BuildScanCollector()
+
+gradle.settingsEvaluated { settings ->
+    eachDevelocitySettingsExtension(settings) { ext ->
+        configureTermsOfService(ext.buildScan)
+        buildScanPublishedAction(ext.buildScan, buildScanCollector)
+    }
+}
+
+void configureTermsOfService(def buildScan) {
+    if (buildScan.metaClass.respondsTo(buildScan, 'setTermsOfUseUrl', String)) {
+        buildScan.termsOfUseUrl = "https://gradle.com/terms-of-service"
+        buildScan.termsOfUseAgree = "yes"
+    } else if (buildScan.metaClass.respondsTo(buildScan, 'setTermsOfServiceUrl', String)) {
+        buildScan.termsOfServiceUrl = "https://gradle.com/terms-of-service"
+        buildScan.termsOfServiceAgree = "yes"
+    } else {
+        buildScan.licenseAgreementUrl = "https://gradle.com/terms-of-service"
+        buildScan.licenseAgree = "yes"
+    }
+}
+
+static def buildScanPublishedAction(def buildScanExtension, BuildScanCollector collector) {
+    if (buildScanExtension.metaClass.respondsTo(buildScanExtension, 'buildScanPublished', Action)) {
+        buildScanExtension.buildScanPublished { scan ->
+            def url = null
+            if (scan.metaClass.respondsTo(scan, 'getBuildScanUri')) {
+                url = scan.buildScanUri?.toString()
+            } else if (scan.metaClass.respondsTo(scan, 'getBuildScanUrl')) {
+                url = scan.buildScanUrl?.toString()
+            }
+            if (url) {
+                collector.captureBuildScanLink(url)
+            }
+        }
+    }
+}
+
+static def eachDevelocitySettingsExtension(def settings, def dvAction, def geAction = dvAction) {
+    def GRADLE_ENTERPRISE_EXTENSION_CLASS = 'com.gradle.enterprise.gradleplugin.GradleEnterpriseExtension'
+    def DEVELOCITY_CONFIGURATION_CLASS = 'com.gradle.develocity.agent.gradle.DevelocityConfiguration'
+
+    def dvExtensions = settings.extensions.extensionsSchema.elements
+            .findAll { it.publicType.concreteClass.name == DEVELOCITY_CONFIGURATION_CLASS }
+            .collect { settings[it.name] }
+    if (!dvExtensions.empty) {
+        dvExtensions.each(dvAction)
+    } else {
+        def geExtensions = settings.extensions.extensionsSchema.elements
+                .findAll { it.publicType.concreteClass.name == GRADLE_ENTERPRISE_EXTENSION_CLASS }
+                .collect { settings[it.name] }
+        geExtensions.each(geAction)
+    }
+}
