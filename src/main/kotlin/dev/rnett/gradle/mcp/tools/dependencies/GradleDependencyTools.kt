@@ -7,7 +7,9 @@ import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependencyReport
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.tools.GradleProjectRootInput
+import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.tools.ToolNames
+import dev.rnett.gradle.mcp.tools.paginate
 import dev.rnett.gradle.mcp.tools.resolveRoot
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
@@ -35,7 +37,8 @@ class GradleDependencyTools(
         @Description("If true, ignores pre-release versions (alpha, beta, rc, etc.) when checking for updates. STRONGLY RECOMMENDED for stable production environments.")
         val stableOnly: Boolean = false,
         @Description("A regex pattern for filtering candidate update versions. Use this for surgical control over which versions are considered.")
-        val versionFilter: String? = null
+        val versionFilter: String? = null,
+        val pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS
     )
 
     val inspectDependencies by tool<InspectDependenciesArgs, String>(
@@ -49,6 +52,7 @@ class GradleDependencyTools(
             |- **Automated Update Detection**: Instantly identify dependencies with newer versions available in your configured repositories. Support for stable-only filtering and custom version regexes.
             |- **Surgical Precision**: Filter results by configuration or source set to minimize noise. Use `updatesOnly` for highly token-efficient health checks.
             |- **Repository Visibility**: See the authoritative list of repositories (Maven Central, Google, etc.) being used for dependency resolution in each project.
+            |- **Standardized Pagination**: Large result sets (projects in a report, or dependencies in an update summary) are paginated. Use `offset` and `limit` to browse large outputs safely.
             |
             |### Common Usage Patterns
             |- **Full Audit**: `inspect_dependencies(projectPath=":app")`
@@ -76,74 +80,86 @@ class GradleDependencyTools(
         )
 
         if (it.updatesOnly) {
-            formatUpdatesSummary(report)
+            formatUpdatesSummary(report, it.pagination)
         } else {
-            formatDependencyReport(report)
+            formatDependencyReport(report, it.pagination)
         }
     }
 
-    fun formatDependencyReport(report: GradleDependencyReport): String = buildString {
-        appendLine("Dependency Report")
-        appendLine("Note: (*) indicates a dependency that has already been listed; its transitive dependencies are not shown again.")
-        appendLine()
-        report.projects.forEach { project ->
-            appendLine("Project: ${project.path}")
-            if (project.repositories.isNotEmpty()) {
-                appendLine("  Repositories:")
-                project.repositories.forEach { repo ->
-                    appendLine("    - ${repo.name}${repo.url?.let { " ($it)" } ?: ""}")
-                }
+    fun formatDependencyReport(report: GradleDependencyReport, pagination: PaginationInput): String {
+        if (report.projects.isEmpty()) return "No projects found."
+
+        return buildString {
+            appendLine("Dependency Report")
+            appendLine("Note: (*) indicates a dependency that has already been listed; its transitive dependencies are not shown again.")
+            appendLine()
+
+            val pagedProjects = paginate(report.projects, pagination, "projects") { project ->
+                buildString {
+                    formatProject(project)
+                }.trim()
+            }
+            append(pagedProjects)
+        }.trim()
+    }
+
+    private fun StringBuilder.formatProject(project: dev.rnett.gradle.mcp.gradle.dependencies.model.GradleProjectDependencies) {
+        appendLine("Project: ${project.path}")
+        if (project.repositories.isNotEmpty()) {
+            appendLine("  Repositories:")
+            project.repositories.forEach { repo ->
+                appendLine("    - ${repo.name}${repo.url?.let { " ($it)" } ?: ""}")
+            }
+        }
+
+        val sortedConfigs = project.configurations.sortedBy { project.configurationDepth(it.name) }
+        val includedConfigs = project.configurations.associateBy { it.name }
+
+        sortedConfigs.forEach { config ->
+            appendLine("  Configuration: ${config.name}${config.description?.let { " ($it)" } ?: ""}")
+            if (config.extendsFrom.isNotEmpty()) {
+                appendLine("    Extends from: ${config.extendsFrom.joinToString(", ")}")
             }
 
-            val sortedConfigs = project.configurations.sortedBy { project.configurationDepth(it.name) }
-            val includedConfigs = project.configurations.associateBy { it.name }
+            val parents = project.transitiveExtendsFrom(config.name)
 
-            sortedConfigs.forEach { config ->
-                appendLine("  Configuration: ${config.name}${config.description?.let { " ($it)" } ?: ""}")
-                if (config.extendsFrom.isNotEmpty()) {
-                    appendLine("    Extends from: ${config.extendsFrom.joinToString(", ")}")
-                }
-
-                val parents = project.transitiveExtendsFrom(config.name)
-
-                val filteredDeps = config.dependencies.filter { dep ->
-                    val match = parents.any { parentName ->
-                        val parent = includedConfigs[parentName]
-                        if (parent != null) {
-                            val canSkip = parent.isResolvable || !config.isResolvable
-                            if (canSkip) {
-                                val parentDep = parent.dependencies.find {
-                                    (it.group == dep.group && it.name == dep.name) || it.id == dep.id
-                                }
-                                parentDep != null && parentDep.version == dep.version
-                            } else false
-                        } else false
-                    }
-                    !match
-                }
-
-                if (filteredDeps.isEmpty() && config.dependencies.isNotEmpty()) {
-                    appendLine("    (all dependencies inherited from parents)")
-                } else if (config.dependencies.isEmpty()) {
-                    appendLine("    (no dependencies)")
-                } else {
-                    renderDependencies(filteredDeps, 2) { dep ->
-                        if (dep.fromConfiguration != null) {
-                            val parent = includedConfigs[dep.fromConfiguration]
-                            val parentDep = parent?.dependencies?.find {
+            val filteredDeps = config.dependencies.filter { dep ->
+                val match = parents.any { parentName ->
+                    val parent = includedConfigs[parentName]
+                    if (parent != null) {
+                        val canSkip = parent.isResolvable || !config.isResolvable
+                        if (canSkip) {
+                            val parentDep = parent.dependencies.find {
                                 (it.group == dep.group && it.name == dep.name) || it.id == dep.id
                             }
-                            if (parentDep != null && parentDep.version != dep.version) {
-                                " (was ${parentDep.version} in ${dep.fromConfiguration})"
-                            } else null
+                            parentDep != null && parentDep.version == dep.version
+                        } else false
+                    } else false
+                }
+                !match
+            }
+
+            if (filteredDeps.isEmpty() && config.dependencies.isNotEmpty()) {
+                appendLine("    (all dependencies inherited from parents)")
+            } else if (config.dependencies.isEmpty()) {
+                appendLine("    (no dependencies)")
+            } else {
+                renderDependencies(filteredDeps, 2) { dep ->
+                    if (dep.fromConfiguration != null) {
+                        val parent = includedConfigs[dep.fromConfiguration]
+                        val parentDep = parent?.dependencies?.find {
+                            (it.group == dep.group && it.name == dep.name) || it.id == dep.id
+                        }
+                        if (parentDep != null && parentDep.version != dep.version) {
+                            " (was ${parentDep.version} in ${dep.fromConfiguration})"
                         } else null
-                    }
+                    } else null
                 }
             }
         }
-    }.trim()
+    }
 
-    fun formatUpdatesSummary(report: GradleDependencyReport): String {
+    fun formatUpdatesSummary(report: GradleDependencyReport, pagination: PaginationInput): String {
         val updates = mutableListOf<DependencyUpdate>()
 
         report.projects.forEach { project ->
@@ -161,14 +177,17 @@ class GradleDependencyTools(
             }
         }
 
-        return if (updates.isEmpty()) {
+        val distinctUpdates = updates.distinctBy { "${it.projectPath}:${it.configuration}:${it.dependencyId}" }
+            .groupBy { it.dependencyId }
+            .toList()
+
+        return if (distinctUpdates.isEmpty()) {
             "No dependency updates found."
         } else {
             buildString {
                 appendLine("Available Dependency Updates:")
-                updates.distinctBy { "${it.projectPath}:${it.configuration}:${it.dependencyId}" }
-                    .groupBy { it.dependencyId }
-                    .forEach { (dependencyId, depUpdates) ->
+                val paged = paginate(distinctUpdates, pagination, "dependency updates") { (dependencyId, depUpdates) ->
+                    buildString {
                         val first = depUpdates.first()
                         appendLine("\n- $dependencyId: ${first.currentVersion} -> ${first.latestVersion}")
                         appendLine("  Found in:")
@@ -178,7 +197,9 @@ class GradleDependencyTools(
                             val sourceSetInfo = if (sourceSets.isNotEmpty()) ", Source Sets: ${sourceSets.joinToString(", ")}" else ""
                             appendLine("    - Project: $projectPath, Configurations: ${configs.joinToString(", ")}$sourceSetInfo")
                         }
-                    }
+                    }.trim()
+                }
+                append(paged)
             }.trim()
         }
     }

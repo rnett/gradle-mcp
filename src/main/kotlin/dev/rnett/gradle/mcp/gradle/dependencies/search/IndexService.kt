@@ -3,6 +3,7 @@ package dev.rnett.gradle.mcp.gradle.dependencies.search
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.gradle.dependencies.SourcesDir
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
+import dev.rnett.gradle.mcp.tools.PaginationInput
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import kotlin.io.path.ExperimentalPathApi
@@ -27,7 +28,7 @@ interface IndexService {
      */
     suspend fun mergeIndices(sourcesDir: SourcesDir, includedDeps: Map<Path, Index>)
 
-    suspend fun search(sourcesDir: SourcesDir, provider: SearchProvider, query: String): List<RelativeSearchResult>
+    suspend fun search(sourcesDir: SourcesDir, provider: SearchProvider, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): List<RelativeSearchResult>
 }
 
 class DefaultIndexService(
@@ -109,7 +110,8 @@ class DefaultIndexService(
     override suspend fun search(
         sourcesDir: SourcesDir,
         provider: SearchProvider,
-        query: String
+        query: String,
+        pagination: PaginationInput
     ): List<RelativeSearchResult> {
         val (results, duration) = measureTimedValue {
             val providerIndexDir = sourcesDir.index.resolve(provider.name)
@@ -119,9 +121,9 @@ class DefaultIndexService(
             if (!providerIndexDir.exists()) {
                 throw IllegalStateException("Index for provider ${provider.name} not found in ${sourcesDir.index}")
             }
-            provider.search(providerIndexDir, query)
+            provider.search(providerIndexDir, query, pagination)
         }
-        LOGGER.info("Search using ${provider.name} for \"$query\" in ${sourcesDir.path} took $duration (${results.size} results)")
+        LOGGER.info("Search using ${provider.name} for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) in ${sourcesDir.path} took $duration (${results.size} results)")
         return results
     }
 }

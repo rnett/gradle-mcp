@@ -44,7 +44,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         } returns SourcesDir(sourcesDir)
 
         coEvery {
-            sourcesService.search(any(), GlobSearch, "**/Test.kt")
+            sourcesService.search(any(), GlobSearch, "**/Test.kt", any())
         } returns listOf(
             SearchResult(
                 relativePath = "com/example/Test.kt",
@@ -63,7 +63,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         ) as CallToolResult
 
         val result = (response.content.first() as TextContent).text
-        assertTrue(result!!.contains("Found 1 result(s) for '**/Test.kt':"))
+        assertTrue(result!!.contains("Search results for '**/Test.kt':"))
         assertTrue(result.contains("File: com/example/Test.kt:1"))
     }
 
@@ -78,7 +78,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         } returns SourcesDir(sourcesDir)
 
         coEvery {
-            sourcesService.search(any(), FullTextSearch, "test-query")
+            sourcesService.search(any(), FullTextSearch, "test-query", any())
         } returns listOf(
             SearchResult(
                 relativePath = "com/example/Test.kt",
@@ -97,7 +97,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         ) as CallToolResult
 
         val result = (response.content.first() as TextContent).text
-        assertTrue(result!!.contains("Found 1 result(s) for 'test-query':"))
+        assertTrue(result!!.contains("Search results for 'test-query':"))
         assertTrue(result.contains("File: com/example/Test.kt:10"))
         assertTrue(result.contains("class Test { }"))
     }
@@ -240,7 +240,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         } returns SourcesDir(sourcesDir)
 
         coEvery {
-            sourcesService.search(any(), any(), any())
+            sourcesService.search(any(), any(), any(), any())
         } returns emptyList()
 
         server.client.callTool(
@@ -279,18 +279,73 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `read_dependency_sources passes fresh parameter`() = runTest {
-        val sourcesDir = tempDir.resolve("sources-fresh")
-        sourcesDir.createDirectories()
+    fun `search_dependency_sources supports pagination`() = runTest {
+        val sourcesDir = tempDir.resolve("sources-root-pagination")
+        val sources = sourcesDir.resolve("sources")
+        sources.createDirectories()
 
         coEvery {
-            sourcesService.downloadAllSources(any(), any(), any(), fresh = true)
+            sourcesService.downloadAllSources(any(), any(), any(), any())
         } returns SourcesDir(sourcesDir)
 
-        server.client.callTool(
-            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
-                put("fresh", true)
+        val searchResults = (1..5).map { i ->
+            SearchResult(
+                relativePath = "com/example/Test$i.kt",
+                file = sources.resolve("com/example/Test$i.kt"),
+                line = 1,
+                snippet = "class Test$i { }",
+                score = 1.0f
+            )
+        }
+
+        coEvery {
+            sourcesService.search(any(), any(), "test", any())
+        } returns searchResults
+
+        val response = server.client.callTool(
+            ToolNames.SEARCH_DEPENDENCY_SOURCES, buildJsonObject {
+                put("query", "test")
+                put("pagination", buildJsonObject {
+                    put("offset", 1)
+                    put("limit", 2)
+                })
             }
         ) as CallToolResult
+
+        val result = (response.content.first() as TextContent).text
+        assertTrue(result!!.contains("File: com/example/Test2.kt:1"))
+        assertTrue(result.contains("File: com/example/Test3.kt:1"))
+        assertTrue(!result.contains("File: com/example/Test1.kt:1"))
+        assertTrue(result.contains("Showing search results 2 to 3 of 5"))
+    }
+
+    @Test
+    fun `read_dependency_sources supports pagination for directory tree`() = runTest {
+        val sourcesDir = tempDir.resolve("sources-root-dir-pagination")
+        val sources = sourcesDir.resolve("sources")
+        sources.createDirectories()
+
+        // Create 30 files to ensure we have enough for pagination (default limit 20)
+        (1..30).forEach { i ->
+            sources.resolve("File$i.kt").writeText("")
+        }
+
+        coEvery {
+            sourcesService.downloadAllSources(any(), any(), any(), any())
+        } returns SourcesDir(sourcesDir)
+
+        val response = server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("pagination", buildJsonObject {
+                    put("offset", 0)
+                    put("limit", 10)
+                })
+            }
+        ) as CallToolResult
+
+        val result = (response.content.first() as TextContent).text
+        assertTrue(result!!.contains("Showing lines 1 to 10 of 32")) // 30 files + root line + empty line at end? or just extra line from walk
+        assertTrue(result.contains("File1.kt"))
+        assertTrue(result.contains("offset=10"))
     }
 }

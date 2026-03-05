@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.gradle.dependencies.search
 
 import com.github.benmanes.caffeine.cache.Caffeine
 import dev.rnett.gradle.mcp.lucene.LuceneUtils
+import dev.rnett.gradle.mcp.tools.PaginationInput
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.lucene.analysis.Analyzer
@@ -102,7 +103,7 @@ object FullTextSearch : SearchProvider {
         return PerFieldAnalyzerWrapper(standard, mapOf(PATH to keywordLowercaseAnalyzer))
     }
 
-    override suspend fun search(indexDir: Path, query: String): List<RelativeSearchResult> = withContext(Dispatchers.IO) {
+    override suspend fun search(indexDir: Path, query: String, pagination: PaginationInput): List<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (results, duration) = measureTimedValue {
             val idxDir = indexDir.resolve(v3IndexDirName)
             if (!idxDir.exists()) {
@@ -124,14 +125,18 @@ object FullTextSearch : SearchProvider {
                 parser.allowLeadingWildcard = true
                 val q = parser.parse(query, CONTENTS)
 
-                //TODO handle this somehow
-                val results = indexSearcher.search(q, 1000)
+                val topDocs = LuceneUtils.searchPaginated(indexSearcher, q, pagination)
                 val weight = indexSearcher.createWeight(indexSearcher.rewrite(q), ScoreMode.COMPLETE_NO_SCORES, 1.0f)
                 val stored = indexSearcher.storedFields()
 
                 val leaves = reader.leaves()
 
-                results.scoreDocs.flatMap { r ->
+                val offset = pagination.offset
+                val limit = pagination.limit
+
+                val pagedScoreDocs = topDocs.scoreDocs.drop(offset).take(limit)
+
+                pagedScoreDocs.flatMap { r ->
                     val leafContext = leaves[ReaderUtil.subIndex(r.doc, leaves)]
                     val localDocId = r.doc - leafContext.docBase
                     val matches = weight.matches(leafContext, localDocId) ?: return@flatMap emptyList()
@@ -153,7 +158,7 @@ object FullTextSearch : SearchProvider {
                 }
             }
         }
-        LOGGER.info("Full-text search for \"$query\" took $duration (${results.size} results)")
+        LOGGER.info("Full-text search for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) took $duration (${results.size} results)")
         return@withContext results
     }
 

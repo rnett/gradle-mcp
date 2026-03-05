@@ -24,7 +24,8 @@ class GradleDocsTools(
         @Description("The specific Gradle version documentation to target (e.g., '8.6'). Defaults to the project's detected version or the latest release.")
         val version: String? = null,
         @Description("The absolute path to the project root directory. Used to automatically detect the project's Gradle version for documentation targeting.")
-        val projectRoot: GradleProjectRootInput? = null
+        val projectRoot: GradleProjectRootInput? = null,
+        val pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS
     )
 
     val gradleDocs by tool<QueryGradleDocsArgs, CallToolResult>(
@@ -42,6 +43,7 @@ class GradleDocsTools(
             |  - `tag:release-notes <query>`: Search within version release notes.
             |- **Direct Page and Asset Access**: Read specific pages (.md) or view images (.png, .jpg, etc.) by providing their `path`.
             |- **Section Summaries**: Call with no arguments to see available documentation sections and their content counts for the targeted version.
+            |- **Standardized Pagination**: Large result sets (search matches or section lists) are paginated. Use `offset` and `limit` to browse large outputs safely.
             |
             |### Common Usage Patterns
             |- **Summary of Docs**: `gradle_docs()`
@@ -63,16 +65,17 @@ class GradleDocsTools(
                     is DocsPageContent.Image -> CallToolResult(listOf(ImageContent(content.base64, content.mimeType)))
                 }
             }
+
             args.query != null -> {
                 val results = gradleDocsService.searchDocs(args.query, resolvedVersion)
                 if (results.isEmpty()) {
                     CallToolResult(listOf(TextContent("No documentation matches found for '${args.query}' in version ${resolvedVersion ?: "current"}.")))
                 } else {
                     val displayVersion = resolvedVersion ?: "current"
-                    val text = "Search results for '${args.query}' in Gradle $displayVersion:\n\n" +
-                            results.joinToString("\n\n") { result ->
-                                "### ${result.title}\nSection: `${result.tag}` | Path: `${result.path}`\n\n```markdown\n${result.snippet}\n```"
-                            }
+                    val pagedResults = paginate(results, args.pagination, "matches") { result ->
+                        "### ${result.title}\nSection: `${result.tag}` | Path: `${result.path}`\n\n${result.snippet}\n"
+                    }
+                    val text = "Search results for '${args.query}' in Gradle $displayVersion:\n\n$pagedResults"
                     CallToolResult(listOf(TextContent(text)))
                 }
             }
@@ -83,8 +86,10 @@ class GradleDocsTools(
                     CallToolResult(listOf(TextContent("No documentation sections found for version ${resolvedVersion ?: "current"}.")))
                 } else {
                     val displayVersion = resolvedVersion ?: "current"
-                    val text = "Documentation sections for Gradle $displayVersion:\n\n" +
-                            summaries.joinToString("\n") { section -> "- **${section.displayName}** (`tag:${section.tag}`): ${section.count} pages" } +
+                    val pagedSummaries = paginate(summaries, args.pagination, "sections") { section ->
+                        "- **${section.displayName}** (`tag:${section.tag}`): ${section.count} pages"
+                    }
+                    val text = "Documentation sections for Gradle $displayVersion:\n\n$pagedSummaries" +
                             "\n\nUse `query=\"tag:<tag> ...\"` to search a specific section, or provide a `path` from search results to read a page."
                     CallToolResult(listOf(TextContent(text)))
                 }

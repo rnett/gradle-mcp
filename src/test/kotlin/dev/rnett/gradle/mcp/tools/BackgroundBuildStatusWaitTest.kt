@@ -12,6 +12,7 @@ import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.modelcontextprotocol.kotlin.sdk.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.Root
 import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -21,9 +22,12 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import org.gradle.tooling.CancellationTokenSource
+import kotlin.io.path.absolutePathString
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Clock
@@ -89,14 +93,15 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         buildManager.storeResult(mockFinishedBuild)
 
         val statusCall = server.client.callTool(
-            ToolNames.INSPECT_BUILD, mapOf(
-                "buildId" to JsonPrimitive(buildId.toString()),
-                "wait" to JsonPrimitive(2.0)
-            )
-        )
+            ToolNames.INSPECT_BUILD, buildJsonObject {
+                put("buildId", buildId.toString())
+                put("wait", 2.0)
+                put("projectRoot", tempDir.absolutePathString())
+            }
+        ) as CallToolResult
 
         assert(statusCall != null)
-        val statusText = statusCall!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assert(statusText.contains("BUILD FINISHED"))
     }
 
@@ -135,19 +140,20 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            ToolNames.INSPECT_BUILD, mapOf(
-                "buildId" to JsonPrimitive(buildId.toString()),
-                "wait" to JsonPrimitive(2.0),
-                "waitFor" to JsonPrimitive("Ready")
-            )
-        )
+            ToolNames.INSPECT_BUILD, buildJsonObject {
+                put("buildId", buildId.toString())
+                put("wait", 2.0)
+                put("waitFor", "Ready")
+                put("projectRoot", tempDir.absolutePathString())
+            }
+        ) as CallToolResult
         val duration = testScheduler.currentTime - startTime
 
         assert(statusCall != null)
         assert(duration >= 500)
         assert(duration < 2000)
 
-        val statusText = statusCall!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assert(statusText.contains("BUILD IN PROGRESS"))
         assert(statusText.contains("Matching lines for 'Ready':"))
         assert(statusText.contains("Ready to go"))
@@ -181,18 +187,19 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            ToolNames.INSPECT_BUILD, mapOf(
-                "buildId" to JsonPrimitive(buildId.toString()),
-                "wait" to JsonPrimitive(2.0),
-                "waitFor" to JsonPrimitive("Ready")
-            )
-        )
+            ToolNames.INSPECT_BUILD, buildJsonObject {
+                put("buildId", buildId.toString())
+                put("wait", 2.0)
+                put("waitFor", "Ready")
+                put("projectRoot", tempDir.absolutePathString())
+            }
+        ) as CallToolResult
         val duration = testScheduler.currentTime - startTime
 
         assert(statusCall != null)
         assert(duration < 100)
 
-        val statusText = statusCall!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assert(statusText.contains("BUILD IN PROGRESS"))
         assert(statusText.contains("Matching lines for 'Ready':"))
         assert(statusText.contains("Ready to go"))
@@ -231,18 +238,18 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            ToolNames.INSPECT_BUILD,
-            mapOf(
-                "buildId" to JsonPrimitive(buildId.toString()),
-                "wait" to JsonPrimitive(2.0),
-                "waitForTask" to JsonPrimitive(":help")
-            )
-        )
+            ToolNames.INSPECT_BUILD, buildJsonObject {
+                put("buildId", buildId.toString())
+                put("wait", 2.0)
+                put("waitForTask", ":help")
+                put("projectRoot", tempDir.absolutePathString())
+            }
+        ) as CallToolResult
         val duration = testScheduler.currentTime - startTime
 
         assert(statusCall != null)
         assert(duration >= 500)
-        val statusText = statusCall!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assert(statusText.contains("BUILD IN PROGRESS"))
     }
 
@@ -273,18 +280,18 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            ToolNames.INSPECT_BUILD,
-            mapOf(
-                "buildId" to JsonPrimitive(buildId.toString()),
-                "wait" to JsonPrimitive(2.0),
-                "waitForTask" to JsonPrimitive(":help")
-            )
-        )
+            ToolNames.INSPECT_BUILD, buildJsonObject {
+                put("buildId", buildId.toString())
+                put("wait", 2.0)
+                put("waitForTask", ":help")
+                put("projectRoot", tempDir.absolutePathString())
+            }
+        ) as CallToolResult
         val duration = testScheduler.currentTime - startTime
 
         assert(statusCall != null)
         assert(duration < 100)
-        val statusText = statusCall!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assert(statusText.contains("BUILD IN PROGRESS"))
     }
 
@@ -321,19 +328,19 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            ToolNames.INSPECT_BUILD,
-            mapOf(
-                "buildId" to JsonPrimitive(buildId.toString()),
-                "wait" to JsonPrimitive(2.0),
-                "waitForTask" to JsonPrimitive(":help"),
-                "afterCall" to JsonPrimitive(true)
-            )
-        )
+            ToolNames.INSPECT_BUILD, buildJsonObject {
+                put("buildId", buildId.toString())
+                put("wait", 2.0)
+                put("waitForTask", ":help")
+                put("afterCall", true)
+                put("projectRoot", tempDir.absolutePathString())
+            }
+        ) as CallToolResult
         val duration = testScheduler.currentTime - startTime
 
         assert(statusCall != null)
         assert(duration >= 500)
-        val statusText = statusCall!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assert(statusText.contains("BUILD IN PROGRESS"))
     }
 
@@ -349,16 +356,17 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         val result = server.client.callTool(
-            ToolNames.GRADLE, mapOf(
-                "commandLine" to JsonArray(listOf(JsonPrimitive("build"))),
-                "background" to JsonPrimitive(true)
-            )
-        )
+            ToolNames.GRADLE, buildJsonObject {
+                put("commandLine", buildJsonArray { add("build") })
+                put("background", true)
+                put("projectRoot", tempDir.absolutePathString())
+            }
+        ) as CallToolResult
 
         // If the tool waited for the build to finish, this test would hang/timeout.
         // The fact that it completes proves the background path returns immediately.
         assert(result != null)
-        val text = result!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        val text = result.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assertEquals(buildId.toString(), text)
     }
 }

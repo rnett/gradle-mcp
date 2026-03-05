@@ -77,3 +77,8 @@ For builds with a large number of tests, use `limit` and `offset`:
   }
 }
 ```
+
+## Functional Identity with Foreground Execution
+
+Monitoring background test runs via `inspect_build` provides exactly the same rich diagnostic data as foreground execution. Both methods utilize progressive disclosure to provide concise summaries and structured results, ensuring session
+history remains clean. Background execution is simply a non-blocking alternative that allows you to perform other tasks while the test suite proceeds.

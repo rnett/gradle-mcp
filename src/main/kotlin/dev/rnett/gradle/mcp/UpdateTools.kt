@@ -21,6 +21,7 @@ import dev.rnett.gradle.mcp.maven.MavenRepoService
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.repl.ReplConfigWithJava
 import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
+import dev.rnett.gradle.mcp.tools.PaginationInput
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
 import org.gradle.tooling.events.OperationType
@@ -205,7 +206,7 @@ object UpdateTools {
             throw UnsupportedOperationException("Not used for tool listing")
         }
 
-        override suspend fun search(sources: SourcesDir, provider: SearchProvider, query: String): List<SearchResult> {
+        override suspend fun search(sources: SourcesDir, provider: SearchProvider, query: String, pagination: PaginationInput): List<SearchResult> {
             throw UnsupportedOperationException("Not used for tool listing")
         }
     }

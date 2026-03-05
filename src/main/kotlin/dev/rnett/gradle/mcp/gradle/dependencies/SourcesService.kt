@@ -7,6 +7,7 @@ import dev.rnett.gradle.mcp.gradle.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchProvider
 import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResult
 import dev.rnett.gradle.mcp.gradle.dependencies.search.toSearchResults
+import dev.rnett.gradle.mcp.tools.PaginationInput
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
@@ -65,7 +66,7 @@ interface SourcesService {
      */
     suspend fun downloadSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, index: Boolean = true, forceDownload: Boolean = false, fresh: Boolean = false): SourcesDir
 
-    suspend fun search(sources: SourcesDir, provider: SearchProvider, query: String): List<SearchResult>
+    suspend fun search(sources: SourcesDir, provider: SearchProvider, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): List<SearchResult>
 }
 
 class DefaultSourcesService(private val depService: GradleDependencyService, environment: GradleMcpEnvironment, private val indexService: IndexService) : SourcesService {
@@ -182,9 +183,10 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
     override suspend fun search(
         sources: SourcesDir,
         provider: SearchProvider,
-        query: String
+        query: String,
+        pagination: PaginationInput
     ): List<SearchResult> {
-        val results = indexService.search(sources, provider, query)
+        val results = indexService.search(sources, provider, query, pagination)
         val root = if (sources.path.startsWith(gradleSourcesDir)) {
             sources.sources
         } else {

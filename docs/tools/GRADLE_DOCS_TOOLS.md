@@ -18,6 +18,7 @@ Search and read official Gradle documentation, including the User Guide, DSL Ref
   - `tag:release-notes <query>`: Search within version release notes.
 - **Direct Page and Asset Access**: Read specific pages (.md) or view images (.png, .jpg, etc.) by providing their `path`.
 - **Section Summaries**: Call with no arguments to see available documentation sections and their content counts for the targeted version.
+- **Standardized Pagination**: Large result sets (search matches or section lists) are paginated. Use `offset` and `limit` to browse large outputs safely.
 
 ### Common Usage Patterns
 - **Summary of Docs**: `gradle_docs()`
@@ -64,6 +65,23 @@ For detailed navigation strategies and available tags, refer to the `gradle-docs
         "null"
       ],
       "description": "The absolute path to the project root directory. Used to automatically detect the project's Gradle version for documentation targeting."
+    },
+    "pagination": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "offset": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        }
+      },
+      "description": "Pagination parameters. Offset is the zero-based starting index (defaults to 0). Limit is the maximum number of items/lines to return."
     }
   },
   "required": [],

@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.gradle.dependencies.search
 
+import dev.rnett.gradle.mcp.tools.PaginationInput
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
@@ -21,7 +22,7 @@ object GlobSearch : SearchProvider {
 
     private const val v1FileName = "filenames-v1.txt"
 
-    override suspend fun search(indexDir: Path, query: String): List<RelativeSearchResult> = withContext(Dispatchers.IO) {
+    override suspend fun search(indexDir: Path, query: String, pagination: PaginationInput): List<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (results, duration) = measureTimedValue {
             val file = indexDir.resolve(v1FileName)
             if (!file.exists()) {
@@ -41,30 +42,34 @@ object GlobSearch : SearchProvider {
 
             val paths = file.readLines()
 
-            paths.filter { path ->
-                if (matcher != null) {
-                    try {
-                        // Java's glob matcher on Windows expects the Path object, but it works correctly with the default Path representation.
-                        // However, we should make sure we create the Path correctly.
-                        matcher.matches(Path.of(path))
-                    } catch (e: Exception) {
+            paths.asSequence()
+                .filter { path ->
+                    if (matcher != null) {
+                        try {
+                            // Java's glob matcher on Windows expects the Path object, but it works correctly with the default Path representation.
+                            // However, we should make sure we create the Path correctly.
+                            matcher.matches(Path.of(path))
+                        } catch (e: Exception) {
+                            path.contains(query, ignoreCase = true)
+                        }
+                    } else {
                         path.contains(query, ignoreCase = true)
                     }
-                } else {
-                    path.contains(query, ignoreCase = true)
                 }
-            }.map { relativePath ->
-                RelativeSearchResult(
-                    relativePath = relativePath,
-                    offset = 0,
-                    line = null,
-                    score = 1.0f,
-                    snippet = null,
-                    skipBoilerplate = true
-                )
-            }
+                .drop(pagination.offset)
+                .take(pagination.limit)
+                .map { relativePath ->
+                    RelativeSearchResult(
+                        relativePath = relativePath,
+                        offset = 0,
+                        line = null,
+                        score = 1.0f,
+                        snippet = null,
+                        skipBoilerplate = true
+                    )
+                }.toList()
         }
-        LOGGER.info("Glob search for \"$query\" took $duration (${results.size} results)")
+        LOGGER.info("Glob search for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) took $duration (${results.size} results)")
         return@withContext results
     }
 

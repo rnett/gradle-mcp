@@ -16,21 +16,6 @@ Use the Gradle MCP to interact with Gradle whenever possible.
 * When testing your changes, run related tests and make sure they pass before moving on to `check`.
 * If you changed the tool descriptions or metadata, you will need to run `:updateToolsList` before `check` will pass.
 
-## Changes and specs
-
-When instructed to create a proposal, look at [the roadmap](./roadmap.md) first, it's usually coming from there.
-
-When making significant changes to the code, e.g. using an openspec process, here are some guidelines:
-
-* **Always run the `check` task** before declaring a change or spec completed. This ensures that all tests, linting, and generated documentation are correct and up-to-date.
-* **Ensure that your changes have automated tests**. We don't need or go for 100% coverage, but ensure that there's a decent amount, especially of any delicated or complex parts. Ensure that the important behaviors from the spec and
-  proposal are tested.
-* Include a test plan in your planning documents, probably as a spec. See the above item.
-* Ensure that the tests are meaningful, with meaningful assertions that will actually catch bugs or mistakes. Take a step back when writing the tests and focus more on the original goals than the implementation - the goal is to ensure that
-  the implementation meets the original goals, and does not have bugs.
-* Test classes should always be named after the service, not the implementation (e.g. no Default*Test).
-* Keep test performance in mind. Our tests already take quite some time to run, and we don't want to make things worse. Keep this in mind when deciding how many tests to add, and when writing the tests.
-
 ## Project structure notes
 
 The `test` task should be used to run tests.

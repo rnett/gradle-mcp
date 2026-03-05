@@ -96,3 +96,8 @@ If a build takes longer than the `wait` time, `inspect_build` will return the cu
 - **Build Fails Immediately**: If a background build fails quickly, check the `failures` and `console` output using `inspect_build`.
 - **Log Message Not Found**: Ensure the `waitFor` regex is correct and that the message is actually being printed to the console.
 - **Resource Exhaustion**: If you have too many background builds running, stop the ones you don't need using `stopBuildId`.
+
+## Functional Identity with Foreground Execution
+
+Monitoring a background build using `inspect_build` provides exactly the same rich diagnostic data as a foreground build. The primary difference is control flow: background execution allows you to yield control and perform other tasks,
+whereas foreground execution blocks until completion. Both methods utilize progressive disclosure to ensure session history remains clean and focused.

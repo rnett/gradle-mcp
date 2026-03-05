@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.gradle.dependencies.search
 
+import dev.rnett.gradle.mcp.tools.PaginationInput
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.readText
@@ -8,7 +9,7 @@ interface SearchProvider {
     val name: String
     val indexVersion: Int
 
-    suspend fun search(indexDir: Path, query: String): List<RelativeSearchResult>
+    suspend fun search(indexDir: Path, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): List<RelativeSearchResult>
     suspend fun index(dependencyDir: Path, outputDir: Path)
 
     /**

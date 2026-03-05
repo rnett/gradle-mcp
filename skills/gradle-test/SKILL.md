@@ -21,8 +21,10 @@ Run tests with absolute precision and leverage deep diagnostic tools to isolate 
 
 - **ONLY use MCP tools**: NEVER use `./gradlew` via a shell unless you have exhausted all attempts to use the `gradle` tool and it repeatedly fails to meet your requirements. Falling back to the shell is a **last resort** for edge cases
   where the Tooling API or the server's output capturing is demonstrably insufficient.
-- **Use test filters**: Always filter tests using the `--tests` flag in the `commandLine` of `gradle` to save time and resources (e.g., `["test", "--tests", "MyTestClass*"]`).
-- **Background for long test suites**: ALWAYS set `background: true` in `gradle` for test suites that take a long time to run. This allows you to continue working while monitoring the test progress.
+- **Foreground tests are safe**: Do not fear running high-output test suites in the foreground. The tool uses progressive disclosure to provide concise summaries and structured results, ensuring your session history remains clean and
+  efficient.
+- **Background for long test suites**: ALWAYS set `background: true` in `gradle` for test suites that take a long time to run. This is functionally identical to foreground execution but non-blocking, allowing you to perform other tasks
+  while monitoring progress via `inspect_build`.
 - **Monitor with `inspect_build`**: Use the `inspect_build` tool to check the status of background test runs or to get detailed information about any build.
 - **Provide absolute `projectRoot` when in doubt**: Provide `projectRoot` as an **absolute file system path** to any Gradle MCP tool that supports it unless you are certain it is not required. **Relative paths are not supported.**
 - **Check for build failures**: If a test run fails with a general error, use the `inspect_build` tool with `failures: {}` and `problems: {}` to check if it's a compilation or configuration error.

@@ -92,10 +92,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         @Description("If true, only look for matches emitted after this call. Only applies if 'wait' and ('waitFor' or 'waitForTask') are provided.")
         val afterCall: Boolean = false,
 
-        @Description("The maximum number of results to return. Use a smaller limit for large projects to maintain token efficiency and reduce noise.")
-        val limit: Int? = null,
-        @Description("The offset to start from in the results. Use this with 'limit' for efficient pagination through large lists.")
-        val offset: Int = 0,
+        val pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS,
 
         @Description("Options for surgical task lookup and diagnostics.")
         val tasks: TaskOptions? = null,
@@ -111,7 +108,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
 
     @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
     private fun getLatestBuildsOutput(args: InspectBuildArgs, onlyCompleted: Boolean): String {
-        val maxBuilds = args.limit ?: 5
+        val maxBuilds = args.pagination.limit
         val completed = buildResults.latestFinished(maxBuilds)
         val active = if (onlyCompleted) emptyList() else buildResults.listRunningBuilds()
 
@@ -200,31 +197,22 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             }
         }
 
-        require(args.offset >= 0) { "`offset` must be non-negative" }
-        val limit = args.limit ?: 20
-        require(limit > 0) { "`limit` must be > 0" }
-
         val matched = build.testResults.all
             .filter { tr -> tr.testName.startsWith(testOptions.name) }
             .filter { tr -> testOptions.outcome == null || tr.status == testOptions.outcome }
-
-        val results = matched
-            .drop(args.offset)
-            .take(limit)
             .toList()
 
         return buildString {
-            appendLine("Total matching results: ${matched.count()}")
+            appendLine("Total matching results: ${matched.size}")
             appendLine("Test | Outcome | Metadata")
-            results.forEach { tr ->
-                appendLine(
-                    "${tr.testName} | ${tr.status} | ${
-                        tr.metadata.mapValues {
-                            if (it.value.length > 20) it.value.take(20) + " ... (truncated by gradle-mcp)" else it.value
-                        }
-                    }"
-                )
+            val paged = paginate(matched, args.pagination, "test results") { tr ->
+                "${tr.testName} | ${tr.status} | ${
+                    tr.metadata.mapValues {
+                        if (it.value.length > 20) it.value.take(20) + " ... (truncated by gradle-mcp)" else it.value
+                    }
+                }"
             }
+            append(paged)
         }
     }
 
@@ -266,23 +254,16 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                 .sortedBy { it.path }
                 .toList()
 
-            val limit = args.limit ?: 50
             return buildString {
                 if (result.taskOutputCapturingFailed) {
                     appendLine("WARNING: Task output capturing failed for this build. Task outputs may be missing or incomplete.")
                     appendLine()
                 }
                 appendLine("Task Path | Outcome | Duration")
-                tasks.asSequence().drop(args.offset).take(limit).forEach { task ->
-                    append(task.path).append(" | ")
-                    append(task.outcome).append(" | ")
-                    appendLine(task.duration)
+                val paged = paginate(tasks, args.pagination, "tasks") { task ->
+                    "${task.path} | ${task.outcome} | ${task.duration}"
                 }
-
-                if (tasks.size > (args.offset + limit)) {
-                    appendLine()
-                    appendLine("... and ${tasks.size - (args.offset + limit)} more tasks")
-                }
+                append(paged)
             }
         }
     }
@@ -301,11 +282,14 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             }
         }
 
+        val failuresList = allFailures.toList()
+
         return buildString {
             appendLine("Id | Message")
-            allFailures.forEach { (id, failure) ->
-                appendLine("${id.id} : ${failure.message}")
+            val paged = paginate(failuresList, args.pagination, "failures") { (id, failure) ->
+                "${id.id} : ${failure.message}"
             }
+            append(paged)
             if (build.isRunning && allFailures.isEmpty()) {
                 appendLine("No failures found yet. The build is still running.")
             }
@@ -355,50 +339,38 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             }
         }
 
+        val sortedProblems = build.problems.sortedBy { it.definition.severity }
+
         return buildString {
             appendLine("Severity | Id | Display Name | Occurrences")
-            build.problems.sortedBy { it.definition.severity }.forEach {
-                append(it.definition.severity)
-                append(" | ")
-                append(it.definition.id)
-                append(" | ")
-                append(it.definition.displayName ?: "N/A")
-                append(" | ")
-                appendLine(it.numberOfOccurrences)
+            val paged = paginate(sortedProblems, args.pagination, "problems") { problem ->
+                "${problem.definition.severity} | ${problem.definition.id} | ${problem.definition.displayName ?: "N/A"} | ${problem.numberOfOccurrences}"
             }
+            append(paged)
         }
     }
 
     private fun getConsoleOutput(build: Build, args: InspectBuildArgs): String {
         val consoleOptions = args.console ?: ConsoleOptions()
-        require(args.offset >= 0) { "`offset` must be non-negative" }
-        val limit = args.limit ?: 100
-        require(limit > 0) { "`limit` must be > 0" }
 
-        val start: Int
-        val end: Int
-        val lines: List<String>
-        val nextOffset: Int?
-        when {
-            consoleOptions.tail -> {
-                end = build.consoleOutputLines.size - args.offset
-                start = end - limit
-                nextOffset = start.takeIf { it > 0 }
-                lines = build.consoleOutputLines.subList(start.coerceAtLeast(0), end.coerceIn(0, build.consoleOutputLines.size))
+        return if (consoleOptions.tail) {
+            val totalLines = build.consoleOutputLines.size
+            val start = (totalLines - args.pagination.offset - args.pagination.limit).coerceAtLeast(0)
+            val end = (totalLines - args.pagination.offset).coerceAtLeast(0)
+            val pagedLines = build.consoleOutputLines.subList(start, end)
+
+            buildString {
+                appendLine("Lines $start to $end of $totalLines lines (tailing mode)")
+                appendLine()
+                append(pagedLines.joinToString("\n"))
+                if (start > 0) {
+                    appendLine("\n---")
+                    appendLine("To see more previous lines, use: `offset=${args.pagination.offset + args.pagination.limit}`, `limit=${args.pagination.limit}`.")
+                    appendLine("---")
+                }
             }
-
-            else -> {
-                end = (args.offset + limit)
-                start = args.offset
-                nextOffset = end.takeIf { it < build.consoleOutputLines.size }
-                lines = build.consoleOutputLines.subList(args.offset, end.coerceAtMost(build.consoleOutputLines.size))
-            }
-        }
-
-        return buildString {
-            appendLine("Lines $start to $end of ${build.consoleOutputLines.size} lines, ${if (nextOffset != null) "next offset: $nextOffset" else "reached end of stream"}")
-            appendLine()
-            append(lines.joinToString("\n"))
+        } else {
+            paginateText(build.consoleOutputLines.joinToString("\n"), args.pagination)
         }
     }
 

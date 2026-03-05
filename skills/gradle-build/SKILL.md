@@ -20,8 +20,9 @@ Execute and manage Gradle commands with absolute precision, utilizing managed ba
 
 - **ONLY use MCP tools**: NEVER use `./gradlew` via a shell unless you have exhausted all attempts to use the `gradle` tool and it repeatedly fails to meet your requirements. Falling back to the shell is a **last resort** for edge cases
   where the Tooling API or the server's output capturing is demonstrably insufficient.
-- **Background for long tasks**: ALWAYS set `background: true` in `gradle` for tasks that take a long time or are persistent (e.g. `bootRun`, `continuous` builds, long-running test suites). This allows you to continue working while
-  monitoring the build's progress.
+- **Foreground builds are safe**: Do not fear high-output tasks like `check` or `test` in the foreground. The tool uses progressive disclosure to provide concise summaries, ensuring your session history remains clean and efficient.
+- **Background for long tasks**: ALWAYS set `background: true` in `gradle` for tasks that take a long time or are persistent (e.g. `bootRun`, `continuous` builds). This is functionally identical to foreground execution but non-blocking,
+  allowing you to perform other tasks while monitoring via `inspect_build`.
 - **Use `captureTaskOutput` for clean results**: When running tasks where you need specific, clean output (e.g., `dependencies`, `help`, `properties`), set `captureTaskOutput` in `gradle` to the task path. This avoids noise and makes the
   output much easier to parse.
 - **Monitor with `inspect_build`**: Use the `inspect_build` tool to check the status of background builds or to get detailed information about any build started by the server.

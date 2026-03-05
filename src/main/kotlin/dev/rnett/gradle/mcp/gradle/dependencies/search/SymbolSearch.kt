@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.gradle.dependencies.search
 
+import dev.rnett.gradle.mcp.tools.PaginationInput
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -150,7 +151,7 @@ object SymbolSearch : SearchProvider {
         LOGGER.info("Symbol index merging took $duration (${indexDirs.size} indices)")
     }
 
-    override suspend fun search(indexDir: Path, query: String): List<RelativeSearchResult> = withContext(Dispatchers.IO) {
+    override suspend fun search(indexDir: Path, query: String, pagination: PaginationInput): List<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (results, duration) = measureTimedValue {
             val indexFile = indexDir.resolve(v1FileName)
             if (!indexFile.exists()) {
@@ -161,12 +162,15 @@ object SymbolSearch : SearchProvider {
 
             val queryRegex = Regex(query, RegexOption.IGNORE_CASE)
 
-            allSymbols.asSequence().filter { it.name.matches(queryRegex) }
+            allSymbols.asSequence()
+                .filter { it.name.matches(queryRegex) }
+                .drop(pagination.offset)
+                .take(pagination.limit)
                 .map {
                     RelativeSearchResult(it.path, offset = it.offset, line = it.line, score = null)
                 }.toList()
         }
-        LOGGER.info("Symbol search for \"$query\" took $duration (${results.size} results)")
+        LOGGER.info("Symbol search for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) took $duration (${results.size} results)")
         return@withContext results
     }
 

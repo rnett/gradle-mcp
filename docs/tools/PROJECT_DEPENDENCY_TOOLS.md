@@ -14,6 +14,7 @@ It provides a managed, searchable view of your project's dependency graph that i
 - **Automated Update Detection**: Instantly identify dependencies with newer versions available in your configured repositories. Support for stable-only filtering and custom version regexes.
 - **Surgical Precision**: Filter results by configuration or source set to minimize noise. Use `updatesOnly` for highly token-efficient health checks.
 - **Repository Visibility**: See the authoritative list of repositories (Maven Central, Google, etc.) being used for dependency resolution in each project.
+- **Standardized Pagination**: Large result sets (projects in a report, or dependencies in an update summary) are paginated. Use `offset` and `limit` to browse large outputs safely.
 
 ### Common Usage Patterns
 - **Full Audit**: `inspect_dependencies(projectPath=":app")`
@@ -81,6 +82,23 @@ For detailed dependency management strategies, refer to the `gradle-dependencies
         "null"
       ],
       "description": "A regex pattern for filtering candidate update versions. Use this for surgical control over which versions are considered."
+    },
+    "pagination": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "offset": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        }
+      },
+      "description": "Pagination parameters. Offset is the zero-based starting index (defaults to 0). Limit is the maximum number of items/lines to return."
     }
   },
   "required": [],

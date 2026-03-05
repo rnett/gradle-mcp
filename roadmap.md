@@ -1,5 +1,4 @@
-- Make the Gradle docs tool download the distribution from https://services.gradle.org/distributions/, and have options to include javadocs and samples. Maybe have "kind": userguide, javadoc, release-notes, samples. Use lucene indexing.
-- Pagination for the search tools, and improve how the look tools handle it. All tools, really. Can I use built-in MCP pagination? Maybe extend this to the lookup tools.
+- Update mcp tools and skills based on new research.
 - A "gradle expert/build authoring" skill, which should be about Gradle build editing and mention things like the best practices.
 - Progress notifications for search, download, indexing, etc.
 - Make symbol indexing and archive extraction more performant, especially for the Gradle sources. Look at using lucene, or doing the full text search first and then searching for symbols.

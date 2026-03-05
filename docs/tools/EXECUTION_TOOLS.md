@@ -11,10 +11,10 @@ It is the STRONGLY PREFERRED way to execute any Gradle task, providing a managed
 Unless the Tooling API is demonstrably insufficient for a specific edge case, ALWAYS prefer this tool over direct shell commands.
 
 ### High-Performance Features
-- **Managed Background Lifecycle**: Execute long-running builds, tests, or servers in the background. Receive a `BuildId` instantly, allowing you to monitor progress or perform other tasks while the build proceeds.
+- **Managed Lifecycle**: Whether running in the foreground or background, the tool uses progressive disclosure to provide concise summaries without flooding the session history with raw console logs.
+- **Managed Background Execution**: Execute long-running builds, tests, or servers in the background. Receive a `BuildId` instantly, allowing you to monitor progress or perform other tasks while the build proceeds. This is functionally identical to foreground execution but non-blocking.
 - **Precision Task Output Capturing**: Use `captureTaskOutput` to extract clean, isolated output for a single task. This is the most token-efficient way to read task results like `dependencies`, `help`, or `properties` as it eliminates all background console noise.
 - **Surgical Build Control**: Seamlessly stop background processes using `stopBuildId` and transition to the `inspect_build` tool for deep post-mortem failure analysis.
-- **Maximum Token Efficiency**: Provides concise summaries for foreground builds and rich, searchable metadata for background ones.
 
 ### Common Usage Patterns
 - **Standard Build**: `gradle(commandLine=["clean", "build"])`
@@ -60,7 +60,7 @@ For expert-level workflows, refer to the `gradle-build` and `gradle-test` skills
     },
     "background": {
       "type": "boolean",
-      "description": "If true, starts the build in the background and returns a BuildId immediately. STRONGLY RECOMMENDED for long-running tasks like 'build', 'test', or 'bootRun' to maintain agent responsiveness."
+      "description": "If true, starts the build in the background and returns a BuildId immediately. Using background=true and monitoring via 'inspect_build' is functionally identical to running in the foreground, but allows the agent to perform other tasks while the build proceeds."
     },
     "stopBuildId": {
       "type": [

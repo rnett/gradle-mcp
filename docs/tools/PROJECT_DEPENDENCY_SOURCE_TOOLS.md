@@ -14,6 +14,7 @@ It provides surgical access to the implementation details of your project's ecos
 - **Surgical File Retrieval**: Read the full content of any identified source file. Ideal for verifying library behavior or researching undocumented APIs.
 - **Managed Lifecycle**: Sources and indices are cached per scope (project, configuration, or source set). Subsequent reads are nearly instantaneous.
 - **Contextual Precedence**: Precisely target your search using `gradleSource`, `sourceSetPath`, `configurationPath`, or `projectPath`.
+- **Standardized Pagination**: Directory listings and extremely large files are paginated. Use `offset` and `limit` to browse large outputs safely.
 
 ### Common Usage Patterns
 - **Explore App Dependencies**: `read_dependency_sources(projectPath=":app")`
@@ -74,6 +75,23 @@ For detailed source navigation strategies, refer to the `gradle-library-sources`
     "fresh": {
       "type": "boolean",
       "description": "If true, retrieves a fresh dependency list from Gradle before processing. STRONGLY RECOMMENDED if your project dependencies have changed since the last source retrieval."
+    },
+    "pagination": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "offset": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        }
+      },
+      "description": "Pagination parameters. Offset is the zero-based starting index (defaults to 0). Limit is the maximum number of items/lines to return."
     }
   },
   "required": [],
@@ -109,6 +127,7 @@ It provides high-performance, indexed search capabilities that far exceed basic 
   - `{a,b}`: Matches any of the comma-separated strings.
   - Fallback: If the pattern is not a valid glob, it performs a case-insensitive substring search on file paths.
 - **Deep Engine Access**: Search the authoritative source code of the Gradle Build Tool itself to understand core system behavior.
+- **Standardized Pagination**: Large result sets are paginated. Use `offset` and `limit` to browse large outputs safely.
 
 ### Common Usage Patterns
 - **Find Class**: `search_dependency_sources(query="Assert", projectPath=":")`
@@ -161,7 +180,7 @@ For detailed search strategies, refer to the `gradle-library-sources` skill.
     },
     "query": {
       "type": "string",
-      "description": "The search query. For SYMBOLS search (default), use regex for classes or methods. For FULL_TEXT, use Lucene queries (e.g., '\"exact phrase\"', 'a AND b', 'path:**/MyClass.kt'). For GLOB, use Java glob syntax (e.g., '**/MyClass.kt'). If the query is not a valid glob, it will fall back to a case-insensitive substring match on file paths."
+      "description": "The search query. For SYMBOLS search (default), use regex for classes or methods. For FULL_TEXT, use Lucene queries (e.g., '\"exact phrase\"', 'a AND b', 'path:**/Job.kt'). For GLOB, use Java glob syntax (e.g., '**/MyClass.kt'). If the query is not a valid glob, it will fall back to a case-insensitive substring match on file paths."
     },
     "searchType": {
       "enum": [
@@ -178,6 +197,23 @@ For detailed search strategies, refer to the `gradle-library-sources` skill.
     "fresh": {
       "type": "boolean",
       "description": "If true, retrieves a fresh dependency list from Gradle before searching. STRONGLY RECOMMENDED if your project dependencies have changed since the last search."
+    },
+    "pagination": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "offset": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        }
+      },
+      "description": "Pagination parameters. Offset is the zero-based starting index (defaults to 0). Limit is the maximum number of items/lines to return."
     }
   },
   "required": [

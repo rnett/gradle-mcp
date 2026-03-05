@@ -75,20 +75,22 @@ For detailed, expert-level diagnostic workflows, refer to the `gradle-build` and
       "type": "boolean",
       "description": "If true, only look for matches emitted after this call. Only applies if 'wait' and ('waitFor' or 'waitForTask') are provided."
     },
-    "limit": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "minimum": -2147483648,
-      "maximum": 2147483647,
-      "description": "The maximum number of results to return. Use a smaller limit for large projects to maintain token efficiency and reduce noise."
-    },
-    "offset": {
-      "type": "integer",
-      "minimum": -2147483648,
-      "maximum": 2147483647,
-      "description": "The offset to start from in the results. Use this with 'limit' for efficient pagination through large lists."
+    "pagination": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "offset": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        }
+      },
+      "description": "Pagination parameters. Offset is the zero-based starting index (defaults to 0). Limit is the maximum number of items/lines to return."
     },
     "tasks": {
       "type": [

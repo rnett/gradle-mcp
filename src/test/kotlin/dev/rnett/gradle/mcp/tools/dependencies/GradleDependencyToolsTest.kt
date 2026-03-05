@@ -7,12 +7,15 @@ import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependencyReport
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleProjectDependencies
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleSourceSetDependencies
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
+import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.mockk.coEvery
 import io.modelcontextprotocol.kotlin.sdk.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.Root
 import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import org.junit.jupiter.api.BeforeEach
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -90,22 +93,20 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
         } returns report
 
         val response = server.client.callTool(
-            ToolNames.INSPECT_DEPENDENCIES, mapOf(
-                "projectPath" to ":",
-                "onlyDirect" to true,
-                "updatesOnly" to true
-            )
+            ToolNames.INSPECT_DEPENDENCIES, buildJsonObject {
+                put("projectPath", ":")
+                put("onlyDirect", true)
+                put("updatesOnly", true)
+            }
         ) as CallToolResult
 
         val result = (response.content.first() as TextContent).text
 
         val expected = """
             Available Dependency Updates:
-
             - org.slf4j:slf4j-api:1.7.30: 1.7.30 -> 2.0.0
               Found in:
                 - Project: :, Configurations: compileClasspath, Source Sets: main
-
             - junit:junit:4.12: 4.12 -> 4.13.2
               Found in:
                 - Project: :, Configurations: testCompileClasspath, Source Sets: test
@@ -187,7 +188,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
                 )
             )
         )
-        val output = tools.formatDependencyReport(report)
+        val output = tools.formatDependencyReport(report, PaginationInput.DEFAULT_ITEMS)
 
         // Verify sorting: parentConf (depth 0) should be before childConf (depth 1)
         val parentIdx = output.indexOf("Configuration: parentConf")
@@ -238,7 +239,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
                 )
             )
         )
-        val output = tools.formatDependencyReport(report)
+        val output = tools.formatDependencyReport(report, PaginationInput.DEFAULT_ITEMS)
 
         val implIdx = output.indexOf("Configuration: implementation")
         val compileClasspathIdx = output.indexOf("Configuration: compileClasspath")
@@ -288,7 +289,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
                 )
             )
         )
-        val output = tools.formatDependencyReport(report)
+        val output = tools.formatDependencyReport(report, PaginationInput.DEFAULT_ITEMS)
 
         assertTrue(output.contains("slf4j-api:1.7.31 (was 1.7.30 in implementation)"), "Should show version difference note. Output:\n$output")
     }
@@ -326,12 +327,45 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
         } returns report
 
         val response = server.client.callTool(
-            ToolNames.INSPECT_DEPENDENCIES, mapOf(
-                "checkUpdates" to true
-            )
+            ToolNames.INSPECT_DEPENDENCIES, buildJsonObject {
+                put("checkUpdates", true)
+            }
         ) as CallToolResult
 
         val result = (response.content.first() as TextContent).text
         assertTrue(result!!.contains("[UPDATE AVAILABLE: 2.0.0]"), "Output should contain update message. Result:\n$result")
+    }
+
+    @Test
+    fun `inspect_dependencies supports pagination`() = runTest {
+        val report = GradleDependencyReport(
+            projects = (1..5).map { i ->
+                GradleProjectDependencies(
+                    path = ":p$i",
+                    sourceSets = emptyList(),
+                    repositories = emptyList(),
+                    configurations = emptyList()
+                )
+            }
+        )
+
+        coEvery {
+            dependencyService.getDependencies(any(), any(), any(), any(), any(), any(), any())
+        } returns report
+
+        val response = server.client.callTool(
+            ToolNames.INSPECT_DEPENDENCIES, buildJsonObject {
+                put("pagination", buildJsonObject {
+                    put("offset", 1)
+                    put("limit", 2)
+                })
+            }
+        ) as CallToolResult
+
+        val result = (response.content.first() as TextContent).text
+        assertTrue(result!!.contains("Project: :p2"), "Should contain second project")
+        assertTrue(result.contains("Project: :p3"), "Should contain third project")
+        assertTrue(!result.contains("Project: :p1"), "Should NOT contain first project")
+        assertTrue(result.contains("Showing projects 2 to 3 of 5"), "Should contain pagination metadata")
     }
 }
