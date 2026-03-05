@@ -13,6 +13,8 @@ Use the Gradle MCP to interact with Gradle whenever possible.
 * If you have trouble solving or investigating an issue after a few tries, stop and think about what the issues are before proceeding. Do research if necessary, and rubber duck to yourself.
 * When writing skills, remember that skills support progressive disclosure and tune them accordingly. Read the docs on https://agentskills.io/home before creating or editing any skills.
 * Add your changes to git that you want to persist (i.e. not temp files), but don't EVER create commits or push.
+* When testing your changes, run related tests and make sure they pass before moving on to `check`.
+* If you changed the tool descriptions or metadata, you will need to run `:updateToolsList` before `check` will pass.
 
 **IMPORTANT:** If you are Gemini, you get stuck when you try to use your built-in file creation and editing tools.
 Use a shell command, MCP tool, or something like that.
@@ -22,7 +24,9 @@ Use a shell command, MCP tool, or something like that.
 When making significant changes to the code, e.g. using an openspec process, here are some guidelines:
 
 * **Always run the `check` task** before declaring a change or spec completed. This ensures that all tests, linting, and generated documentation are correct and up-to-date.
-* **Ensure that your changes have automated tests**. We don't need or go for 100% coverage, but ensure that there's a decent amount, especially of any delicated or complex parts.
+* **Ensure that your changes have automated tests**. We don't need or go for 100% coverage, but ensure that there's a decent amount, especially of any delicated or complex parts. Ensure that the important behaviors from the spec and
+  proposal are tested.
+* Include a test plan in your planning documents, probably as a spec. See the above item.
 * Ensure that the tests are meaningful, with meaningful assertions that will actually catch bugs or mistakes. Take a step back when writing the tests and focus more on the original goals than the implementation - the goal is to ensure that
   the implementation meets the original goals, and does not have bugs.
 * Test classes should always be named after the service, not the implementation (e.g. no Default*Test).

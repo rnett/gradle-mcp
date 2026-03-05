@@ -34,7 +34,7 @@ class DefaultIndexService(
     val environment: GradleMcpEnvironment
 ) : IndexService {
     private val LOGGER = LoggerFactory.getLogger(DefaultIndexService::class.java)
-    private val providers = listOf(SymbolSearch, FullTextSearch)
+    private val providers = listOf(SymbolSearch, FullTextSearch, GlobSearch)
     private val indexDir = environment.cacheDir.resolve("source-indices")
 
     @OptIn(ExperimentalPathApi::class)

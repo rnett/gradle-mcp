@@ -4,8 +4,8 @@ import dev.rnett.gradle.mcp.gradle.dependencies.GradleSourceService
 import dev.rnett.gradle.mcp.gradle.dependencies.SourcesDir
 import dev.rnett.gradle.mcp.gradle.dependencies.SourcesService
 import dev.rnett.gradle.mcp.gradle.dependencies.search.FullTextSearch
+import dev.rnett.gradle.mcp.gradle.dependencies.search.GlobSearch
 import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResult
-import dev.rnett.gradle.mcp.gradle.dependencies.search.SymbolSearch
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.mockk.coEvery
@@ -34,8 +34,8 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `search_dependency_sources search returns formatted results`() = runTest {
-        val sourcesDir = tempDir.resolve("sources-root-search")
+    fun `search_dependency_sources glob search returns formatted results`() = runTest {
+        val sourcesDir = tempDir.resolve("sources-root-glob")
         val sources = sourcesDir.resolve("sources")
         sources.createDirectories()
 
@@ -44,12 +44,12 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         } returns SourcesDir(sourcesDir)
 
         coEvery {
-            sourcesService.search(any(), SymbolSearch, "test-query")
+            sourcesService.search(any(), GlobSearch, "**/Test.kt")
         } returns listOf(
             SearchResult(
                 relativePath = "com/example/Test.kt",
                 file = sources.resolve("com/example/Test.kt"),
-                line = 10,
+                line = 1,
                 snippet = "class Test { }",
                 score = 1.0f
             )
@@ -57,14 +57,14 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         val response = server.client.callTool(
             ToolNames.SEARCH_DEPENDENCY_SOURCES, buildJsonObject {
-                put("query", "test-query")
+                put("query", "**/Test.kt")
+                put("searchType", "GLOB")
             }
         ) as CallToolResult
 
         val result = (response.content.first() as TextContent).text
-        assertTrue(result!!.contains("Found 1 result(s) for 'test-query':"))
-        assertTrue(result.contains("File: com/example/Test.kt:10"))
-        assertTrue(result.contains("class Test { }"))
+        assertTrue(result!!.contains("Found 1 result(s) for '**/Test.kt':"))
+        assertTrue(result.contains("File: com/example/Test.kt:1"))
     }
 
     @Test

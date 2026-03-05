@@ -24,10 +24,13 @@ data class RelativeSearchResult(
     val relativePath: String,
     val offset: Int,
     val line: Int? = null,
-    val score: Float?
+    val score: Float?,
+    val snippet: String? = null,
+    val skipBoilerplate: Boolean = false
 ) {
     fun toSearchResult(sourcesRoot: Path): SearchResult {
-        return SearchResult.fromFile(relativePath, sourcesRoot.resolve(relativePath), offset, line, score)
+        return snippet?.let { SearchResult(relativePath, sourcesRoot.resolve(relativePath), line ?: 1, it, score) }
+            ?: SearchResult.fromFile(relativePath, sourcesRoot.resolve(relativePath), offset, line, score)
     }
 }
 
@@ -41,6 +44,13 @@ fun Collection<RelativeSearchResult>.toSearchResults(sourcesRoot: Path): List<Se
         val lines = content.lines()
 
         results.map { res ->
+            if (res.snippet != null) {
+                return@map SearchResult(relativePath, file, res.line ?: 1, res.snippet, res.score)
+            }
+            if (res.skipBoilerplate) {
+                val (actualLine, snippet) = findHighSignalSnippet(content)
+                return@map SearchResult(relativePath, file, actualLine, snippet, res.score)
+            }
             val actualLine = if (res.line != null) res.line else {
                 content.substring(0, res.offset).count { it == '\n' } + 1
             }
@@ -50,6 +60,56 @@ fun Collection<RelativeSearchResult>.toSearchResults(sourcesRoot: Path): List<Se
             SearchResult(relativePath, file, actualLine, snippet, res.score)
         }.distinctBy { it.line }
     }
+}
+
+/**
+ * Finds a high-signal snippet by skipping boilerplate.
+ */
+fun findHighSignalSnippet(content: String, maxLines: Int = 5): Pair<Int, String> {
+    val lines = content.lines()
+    var skipUntil = 0
+    var inMultilineComment = false
+    var multilineEnd = ""
+
+    for (i in lines.indices) {
+        val line = lines[i].trim()
+
+        if (inMultilineComment) {
+            if (line.contains(multilineEnd)) {
+                inMultilineComment = false
+            }
+            skipUntil = i + 1
+            continue
+        }
+
+        if (line.startsWith("/*")) {
+            if (!line.contains("*/")) {
+                inMultilineComment = true
+                multilineEnd = "*/"
+            }
+            skipUntil = i + 1
+            continue
+        }
+
+        if (line.startsWith("<!--")) {
+            if (!line.contains("-->")) {
+                inMultilineComment = true
+                multilineEnd = "-->"
+            }
+            skipUntil = i + 1
+            continue
+        }
+
+        if (line.isEmpty() || line.startsWith("//") || line.startsWith("package ") || line.startsWith("import ")) {
+            skipUntil = i + 1
+            continue
+        }
+
+        break
+    }
+
+    val snippetLines = lines.drop(skipUntil).take(maxLines)
+    return (skipUntil + 1) to snippetLines.joinToString("\n")
 }
 
 data class SearchResult(
