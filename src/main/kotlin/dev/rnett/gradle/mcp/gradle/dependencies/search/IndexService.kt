@@ -35,6 +35,8 @@ class DefaultIndexService(
 ) : IndexService {
     private val LOGGER = LoggerFactory.getLogger(DefaultIndexService::class.java)
     private val providers = listOf(SymbolSearch, FullTextSearch, GlobSearch)
+    private val combinedIndexVersion = providers.joinToString("-") { "${it.name}:${it.indexVersion}" }
+    private val markerFileName = ".indexed-${combinedIndexVersion.hashCode()}"
     private val indexDir = environment.cacheDir.resolve("source-indices")
 
     @OptIn(ExperimentalPathApi::class)
@@ -43,7 +45,7 @@ class DefaultIndexService(
 
         val dirName = dependency.sourcesFile?.nameWithoutExtension ?: "direct-${sourceDir.hashCode()}"
         val dir = indexDir.resolve(dependency.group).resolve(dirName)
-        val markerFile = dir.resolve(".indexed")
+        val markerFile = dir.resolve(markerFileName)
 
         if (markerFile.exists()) {
             return Index(dir)
@@ -76,7 +78,7 @@ class DefaultIndexService(
         val (unit, duration) = measureTimedValue {
             val dir = sourcesDir.index
             val hashFile = dir.resolve(".merged.hash")
-            val currentHash = includedDeps.hashCode().toString()
+            val currentHash = combinedIndexVersion + "\n" + includedDeps.hashCode().toString()
 
             if (hashFile.exists() && hashFile.readText() == currentHash) {
                 return@measureTimedValue

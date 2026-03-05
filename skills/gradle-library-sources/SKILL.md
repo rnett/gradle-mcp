@@ -32,7 +32,14 @@ Deep-dive into the implementation details of any library or Gradle itself. Searc
 - **List directory contents**: Use `read_dependency_sources` with a directory path (e.g., `org/junit/`) to list the contents of that directory within the combined sources.
 - **Use `search_dependency_sources` for discovery**: Use the `search_dependency_sources` tool to find specific classes, methods, or text within library dependencies or Gradle itself.
 - **Search for symbols**: Use the `search_dependency_sources` tool with the `query` argument to find specific classes, methods, or symbols. By default, this uses regex-based symbol search.
-- **Full-text search**: Use the `search_dependency_sources` tool with `searchType: "FULL_TEXT"` and a `query` to perform a Lucene-based full-text search.
+- **Full-text search**: Use the `search_dependency_sources` tool with `searchType: "FULL_TEXT"` and a `query` to perform a Lucene-based full-text search. This supports standard Lucene query syntax:
+  - **Phrases**: `"exact phrase"` for multi-word matches.
+  - **Wildcards**: `*` (zero or more characters), `?` (exactly one character).
+  - **Boolean Operators**: `AND`, `OR`, `NOT`, `+`, `-`.
+  - **Grouping**: `( )` for complex expressions.
+  - **Fuzzy Search**: `~` for similar spellings (e.g., `test~`).
+  - **Proximity Search**: `"word1 word2"~10` to find words within a specific distance.
+  - **Field Search**: Search within specific fields: `path` (file path, e.g., `path:**/Job.kt`) or `contents` (file content, default field).
 - **Caching & Performance**: Sources and indices are cached per scope (project, configuration, or source set) for reuse across tool calls. Subsequent searches in the same scope will be much faster.
 - **Force download**: Set `forceDownload: true` if you suspect the cached sources are outdated or incomplete, or if you need to re-index the sources.
 - **Progressive Disclosure**: For details on how indexing and search work, refer to the [Source Indexing](references/source-indexing.md) guide.
@@ -53,10 +60,12 @@ Deep-dive into the implementation details of any library or Gradle itself. Searc
 2. Review the search results, which include file paths, line numbers, and code snippets.
 3. Identify the `path` of the most relevant source file. All paths returned are relative to the combined source root.
 
-### Full-Text Search
+### Full-Text Search (Lucene)
 
-1. Use `search_dependency_sources(query="some text", searchType="FULL_TEXT", configurationPath=":app:debugCompileClasspath")`.
-2. Review the search results, which include file paths, line numbers, and code snippets.
+1. Use `search_dependency_sources(query="some text", searchType="FULL_TEXT", configurationPath=":app:debugCompileClasspath")` for standard string searches.
+2. For more advanced searches, use standard Lucene syntax (e.g., `query="\"exact phrase\" AND test*", searchType="FULL_TEXT"`).
+3. Review the search results, which include file paths, line numbers, and code snippets.
+4. Use `path:**/FileName.kt` to filter search results to specific files (e.g., `query="println AND path:**/MyClass.kt", searchType="FULL_TEXT"`).
 
 ### Reading a Source File
 
@@ -95,6 +104,45 @@ Deep-dive into the implementation details of any library or Gradle itself. Searc
   "query": "thread-safe",
   "searchType": "FULL_TEXT",
   "configurationPath": ":app:debugCompileClasspath"
+}
+```
+
+### Full-text search with Lucene syntax
+
+```json
+{
+  "query": "\"exact phrase\" AND test*",
+  "searchType": "FULL_TEXT",
+  "projectPath": ":"
+}
+```
+
+### Full-text search with path filtering
+
+```json
+{
+  "query": "println AND path:**/Job.kt",
+  "searchType": "FULL_TEXT",
+  "gradleSource": true
+}
+```
+
+### Fuzzy search for a term
+
+```json
+{
+  "query": "test~",
+  "searchType": "FULL_TEXT",
+  "configurationPath": ":app:testCompileClasspath"
+}
+```
+
+### Proximity search for terms
+
+```json
+{
+  "query": "\"hello world\"~10",
+  "searchType": "FULL_TEXT"
 }
 ```
 

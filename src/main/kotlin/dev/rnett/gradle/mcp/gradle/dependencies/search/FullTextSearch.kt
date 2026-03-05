@@ -6,12 +6,13 @@ import kotlinx.coroutines.withContext
 import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.analysis.LowerCaseFilter
 import org.apache.lucene.analysis.TokenStream
+import org.apache.lucene.analysis.core.KeywordTokenizer
+import org.apache.lucene.analysis.miscellaneous.PerFieldAnalyzerWrapper
 import org.apache.lucene.analysis.miscellaneous.WordDelimiterGraphFilter
 import org.apache.lucene.analysis.standard.StandardTokenizer
 import org.apache.lucene.document.Document
 import org.apache.lucene.document.Field
 import org.apache.lucene.document.FieldType
-import org.apache.lucene.document.KeywordField
 import org.apache.lucene.index.DirectoryReader
 import org.apache.lucene.index.IndexOptions
 import org.apache.lucene.index.IndexWriter
@@ -36,6 +37,7 @@ import kotlin.time.measureTimedValue
 object FullTextSearch : SearchProvider {
     private val LOGGER = LoggerFactory.getLogger(FullTextSearch::class.java)
     override val name: String = "full-text"
+    override val indexVersion: Int = 3
 
     private const val CONTENTS = "contents"
     private const val PATH = "path"
@@ -54,7 +56,7 @@ object FullTextSearch : SearchProvider {
         readerCache.invalidate(path)
     }
 
-    internal const val v2IndexDirName = "lucene-full-text-index-v2"
+    internal const val v3IndexDirName = "lucene-full-text-index-v3"
 
     private val contentFieldType = FieldType().apply {
         setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS)
@@ -63,8 +65,16 @@ object FullTextSearch : SearchProvider {
         freeze()
     }
 
+    private val pathFieldType = FieldType().apply {
+        setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS)
+        setTokenized(true)
+        setStored(true)
+        setOmitNorms(true)
+        freeze()
+    }
+
     private fun createAnalyzer(): Analyzer {
-        return object : Analyzer() {
+        val standard = object : Analyzer() {
             override fun createComponents(fieldName: String): TokenStreamComponents {
                 val source = StandardTokenizer()
                 var filter: TokenStream = WordDelimiterGraphFilter(
@@ -81,11 +91,21 @@ object FullTextSearch : SearchProvider {
                 return TokenStreamComponents(source, filter)
             }
         }
+
+        val keywordLowercaseAnalyzer = object : Analyzer() {
+            override fun createComponents(fieldName: String): TokenStreamComponents {
+                val source = KeywordTokenizer()
+                val filter = LowerCaseFilter(source)
+                return TokenStreamComponents(source, filter)
+            }
+        }
+
+        return PerFieldAnalyzerWrapper(standard, mapOf(PATH to keywordLowercaseAnalyzer))
     }
 
     override suspend fun search(indexDir: Path, query: String): List<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (results, duration) = measureTimedValue {
-            val idxDir = indexDir.resolve(v2IndexDirName)
+            val idxDir = indexDir.resolve(v3IndexDirName)
             if (!idxDir.exists()) {
                 throw IllegalStateException("Lucene index directory does not exist: $idxDir")
             }
@@ -101,7 +121,9 @@ object FullTextSearch : SearchProvider {
             }
             val indexSearcher = IndexSearcher(reader)
             createAnalyzer().use { analyzer ->
-                val q = StandardQueryParser(analyzer).parse(query, CONTENTS)
+                val parser = StandardQueryParser(analyzer)
+                parser.allowLeadingWildcard = true
+                val q = parser.parse(query, CONTENTS)
 
                 //TODO handle this somehow
                 val results = indexSearcher.search(q, 1000)
@@ -114,16 +136,21 @@ object FullTextSearch : SearchProvider {
                     val leafContext = leaves[ReaderUtil.subIndex(r.doc, leaves)]
                     val localDocId = r.doc - leafContext.docBase
                     val matches = weight.matches(leafContext, localDocId) ?: return@flatMap emptyList()
-                    val matchesIterator = matches.getMatches(CONTENTS) ?: return@flatMap emptyList()
 
                     val doc = stored.document(r.doc)
                     val path = doc.get(PATH)
 
-                    val results = mutableListOf<RelativeSearchResult>()
-                    while (matchesIterator.next()) {
-                        results.add(RelativeSearchResult(path, offset = matchesIterator.startOffset(), score = r.score))
+                    val contentsMatches = matches.getMatches(CONTENTS)
+
+                    if (contentsMatches != null) {
+                        val results = mutableListOf<RelativeSearchResult>()
+                        while (contentsMatches.next()) {
+                            results.add(RelativeSearchResult(path, offset = contentsMatches.startOffset(), score = r.score))
+                        }
+                        results
+                    } else {
+                        listOf(RelativeSearchResult(path, offset = 0, line = null, score = r.score, skipBoilerplate = true))
                     }
-                    results
                 }
             }
         }
@@ -134,7 +161,7 @@ object FullTextSearch : SearchProvider {
     override suspend fun index(dependencyDir: Path, outputDir: Path) = withContext(Dispatchers.IO) {
         LOGGER.info("Starting full-text indexing for $dependencyDir")
         val (fileCount, duration) = measureTimedValue {
-            val indexDir = outputDir.resolve(v2IndexDirName)
+            val indexDir = outputDir.resolve(v3IndexDirName)
             indexDir.createDirectories()
 
             val dir = FSDirectory.open(indexDir)
@@ -149,7 +176,11 @@ object FullTextSearch : SearchProvider {
                         .filter { it.isRegularFile() && it.extension in SearchProvider.SOURCE_EXTENSIONS }
                         .forEach {
                             val doc = Document()
-                            doc.add(KeywordField(PATH, it.relativeTo(dependencyDir).toString().replace('\\', '/'), Field.Store.YES))
+                            // KeywordField is indexed as a single token, but NOT lowercased unless we do it here.
+                            // However, we want to store the original case for file retrieval.
+                            // Our PerFieldAnalyzerWrapper with keywordLowercaseAnalyzer will handle case-insensitivity during search.
+                            val path = it.relativeTo(dependencyDir).toString().replace('\\', '/')
+                            doc.add(Field(PATH, path, pathFieldType))
                             doc.add(Field(CONTENTS, it.readText(), contentFieldType))
 
                             writer.addDocument(
@@ -174,7 +205,7 @@ object FullTextSearch : SearchProvider {
      */
     override suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path) = withContext(Dispatchers.IO) {
         val duration = measureTime {
-            val indexDir = outputDir.resolve(v2IndexDirName)
+            val indexDir = outputDir.resolve(v3IndexDirName)
             indexDir.createDirectories()
 
             val dir = FSDirectory.open(indexDir)
@@ -184,7 +215,7 @@ object FullTextSearch : SearchProvider {
 
                 IndexWriter(dir, iwc).use { writer ->
                     indexDirs.forEach { (idxParentDir, relativePrefix) ->
-                        val srcIndexDir = idxParentDir.resolve(v2IndexDirName)
+                        val srcIndexDir = idxParentDir.resolve(v3IndexDirName)
                         DirectoryReader.open(FSDirectory.open(srcIndexDir)).use { reader ->
                             val storedFields = reader.storedFields()
                             for (i in 0 until reader.maxDoc()) {
@@ -194,7 +225,7 @@ object FullTextSearch : SearchProvider {
                                 val content = oldDoc.get(CONTENTS)
 
                                 val newDoc = Document()
-                                newDoc.add(KeywordField(PATH, newPath, Field.Store.YES))
+                                newDoc.add(Field(PATH, newPath, pathFieldType))
                                 newDoc.add(Field(CONTENTS, content, contentFieldType))
                                 writer.addDocument(newDoc)
                             }

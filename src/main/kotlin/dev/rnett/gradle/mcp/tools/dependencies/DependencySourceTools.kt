@@ -33,7 +33,7 @@ class DependencySourceTools(
         @Description("Perform high-resolution symbol search (classes, methods, etc.) using authoritative regex patterns.")
         SYMBOLS,
 
-        @Description("Perform exhaustive full-text search within files using high-performance Lucene indexing.")
+        @Description("Perform exhaustive full-text search within files using high-performance Lucene indexing. This supports standard Lucene query syntax (wildcards, phrases, boolean operators, etc.).")
         FULL_TEXT,
 
         @Description("Search for files by name or path pattern using standard glob syntax (e.g., '**/AndroidManifest.xml').")
@@ -128,7 +128,7 @@ class DependencySourceTools(
         val sourceSetPath: String? = null,
         @Description("If true, searches Gradle Build Tool's own authoritative source code instead of project dependencies. This has the HIGHEST precedence.")
         val gradleSource: Boolean = false,
-        @Description("The search query. For SYMBOLS search (default), use regex for classes or methods. For FULL_TEXT, use Lucene queries. For GLOB, use Java glob syntax (e.g., '**/MyClass.kt'). If the query is not a valid glob, it will fall back to a case-insensitive substring match on file paths.")
+        @Description("The search query. For SYMBOLS search (default), use regex for classes or methods. For FULL_TEXT, use Lucene queries (e.g., '\"exact phrase\"', 'a AND b', 'path:**/MyClass.kt'). For GLOB, use Java glob syntax (e.g., '**/MyClass.kt'). If the query is not a valid glob, it will fall back to a case-insensitive substring match on file paths.")
         val query: String,
         @Description("The type of search to perform. SYMBOLS (default) is ideal for class/method lookup; FULL_TEXT is best for finding specific strings; GLOB is for finding files by path using standard glob patterns (*, **, ?, etc.).")
         val searchType: SearchType = SearchType.SYMBOLS,
@@ -146,7 +146,15 @@ class DependencySourceTools(
             |
             |### High-Performance Features
             |- **Precision Symbol Lookup**: Use authoritative regex patterns to find classes, methods, or interfaces across your entire dependency graph.
-            |- **Exhaustive Full-Text Indexing**: Perform surgical text searches using high-performance Lucene indexing. Ideal for finding constants, strings, or specific implementation patterns.
+            |- **Exhaustive Full-Text Indexing**: Perform surgical text searches using high-performance Lucene indexing. It supports standard Lucene query syntax:
+            |  - **Phrases**: `"exact phrase"` matches multiple words in sequence.
+            |  - **Wildcards**: `*` (zero or more characters), `?` (exactly one character).
+            |  - **Boolean Operators**: `AND`, `OR`, `NOT`, `+`, `-`.
+            |  - **Grouping**: `( )` for complex logical expressions.
+            |  - **Fuzzy Search**: `~` for similar spellings (e.g., `test~`).
+            |  - **Proximity Search**: `"word1 word2"~10` to find words within a specific distance.
+            |  - **Field Search**: Search within specific fields: `path` (file path, e.g., `path:**/Job.kt`) or `contents` (file content, default field).
+            |  Ideal for finding constants, strings, or specific implementation patterns across your entire dependency graph.
             |- **Managed Search Scopes**: Narrow your search to specific projects, configurations, or source sets to maintain token efficiency and reduce noise.
             |- **Flexible File Search (GLOB)**: Locate specific files by name or path pattern using standard Java glob syntax.
             |  - `*`: Matches zero or more characters within a directory level.

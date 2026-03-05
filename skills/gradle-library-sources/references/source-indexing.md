@@ -32,7 +32,22 @@ This search type uses Apache Lucene to perform a full-text search across all fil
 - Searching for terms in comments or documentation.
 - Finding code patterns that are not simple symbol declarations.
 
-The `query` argument for full-text search supports Lucene query syntax.
+The `query` argument for full-text search supports standard Lucene query syntax:
+
+- **Phrases**: Use double quotes for exact phrases (e.g., `"exact phrase"`).
+- **Wildcards**: Use `*` for multiple characters and `?` for a single character.
+- **Boolean Operators**: Use `AND`, `OR`, `NOT`, `+`, or `-` to combine search terms.
+- **Grouping**: Use parentheses `( )` for complex logical expressions.
+- **Fuzzy Search**: Use `~` for similar spellings (e.g., `test~`).
+- **Proximity Search**: Use `"word1 word2"~10` to find terms within a specific distance.
+- **Field Search**: Search within specific fields: `path` (file path, e.g., `path:**/Job.kt`) or `contents` (file content, default field). Note that when using wildcards on the `path` field, terms must be lowercased (e.g., `path:*job.kt`).
+
+#### Examples
+
+- `"thread pool" AND execute*`: Finds files containing the exact phrase "thread pool" and any word starting with "execute".
+- `(public OR private) AND "void main"`: Finds files containing either "public" or "private" along with the exact phrase "void main".
+- `path:*test* AND assert~`: Finds files whose path contains "test" (case-insensitive) and whose content includes a word similar to "assert".
+- `"IllegalStateException"~5`: Finds occurrences where the word "IllegalStateException" appears within 5 words of another specific term (if another term was provided in the phrase, e.g., `"throw IllegalStateException"~5`).
 
 ## Reading Source Files
 

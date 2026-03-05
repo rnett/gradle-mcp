@@ -17,6 +17,7 @@ import kotlin.time.measureTimedValue
 object GlobSearch : SearchProvider {
     private val LOGGER = LoggerFactory.getLogger(GlobSearch::class.java)
     override val name: String = "glob"
+    override val indexVersion: Int = 1
 
     private const val v1FileName = "filenames-v1.txt"
 

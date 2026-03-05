@@ -41,6 +41,9 @@ bin/
 ### VS Code ###
 .vscode/
 
+### Local Settings ###
+.claude/settings.local.json
+
 ### Mac OS ###
 .DS_Store
 /gradle-mcp.log

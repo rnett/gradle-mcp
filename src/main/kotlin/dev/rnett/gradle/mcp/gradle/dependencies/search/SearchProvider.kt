@@ -6,6 +6,7 @@ import kotlin.io.path.readText
 
 interface SearchProvider {
     val name: String
+    val indexVersion: Int
 
     suspend fun search(indexDir: Path, query: String): List<RelativeSearchResult>
     suspend fun index(dependencyDir: Path, outputDir: Path)

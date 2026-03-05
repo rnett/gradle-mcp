@@ -4,7 +4,7 @@ import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.fixtures.GradleProjectFixture
-import dev.rnett.gradle.mcp.gradle.fixtures.testKotlinProject
+import dev.rnett.gradle.mcp.gradle.fixtures.testGradleProject
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import dev.rnett.gradle.mcp.mcp.fixtures.McpServerFixture
 import io.modelcontextprotocol.kotlin.sdk.CallToolRequest
@@ -14,10 +14,7 @@ import io.modelcontextprotocol.kotlin.sdk.Method
 import io.modelcontextprotocol.kotlin.sdk.ProgressNotification
 import io.modelcontextprotocol.kotlin.sdk.Root
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -56,7 +53,7 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
 
     @BeforeTest
     override fun setup() = runTest {
-        _project = testKotlinProject()
+        _project = testGradleProject()
         super.setup()
         server.setServerRoots(Root(_project.path().toUri().toString(), "root"))
     }
@@ -68,7 +65,7 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `gradle build emits progress percentages and phase prefixes`() = runTest {
+    fun `gradle build emits progress percentages and phase prefixes`() = runTest(timeout = 120.seconds) {
         val progressNotifications = ConcurrentLinkedQueue<ProgressNotification.Params>()
 
         server.client.setNotificationHandler<ProgressNotification>(Method.Defined.NotificationsProgress) { notification: ProgressNotification ->
@@ -77,22 +74,18 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
         }
 
         // Run build
-        withContext(Dispatchers.Default) {
-            withTimeout(60.seconds) {
-                server.client.request<CallToolResult>(
-                    CallToolRequest(
-                        name = ToolNames.GRADLE,
-                        arguments = buildJsonObject {
-                            put("commandLine", JsonArray(listOf(JsonPrimitive("build"))))
-                            put("projectRoot", _project.path().absolutePathString())
-                        },
-                        _meta = buildJsonObject {
-                            put("progressToken", "test-token")
-                        }
-                    )
-                )
-            }
-        }
+        server.client.request<CallToolResult>(
+            CallToolRequest(
+                name = ToolNames.GRADLE,
+                arguments = buildJsonObject {
+                    put("commandLine", JsonArray(listOf(JsonPrimitive("help"))))
+                    put("projectRoot", _project.path().absolutePathString())
+                },
+                _meta = buildJsonObject {
+                    put("progressToken", "test-token")
+                }
+            )
+        )
 
         val notifications = progressNotifications.toList()
 

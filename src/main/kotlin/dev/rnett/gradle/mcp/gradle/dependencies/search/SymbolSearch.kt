@@ -25,6 +25,7 @@ import kotlin.time.measureTimedValue
 object SymbolSearch : SearchProvider {
     private val LOGGER = LoggerFactory.getLogger(SymbolSearch::class.java)
     override val name: String = "symbols"
+    override val indexVersion: Int = 1
 
     // needs to support Java, Kotlin, and Groovy
     // some false positives are ok for the regexes - they need to be simple and fast

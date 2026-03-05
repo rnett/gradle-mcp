@@ -39,7 +39,7 @@ class FullTextSearchTest {
             mergedIndexDir
         )
 
-        val finalIndexDir = mergedIndexDir.resolve(FullTextSearch.v2IndexDirName)
+        val finalIndexDir = mergedIndexDir.resolve(FullTextSearch.v3IndexDirName)
         FSDirectory.open(finalIndexDir).use { dir ->
             DirectoryReader.open(dir).use { reader ->
                 assertEquals(3, reader.numDocs())
@@ -182,7 +182,7 @@ class FullTextSearchTest {
         assertEquals(1, FullTextSearch.search(indexDir, "content").size)
 
         // To verify both are indexed, we can check the index reader directly
-        val finalIndexDir = indexDir.resolve(FullTextSearch.v2IndexDirName)
+        val finalIndexDir = indexDir.resolve(FullTextSearch.v3IndexDirName)
         FSDirectory.open(finalIndexDir).use { dir ->
             DirectoryReader.open(dir).use { reader ->
                 assertEquals(2, reader.numDocs(), "Should have 2 documents in index")

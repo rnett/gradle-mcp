@@ -16,9 +16,6 @@ Use the Gradle MCP to interact with Gradle whenever possible.
 * When testing your changes, run related tests and make sure they pass before moving on to `check`.
 * If you changed the tool descriptions or metadata, you will need to run `:updateToolsList` before `check` will pass.
 
-**IMPORTANT:** If you are Gemini, you get stuck when you try to use your built-in file creation and editing tools.
-Use a shell command, MCP tool, or something like that.
-
 ## Changes and specs
 
 When instructed to create a proposal, look at [the roadmap](./roadmap.md) first, it's usually coming from there.
