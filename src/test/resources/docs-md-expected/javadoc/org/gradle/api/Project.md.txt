@@ -1,0 +1,2549 @@
+Package [org.gradle.api](package-summary.html)
+
+# Interface Project
+
+All Superinterfaces:
+:
+    [Comparable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Comparable.html "class or interface in java.lang")`<`[Project](Project.html "interface in org.gradle.api")`>`, [ExtensionAware](plugins/ExtensionAware.html "interface in org.gradle.api.plugins"), [PluginAware](plugins/PluginAware.html "interface in org.gradle.api.plugins")
+
+*** ** * ** ***
+
+public interface Project extends [Comparable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Comparable.html "class or interface in java.lang")\<[Project](Project.html "interface in org.gradle.api")\>, [ExtensionAware](plugins/ExtensionAware.html "interface in org.gradle.api.plugins"), [PluginAware](plugins/PluginAware.html "interface in org.gradle.api.plugins")  
+This interface is the main API you use to interact with Gradle from your build file. From a `Project`, you have programmatic access to all of Gradle's features.
+
+## Lifecycle
+
+There is a one-to-one relationship between a `Project` and a ["build.gradle"](#DEFAULT_BUILD_FILE) file. During build initialisation, Gradle assembles a `Project` object for each project which is to participate in the build, as follows:
+
+* Create a [`Settings`](initialization/Settings.html "interface in org.gradle.api.initialization") instance for the build.
+* Evaluate the ["settings.gradle"](initialization/Settings.html#DEFAULT_SETTINGS_FILE) script, if present, against the [`Settings`](initialization/Settings.html "interface in org.gradle.api.initialization") object to configure it.
+* Use the configured [`Settings`](initialization/Settings.html "interface in org.gradle.api.initialization") object to create the hierarchy of `Project` instances.
+* Finally, evaluate each `Project` by executing its ["build.gradle"](#DEFAULT_BUILD_FILE) file, if present, against the project. The projects are evaluated in breadth-wise order, such that a project is evaluated before its child projects. This order can be overridden by calling [`evaluationDependsOnChildren()`](#evaluationDependsOnChildren()) or by adding an explicit evaluation dependency using [`evaluationDependsOn(String)`](#evaluationDependsOn(java.lang.String)).
+
+## Tasks
+
+A project is essentially a collection of [`Task`](Task.html "interface in org.gradle.api") objects. Each task performs some basic piece of work, such as compiling classes, or running unit tests, or zipping up a WAR file. You add tasks to a project using one of the `create()` methods on [`TaskContainer`](tasks/TaskContainer.html "interface in org.gradle.api.tasks"), such as [`TaskContainer.create(String)`](tasks/TaskContainer.html#create(java.lang.String)). You can locate existing tasks using one of the lookup methods on [`TaskContainer`](tasks/TaskContainer.html "interface in org.gradle.api.tasks"), such as [`TaskCollection.getByName(String)`](tasks/TaskCollection.html#getByName(java.lang.String)).
+
+## Dependencies
+
+A project generally has a number of dependencies it needs in order to do its work. Also, a project generally produces a number of artifacts, which other projects can use. Those dependencies are grouped in configurations, and can be retrieved and uploaded from repositories. You use the [`ConfigurationContainer`](artifacts/ConfigurationContainer.html "interface in org.gradle.api.artifacts") returned by [`getConfigurations()`](#getConfigurations()) method to manage the configurations. The [`DependencyHandler`](artifacts/dsl/DependencyHandler.html "interface in org.gradle.api.artifacts.dsl") returned by [`getDependencies()`](#getDependencies()) method to manage the dependencies. The [`ArtifactHandler`](artifacts/dsl/ArtifactHandler.html "interface in org.gradle.api.artifacts.dsl") returned by [`getArtifacts()`](#getArtifacts()) method to manage the artifacts. The [`RepositoryHandler`](artifacts/dsl/RepositoryHandler.html "interface in org.gradle.api.artifacts.dsl") returned by [`getRepositories()`](#getRepositories()) method to manage the repositories.
+
+## Multi-project Builds
+
+Projects are arranged into a hierarchy of projects. A project has a name, and a fully qualified path which uniquely identifies it in the hierarchy.
+
+## Plugins
+
+Plugins can be used to modularise and reuse project configuration. Plugins can be applied using the [`PluginAware.apply(java.util.Map)`](plugins/PluginAware.html#apply(java.util.Map)) method, or by using the [`PluginDependenciesSpec`](../plugin/use/PluginDependenciesSpec.html "interface in org.gradle.plugin.use") plugins script block.
+
+## Dynamic Project Properties
+
+Gradle executes the project's build file against the `Project` instance to configure the project. Any property or method which your script uses is delegated through to the associated `Project` object. This means, that you can use any of the methods and properties on the `Project` interface directly in your script.
+
+For example:
+
+```
+ defaultTasks('some-task')  // Delegates to Project.defaultTasks()
+ reportsDir = file('reports') // Delegates to Project.file() and the Java Plugin
+ 
+```
+
+You can also access the `Project` instance using the `project` property. This can make the script clearer in some cases. For example, you could use `project.name` rather than `name` to access the project's name.
+
+A project has 5 property 'scopes', which it searches for properties. You can access these properties by name in your build file, or by calling the project's [`property(String)`](#property(java.lang.String)) method. The scopes are:
+
+* The `Project` object itself. This scope includes any property getters and setters declared by the `Project` implementation class. For example, [`getRootProject()`](#getRootProject()) is accessible as the `rootProject` property. The properties of this scope are readable or writable depending on the presence of the corresponding getter or setter method.
+* The *extra* properties of the project. Each project maintains a map of extra properties, which can contain any arbitrary name -\> value pair. Once defined, the properties of this scope are readable and writable. See [extra properties](#extraproperties) for more details.
+* The *extensions* added to the project by the plugins. Each extension is available as a read-only property with the same name as the extension.
+* The tasks of the project. A task is accessible by using its name as a property name. The properties of this scope are read-only. For example, a task called `compile` is accessible as the `compile` property.
+* The extra properties and convention properties are inherited from the project's parent, recursively up to the root project. The properties of this scope are read-only.
+
+When reading a property, the project searches the above scopes in order, and returns the value from the first scope it finds the property in. If not found, an exception is thrown. See [`property(String)`](#property(java.lang.String)) for more details.
+
+When writing a property, the project searches the above scopes in order, and sets the property in the first scope it finds the property in. If not found, an exception is thrown. See [`setProperty(String, Object)`](#setProperty(java.lang.String,java.lang.Object)) for more details.
+
+### Extra Properties
+
+All extra properties must be defined through the "ext" namespace. Once an extra property has been defined, it is available directly on the owning object (in the below case the Project, Task, and sub-projects respectively) and can be read and updated. Only the initial declaration that needs to be done via the namespace.
+
+```
+ project.ext.prop1 = "foo"
+ task doStuff {
+     ext.prop2 = "bar"
+ }
+ subprojects { ext.${prop3} = false }
+ 
+```
+
+Reading extra properties is done through the "ext" or through the owning object.
+
+```
+ ext.isSnapshot = version.endsWith("-SNAPSHOT")
+ if (isSnapshot) {
+     // do snapshot stuff
+ }
+ 
+```
+
+### Dynamic Methods
+
+A project has 5 method 'scopes', which it searches for methods:
+
+* The `Project` object itself.
+* The build file. The project searches for a matching method declared in the build file.
+* The *extensions* added to the project by the plugins. Each extension is available as a method which takes a closure or [`Action`](Action.html "interface in org.gradle.api") as a parameter.
+* The tasks of the project. A method is added for each task, using the name of the task as the method name and taking a single closure or [`Action`](Action.html "interface in org.gradle.api") parameter. The method calls the [`Task.configure(groovy.lang.Closure)`](Task.html#configure(groovy.lang.Closure)) method for the associated task with the provided closure. For example, if the project has a task called `compile`, then a method is added with the following signature: `void compile(Closure configureClosure)`.
+* The methods of the parent project, recursively up to the root project.
+* A property of the project whose value is a closure. The closure is treated as a method and called with the provided parameters. The property is located as described above.
+*
+
+  ## Field Summary
+
+  Fields  
+  Modifier and Type  
+  Field  
+  Description  
+  `static final `[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")  
+  [DEFAULT_BUILD_DIR_NAME](#DEFAULT_BUILD_DIR_NAME)  
+  The default build directory name.  
+  `static final `[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")  
+  [DEFAULT_BUILD_FILE](#DEFAULT_BUILD_FILE)  
+  The default project build file name.  
+  `static final `[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")  
+  [DEFAULT_STATUS](#DEFAULT_STATUS)  
+  `static final `[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")  
+  [DEFAULT_VERSION](#DEFAULT_VERSION)  
+  `static final `[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")  
+  [GRADLE_PROPERTIES](#GRADLE_PROPERTIES)  
+  `static final `[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")  
+  [PATH_SEPARATOR](#PATH_SEPARATOR)  
+  The hierarchy separator for project and task path names.  
+  `static final `[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")  
+  [SYSTEM_PROP_PREFIX](#SYSTEM_PROP_PREFIX)  
+*
+
+  ## Method Summary
+
+  All Methods Instance Methods Abstract Methods Deprecated Methods  
+  Modifier and Type  
+  Method  
+  Description  
+  [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")  
+  [absoluteProjectPath](#absoluteProjectPath(java.lang.String))` (`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")` path)`  
+  Converts a name to an absolute project path, resolving names relative to this project.  
+  `void`  
+  [afterEvaluate](#afterEvaluate(groovy.lang.Closure))` (`[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` closure)`  
+  Adds a closure to call immediately after this project is evaluated.  
+  `void`  
+  [afterEvaluate](#afterEvaluate(org.gradle.api.Action))` (`[Action](Action.html "interface in org.gradle.api")`<? super `[Project](Project.html "interface in org.gradle.api")`> action)`  
+  Adds an action to call immediately after this project is evaluated.  
+  `void`  
+  [allprojects](#allprojects(groovy.lang.Closure))` (`[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` configureClosure)`  
+  Configures this project and each of its sub-projects.  
+  `void`  
+  [allprojects](#allprojects(org.gradle.api.Action))` (`[Action](Action.html "interface in org.gradle.api")`<? super `[Project](Project.html "interface in org.gradle.api")`> action)`  
+  Configures this project and each of its sub-projects.  
+  [AntBuilder](AntBuilder.html "class in org.gradle.api")  
+  [ant](#ant(groovy.lang.Closure))` (`[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` configureClosure)`  
+  Executes the given closure against the `AntBuilder` for this project.  
+  [AntBuilder](AntBuilder.html "class in org.gradle.api")  
+  [ant](#ant(org.gradle.api.Action))` (`[Action](Action.html "interface in org.gradle.api")`<? super `[AntBuilder](AntBuilder.html "class in org.gradle.api")`> configureAction)`  
+  Executes the given action against the `AntBuilder` for this project.  
+  `void`  
+  [artifacts](#artifacts(groovy.lang.Closure))` (`[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` configureClosure)`  
+  Configures the published artifacts for this project.  
+  `void`  
+  [artifacts](#artifacts(org.gradle.api.Action))` (`[Action](Action.html "interface in org.gradle.api")`<? super `[ArtifactHandler](artifacts/dsl/ArtifactHandler.html "interface in org.gradle.api.artifacts.dsl")`> configureAction)`  
+  Configures the published artifacts for this project.  
+  `void`  
+  [beforeEvaluate](#beforeEvaluate(groovy.lang.Closure))` (`[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` closure)`  
+  Adds a closure to call immediately before this project is evaluated.  
+  `void`  
+  [beforeEvaluate](#beforeEvaluate(org.gradle.api.Action))` (`[Action](Action.html "interface in org.gradle.api")`<? super `[Project](Project.html "interface in org.gradle.api")`> action)`  
+  Adds an action to call immediately before this project is evaluated.  
+  `void`  
+  [buildscript](#buildscript(groovy.lang.Closure))` (`[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` configureClosure)`  
+  Configures the build script classpath for this project.  
+  `void`  
+  [components](#components(org.gradle.api.Action))` (`[Action](Action.html "interface in org.gradle.api")`<? super `[SoftwareComponentContainer](component/SoftwareComponentContainer.html "interface in org.gradle.api.component")`> configuration)`  
+  Configures software components.  
+  `void`  
+  [configurations](#configurations(groovy.lang.Closure))` (`[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` configureClosure)`  
+  Configures the dependency configurations for this project.  
+  [Iterable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Iterable.html "class or interface in java.lang")` <?>`  
+  [configure](#configure(java.lang.Iterable,groovy.lang.Closure))` (`[Iterable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Iterable.html "class or interface in java.lang")`<?> objects, `[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` configureClosure)`  
+  Configures a collection of objects via a closure.  
+  `<T> `[Iterable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Iterable.html "class or interface in java.lang")` <T>`  
+  [configure](#configure(java.lang.Iterable,org.gradle.api.Action))` (`[Iterable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Iterable.html "class or interface in java.lang")`<T> objects, `[Action](Action.html "interface in org.gradle.api")`<? super T> configureAction)`  
+  Configures a collection of objects via an action.  
+  [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")  
+  [configure](#configure(java.lang.Object,groovy.lang.Closure))` (`[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")` object, `[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` configureClosure)`  
+  Configures an object via a closure, with the closure's delegate set to the supplied object.  
+  `<T> `[NamedDomainObjectContainer](NamedDomainObjectContainer.html "interface in org.gradle.api")` <T>`  
+  [container](#container(java.lang.Class))` (`[Class](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Class.html "class or interface in java.lang")`<T> type)`  
+  Deprecated.  
+  Use [`ObjectFactory.domainObjectContainer(Class)`](model/ObjectFactory.html#domainObjectContainer(java.lang.Class)) instead.  
+  `<T> `[NamedDomainObjectContainer](NamedDomainObjectContainer.html "interface in org.gradle.api")` <T>`  
+  [container](#container(java.lang.Class,groovy.lang.Closure))` (`[Class](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Class.html "class or interface in java.lang")`<T> type, `[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` factoryClosure)`  
+  Deprecated.  
+  Use [`ObjectFactory.domainObjectContainer(Class, NamedDomainObjectFactory)`](model/ObjectFactory.html#domainObjectContainer(java.lang.Class,org.gradle.api.NamedDomainObjectFactory)) instead.  
+  `<T> `[NamedDomainObjectContainer](NamedDomainObjectContainer.html "interface in org.gradle.api")` <T>`  
+  [container](#container(java.lang.Class,org.gradle.api.NamedDomainObjectFactory))` (`[Class](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Class.html "class or interface in java.lang")`<T> type, `[NamedDomainObjectFactory](NamedDomainObjectFactory.html "interface in org.gradle.api")`<T> factory)`  
+  Deprecated.  
+  Use [`ObjectFactory.domainObjectContainer(Class, NamedDomainObjectFactory)`](model/ObjectFactory.html#domainObjectContainer(java.lang.Class,org.gradle.api.NamedDomainObjectFactory)) instead.  
+  [WorkResult](tasks/WorkResult.html "interface in org.gradle.api.tasks")  
+  [copy](#copy(groovy.lang.Closure))` (`[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` closure)`  
+  Copies the specified files.  
+  [WorkResult](tasks/WorkResult.html "interface in org.gradle.api.tasks")  
+  [copy](#copy(org.gradle.api.Action))` (`[Action](Action.html "interface in org.gradle.api")`<? super `[CopySpec](file/CopySpec.html "interface in org.gradle.api.file")`> action)`  
+  Copies the specified files.  
+  [CopySpec](file/CopySpec.html "interface in org.gradle.api.file")  
+  [copySpec](#copySpec())`()`  
+  Creates a [`CopySpec`](file/CopySpec.html "interface in org.gradle.api.file") which can later be used to copy files or create an archive.  
+  [CopySpec](file/CopySpec.html "interface in org.gradle.api.file")  
+  [copySpec](#copySpec(groovy.lang.Closure))` (`[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` closure)`  
+  Creates a [`CopySpec`](file/CopySpec.html "interface in org.gradle.api.file") which can later be used to copy files or create an archive.  
+  [CopySpec](file/CopySpec.html "interface in org.gradle.api.file")  
+  [copySpec](#copySpec(org.gradle.api.Action))` (`[Action](Action.html "interface in org.gradle.api")`<? super `[CopySpec](file/CopySpec.html "interface in org.gradle.api.file")`> action)`  
+  Creates a [`CopySpec`](file/CopySpec.html "interface in org.gradle.api.file") which can later be used to copy files or create an archive.  
+  [AntBuilder](AntBuilder.html "class in org.gradle.api")  
+  [createAntBuilder](#createAntBuilder())`()`  
+  Creates an additional `AntBuilder` for this project.  
+  `void`  
+  [defaultTasks](#defaultTasks(java.lang.String...))` (`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")`... defaultTasks)`  
+  Sets the names of the default tasks of this project.  
+  `boolean`  
+  [delete](#delete(java.lang.Object...))` (@Nullable `[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")`... paths)`  
+  Deletes files and directories.  
+  [WorkResult](tasks/WorkResult.html "interface in org.gradle.api.tasks")  
+  [delete](#delete(org.gradle.api.Action))` (`[Action](Action.html "interface in org.gradle.api")`<? super `[DeleteSpec](file/DeleteSpec.html "interface in org.gradle.api.file")`> action)`  
+  Deletes the specified files.  
+  `void`  
+  [dependencies](#dependencies(groovy.lang.Closure))` (`[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` configureClosure)`  
+  Configures the dependencies for this project.  
+  `void`  
+  [dependencyLocking](#dependencyLocking(org.gradle.api.Action))` (`[Action](Action.html "interface in org.gradle.api")`<? super `[DependencyLockingHandler](artifacts/dsl/DependencyLockingHandler.html "interface in org.gradle.api.artifacts.dsl")`> configuration)`  
+  Configures dependency locking  
+  `int`  
+  [depthCompare](#depthCompare(org.gradle.api.Project))` (`[Project](Project.html "interface in org.gradle.api")` otherProject)`  
+  Compares the nesting level of this project with another project of the multi-project hierarchy.  
+  [Project](Project.html "interface in org.gradle.api")  
+  [evaluationDependsOn](#evaluationDependsOn(java.lang.String))` (`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")` path)`  
+  Declares that this project has an evaluation dependency on the project with the given path.  
+  `void`  
+  [evaluationDependsOnChildren](#evaluationDependsOnChildren())`()`  
+  Declares that this project has an evaluation dependency on each of its child projects.  
+  [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io")  
+  [file](#file(java.lang.Object))` (`[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")` path)`  
+  Resolves a file path relative to the project directory of this project.  
+  [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io")  
+  [file](#file(java.lang.Object,org.gradle.api.PathValidation))` (`[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")` path, `[PathValidation](PathValidation.html "enum in org.gradle.api")` validation)`  
+  Resolves a file path relative to the project directory of this project and validates it using the given scheme.  
+  [ConfigurableFileCollection](file/ConfigurableFileCollection.html "interface in org.gradle.api.file")  
+  [files](#files(java.lang.Object...))` (@Nullable `[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")`... paths)`  
+  Returns a [`ConfigurableFileCollection`](file/ConfigurableFileCollection.html "interface in org.gradle.api.file") containing the given files.  
+  [ConfigurableFileCollection](file/ConfigurableFileCollection.html "interface in org.gradle.api.file")  
+  [files](#files(java.lang.Object,groovy.lang.Closure))` (`[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")` paths, `[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` configureClosure)`  
+  Creates a new `ConfigurableFileCollection` using the given paths.  
+  [ConfigurableFileCollection](file/ConfigurableFileCollection.html "interface in org.gradle.api.file")  
+  [files](#files(java.lang.Object,org.gradle.api.Action))` (`[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")` paths, `[Action](Action.html "interface in org.gradle.api")`<? super `[ConfigurableFileCollection](file/ConfigurableFileCollection.html "interface in org.gradle.api.file")`> configureAction)`  
+  Creates a new `ConfigurableFileCollection` using the given paths.  
+  [ConfigurableFileTree](file/ConfigurableFileTree.html "interface in org.gradle.api.file")  
+  [fileTree](#fileTree(java.lang.Object))` (`[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")` baseDir)`  
+  Creates a new `ConfigurableFileTree` using the given base directory.  
+  [ConfigurableFileTree](file/ConfigurableFileTree.html "interface in org.gradle.api.file")  
+  [fileTree](#fileTree(java.lang.Object,groovy.lang.Closure))` (`[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")` baseDir, `[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` configureClosure)`  
+  Creates a new `ConfigurableFileTree` using the given base directory.  
+  [ConfigurableFileTree](file/ConfigurableFileTree.html "interface in org.gradle.api.file")  
+  [fileTree](#fileTree(java.lang.Object,org.gradle.api.Action))` (`[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")` baseDir, `[Action](Action.html "interface in org.gradle.api")`<? super `[ConfigurableFileTree](file/ConfigurableFileTree.html "interface in org.gradle.api.file")`> configureAction)`  
+  Creates a new `ConfigurableFileTree` using the given base directory.  
+  [ConfigurableFileTree](file/ConfigurableFileTree.html "interface in org.gradle.api.file")  
+  [fileTree](#fileTree(java.util.Map))` (`[Map](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Map.html "class or interface in java.util")`<`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")`, ?> args)`  
+  Creates a new `ConfigurableFileTree` using the provided map of arguments.  
+  `@Nullable `[Project](Project.html "interface in org.gradle.api")  
+  [findProject](#findProject(java.lang.String))` (`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")` path)`  
+  Locates a project by path.  
+  `@Nullable `[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")  
+  [findProperty](#findProperty(java.lang.String))` (`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")` propertyName)`  
+  Returns the value of the given property or null if not found.  
+  [Set](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Set.html "class or interface in java.util")` <`[Project](Project.html "interface in org.gradle.api")`>`  
+  [getAllprojects](#getAllprojects())`()`  
+  Returns the set containing this project and its subprojects.  
+  [Map](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Map.html "class or interface in java.util")` <`[Project](Project.html "interface in org.gradle.api")`, `[Set](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Set.html "class or interface in java.util")`<`[Task](Task.html "interface in org.gradle.api")`>>`  
+  [getAllTasks](#getAllTasks(boolean))` (boolean recursive)`  
+  Returns a map of the tasks contained in this project, and optionally its subprojects.  
+  [AntBuilder](AntBuilder.html "class in org.gradle.api")  
+  [getAnt](#getAnt())`()`  
+  Returns the `AntBuilder` for this project.  
+  [ArtifactHandler](artifacts/dsl/ArtifactHandler.html "interface in org.gradle.api.artifacts.dsl")  
+  [getArtifacts](#getArtifacts())`()`  
+  Returns a handler for assigning artifacts produced by the project to configurations.  
+  [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io")  
+  [getBuildDir](#getBuildDir())`()`  
+  Deprecated.  
+  Use `getLayout().getBuildDirectory()` instead  
+  [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io")  
+  [getBuildFile](#getBuildFile())`()`  
+  The build script for this project.  
+  [ScriptHandler](initialization/dsl/ScriptHandler.html "interface in org.gradle.api.initialization.dsl")  
+  [getBuildscript](#getBuildscript())`()`  
+  Returns the build script handler for this project.  
+  [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")  
+  [getBuildTreePath](#getBuildTreePath())`()`  
+  Returns a path to the project for the full build tree.  
+  [Map](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Map.html "class or interface in java.util")` <`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")`, `[Project](Project.html "interface in org.gradle.api")`>`  
+  [getChildProjects](#getChildProjects())`()`  
+  Returns the direct children of this project.  
+  [SoftwareComponentContainer](component/SoftwareComponentContainer.html "interface in org.gradle.api.component")  
+  [getComponents](#getComponents())`()`  
+  Returns the software components produced by this project.  
+  [ConfigurationContainer](artifacts/ConfigurationContainer.html "interface in org.gradle.api.artifacts")  
+  [getConfigurations](#getConfigurations())`()`  
+  Returns the configurations of this project.  
+  [List](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/List.html "class or interface in java.util")` <`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")`>`  
+  [getDefaultTasks](#getDefaultTasks())`()`  
+  Returns the names of the default tasks of this project.  
+  [DependencyHandler](artifacts/dsl/DependencyHandler.html "interface in org.gradle.api.artifacts.dsl")  
+  [getDependencies](#getDependencies())`()`  
+  Returns the dependency handler of this project.  
+  [DependencyFactory](artifacts/dsl/DependencyFactory.html "interface in org.gradle.api.artifacts.dsl")  
+  [getDependencyFactory](#getDependencyFactory())`()`  
+  Provides access to methods to create various kinds of [`Dependency`](artifacts/Dependency.html "interface in org.gradle.api.artifacts") instances.  
+  [DependencyLockingHandler](artifacts/dsl/DependencyLockingHandler.html "interface in org.gradle.api.artifacts.dsl")  
+  [getDependencyLocking](#getDependencyLocking())`()`  
+  Provides access to configuring dependency locking  
+  `int`  
+  [getDepth](#getDepth())`()`  
+  Returns the nesting level of a project in a multi-project hierarchy.  
+  `@Nullable `[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")  
+  [getDescription](#getDescription())`()`  
+  Returns the description of this project, if any.  
+  [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")  
+  [getDisplayName](#getDisplayName())`()`  
+  Returns a human-consumable display name for this project.  
+  [ExtensionContainer](plugins/ExtensionContainer.html "interface in org.gradle.api.plugins")  
+  [getExtensions](#getExtensions())`()`  
+  Allows adding DSL extensions to the project.  
+  [Gradle](invocation/Gradle.html "interface in org.gradle.api.invocation")  
+  [getGradle](#getGradle())`()`  
+  Returns the [`Gradle`](invocation/Gradle.html "interface in org.gradle.api.invocation") invocation which this project belongs to.  
+  [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")  
+  [getGroup](#getGroup())`()`  
+  Returns the group of this project.  
+  [IsolatedProject](project/IsolatedProject.html "interface in org.gradle.api.project")  
+  [getIsolated](#getIsolated())`()`  
+  Returns an immutable view of this project, safe for use with isolated projects.  
+  [ProjectLayout](file/ProjectLayout.html "interface in org.gradle.api.file")  
+  [getLayout](#getLayout())`()`  
+  Provides access to various important directories for this project.  
+  [Logger](logging/Logger.html "interface in org.gradle.api.logging")  
+  [getLogger](#getLogger())`()`  
+  Returns the logger for this project.  
+  [LoggingManager](logging/LoggingManager.html "interface in org.gradle.api.logging")  
+  [getLogging](#getLogging())`()`  
+  Returns the [`LoggingManager`](logging/LoggingManager.html "interface in org.gradle.api.logging") which can be used to receive logging and to control the standard output/error capture for this project's build script.  
+  [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")  
+  [getName](#getName())`()`  
+  Returns the name of this project.  
+  [InputNormalizationHandler](../normalization/InputNormalizationHandler.html "interface in org.gradle.normalization")  
+  [getNormalization](#getNormalization())`()`  
+  Provides access to configuring input normalization.  
+  [ObjectFactory](model/ObjectFactory.html "interface in org.gradle.api.model")  
+  [getObjects](#getObjects())`()`  
+  Provides access to methods to create various kinds of model objects.  
+  `@Nullable `[Project](Project.html "interface in org.gradle.api")  
+  [getParent](#getParent())`()`  
+  Returns the parent project of this project, if any.  
+  [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")  
+  [getPath](#getPath())`()`  
+  Returns the path of this project, starting with ':'.  
+  [Project](Project.html "interface in org.gradle.api")  
+  [getProject](#getProject())`()`  
+  Returns this project.  
+  [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io")  
+  [getProjectDir](#getProjectDir())`()`  
+  The directory containing the project build file.  
+  [Map](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Map.html "class or interface in java.util")` <`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")`, ? extends @Nullable `[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")`>`  
+  [getProperties](#getProperties())`()`  
+  Returns the properties of this project.  
+  [ProviderFactory](provider/ProviderFactory.html "interface in org.gradle.api.provider")  
+  [getProviders](#getProviders())`()`  
+  Provides access to methods to create various kinds of [`Provider`](provider/Provider.html "interface in org.gradle.api.provider") instances.  
+  [RepositoryHandler](artifacts/dsl/RepositoryHandler.html "interface in org.gradle.api.artifacts.dsl")  
+  [getRepositories](#getRepositories())`()`  
+  Returns a handler to create repositories which are used for retrieving dependencies and uploading artifacts produced by the project.  
+  [ResourceHandler](resources/ResourceHandler.html "interface in org.gradle.api.resources")  
+  [getResources](#getResources())`()`  
+  Provides access to resource-specific utility methods, for example factory methods that create various resources.  
+  [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io")  
+  [getRootDir](#getRootDir())`()`  
+  Returns the root directory of this project.  
+  [Project](Project.html "interface in org.gradle.api")  
+  [getRootProject](#getRootProject())`()`  
+  Returns the root project for the hierarchy that this project belongs to.  
+  [ProjectState](ProjectState.html "interface in org.gradle.api")  
+  [getState](#getState())`()`  
+  Returns the evaluation state of this project.  
+  [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")  
+  [getStatus](#getStatus())`()`  
+  Returns the status of this project.  
+  [Set](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Set.html "class or interface in java.util")` <`[Project](Project.html "interface in org.gradle.api")`>`  
+  [getSubprojects](#getSubprojects())`()`  
+  Returns the set containing the subprojects of this project.  
+  [TaskContainer](tasks/TaskContainer.html "interface in org.gradle.api.tasks")  
+  [getTasks](#getTasks())`()`  
+  Returns the tasks of this project.  
+  [Set](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Set.html "class or interface in java.util")` <`[Task](Task.html "interface in org.gradle.api")`>`  
+  [getTasksByName](#getTasksByName(java.lang.String,boolean))` (`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")` name, boolean recursive)`  
+  Returns the set of tasks with the given name contained in this project, and optionally its subprojects.  
+  [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")  
+  [getVersion](#getVersion())`()`  
+  Returns the version of this project.  
+  `boolean`  
+  [hasProperty](#hasProperty(java.lang.String))` (`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")` propertyName)`  
+  Determines if this project has the given property.  
+  [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io")  
+  [mkdir](#mkdir(java.lang.Object))` (`[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")` path)`  
+  Creates a directory and returns a file pointing to it.  
+  `void`  
+  [normalization](#normalization(org.gradle.api.Action))` (`[Action](Action.html "interface in org.gradle.api")`<? super `[InputNormalizationHandler](../normalization/InputNormalizationHandler.html "interface in org.gradle.normalization")`> configuration)`  
+  Configures input normalization.  
+  [Project](Project.html "interface in org.gradle.api")  
+  [project](#project(java.lang.String))` (`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")` path)`  
+  Locates a project by path.  
+  [Project](Project.html "interface in org.gradle.api")  
+  [project](#project(java.lang.String,groovy.lang.Closure))` (`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")` path, `[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` configureClosure)`  
+  Locates a project by path and configures it using the given closure.  
+  [Project](Project.html "interface in org.gradle.api")  
+  [project](#project(java.lang.String,org.gradle.api.Action))` (`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")` path, `[Action](Action.html "interface in org.gradle.api")`<? super `[Project](Project.html "interface in org.gradle.api")`> configureAction)`  
+  Locates a project by path and configures it using the given action.  
+  `@Nullable `[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")  
+  [property](#property(java.lang.String))` (`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")` propertyName)`  
+  Returns the value of the given property.  
+  `<T> `[Provider](provider/Provider.html "interface in org.gradle.api.provider")` <T>`  
+  [provider](#provider(java.util.concurrent.Callable))` (`[Callable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/concurrent/Callable.html "class or interface in java.util.concurrent")`<? extends @Nullable T> value)`  
+  Creates a [`Provider`](provider/Provider.html "interface in org.gradle.api.provider") implementation based on the provided value.  
+  [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")  
+  [relativePath](#relativePath(java.lang.Object))` (`[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")` path)`  
+  Returns the relative path from the project directory to the given path.  
+  [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")  
+  [relativeProjectPath](#relativeProjectPath(java.lang.String))` (`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")` path)`  
+  Converts a name to a project path relative to this project.  
+  `void`  
+  [repositories](#repositories(groovy.lang.Closure))` (`[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` configureClosure)`  
+  Configures the repositories for this project.  
+  `void`  
+  [setBuildDir](#setBuildDir(java.io.File))` (`[File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io")` path)`  
+  Deprecated.  
+  Use `getLayout().getBuildDirectory()` and set the [`DirectoryProperty`](file/DirectoryProperty.html "interface in org.gradle.api.file")  
+  `void`  
+  [setBuildDir](#setBuildDir(java.lang.Object))` (`[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")` path)`  
+  Deprecated.  
+  Use `getLayout().getBuildDirectory()` and set the [`DirectoryProperty`](file/DirectoryProperty.html "interface in org.gradle.api.file")  
+  `void`  
+  [setDefaultTasks](#setDefaultTasks(java.util.List))` (`[List](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/List.html "class or interface in java.util")`<`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")`> defaultTasks)`  
+  Sets the names of the default tasks of this project.  
+  `void`  
+  [setDescription](#setDescription(java.lang.String))` (@Nullable `[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")` description)`  
+  Sets a description for this project.  
+  `void`  
+  [setGroup](#setGroup(java.lang.Object))` (`[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")` group)`  
+  Sets the group of this project.  
+  `void`  
+  [setProperty](#setProperty(java.lang.String,java.lang.Object))` (`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")` name, @Nullable `[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")` value)`  
+  Sets a property of this project.  
+  `void`  
+  [setStatus](#setStatus(java.lang.Object))` (`[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")` status)`  
+  Sets the status of this project.  
+  `void`  
+  [setVersion](#setVersion(java.lang.Object))` (`[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")` version)`  
+  Sets the version of this project.  
+  `void`  
+  [subprojects](#subprojects(groovy.lang.Closure))` (`[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` configureClosure)`  
+  Configures the sub-projects of this project.  
+  `void`  
+  [subprojects](#subprojects(org.gradle.api.Action))` (`[Action](Action.html "interface in org.gradle.api")`<? super `[Project](Project.html "interface in org.gradle.api")`> action)`  
+  Configures the sub-projects of this project  
+  [WorkResult](tasks/WorkResult.html "interface in org.gradle.api.tasks")  
+  [sync](#sync(org.gradle.api.Action))` (`[Action](Action.html "interface in org.gradle.api")`<? super `[SyncSpec](file/SyncSpec.html "interface in org.gradle.api.file")`> action)`  
+  Synchronizes the contents of a destination directory with some source directories and files.  
+  [FileTree](file/FileTree.html "interface in org.gradle.api.file")  
+  [tarTree](#tarTree(java.lang.Object))` (`[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")` tarPath)`  
+  Creates a new `FileTree` which contains the contents of the given TAR file.  
+  [Task](Task.html "interface in org.gradle.api")  
+  [task](#task(java.lang.String))` (`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")` name)`  
+  Deprecated.  
+  Use [`tasks.register(String)`](tasks/TaskContainer.html#register(java.lang.String)) instead  
+  [Task](Task.html "interface in org.gradle.api")  
+  [task](#task(java.lang.String,groovy.lang.Closure))` (`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")` name, `[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` configureClosure)`  
+  Deprecated.  
+  Use [`tasks.register(String, Action)`](tasks/TaskContainer.html#register(java.lang.String,org.gradle.api.Action)) instead  
+  [Task](Task.html "interface in org.gradle.api")  
+  [task](#task(java.lang.String,org.gradle.api.Action))` (`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")` name, `[Action](Action.html "interface in org.gradle.api")`<? super `[Task](Task.html "interface in org.gradle.api")`> configureAction)`  
+  Deprecated.  
+  Use [`tasks.register(String, Action)`](tasks/TaskContainer.html#register(java.lang.String,org.gradle.api.Action)) instead  
+  [Task](Task.html "interface in org.gradle.api")  
+  [task](#task(java.util.Map,java.lang.String))` (`[Map](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Map.html "class or interface in java.util")`<`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")`, ?> args, `[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")` name)`  
+  Deprecated.  
+  Use a [`tasks.register`](tasks/TaskContainer.html#register(java.lang.String,java.lang.Class,org.gradle.api.Action)) variant instead  
+  [Task](Task.html "interface in org.gradle.api")  
+  [task](#task(java.util.Map,java.lang.String,groovy.lang.Closure))` (`[Map](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Map.html "class or interface in java.util")`<`[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")`, ?> args, `[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")` name, `[Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang")` configureClosure)`  
+  Deprecated.  
+  Use a [`tasks.register`](tasks/TaskContainer.html#register(java.lang.String,java.lang.Class,org.gradle.api.Action)) variant instead  
+  [URI](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/net/URI.html "class or interface in java.net")  
+  [uri](#uri(java.lang.Object))` (`[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")` path)`  
+  Resolves a file path to a URI, relative to the project directory of this project.  
+  [FileTree](file/FileTree.html "interface in org.gradle.api.file")  
+  [zipTree](#zipTree(java.lang.Object))` (`[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")` zipPath)`  
+  Creates a new `FileTree` which contains the contents of the given ZIP file.  
+
+  ### Methods inherited from interface java.lang.[Comparable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Comparable.html "class or interface in java.lang")
+
+  [compareTo](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Comparable.html#compareTo(T) "class or interface in java.lang")  
+
+  ### Methods inherited from interface org.gradle.api.plugins.[PluginAware](plugins/PluginAware.html "interface in org.gradle.api.plugins")
+
+  [apply](plugins/PluginAware.html#apply(groovy.lang.Closure))`, `[apply](plugins/PluginAware.html#apply(java.util.Map))`, `[apply](plugins/PluginAware.html#apply(org.gradle.api.Action))`, `[getPluginManager](plugins/PluginAware.html#getPluginManager())`, `[getPlugins](plugins/PluginAware.html#getPlugins())
+*
+
+  ## Field Details
+
+  *
+
+    ### DEFAULT_BUILD_FILE
+
+    static final [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") DEFAULT_BUILD_FILE  
+    The default project build file name.
+
+    See Also:
+    :
+        * [Constant Field Values](../../../constant-values.html#org.gradle.api.Project.DEFAULT_BUILD_FILE)
+
+  *
+
+    ### PATH_SEPARATOR
+
+    static final [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") PATH_SEPARATOR  
+    The hierarchy separator for project and task path names.
+
+    See Also:
+    :
+        * [Constant Field Values](../../../constant-values.html#org.gradle.api.Project.PATH_SEPARATOR)
+
+  *
+
+    ### DEFAULT_BUILD_DIR_NAME
+
+    static final [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") DEFAULT_BUILD_DIR_NAME  
+    The default build directory name.
+
+    See Also:
+    :
+        * [Constant Field Values](../../../constant-values.html#org.gradle.api.Project.DEFAULT_BUILD_DIR_NAME)
+
+  *
+
+    ### GRADLE_PROPERTIES
+
+    static final [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") GRADLE_PROPERTIES
+
+    See Also:
+    :
+        * [Constant Field Values](../../../constant-values.html#org.gradle.api.Project.GRADLE_PROPERTIES)
+
+  *
+
+    ### SYSTEM_PROP_PREFIX
+
+    static final [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") SYSTEM_PROP_PREFIX
+
+    See Also:
+    :
+        * [Constant Field Values](../../../constant-values.html#org.gradle.api.Project.SYSTEM_PROP_PREFIX)
+
+  *
+
+    ### DEFAULT_VERSION
+
+    static final [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") DEFAULT_VERSION
+
+    See Also:
+    :
+        * [Constant Field Values](../../../constant-values.html#org.gradle.api.Project.DEFAULT_VERSION)
+
+  *
+
+    ### DEFAULT_STATUS
+
+    static final [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") DEFAULT_STATUS
+
+    See Also:
+    :
+        * [Constant Field Values](../../../constant-values.html#org.gradle.api.Project.DEFAULT_STATUS)
+
+*
+
+  ## Method Details
+
+  *
+
+    ### getRootProject
+
+    [Project](Project.html "interface in org.gradle.api") getRootProject()  
+    Returns the root project for the hierarchy that this project belongs to. In the case of a single-project build, this method returns this project.
+
+    Returns:
+    :   The root project. Never returns null.
+  *
+
+    ### getRootDir
+
+    [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io") getRootDir()  
+    Returns the root directory of this project. The root directory is the project directory of the root project.
+
+    Returns:
+    :   The root directory. Never returns null.
+  *
+
+    ### getBuildDir
+
+    [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io") getBuildDir()  
+    Deprecated.  
+    Use `getLayout().getBuildDirectory()` instead  
+    Returns the build directory of this project. The build directory is the directory which all artifacts are generated into. The default value for the build directory is *projectDir*`/build`
+
+    Returns:
+    :   The build directory. Never returns null.
+  *
+
+    ### setBuildDir
+
+    [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") void setBuildDir ([File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io") path)  
+    Deprecated.  
+    Use `getLayout().getBuildDirectory()` and set the [`DirectoryProperty`](file/DirectoryProperty.html "interface in org.gradle.api.file")  
+    Sets the build directory of this project. The build directory is the directory which all artifacts are generated into.
+
+    Parameters:
+    :
+        `path` - The build directory
+
+    Since:
+    :   4.0
+  *
+
+    ### setBuildDir
+
+    [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") void setBuildDir ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") path)  
+    Deprecated.  
+    Use `getLayout().getBuildDirectory()` and set the [`DirectoryProperty`](file/DirectoryProperty.html "interface in org.gradle.api.file")  
+    Sets the build directory of this project. The build directory is the directory which all artifacts are generated into. The path parameter is evaluated as described for [`file(Object)`](#file(java.lang.Object)). This mean you can use, amongst other things, a relative or absolute path or File object to specify the build directory.
+
+    Parameters:
+    :
+        `path` - The build directory. This is evaluated as per [`file(Object)`](#file(java.lang.Object))
+  *
+
+    ### getBuildFile
+
+    [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io") getBuildFile()  
+    The build script for this project.
+
+    If the file exists, it will be evaluated against this project when this project is configured.
+
+    Returns:
+    :   the build script for this project.
+  *
+
+    ### getParent
+
+    @Nullable [Project](Project.html "interface in org.gradle.api") getParent()  
+    Returns the parent project of this project, if any.
+
+    There are two cases where a project will not have a parent:
+    * The project is the root project of the build.
+    * The project is located in a nested directory (not the root of the build), [`getProjectDir()`](#getProjectDir()) has been used after including the project in order to locate it, and no project has been included that is located in this project's parent directory.
+
+    Returns:
+    :
+        The parent project, or `null` if this is the root project or a nested project without a parent.
+  *
+
+    ### getName
+
+    [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") getName()  
+    Returns the name of this project. The project's name is not necessarily unique within a project hierarchy. You should use the [`getPath()`](#getPath()) method for a unique identifier for the project. If the root project is unnamed and is located on a file system root it will have a randomly-generated name
+
+    Returns:
+    :   The name of this project. Never return null.
+  *
+
+    ### getDisplayName
+
+    [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") getDisplayName()  
+    Returns a human-consumable display name for this project.
+  *
+
+    ### getDescription
+
+    @Nullable [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") getDescription()  
+    Returns the description of this project, if any.
+
+    Returns:
+    :   the description. May return null.
+  *
+
+    ### setDescription
+
+    void setDescription (@Nullable [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") description)  
+    Sets a description for this project.
+
+    Parameters:
+    :
+        `description` - The description of the project. Might be null.
+  *
+
+    ### getGroup
+
+    [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") getGroup()  
+    Returns the group of this project. Gradle always uses the `toString()` value of the group. The group defaults to the path with dots as separators.
+
+    Returns:
+    :   The group of this project. Never returns null.
+  *
+
+    ### setGroup
+
+    void setGroup ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") group)  
+    Sets the group of this project.
+
+    Parameters:
+    :
+        `group` - The group of this project. Must not be null.
+  *
+
+    ### getVersion
+
+    [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") getVersion()  
+    Returns the version of this project. Gradle always uses the `toString()` value of the version. The version defaults to ["unspecified"](#DEFAULT_VERSION).
+
+    Returns:
+    :   The version of this project. Never returns null.
+  *
+
+    ### setVersion
+
+    void setVersion ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") version)  
+    Sets the version of this project.
+
+    Parameters:
+    :
+        `version` - The version of this project. Must not be null.
+  *
+
+    ### getStatus
+
+    [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") getStatus()  
+    Returns the status of this project. Gradle always uses the `toString()` value of the status. The status defaults to ["release"](#DEFAULT_STATUS).
+
+    The status of the project is only relevant, if you upload libraries together with a module descriptor. The status specified here, will be part of this module descriptor.
+
+    Returns:
+    :   The status of this project. Never returns null.
+  *
+
+    ### setStatus
+
+    void setStatus ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") status)  
+    Sets the status of this project.
+
+    Parameters:
+    :
+        `status` - The status. Must not be null.
+  *
+
+    ### getChildProjects
+
+    [Map](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Map.html "class or interface in java.util")\<[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang"),[Project](Project.html "interface in org.gradle.api")\> getChildProjects()  
+    Returns the direct children of this project.
+
+    Returns:
+    :   A map from child project name to child project. Returns an empty map if this project does not have any children.
+  *
+
+    ### setProperty
+
+    void setProperty ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") name, @Nullable [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") value) throws [MissingPropertyException](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/MissingPropertyException.html "class or interface in groovy.lang")  
+    Sets a property of this project. This method searches for a property with the given name in the following locations, and sets the property on the first location where it finds the property.
+    1. The project object itself. For example, the `rootDir` project property.
+    2. The project's extra properties.
+
+    If the property is not found, a [`MissingPropertyException`](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/MissingPropertyException.html "class or interface in groovy.lang") is thrown.
+
+    Parameters:
+    :
+        `name` - The name of the property
+    :
+        `value` - The value of the property
+
+    Throws:
+    :
+        [MissingPropertyException](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/MissingPropertyException.html "class or interface in groovy.lang")
+  *
+
+    ### getProject
+
+    [Project](Project.html "interface in org.gradle.api") getProject()  
+    Returns this project. This method is useful in build files to explicitly access project properties and methods. For example, using `project.name` can express your intent better than using `name`. This method also allows you to access project properties from a scope where the property may be hidden, such as, for example, from a method or closure.
+
+    Returns:
+    :   This project. Never returns null.
+  *
+
+    ### getIsolated
+
+    [@Incubating](Incubating.html "annotation in org.gradle.api") [IsolatedProject](project/IsolatedProject.html "interface in org.gradle.api.project") getIsolated()  
+    Returns an immutable view of this project, safe for use with isolated projects.
+
+    Returns:
+    :
+        This project as an [`IsolatedProject`](project/IsolatedProject.html "interface in org.gradle.api.project"). Never returns null.
+
+    Since:
+    :   8.8
+  *
+
+    ### getAllprojects
+
+    [Set](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Set.html "class or interface in java.util")\<[Project](Project.html "interface in org.gradle.api")\> getAllprojects()  
+    Returns the set containing this project and its subprojects.
+
+    Returns:
+    :   The set of projects.
+  *
+
+    ### getSubprojects
+
+    [Set](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Set.html "class or interface in java.util")\<[Project](Project.html "interface in org.gradle.api")\> getSubprojects()  
+    Returns the set containing the subprojects of this project.
+
+    Returns:
+    :   The set of projects. Returns an empty set if this project has no subprojects.
+  *
+
+    ### task
+
+    [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") [Task](Task.html "interface in org.gradle.api") task ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") name) throws [InvalidUserDataException](InvalidUserDataException.html "class in org.gradle.api")  
+    Deprecated.  
+    Use [`tasks.register(String)`](tasks/TaskContainer.html#register(java.lang.String)) instead  
+    Creates a [`Task`](Task.html "interface in org.gradle.api") with the given name and adds it to this project. Calling this method is equivalent to calling [`task(java.util.Map, String)`](#task(java.util.Map,java.lang.String)) with an empty options map.
+
+    After the task is added to the project, it is made available as a property of the project, so that you can reference the task by name in your build file. See [properties](#properties) for more details
+
+    If a task with the given name already exists in this project, an exception is thrown.
+
+    Parameters:
+    :
+        `name` - The name of the task to be created
+
+    Returns:
+    :   The newly created task object
+
+    Throws:
+    :
+        [InvalidUserDataException](InvalidUserDataException.html "class in org.gradle.api") - If a task with the given name already exists in this project.
+  *
+
+    ### task
+
+    [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") [Task](Task.html "interface in org.gradle.api") task ([Map](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Map.html "class or interface in java.util")\<[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang"),?\> args, [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") name) throws [InvalidUserDataException](InvalidUserDataException.html "class in org.gradle.api")  
+    Deprecated.  
+    Use a [`tasks.register`](tasks/TaskContainer.html#register(java.lang.String,java.lang.Class,org.gradle.api.Action)) variant instead  
+    Creates a [`Task`](Task.html "interface in org.gradle.api") with the given name and adds it to this project. A map of creation options can be passed to this method to control how the task is created. The following options are available:
+
+    |                   Option                    |                                      Description                                       |                        Default Value                        |
+    |---------------------------------------------|----------------------------------------------------------------------------------------|-------------------------------------------------------------|
+    | ["type"](Task.html#TASK_TYPE)               | The class of the task to create.                                                       | [`DefaultTask`](DefaultTask.html "class in org.gradle.api") |
+    | ["overwrite"](Task.html#TASK_OVERWRITE)     | Replace an existing task?                                                              | `false`                                                     |
+    | ["dependsOn"](Task.html#TASK_DEPENDS_ON)    | A task name or set of task names which this task depends on                            | `[]`                                                        |
+    | ["action"](Task.html#TASK_ACTION)           | A closure or [`Action`](Action.html "interface in org.gradle.api") to add to the task. | `null`                                                      |
+    | ["description"](Task.html#TASK_DESCRIPTION) | A description of the task.                                                             | `null`                                                      |
+    | ["group"](Task.html#TASK_GROUP)             | A task group which this task belongs to.                                               | `null`                                                      |
+    [Permitted map keys]
+
+    After the task is added to the project, it is made available as a property of the project, so that you can reference the task by name in your build file. See [here](#properties) for more details
+
+    If a task with the given name already exists in this project and the `override` option is not set to true, an exception is thrown.
+
+    Parameters:
+    :
+        `args` - The task creation options.
+    :
+        `name` - The name of the task to be created
+
+    Returns:
+    :   The newly created task object
+
+    Throws:
+    :
+        [InvalidUserDataException](InvalidUserDataException.html "class in org.gradle.api") - If a task with the given name already exists in this project.
+  *
+
+    ### task
+
+    [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") [Task](Task.html "interface in org.gradle.api") task ([Map](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Map.html "class or interface in java.util")\<[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang"),?\> args, [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") name, [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
+    Deprecated.  
+    Use a [`tasks.register`](tasks/TaskContainer.html#register(java.lang.String,java.lang.Class,org.gradle.api.Action)) variant instead  
+    Creates a [`Task`](Task.html "interface in org.gradle.api") with the given name and adds it to this project. Before the task is returned, the given closure is executed to configure the task. A map of creation options can be passed to this method to control how the task is created. See [`task(java.util.Map, String)`](#task(java.util.Map,java.lang.String)) for the available options.
+
+    After the task is added to the project, it is made available as a property of the project, so that you can reference the task by name in your build file. See [here](#properties) for more details
+
+    If a task with the given name already exists in this project and the `override` option is not set to true, an exception is thrown.
+
+    Parameters:
+    :
+        `args` - The task creation options.
+    :
+        `name` - The name of the task to be created
+    :
+        `configureClosure` - The closure to use to configure the created task.
+
+    Returns:
+    :   The newly created task object
+
+    Throws:
+    :
+        [InvalidUserDataException](InvalidUserDataException.html "class in org.gradle.api") - If a task with the given name already exists in this project.
+  *
+
+    ### task
+
+    [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") [Task](Task.html "interface in org.gradle.api") task ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") name, [@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([Task.class](Task.html "interface in org.gradle.api")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
+    Deprecated.  
+    Use [`tasks.register(String, Action)`](tasks/TaskContainer.html#register(java.lang.String,org.gradle.api.Action)) instead  
+    Creates a [`Task`](Task.html "interface in org.gradle.api") with the given name and adds it to this project. Before the task is returned, the given closure is executed to configure the task.
+
+    After the task is added to the project, it is made available as a property of the project, so that you can reference the task by name in your build file. See [here](#properties) for more details
+
+    Parameters:
+    :
+        `name` - The name of the task to be created
+    :
+        `configureClosure` - The closure to use to configure the created task.
+
+    Returns:
+    :   The newly created task object
+
+    Throws:
+    :
+        [InvalidUserDataException](InvalidUserDataException.html "class in org.gradle.api") - If a task with the given name already exists in this project.
+  *
+
+    ### task
+
+    [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") [Task](Task.html "interface in org.gradle.api") task ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") name, [Action](Action.html "interface in org.gradle.api")\<? super [Task](Task.html "interface in org.gradle.api")\> configureAction)  
+    Deprecated.  
+    Use [`tasks.register(String, Action)`](tasks/TaskContainer.html#register(java.lang.String,org.gradle.api.Action)) instead  
+    Creates a [`Task`](Task.html "interface in org.gradle.api") with the given name and adds it to this project. Before the task is returned, the given action is executed to configure the task.
+
+    After the task is added to the project, it is made available as a property of the project, so that you can reference the task by name in your build file. See [here](#properties) for more details
+
+    Parameters:
+    :
+        `name` - The name of the task to be created
+    :
+        `configureAction` - The action to use to configure the created task.
+
+    Returns:
+    :   The newly created task object
+
+    Throws:
+    :
+        [InvalidUserDataException](InvalidUserDataException.html "class in org.gradle.api") - If a task with the given name already exists in this project.
+
+    Since:
+    :   4.10
+
+    See Also:
+    :
+        * [`TaskContainer.create(String, Action)`](tasks/TaskContainer.html#create(java.lang.String,org.gradle.api.Action))
+
+  *
+
+    ### getPath
+
+    [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") getPath()  
+    Returns the path of this project, starting with ':'. See [`Settings.include(String...)`](initialization/Settings.html#include(java.lang.String...)) for more information about project paths.
+
+    Returns:
+    :   The path. Never returns null.
+  *
+
+    ### getBuildTreePath
+
+    [@Incubating](Incubating.html "annotation in org.gradle.api") [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") getBuildTreePath()  
+    Returns a path to the project for the full build tree.
+
+    Returns:
+    :   The build tree path
+
+    Since:
+    :   8.3
+  *
+
+    ### getDefaultTasks
+
+    [List](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/List.html "class or interface in java.util")\<[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")\> getDefaultTasks()  
+    Returns the names of the default tasks of this project. These are used when no tasks names are provided when starting the build.
+
+    Returns:
+    :   The default task names. Returns an empty list if this project has no default tasks.
+  *
+
+    ### setDefaultTasks
+
+    void setDefaultTasks ([List](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/List.html "class or interface in java.util")\<[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")\> defaultTasks)  
+    Sets the names of the default tasks of this project. These are used when no tasks names are provided when starting the build.
+
+    Parameters:
+    :
+        `defaultTasks` - The default task names.
+  *
+
+    ### defaultTasks
+
+    void defaultTasks ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")... defaultTasks)  
+    Sets the names of the default tasks of this project. These are used when no tasks names are provided when starting the build.
+
+    Parameters:
+    :
+        `defaultTasks` - The default task names.
+  *
+
+    ### evaluationDependsOn
+
+    [Project](Project.html "interface in org.gradle.api") evaluationDependsOn ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") path) throws [UnknownProjectException](UnknownProjectException.html "class in org.gradle.api")  
+    Declares that this project has an evaluation dependency on the project with the given path.
+
+    Parameters:
+    :
+        `path` - The path of the project which this project depends on.
+
+    Returns:
+    :   The project which this project depends on.
+
+    Throws:
+    :
+        [UnknownProjectException](UnknownProjectException.html "class in org.gradle.api") - If no project with the given path exists.
+  *
+
+    ### evaluationDependsOnChildren
+
+    void evaluationDependsOnChildren()  
+    Declares that this project has an evaluation dependency on each of its child projects.
+  *
+
+    ### findProject
+
+    @Nullable [Project](Project.html "interface in org.gradle.api") findProject ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") path)  
+    Locates a project by path. If the path is relative, it is interpreted relative to this project.
+
+    Parameters:
+    :
+        `path` - The path.
+
+    Returns:
+    :   The project with the given path. Returns null if no such project exists.
+  *
+
+    ### project
+
+    [Project](Project.html "interface in org.gradle.api") project ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") path) throws [UnknownProjectException](UnknownProjectException.html "class in org.gradle.api")  
+    Locates a project by path. If the path is relative, it is interpreted relative to this project.
+
+    Parameters:
+    :
+        `path` - The path.
+
+    Returns:
+    :   The project with the given path. Never returns null.
+
+    Throws:
+    :
+        [UnknownProjectException](UnknownProjectException.html "class in org.gradle.api") - If no project with the given path exists.
+  *
+
+    ### project
+
+    [Project](Project.html "interface in org.gradle.api") project ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") path, [@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([Project.class](Project.html "interface in org.gradle.api")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
+    Locates a project by path and configures it using the given closure. If the path is relative, it is interpreted relative to this project. The target project is passed to the closure as the closure's delegate.
+
+    Parameters:
+    :
+        `path` - The path.
+    :
+        `configureClosure` - The closure to use to configure the project.
+
+    Returns:
+    :   The project with the given path. Never returns null.
+
+    Throws:
+    :
+        [UnknownProjectException](UnknownProjectException.html "class in org.gradle.api") - If no project with the given path exists.
+  *
+
+    ### project
+
+    [Project](Project.html "interface in org.gradle.api") project ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") path, [Action](Action.html "interface in org.gradle.api")\<? super [Project](Project.html "interface in org.gradle.api")\> configureAction)  
+    Locates a project by path and configures it using the given action. If the path is relative, it is interpreted relative to this project.
+
+    Parameters:
+    :
+        `path` - The path.
+    :
+        `configureAction` - The action to use to configure the project.
+
+    Returns:
+    :   The project with the given path. Never returns null.
+
+    Throws:
+    :
+        [UnknownProjectException](UnknownProjectException.html "class in org.gradle.api") - If no project with the given path exists.
+
+    Since:
+    :   3.4
+  *
+
+    ### getAllTasks
+
+    [Map](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Map.html "class or interface in java.util")\<[Project](Project.html "interface in org.gradle.api"),[Set](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Set.html "class or interface in java.util")\<[Task](Task.html "interface in org.gradle.api")\>\> getAllTasks (boolean recursive)  
+    Returns a map of the tasks contained in this project, and optionally its subprojects.
+
+    Parameters:
+    :
+        `recursive` - If true, returns the tasks of this project and its subprojects. If false, returns the tasks of just this project.
+
+    Returns:
+    :   A map from project to a set of tasks.
+  *
+
+    ### getTasksByName
+
+    [Set](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Set.html "class or interface in java.util")\<[Task](Task.html "interface in org.gradle.api")\> getTasksByName ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") name, boolean recursive)  
+    Returns the set of tasks with the given name contained in this project, and optionally its subprojects. **NOTE:** This is an expensive operation since it requires all projects to be configured.
+
+    Parameters:
+    :
+        `name` - The name of the task to locate.
+    :
+        `recursive` - If true, returns the tasks of this project and its subprojects. If false, returns the tasks of just this project.
+
+    Returns:
+    :   The set of tasks. Returns an empty set if no such tasks exist in this project.
+  *
+
+    ### getProjectDir
+
+    [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io") getProjectDir()  
+    The directory containing the project build file.
+
+    Returns:
+    :   The project directory. Never returns null.
+  *
+
+    ### file
+
+    [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io") file ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") path)  
+    Resolves a file path relative to the project directory of this project. This method converts the supplied path based on its type:
+    * A [`CharSequence`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/CharSequence.html "class or interface in java.lang"), including [`String`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") or [`GString`](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/GString.html "class or interface in groovy.lang"). Interpreted relative to the project directory. A string that starts with `file:` is treated as a file URL.
+    * A [`File`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io"). If the file is an absolute file, it is returned as is. Otherwise, the file's path is interpreted relative to the project directory.
+    * A [`Path`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/nio/file/Path.html "class or interface in java.nio.file"). The path must be associated with the default provider and is treated the same way as an instance of `File`.
+    * A [`URI`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/net/URI.html "class or interface in java.net") or [`URL`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/net/URL.html "class or interface in java.net"). The URL's path is interpreted as the file path. Only `file:` URLs are supported.
+    * A [`Directory`](file/Directory.html "interface in org.gradle.api.file") or [`RegularFile`](file/RegularFile.html "interface in org.gradle.api.file").
+    * A [`Provider`](provider/Provider.html "interface in org.gradle.api.provider") of any supported type. The provider's value is resolved recursively.
+    * A [`TextResource`](resources/TextResource.html "interface in org.gradle.api.resources").
+    * A Groovy [`Closure`](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") or Kotlin function that returns any supported type. The closure's return value is resolved recursively.
+    * A [`Callable`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/concurrent/Callable.html "class or interface in java.util.concurrent") that returns any supported type. The callable's return value is resolved recursively.
+
+    Parameters:
+    :
+        `path` - The object to resolve as a File.
+
+    Returns:
+    :   The resolved file. Never returns null.
+  *
+
+    ### file
+
+    [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io") file ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") path, [PathValidation](PathValidation.html "enum in org.gradle.api") validation) throws [InvalidUserDataException](InvalidUserDataException.html "class in org.gradle.api")  
+    Resolves a file path relative to the project directory of this project and validates it using the given scheme. See [`PathValidation`](PathValidation.html "enum in org.gradle.api") for the list of possible validations.
+
+    Parameters:
+    :
+        `path` - An object which toString method value is interpreted as a relative path to the project directory.
+    :
+        `validation` - The validation to perform on the file.
+
+    Returns:
+    :   The resolved file. Never returns null.
+
+    Throws:
+    :
+        [InvalidUserDataException](InvalidUserDataException.html "class in org.gradle.api") - When the file does not meet the given validation constraint.
+  *
+
+    ### uri
+
+    [URI](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/net/URI.html "class or interface in java.net") uri ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") path)  
+    Resolves a file path to a URI, relative to the project directory of this project. Evaluates the provided path object as described for [`file(Object)`](#file(java.lang.Object)), with the exception that any URI scheme is supported, not just 'file:' URIs.
+
+    Parameters:
+    :
+        `path` - The object to resolve as a URI.
+
+    Returns:
+    :   The resolved URI. Never returns null.
+  *
+
+    ### relativePath
+
+    [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") relativePath ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") path)  
+    Returns the relative path from the project directory to the given path. The given path object is (logically) resolved as described for [`file(Object)`](#file(java.lang.Object)), from which a relative path is calculated.
+
+    Parameters:
+    :
+        `path` - The path to convert to a relative path.
+
+    Returns:
+    :   The relative path. Never returns null.
+
+    Throws:
+    :
+        [IllegalArgumentException](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/IllegalArgumentException.html "class or interface in java.lang") - If the given path cannot be relativized against the project directory.
+  *
+
+    ### files
+
+    [ConfigurableFileCollection](file/ConfigurableFileCollection.html "interface in org.gradle.api.file") files (@Nullable [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")... paths)  
+    Returns a [`ConfigurableFileCollection`](file/ConfigurableFileCollection.html "interface in org.gradle.api.file") containing the given files. You can pass any of the following types to this method:
+    * A [`CharSequence`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/CharSequence.html "class or interface in java.lang"), including [`String`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") or [`GString`](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/GString.html "class or interface in groovy.lang"). Interpreted relative to the project directory, as per [`file(Object)`](#file(java.lang.Object)). A string that starts with `file:` is treated as a file URL.
+    * A [`File`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io"). Interpreted relative to the project directory, as per [`file(Object)`](#file(java.lang.Object)).
+    * A [`Path`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/nio/file/Path.html "class or interface in java.nio.file"), as per [`file(Object)`](#file(java.lang.Object)).
+    * A [`URI`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/net/URI.html "class or interface in java.net") or [`URL`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/net/URL.html "class or interface in java.net"). The URL's path is interpreted as a file path. Only `file:` URLs are supported.
+    * A [`Directory`](file/Directory.html "interface in org.gradle.api.file") or [`RegularFile`](file/RegularFile.html "interface in org.gradle.api.file").
+    * A [`Collection`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Collection.html "class or interface in java.util"), [`Iterable`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Iterable.html "class or interface in java.lang"), or an array that contains objects of any supported type. The elements of the collection are recursively converted to files.
+    * A [`FileCollection`](file/FileCollection.html "interface in org.gradle.api.file"). The contents of the collection are included in the returned collection.
+    * A [`FileTree`](file/FileTree.html "interface in org.gradle.api.file") or [`DirectoryTree`](file/DirectoryTree.html "interface in org.gradle.api.file"). The contents of the tree are included in the returned collection.
+    * A [`Provider`](provider/Provider.html "interface in org.gradle.api.provider") of any supported type. The provider's value is recursively converted to files. If the provider represents an output of a task, that task is executed if the file collection is used as an input to another task.
+    * A [`Callable`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/concurrent/Callable.html "class or interface in java.util.concurrent") that returns any supported type. The return value of the `call()` method is recursively converted to files. A `null` return value is treated as an empty collection.
+    * A Groovy [`Closure`](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") or Kotlin function that returns any of the types listed here. The return value of the closure is recursively converted to files. A `null` return value is treated as an empty collection.
+    * A [`Task`](Task.html "interface in org.gradle.api"). Converted to the task's output files. The task is executed if the file collection is used as an input to another task.
+    * A [`TaskOutputs`](tasks/TaskOutputs.html "interface in org.gradle.api.tasks"). Converted to the output files the related task. The task is executed if the file collection is used as an input to another task.
+    * Anything else is treated as an error.
+
+    The returned file collection is lazy, so that the paths are evaluated only when the contents of the file collection are queried. The file collection is also live, so that it evaluates the above each time the contents of the collection is queried.
+
+    The returned file collection maintains the iteration order of the supplied paths.
+
+    The returned file collection maintains the details of the tasks that produce the files, so that these tasks are executed if this file collection is used as an input to some task.
+
+    This method can also be used to create an empty collection, which can later be mutated to add elements.
+
+    Parameters:
+    :
+        `paths` - The paths to the files. May be empty. `null` values are ignored.
+
+    Returns:
+    :   The file collection. Never returns null.
+  *
+
+    ### files
+
+    [ConfigurableFileCollection](file/ConfigurableFileCollection.html "interface in org.gradle.api.file") files ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") paths, [@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([ConfigurableFileCollection.class](file/ConfigurableFileCollection.html "interface in org.gradle.api.file")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
+    Creates a new `ConfigurableFileCollection` using the given paths. The paths are evaluated as per [`files(Object...)`](#files(java.lang.Object...)). The file collection is configured using the given closure. The file collection is passed to the closure as its delegate. Example:
+
+    ```
+     files "$buildDir/classes" {
+         builtBy 'compile'
+     }
+     
+    ```
+
+    The returned file collection is lazy, so that the paths are evaluated only when the contents of the file collection are queried. The file collection is also live, so that it evaluates the above each time the contents of the collection is queried.
+
+    Parameters:
+    :
+        `paths` - The contents of the file collection. Evaluated as per [`files(Object...)`](#files(java.lang.Object...)).
+    :
+        `configureClosure` - The closure to use to configure the file collection.
+
+    Returns:
+    :   the configured file tree. Never returns null.
+  *
+
+    ### files
+
+    [ConfigurableFileCollection](file/ConfigurableFileCollection.html "interface in org.gradle.api.file") files ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") paths, [Action](Action.html "interface in org.gradle.api")\<? super [ConfigurableFileCollection](file/ConfigurableFileCollection.html "interface in org.gradle.api.file")\> configureAction)  
+    Creates a new `ConfigurableFileCollection` using the given paths. The paths are evaluated as per [`files(Object...)`](#files(java.lang.Object...)). The file collection is configured using the given action. Example:
+
+    ```
+     files "$buildDir/classes" {
+         builtBy 'compile'
+     }
+     
+    ```
+
+    The returned file collection is lazy, so that the paths are evaluated only when the contents of the file collection are queried. The file collection is also live, so that it evaluates the above each time the contents of the collection is queried.
+
+    Parameters:
+    :
+        `paths` - The contents of the file collection. Evaluated as per [`files(Object...)`](#files(java.lang.Object...)).
+    :
+        `configureAction` - The action to use to configure the file collection.
+
+    Returns:
+    :   the configured file tree. Never returns null.
+
+    Since:
+    :   3.5
+  *
+
+    ### fileTree
+
+    [ConfigurableFileTree](file/ConfigurableFileTree.html "interface in org.gradle.api.file") fileTree ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") baseDir)  
+    Creates a new `ConfigurableFileTree` using the given base directory. The given baseDir path is evaluated as per [`file(Object)`](#file(java.lang.Object)).
+
+    The returned file tree is lazy, so that it scans for files only when the contents of the file tree are queried. The file tree is also live, so that it scans for files each time the contents of the file tree are queried.
+
+    ```
+     def myTree = fileTree("src")
+     myTree.include "**/*.java"
+     myTree.builtBy "someTask"
+
+     task copy(type: Copy) {
+        from myTree
+     }
+     
+    ```
+
+    The order of the files in a `FileTree` is not stable, even on a single computer.
+
+    Parameters:
+    :
+        `baseDir` - The base directory of the file tree. Evaluated as per [`file(Object)`](#file(java.lang.Object)).
+
+    Returns:
+    :   the file tree. Never returns null.
+  *
+
+    ### fileTree
+
+    [ConfigurableFileTree](file/ConfigurableFileTree.html "interface in org.gradle.api.file") fileTree ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") baseDir, [@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([ConfigurableFileTree.class](file/ConfigurableFileTree.html "interface in org.gradle.api.file")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
+    Creates a new `ConfigurableFileTree` using the given base directory. The given baseDir path is evaluated as per [`file(Object)`](#file(java.lang.Object)). The closure will be used to configure the new file tree. The file tree is passed to the closure as its delegate. Example:
+
+    ```
+     def myTree = fileTree('src') {
+        exclude '**/.data/**'
+        builtBy 'someTask'
+     }
+
+     task copy(type: Copy) {
+        from myTree
+     }
+     
+    ```
+
+    The returned file tree is lazy, so that it scans for files only when the contents of the file tree are queried. The file tree is also live, so that it scans for files each time the contents of the file tree are queried.
+
+    The order of the files in a `FileTree` is not stable, even on a single computer.
+
+    Parameters:
+    :
+        `baseDir` - The base directory of the file tree. Evaluated as per [`file(Object)`](#file(java.lang.Object)).
+    :
+        `configureClosure` - Closure to configure the `ConfigurableFileTree` object.
+
+    Returns:
+    :   the configured file tree. Never returns null.
+  *
+
+    ### fileTree
+
+    [ConfigurableFileTree](file/ConfigurableFileTree.html "interface in org.gradle.api.file") fileTree ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") baseDir, [Action](Action.html "interface in org.gradle.api")\<? super [ConfigurableFileTree](file/ConfigurableFileTree.html "interface in org.gradle.api.file")\> configureAction)  
+    Creates a new `ConfigurableFileTree` using the given base directory. The given baseDir path is evaluated as per [`file(Object)`](#file(java.lang.Object)). The action will be used to configure the new file tree. Example:
+
+    ```
+     def myTree = fileTree('src') {
+        exclude '**/.data/**'
+        builtBy 'someTask'
+     }
+
+     task copy(type: Copy) {
+        from myTree
+     }
+     
+    ```
+
+    The returned file tree is lazy, so that it scans for files only when the contents of the file tree are queried. The file tree is also live, so that it scans for files each time the contents of the file tree are queried.
+
+    The order of the files in a `FileTree` is not stable, even on a single computer.
+
+    Parameters:
+    :
+        `baseDir` - The base directory of the file tree. Evaluated as per [`file(Object)`](#file(java.lang.Object)).
+    :
+        `configureAction` - Action to configure the `ConfigurableFileTree` object.
+
+    Returns:
+    :   the configured file tree. Never returns null.
+
+    Since:
+    :   3.5
+  *
+
+    ### fileTree
+
+    [ConfigurableFileTree](file/ConfigurableFileTree.html "interface in org.gradle.api.file") fileTree ([Map](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Map.html "class or interface in java.util")\<[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang"),?\> args)  
+    Creates a new `ConfigurableFileTree` using the provided map of arguments. The map will be applied as properties on the new file tree. Example:
+
+    ```
+     def myTree = fileTree(dir:'src', excludes:['**/ignore/**', '**/.data/**'])
+
+     task copy(type: Copy) {
+         from myTree
+     }
+     
+    ```
+
+    The returned file tree is lazy, so that it scans for files only when the contents of the file tree are queried. The file tree is also live, so that it scans for files each time the contents of the file tree are queried.
+
+    The order of the files in a `FileTree` is not stable, even on a single computer.
+
+    Parameters:
+    :
+        `args` - map of property assignments to `ConfigurableFileTree` object
+
+    Returns:
+    :   the configured file tree. Never returns null.
+  *
+
+    ### zipTree
+
+    [FileTree](file/FileTree.html "interface in org.gradle.api.file") zipTree ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") zipPath)  
+    Creates a new `FileTree` which contains the contents of the given ZIP file. The given zipPath path is evaluated as per [`file(Object)`](#file(java.lang.Object)). You can combine this method with the [`copy(Action)`](#copy(org.gradle.api.Action)) method to unzip a ZIP file.
+
+    The returned file tree is lazy, so that it scans for files only when the contents of the file tree are queried. The file tree is also live, so that it scans for files each time the contents of the file tree are queried.
+
+    Parameters:
+    :
+        `zipPath` - The ZIP file. Evaluated as per [`file(Object)`](#file(java.lang.Object)).
+
+    Returns:
+    :   the file tree. Never returns null.
+  *
+
+    ### tarTree
+
+    [FileTree](file/FileTree.html "interface in org.gradle.api.file") tarTree ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") tarPath)  
+    Creates a new `FileTree` which contains the contents of the given TAR file. The given tarPath path can be:
+    * an instance of [`Resource`](resources/Resource.html "interface in org.gradle.api.resources")
+    * any other object is evaluated as per [`file(Object)`](#file(java.lang.Object))
+
+    The returned file tree is lazy, so that it scans for files only when the contents of the file tree are queried. The file tree is also live, so that it scans for files each time the contents of the file tree are queried.
+
+    Unless custom implementation of resources is passed, the tar tree attempts to guess the compression based on the file extension.
+
+    You can combine this method with the [`copy(Action)`](#copy(org.gradle.api.Action)) method to untar a TAR file:
+
+    ```
+     task untar(type: Copy) {
+       from tarTree('someCompressedTar.gzip')
+
+       //tar tree attempts to guess the compression based on the file extension
+       //however if you must specify the compression explicitly you can:
+       from tarTree(resources.gzip('someTar.ext'))
+
+       //in case you work with unconventionally compressed tars
+       //you can provide your own implementation of a ReadableResource:
+       //from tarTree(yourOwnResource as ReadableResource)
+
+       into 'dest'
+     }
+     
+    ```
+
+    Parameters:
+    :
+        `tarPath` - The TAR file or an instance of [`Resource`](resources/Resource.html "interface in org.gradle.api.resources").
+
+    Returns:
+    :   the file tree. Never returns null.
+  *
+
+    ### provider
+
+    \<T\> [Provider](provider/Provider.html "interface in org.gradle.api.provider")\<T\> provider ([Callable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/concurrent/Callable.html "class or interface in java.util.concurrent")\<? extends @Nullable T\> value)  
+    Creates a [`Provider`](provider/Provider.html "interface in org.gradle.api.provider") implementation based on the provided value.
+
+    The provider is live and will call the [`Callable`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/concurrent/Callable.html "class or interface in java.util.concurrent") each time its value is queried. The [`Callable`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/concurrent/Callable.html "class or interface in java.util.concurrent") may return `null`, in which case the provider is considered to have no value.
+
+    #### Configuration Cache
+
+    This provider is always [computed and its value is cached](provider/Provider.html#configuration-cache) by the Configuration Cache. If this provider is created at configuration time, the [`Callable`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/concurrent/Callable.html "class or interface in java.util.concurrent") may call configuration-time only APIs and capture objects of arbitrary types.
+
+    This can be useful when you need to lazily compute some value to use at execution time based on configuration-time only data. For example, you can compute an archive name based on the name and the version of the project:
+
+    ```
+       tasks.register("createArchive") {
+           def archiveNameProvider = project.provider { project.name + "-" + project.version + ".jar" }
+           doLast {
+               def archiveName = new File(archiveNameProvider.get())
+               // ... create the archive and put in its contents.
+           }
+       }
+     
+    ```
+
+    Parameters:
+    :
+        `value` - The [`Callable`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/concurrent/Callable.html "class or interface in java.util.concurrent") use to calculate the value.
+
+    Returns:
+    :   The provider. Never returns null.
+
+    Since:
+    :   4.0
+
+    See Also:
+    :
+        * [`ProviderFactory.provider(Callable)`](provider/ProviderFactory.html#provider(java.util.concurrent.Callable))
+
+  *
+
+    ### getProviders
+
+    [ProviderFactory](provider/ProviderFactory.html "interface in org.gradle.api.provider") getProviders()  
+    Provides access to methods to create various kinds of [`Provider`](provider/Provider.html "interface in org.gradle.api.provider") instances.
+
+    Since:
+    :   4.0
+  *
+
+    ### getObjects
+
+    [ObjectFactory](model/ObjectFactory.html "interface in org.gradle.api.model") getObjects()  
+    Provides access to methods to create various kinds of model objects.
+
+    Since:
+    :   4.0
+  *
+
+    ### getLayout
+
+    [ProjectLayout](file/ProjectLayout.html "interface in org.gradle.api.file") getLayout()  
+    Provides access to various important directories for this project.
+
+    Since:
+    :   4.1
+  *
+
+    ### mkdir
+
+    [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io") mkdir ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") path)  
+    Creates a directory and returns a file pointing to it.
+
+    Parameters:
+    :
+        `path` - The path for the directory to be created. Evaluated as per [`file(Object)`](#file(java.lang.Object)).
+
+    Returns:
+    :   the created directory
+
+    Throws:
+    :
+        [InvalidUserDataException](InvalidUserDataException.html "class in org.gradle.api") - If the path points to an existing file.
+  *
+
+    ### delete
+
+    boolean delete (@Nullable [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")... paths)  
+    Deletes files and directories.
+
+    This will not follow symlinks. If you need to follow symlinks too use [`delete(Action)`](#delete(org.gradle.api.Action)).
+
+    Parameters:
+    :
+        `paths` - Any type of object accepted by [`files(Object...)`](#files(java.lang.Object...))
+
+    Returns:
+    :   true if anything got deleted, false otherwise
+  *
+
+    ### delete
+
+    [WorkResult](tasks/WorkResult.html "interface in org.gradle.api.tasks") delete ([Action](Action.html "interface in org.gradle.api")\<? super [DeleteSpec](file/DeleteSpec.html "interface in org.gradle.api.file")\> action)  
+    Deletes the specified files. The given action is used to configure a [`DeleteSpec`](file/DeleteSpec.html "interface in org.gradle.api.file"), which is then used to delete the files.
+
+    Example:
+
+    ```
+     project.delete {
+         delete 'somefile'
+         followSymlinks = true
+     }
+     
+    ```
+
+    Parameters:
+    :
+        `action` - Action to configure the DeleteSpec
+
+    Returns:
+    :
+        [`WorkResult`](tasks/WorkResult.html "interface in org.gradle.api.tasks") that can be used to check if delete did any work.
+  *
+
+    ### absoluteProjectPath
+
+    [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") absoluteProjectPath ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") path)  
+    Converts a name to an absolute project path, resolving names relative to this project.
+
+    Parameters:
+    :
+        `path` - The path to convert.
+
+    Returns:
+    :   The absolute path.
+  *
+
+    ### relativeProjectPath
+
+    [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") relativeProjectPath ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") path)  
+    Converts a name to a project path relative to this project.
+
+    Parameters:
+    :
+        `path` - The path to convert.
+
+    Returns:
+    :   The relative path.
+  *
+
+    ### getAnt
+
+    [AntBuilder](AntBuilder.html "class in org.gradle.api") getAnt()  
+    Returns the `AntBuilder` for this project. You can use this in your build file to execute ant tasks. See example below.
+
+    ```
+     task printChecksum {
+       doLast {
+         ant {
+           //using ant checksum task to store the file checksum in the checksumOut ant property
+           checksum(property: 'checksumOut', file: 'someFile.txt')
+
+           //we can refer to the ant property created by checksum task:
+           println "The checksum is: " + checksumOut
+         }
+
+         //we can refer to the ant property later as well:
+         println "I just love to print checksums: " + ant.checksumOut
+       }
+     }
+     
+    ```
+
+    Consider following example of ant target:
+
+    ```
+     <target name='printChecksum'>
+       <checksum property='checksumOut'>
+         <fileset dir='.'>
+           <include name='agile.txt'/>
+         </fileset>
+       </checksum>
+       <echo>The checksum is: ${checksumOut}</echo>
+     </target>
+     
+    ```
+
+    Here's how it would look like in gradle. Observe how the ant XML is represented in groovy by the ant builder
+
+    ```
+     task printChecksum {
+       doLast {
+         ant {
+           checksum(property: 'checksumOut') {
+             fileset(dir: '.') {
+               include name: 'agile1.txt'
+             }
+           }
+         }
+         logger.lifecycle("The checksum is $ant.checksumOut")
+       }
+     }
+     
+    ```
+
+    Returns:
+    :
+        The `AntBuilder` for this project. Never returns null.
+  *
+
+    ### createAntBuilder
+
+    [AntBuilder](AntBuilder.html "class in org.gradle.api") createAntBuilder()  
+    Creates an additional `AntBuilder` for this project. You can use this in your build file to execute ant tasks.
+
+    Returns:
+    :
+        Creates an `AntBuilder` for this project. Never returns null.
+
+    See Also:
+    :
+        * [`getAnt()`](#getAnt())
+
+  *
+
+    ### ant
+
+    [AntBuilder](AntBuilder.html "class in org.gradle.api") ant ([@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([AntBuilder.class](AntBuilder.html "class in org.gradle.api")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
+    Executes the given closure against the `AntBuilder` for this project. You can use this in your build file to execute ant tasks. The `AntBuild` is passed to the closure as the closure's delegate. See example in javadoc for [`getAnt()`](#getAnt())
+
+    Parameters:
+    :
+        `configureClosure` - The closure to execute against the `AntBuilder`.
+
+    Returns:
+    :
+        The `AntBuilder`. Never returns null.
+  *
+
+    ### ant
+
+    [AntBuilder](AntBuilder.html "class in org.gradle.api") ant ([Action](Action.html "interface in org.gradle.api")\<? super [AntBuilder](AntBuilder.html "class in org.gradle.api")\> configureAction)  
+    Executes the given action against the `AntBuilder` for this project. You can use this in your build file to execute ant tasks. See example in javadoc for [`getAnt()`](#getAnt())
+
+    Parameters:
+    :
+        `configureAction` - The action to execute against the `AntBuilder`.
+
+    Returns:
+    :
+        The `AntBuilder`. Never returns null.
+
+    Since:
+    :   3.5
+  *
+
+    ### getConfigurations
+
+    [ConfigurationContainer](artifacts/ConfigurationContainer.html "interface in org.gradle.api.artifacts") getConfigurations()  
+    Returns the configurations of this project.
+
+    Examples: See docs for [`ConfigurationContainer`](artifacts/ConfigurationContainer.html "interface in org.gradle.api.artifacts")
+
+    Returns:
+    :   The configuration of this project.
+  *
+
+    ### configurations
+
+    void configurations ([Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
+    Configures the dependency configurations for this project.
+
+    This method executes the given closure against the [`ConfigurationContainer`](artifacts/ConfigurationContainer.html "interface in org.gradle.api.artifacts") for this project. The [`ConfigurationContainer`](artifacts/ConfigurationContainer.html "interface in org.gradle.api.artifacts") is passed to the closure as the closure's delegate.
+
+    Examples: See docs for [`ConfigurationContainer`](artifacts/ConfigurationContainer.html "interface in org.gradle.api.artifacts")
+
+    Parameters:
+    :
+        `configureClosure` - the closure to use to configure the dependency configurations.
+  *
+
+    ### getArtifacts
+
+    [ArtifactHandler](artifacts/dsl/ArtifactHandler.html "interface in org.gradle.api.artifacts.dsl") getArtifacts()  
+    Returns a handler for assigning artifacts produced by the project to configurations.
+
+    Examples: See docs for [`ArtifactHandler`](artifacts/dsl/ArtifactHandler.html "interface in org.gradle.api.artifacts.dsl")
+  *
+
+    ### artifacts
+
+    void artifacts ([@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([ArtifactHandler.class](artifacts/dsl/ArtifactHandler.html "interface in org.gradle.api.artifacts.dsl")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
+    Configures the published artifacts for this project.
+
+    This method executes the given closure against the [`ArtifactHandler`](artifacts/dsl/ArtifactHandler.html "interface in org.gradle.api.artifacts.dsl") for this project. The [`ArtifactHandler`](artifacts/dsl/ArtifactHandler.html "interface in org.gradle.api.artifacts.dsl") is passed to the closure as the closure's delegate.
+
+    Example:
+
+    ```
+     configurations {
+       //declaring new configuration that will be used to associate with artifacts
+       schema
+     }
+
+     task schemaJar(type: Jar) {
+       //some imaginary task that creates a jar artifact with the schema
+     }
+
+     //associating the task that produces the artifact with the configuration
+     artifacts {
+       //configuration name and the task:
+       schema schemaJar
+     }
+     
+    ```
+
+    Parameters:
+    :
+        `configureClosure` - the closure to use to configure the published artifacts.
+  *
+
+    ### artifacts
+
+    void artifacts ([Action](Action.html "interface in org.gradle.api")\<? super [ArtifactHandler](artifacts/dsl/ArtifactHandler.html "interface in org.gradle.api.artifacts.dsl")\> configureAction)  
+    Configures the published artifacts for this project.
+
+    This method executes the given action against the [`ArtifactHandler`](artifacts/dsl/ArtifactHandler.html "interface in org.gradle.api.artifacts.dsl") for this project.
+
+    Example:
+
+    ```
+     configurations {
+       //declaring new configuration that will be used to associate with artifacts
+       schema
+     }
+
+     task schemaJar(type: Jar) {
+       //some imaginary task that creates a jar artifact with the schema
+     }
+
+     //associating the task that produces the artifact with the configuration
+     artifacts {
+       //configuration name and the task:
+       schema schemaJar
+     }
+     
+    ```
+
+    Parameters:
+    :
+        `configureAction` - the action to use to configure the published artifacts.
+
+    Since:
+    :   3.5
+  *
+
+    ### depthCompare
+
+    int depthCompare ([Project](Project.html "interface in org.gradle.api") otherProject)  
+    Compares the nesting level of this project with another project of the multi-project hierarchy.
+
+    Parameters:
+    :
+        `otherProject` - The project to compare the nesting level with.
+
+    Returns:
+    :   a negative integer, zero, or a positive integer as this project has a nesting level less than, equal to, or greater than the specified object.
+
+    See Also:
+    :
+        * [`getDepth()`](#getDepth())
+
+  *
+
+    ### getDepth
+
+    int getDepth()  
+    Returns the nesting level of a project in a multi-project hierarchy. For single project builds this is always 0. In a multi-project hierarchy 0 is returned for the root project.
+  *
+
+    ### getTasks
+
+    [TaskContainer](tasks/TaskContainer.html "interface in org.gradle.api.tasks") getTasks()  
+    Returns the tasks of this project.
+
+    Returns:
+    :   the tasks of this project.
+  *
+
+    ### subprojects
+
+    void subprojects ([Action](Action.html "interface in org.gradle.api")\<? super [Project](Project.html "interface in org.gradle.api")\> action)  
+    Configures the sub-projects of this project
+
+    This method executes the given [`Action`](Action.html "interface in org.gradle.api") against the sub-projects of this project.
+
+    Parameters:
+    :
+        `action` - The action to execute.
+  *
+
+    ### subprojects
+
+    void subprojects ([@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([Project.class](Project.html "interface in org.gradle.api")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
+    Configures the sub-projects of this project.
+
+    This method executes the given closure against each of the sub-projects of this project. The target [`Project`](Project.html "interface in org.gradle.api") is passed to the closure as the closure's delegate.
+
+    Parameters:
+    :
+        `configureClosure` - The closure to execute.
+  *
+
+    ### allprojects
+
+    void allprojects ([Action](Action.html "interface in org.gradle.api")\<? super [Project](Project.html "interface in org.gradle.api")\> action)  
+    Configures this project and each of its sub-projects.
+
+    This method executes the given [`Action`](Action.html "interface in org.gradle.api") against this project and each of its sub-projects.
+
+    Parameters:
+    :
+        `action` - The action to execute.
+  *
+
+    ### allprojects
+
+    void allprojects ([@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([Project.class](Project.html "interface in org.gradle.api")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
+    Configures this project and each of its sub-projects.
+
+    This method executes the given closure against this project and its sub-projects. The target [`Project`](Project.html "interface in org.gradle.api") is passed to the closure as the closure's delegate.
+
+    Parameters:
+    :
+        `configureClosure` - The closure to execute.
+  *
+
+    ### beforeEvaluate
+
+    void beforeEvaluate ([Action](Action.html "interface in org.gradle.api")\<? super [Project](Project.html "interface in org.gradle.api")\> action)  
+    Adds an action to call immediately before this project is evaluated.
+
+    Passes the project to the action as a parameter. Actions passed to this method execute in the same order they were passed.
+
+    If the project has already been evaluated, the action never executes.
+
+    If you call this method within a `beforeEvaluate` action, the passed action never executes.
+
+    Parameters:
+    :
+        `action` - the action to execute.
+  *
+
+    ### afterEvaluate
+
+    void afterEvaluate ([Action](Action.html "interface in org.gradle.api")\<? super [Project](Project.html "interface in org.gradle.api")\> action)  
+    Adds an action to call immediately after this project is evaluated.
+
+    Passes the project to the action as a parameter. Actions passed to this method execute in the same order they were passed. A parent project may add an action to its child projects to further configure those projects based on their state after their build files run.
+
+    If the project has already been evaluated, this method fails.
+
+    If you call this method within an `afterEvaluate` action, the passed action executes after all previously added `afterEvaluate` actions finish executing.
+
+    Parameters:
+    :
+        `action` - the action to execute.
+  *
+
+    ### beforeEvaluate
+
+    void beforeEvaluate ([@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([Project.class](Project.html "interface in org.gradle.api")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") closure)  
+    Adds a closure to call immediately before this project is evaluated.
+
+    Parameters:
+    :
+        `closure` - The closure to call.
+
+    See Also:
+    :
+        * [`beforeEvaluate(Action)`](#beforeEvaluate(org.gradle.api.Action))
+
+  *
+
+    ### afterEvaluate
+
+    void afterEvaluate ([@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([Project.class](Project.html "interface in org.gradle.api")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") closure)  
+    Adds a closure to call immediately after this project is evaluated.
+
+    Parameters:
+    :
+        `closure` - The closure to call.
+
+    See Also:
+    :
+        * [`afterEvaluate(Action)`](#afterEvaluate(org.gradle.api.Action))
+
+  *
+
+    ### hasProperty
+
+    boolean hasProperty ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") propertyName)  
+    Determines if this project has the given property. See [here](#properties) for details of the properties which are available for a project.
+
+    Parameters:
+    :
+        `propertyName` - The name of the property to locate.
+
+    Returns:
+    :   True if this project has the given property, false otherwise.
+  *
+
+    ### getProperties
+
+    [Map](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Map.html "class or interface in java.util")\<[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang"),? extends @Nullable [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")\> getProperties()  
+    Returns the properties of this project. See [here](#properties) for details of the properties which are available for a project.
+
+    Returns:
+    :   A map from property name to value.
+  *
+
+    ### property
+
+    @Nullable [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") property ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") propertyName) throws [MissingPropertyException](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/MissingPropertyException.html "class or interface in groovy.lang")  
+    Returns the value of the given property. This method locates a property as follows:
+    1. If this project object has a property with the given name, return the value of the property.
+    2. If this project has an extension with the given name, return the extension.
+    3. If this project's convention object has a property with the given name, return the value of the property.
+    4. If this project has an extra property with the given name, return the value of the property.
+    5. If this project has a task with the given name, return the task.
+    6. Search up through this project's ancestor projects for a convention property or extra property with the given name.
+    7. If not found, a [`MissingPropertyException`](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/MissingPropertyException.html "class or interface in groovy.lang") is thrown.
+
+    Parameters:
+    :
+        `propertyName` - The name of the property.
+
+    Returns:
+    :   The value of the property, possibly null.
+
+    Throws:
+    :
+        [MissingPropertyException](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/MissingPropertyException.html "class or interface in groovy.lang") - When the given property is unknown.
+
+    See Also:
+    :
+        * [`findProperty(String)`](#findProperty(java.lang.String))
+
+  *
+
+    ### findProperty
+
+    @Nullable [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") findProperty ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") propertyName)  
+    Returns the value of the given property or null if not found. This method locates a property as follows:
+    1. If this project object has a property with the given name, return the value of the property.
+    2. If this project has an extension with the given name, return the extension.
+    3. If this project's convention object has a property with the given name, return the value of the property.
+    4. If this project has an extra property with the given name, return the value of the property.
+    5. If this project has a task with the given name, return the task.
+    6. Search up through this project's ancestor projects for a convention property or extra property with the given name.
+    7. If not found, null value is returned.
+
+    Parameters:
+    :
+        `propertyName` - The name of the property.
+
+    Returns:
+    :   The value of the property, possibly null or null if not found.
+
+    Since:
+    :   2.13
+
+    See Also:
+    :
+        * [`property(String)`](#property(java.lang.String))
+
+  *
+
+    ### getLogger
+
+    [Logger](logging/Logger.html "interface in org.gradle.api.logging") getLogger()  
+    Returns the logger for this project. You can use this in your build file to write log messages.
+
+    Returns:
+    :   The logger. Never returns null.
+  *
+
+    ### getGradle
+
+    [Gradle](invocation/Gradle.html "interface in org.gradle.api.invocation") getGradle()  
+    Returns the [`Gradle`](invocation/Gradle.html "interface in org.gradle.api.invocation") invocation which this project belongs to.
+
+    Returns:
+    :   The Gradle object. Never returns null.
+  *
+
+    ### getLogging
+
+    [LoggingManager](logging/LoggingManager.html "interface in org.gradle.api.logging") getLogging()  
+    Returns the [`LoggingManager`](logging/LoggingManager.html "interface in org.gradle.api.logging") which can be used to receive logging and to control the standard output/error capture for this project's build script. By default, System.out is redirected to the Gradle logging system at the QUIET log level, and System.err is redirected at the ERROR log level.
+
+    Returns:
+    :   the LoggingManager. Never returns null.
+  *
+
+    ### configure
+
+    [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") configure ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") object, [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
+    Configures an object via a closure, with the closure's delegate set to the supplied object. This way you don't have to specify the context of a configuration statement multiple times.
+
+    Instead of:
+
+    ```
+     MyType myType = new MyType()
+     myType.doThis()
+     myType.doThat()
+     
+    ```
+
+    you can do:
+
+    ```
+     MyType myType = configure(new MyType()) {
+         doThis()
+         doThat()
+     }
+     
+    ```
+
+    The object being configured is also passed to the closure as a parameter, so you can access it explicitly if required:
+
+    ```
+     configure(someObj) { obj -> obj.doThis() }
+     
+    ```
+
+    Parameters:
+    :
+        `object` - The object to configure
+    :
+        `configureClosure` - The closure with configure statements
+
+    Returns:
+    :   The configured object
+  *
+
+    ### configure
+
+    [Iterable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Iterable.html "class or interface in java.lang")\<?\> configure ([Iterable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Iterable.html "class or interface in java.lang")\<?\> objects, [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
+    Configures a collection of objects via a closure. This is equivalent to calling [`configure(Object, groovy.lang.Closure)`](#configure(java.lang.Object,groovy.lang.Closure)) for each of the given objects.
+
+    Parameters:
+    :
+        `objects` - The objects to configure
+    :
+        `configureClosure` - The closure with configure statements
+
+    Returns:
+    :   The configured objects.
+  *
+
+    ### configure
+
+    \<T\> [Iterable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Iterable.html "class or interface in java.lang")\<T\> configure ([Iterable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Iterable.html "class or interface in java.lang")\<T\> objects, [Action](Action.html "interface in org.gradle.api")\<? super T\> configureAction)  
+    Configures a collection of objects via an action.
+
+    Parameters:
+    :
+        `objects` - The objects to configure
+    :
+        `configureAction` - The action to apply to each object
+
+    Returns:
+    :   The configured objects.
+  *
+
+    ### getRepositories
+
+    [RepositoryHandler](artifacts/dsl/RepositoryHandler.html "interface in org.gradle.api.artifacts.dsl") getRepositories()  
+    Returns a handler to create repositories which are used for retrieving dependencies and uploading artifacts produced by the project.
+
+    Returns:
+    :   the repository handler. Never returns null.
+  *
+
+    ### repositories
+
+    void repositories ([Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
+    Configures the repositories for this project.
+
+    This method executes the given closure against the [`RepositoryHandler`](artifacts/dsl/RepositoryHandler.html "interface in org.gradle.api.artifacts.dsl") for this project. The [`RepositoryHandler`](artifacts/dsl/RepositoryHandler.html "interface in org.gradle.api.artifacts.dsl") is passed to the closure as the closure's delegate.
+
+    Parameters:
+    :
+        `configureClosure` - the closure to use to configure the repositories.
+  *
+
+    ### getDependencies
+
+    [DependencyHandler](artifacts/dsl/DependencyHandler.html "interface in org.gradle.api.artifacts.dsl") getDependencies()  
+    Returns the dependency handler of this project. The returned dependency handler instance can be used for adding new dependencies. For accessing already declared dependencies, the configurations can be used.
+
+    Examples: See docs for [`DependencyHandler`](artifacts/dsl/DependencyHandler.html "interface in org.gradle.api.artifacts.dsl")
+
+    Returns:
+    :   the dependency handler. Never returns null.
+
+    See Also:
+    :
+        * [`getConfigurations()`](#getConfigurations())
+
+  *
+
+    ### dependencies
+
+    void dependencies ([Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
+    Configures the dependencies for this project.
+
+    This method executes the given closure against the [`DependencyHandler`](artifacts/dsl/DependencyHandler.html "interface in org.gradle.api.artifacts.dsl") for this project. The [`DependencyHandler`](artifacts/dsl/DependencyHandler.html "interface in org.gradle.api.artifacts.dsl") is passed to the closure as the closure's delegate.
+
+    Examples: See docs for [`DependencyHandler`](artifacts/dsl/DependencyHandler.html "interface in org.gradle.api.artifacts.dsl")
+
+    Parameters:
+    :
+        `configureClosure` - the closure to use to configure the dependencies.
+  *
+
+    ### getDependencyFactory
+
+    [DependencyFactory](artifacts/dsl/DependencyFactory.html "interface in org.gradle.api.artifacts.dsl") getDependencyFactory()  
+    Provides access to methods to create various kinds of [`Dependency`](artifacts/Dependency.html "interface in org.gradle.api.artifacts") instances.
+
+    Returns:
+    :   the dependency factory. Never returns null.
+
+    Since:
+    :   7.6
+  *
+
+    ### getBuildscript
+
+    [ScriptHandler](initialization/dsl/ScriptHandler.html "interface in org.gradle.api.initialization.dsl") getBuildscript()  
+    Returns the build script handler for this project. You can use this handler to query details about the build script for this project, and manage the classpath used to compile and execute the project's build script.
+
+    Returns:
+    :   the classpath handler. Never returns null.
+  *
+
+    ### buildscript
+
+    void buildscript ([Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
+    Configures the build script classpath for this project.
+
+    The given closure is executed against this project's [`ScriptHandler`](initialization/dsl/ScriptHandler.html "interface in org.gradle.api.initialization.dsl"). The [`ScriptHandler`](initialization/dsl/ScriptHandler.html "interface in org.gradle.api.initialization.dsl") is passed to the closure as the closure's delegate.
+
+    Parameters:
+    :
+        `configureClosure` - the closure to use to configure the build script classpath.
+  *
+
+    ### copy
+
+    [WorkResult](tasks/WorkResult.html "interface in org.gradle.api.tasks") copy ([@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([CopySpec.class](file/CopySpec.html "interface in org.gradle.api.file")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") closure)  
+    Copies the specified files. The given closure is used to configure a [`CopySpec`](file/CopySpec.html "interface in org.gradle.api.file"), which is then used to copy the files. Example:
+
+    ```
+     copy {
+        from configurations.runtimeClasspath
+        into 'build/deploy/lib'
+     }
+     
+    ```
+
+    Note that CopySpecs can be nested:
+
+    ```
+     copy {
+        into 'build/webroot'
+        exclude '**/.svn/**'
+        from('src/main/webapp') {
+           include '**/*.jsp'
+           filter(ReplaceTokens, tokens:[copyright:'2009', version:'2.3.1'])
+        }
+        from('src/main/js') {
+           include '**/*.js'
+        }
+     }
+     
+    ```
+
+    Parameters:
+    :
+        `closure` - Closure to configure the CopySpec
+
+    Returns:
+    :
+        [`WorkResult`](tasks/WorkResult.html "interface in org.gradle.api.tasks") that can be used to check if the copy did any work.
+  *
+
+    ### copy
+
+    [WorkResult](tasks/WorkResult.html "interface in org.gradle.api.tasks") copy ([Action](Action.html "interface in org.gradle.api")\<? super [CopySpec](file/CopySpec.html "interface in org.gradle.api.file")\> action)  
+    Copies the specified files. The given action is used to configure a [`CopySpec`](file/CopySpec.html "interface in org.gradle.api.file"), which is then used to copy the files.
+
+    Parameters:
+    :
+        `action` - Action to configure the CopySpec
+
+    Returns:
+    :
+        [`WorkResult`](tasks/WorkResult.html "interface in org.gradle.api.tasks") that can be used to check if the copy did any work.
+
+    See Also:
+    :
+        * [`copy(Closure)`](#copy(groovy.lang.Closure))
+
+  *
+
+    ### copySpec
+
+    [CopySpec](file/CopySpec.html "interface in org.gradle.api.file") copySpec ([@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([CopySpec.class](file/CopySpec.html "interface in org.gradle.api.file")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") closure)  
+    Creates a [`CopySpec`](file/CopySpec.html "interface in org.gradle.api.file") which can later be used to copy files or create an archive. The given closure is used to configure the [`CopySpec`](file/CopySpec.html "interface in org.gradle.api.file") before it is returned by this method.
+
+    ```
+     def baseSpec = copySpec {
+        from "source"
+        include "**/*.java"
+     }
+
+     task copy(type: Copy) {
+        into "target"
+        with baseSpec
+     }
+     
+    ```
+
+    Parameters:
+    :
+        `closure` - Closure to configure the CopySpec
+
+    Returns:
+    :   The CopySpec
+  *
+
+    ### copySpec
+
+    [CopySpec](file/CopySpec.html "interface in org.gradle.api.file") copySpec ([Action](Action.html "interface in org.gradle.api")\<? super [CopySpec](file/CopySpec.html "interface in org.gradle.api.file")\> action)  
+    Creates a [`CopySpec`](file/CopySpec.html "interface in org.gradle.api.file") which can later be used to copy files or create an archive. The given action is used to configure the [`CopySpec`](file/CopySpec.html "interface in org.gradle.api.file") before it is returned by this method.
+
+    Parameters:
+    :
+        `action` - Action to configure the CopySpec
+
+    Returns:
+    :   The CopySpec
+
+    See Also:
+    :
+        * [`copySpec(Closure)`](#copySpec(groovy.lang.Closure))
+
+  *
+
+    ### copySpec
+
+    [CopySpec](file/CopySpec.html "interface in org.gradle.api.file") copySpec()  
+    Creates a [`CopySpec`](file/CopySpec.html "interface in org.gradle.api.file") which can later be used to copy files or create an archive.
+
+    Returns:
+    :   a newly created copy spec
+  *
+
+    ### sync
+
+    [WorkResult](tasks/WorkResult.html "interface in org.gradle.api.tasks") sync ([Action](Action.html "interface in org.gradle.api")\<? super [SyncSpec](file/SyncSpec.html "interface in org.gradle.api.file")\> action)  
+    Synchronizes the contents of a destination directory with some source directories and files. The given action is used to configure a [`SyncSpec`](file/SyncSpec.html "interface in org.gradle.api.file"), which is then used to synchronize the files.
+
+    This method is like the [`copy(Action)`](#copy(org.gradle.api.Action)) task, except the destination directory will only contain the files copied. All files that exist in the destination directory will be deleted before copying files, unless a preserve option is specified.
+
+    Example:
+
+    ```
+     project.sync {
+        from 'my/shared/dependencyDir'
+        into 'build/deps/compile'
+     }
+     
+    ```
+
+    Note that you can preserve output that already exists in the destination directory:
+
+    ```
+     project.sync {
+         from 'source'
+         into 'dest'
+         preserve {
+             include 'extraDir/**'
+             include 'dir1/**'
+             exclude 'dir1/extra.txt'
+         }
+     }
+     
+    ```
+
+    Parameters:
+    :
+        `action` - Action to configure the SyncSpec.
+
+    Returns:
+    :
+        [`WorkResult`](tasks/WorkResult.html "interface in org.gradle.api.tasks") that can be used to check if the sync did any work.
+
+    Since:
+    :   4.0
+  *
+
+    ### getState
+
+    [ProjectState](ProjectState.html "interface in org.gradle.api") getState()  
+    Returns the evaluation state of this project. You can use this to access information about the evaluation of this project, such as whether it has failed.
+
+    Returns:
+    :   the project state. Never returns null.
+  *
+
+    ### container
+
+    [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") \<T\> [NamedDomainObjectContainer](NamedDomainObjectContainer.html "interface in org.gradle.api")\<T\> container ([Class](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Class.html "class or interface in java.lang")\<T\> type)  
+    Deprecated.  
+    Use [`ObjectFactory.domainObjectContainer(Class)`](model/ObjectFactory.html#domainObjectContainer(java.lang.Class)) instead.  
+    Creates a container for managing named objects of the specified type. The specified type must have a public constructor which takes the name as a String parameter.
+
+    All objects **MUST** expose their name as a bean property named "name". The name must be constant for the life of the object.
+
+    Type Parameters:
+    :
+        `T` - The type of objects for the container to contain.
+
+    Parameters:
+    :
+        `type` - The type of objects for the container to contain.
+
+    Returns:
+    :   The container.
+  *
+
+    ### container
+
+    [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") \<T\> [NamedDomainObjectContainer](NamedDomainObjectContainer.html "interface in org.gradle.api")\<T\> container ([Class](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Class.html "class or interface in java.lang")\<T\> type, [NamedDomainObjectFactory](NamedDomainObjectFactory.html "interface in org.gradle.api")\<T\> factory)  
+    Deprecated.  
+    Use [`ObjectFactory.domainObjectContainer(Class, NamedDomainObjectFactory)`](model/ObjectFactory.html#domainObjectContainer(java.lang.Class,org.gradle.api.NamedDomainObjectFactory)) instead.  
+    Creates a container for managing named objects of the specified type. The given factory is used to create object instances.
+
+    All objects **MUST** expose their name as a bean property named "name". The name must be constant for the life of the object.
+
+    Type Parameters:
+    :
+        `T` - The type of objects for the container to contain.
+
+    Parameters:
+    :
+        `type` - The type of objects for the container to contain.
+    :
+        `factory` - The factory to use to create object instances.
+
+    Returns:
+    :   The container.
+  *
+
+    ### container
+
+    [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") \<T\> [NamedDomainObjectContainer](NamedDomainObjectContainer.html "interface in org.gradle.api")\<T\> container ([Class](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Class.html "class or interface in java.lang")\<T\> type, [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") factoryClosure)  
+    Deprecated.  
+    Use [`ObjectFactory.domainObjectContainer(Class, NamedDomainObjectFactory)`](model/ObjectFactory.html#domainObjectContainer(java.lang.Class,org.gradle.api.NamedDomainObjectFactory)) instead.  
+    Creates a container for managing named objects of the specified type. The given closure is used to create object instances. The name of the instance to be created is passed as a parameter to the closure.
+
+    All objects **MUST** expose their name as a bean property named "name". The name must be constant for the life of the object.
+
+    Type Parameters:
+    :
+        `T` - The type of objects for the container to contain.
+
+    Parameters:
+    :
+        `type` - The type of objects for the container to contain.
+    :
+        `factoryClosure` - The closure to use to create object instances.
+
+    Returns:
+    :   The container.
+  *
+
+    ### getExtensions
+
+    [ExtensionContainer](plugins/ExtensionContainer.html "interface in org.gradle.api.plugins") getExtensions()  
+    Allows adding DSL extensions to the project. Useful for plugin authors.
+
+    Specified by:
+    :
+        [getExtensions](plugins/ExtensionAware.html#getExtensions()) in interface [ExtensionAware](plugins/ExtensionAware.html "interface in org.gradle.api.plugins")
+
+    Returns:
+    :   Returned instance allows adding DSL extensions to the project
+  *
+
+    ### getResources
+
+    [ResourceHandler](resources/ResourceHandler.html "interface in org.gradle.api.resources") getResources()  
+    Provides access to resource-specific utility methods, for example factory methods that create various resources.
+
+    Returns:
+    :   Returned instance contains various resource-specific utility methods.
+  *
+
+    ### getComponents
+
+    [SoftwareComponentContainer](component/SoftwareComponentContainer.html "interface in org.gradle.api.component") getComponents()  
+    Returns the software components produced by this project.
+
+    Returns:
+    :   The components for this project.
+  *
+
+    ### components
+
+    [@Incubating](Incubating.html "annotation in org.gradle.api") void components ([Action](Action.html "interface in org.gradle.api")\<? super [SoftwareComponentContainer](component/SoftwareComponentContainer.html "interface in org.gradle.api.component")\> configuration)  
+    Configures software components.
+
+    Parameters:
+    :
+        `configuration` - Action to configure the software components.
+
+    Since:
+    :   8.1
+  *
+
+    ### getNormalization
+
+    [InputNormalizationHandler](../normalization/InputNormalizationHandler.html "interface in org.gradle.normalization") getNormalization()  
+    Provides access to configuring input normalization.
+
+    Since:
+    :   4.0
+  *
+
+    ### normalization
+
+    void normalization ([Action](Action.html "interface in org.gradle.api")\<? super [InputNormalizationHandler](../normalization/InputNormalizationHandler.html "interface in org.gradle.normalization")\> configuration)  
+    Configures input normalization.
+
+    Since:
+    :   4.0
+  *
+
+    ### dependencyLocking
+
+    void dependencyLocking ([Action](Action.html "interface in org.gradle.api")\<? super [DependencyLockingHandler](artifacts/dsl/DependencyLockingHandler.html "interface in org.gradle.api.artifacts.dsl")\> configuration)  
+    Configures dependency locking
+
+    Since:
+    :   4.8
+  *
+
+    ### getDependencyLocking
+
+    [DependencyLockingHandler](artifacts/dsl/DependencyLockingHandler.html "interface in org.gradle.api.artifacts.dsl") getDependencyLocking()  
+    Provides access to configuring dependency locking
+
+    Since:
+    :   4.8

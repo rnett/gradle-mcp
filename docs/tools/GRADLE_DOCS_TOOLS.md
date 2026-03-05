@@ -6,23 +6,28 @@ Tools for querying and reading Gradle documentation.
 
 ## gradle_docs
 
-The authoritative tool for searching and reading official Gradle documentation, release notes, and version-specific guides.
-It provides high-performance access to the entire Gradle User Guide, rendered as markdown for seamless agent consumption.
+Search and read official Gradle documentation, including the User Guide, DSL Reference, Javadoc, and Release Notes.
 
-### Authoritative Features
-- **Precision Search**: Use `query` to find specific sections, DSL elements, or plugin documentation across the entire authoritative guide.
-- **Exhaustive Content Retrieval**: Read full documentation pages directly in your context using the `path` argument.
-- **Authoritative Release Insights**: Set `releaseNotes=true` to retrieve the definitive list of changes, improvements, and deprecations for any Gradle version.
-- **Version-Specific Targeting**: Automatically targets your project's Gradle version or allows for surgical manual version selection.
+### Features
+- **Unified Search**: Search across all documentation or scope to specific sections using tags.
+- **Scoped Searching**: Use the `tag:` syntax in your query to target specific documentation areas:
+  - `tag:userguide <query>`: Search the Gradle User Guide.
+  - `tag:dsl <query>`: Search the DSL Reference (Groovy and Kotlin DSL).
+  - `tag:javadoc <query>`: Search the Java API Reference.
+  - `tag:samples <query>`: Search Gradle samples and examples.
+  - `tag:release-notes <query>`: Search within version release notes.
+- **Direct Page and Asset Access**: Read specific pages (.md) or view images (.png, .jpg, etc.) by providing their `path`.
+- **Section Summaries**: Call with no arguments to see available documentation sections and their content counts for the targeted version.
 
 ### Common Usage Patterns
-- **Search User Guide**: `gradle_docs(query="kotlin dsl configuration")`
-- **Read Guide Section**: `gradle_docs(path="working_with_files.html")`
-- **Check Version Changes**: `gradle_docs(releaseNotes=true, version="8.5")`
-- **List Available Pages**: `gradle_docs()`
+- **Summary of Docs**: `gradle_docs()`
+- **Search User Guide**: `gradle_docs(query="tag:userguide working with files")`
+- **Read Page**: `gradle_docs(path="userguide/command_line_interface.md")`
+- **Read Image**: `gradle_docs(path="userguide/img/command-line-options.png")`
+- **Target Specific Version**: `gradle_docs(query="tag:release-notes", version="8.5")`
 
-Note: `releaseNotes` takes precedence over `path`, which takes precedence over `query`.
-For detailed documentation navigation strategies, refer to the `gradle-docs` skill.
+Note: `path` takes precedence over `query`.
+For detailed navigation strategies and available tags, refer to the `gradle-docs` skill.
 
 <details>
 
@@ -37,14 +42,14 @@ For detailed documentation navigation strategies, refer to the `gradle-docs` ski
         "string",
         "null"
       ],
-      "description": "The authoritative search query for the documentation. Supports keywords and phrases to find relevant User Guide sections."
+      "description": "The search query for the documentation. Use `tag:<section>` to filter (e.g., `tag:userguide configuration`). Available tags: `userguide`, `dsl`, `javadoc`, `samples`, `release-notes`."
     },
     "path": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The specific documentation page path to read (e.g., 'command_line_interface.html'). If omitted, a searchable list of all pages is returned."
+      "description": "The specific documentation page or image path to read (e.g., 'userguide/command_line_interface.md' or 'userguide/img/cli.png'). If omitted and no query is provided, a summary of documentation sections is returned."
     },
     "version": {
       "type": [
@@ -53,16 +58,12 @@ For detailed documentation navigation strategies, refer to the `gradle-docs` ski
       ],
       "description": "The specific Gradle version documentation to target (e.g., '8.6'). Defaults to the project's detected version or the latest release."
     },
-    "releaseNotes": {
-      "type": "boolean",
-      "description": "If true, fetches the authoritative release notes for the specified version. Ideal for researching breaking changes and new features."
-    },
     "projectRoot": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The absolute path to the project root directory. Used to automatically detect the project's Gradle version for high-resolution documentation targeting."
+      "description": "The absolute path to the project root directory. Used to automatically detect the project's Gradle version for documentation targeting."
     }
   },
   "required": [],

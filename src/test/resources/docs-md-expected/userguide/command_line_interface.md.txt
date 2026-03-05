@@ -1,0 +1,944 @@
+# Command-Line Interface
+
+version 9.4.0  
+On this Page
+
+* [Command-line usage](#command_line_usage)
+  * [Executing tasks](#sec:command_line_executing_tasks)
+  * [Specify options for tasks](#sec:disambiguate_task_options_from_built_in_options)
+  * [Executing tasks in multi-project builds](#executing_tasks_in_multi_project_builds)
+  * [Executing multiple tasks](#executing_multiple_tasks)
+  * [Command line order safety](#command_line_order_safety)
+  * [Excluding tasks from execution](#sec:excluding_tasks_from_the_command_line)
+  * [Forcing tasks to execute](#sec:rerun_tasks)
+  * [Continue the build after a task failure](#sec:continue_build_on_failure)
+  * [Name abbreviation](#sec:name_abbreviation)
+  * [Tracing name expansion](#tracing_name_expansion)
+* [Common tasks](#common_tasks)
+  * [Computing all outputs](#computing_all_outputs)
+  * [Running applications](#running_applications)
+  * [Running all checks](#running_all_checks)
+  * [Cleaning outputs](#cleaning_outputs)
+* [Project reporting](#sec:command_line_project_reporting)
+  * [Listing projects](#listing_projects)
+  * [Listing tasks](#sec:listing_tasks)
+  * [Show task usage details](#sec:show_task_details)
+  * [Reporting dependencies](#reporting_dependencies)
+  * [Listing project dependencies](#sec:listing_project_dependencies)
+  * [Listing project properties](#sec:listing_properties)
+* [Command-line completion](#sec:command_line_completion)
+* [Debugging options](#sec:command_line_debugging)
+* [Performance options](#sec:command_line_performance)
+  * [Gradle daemon options](#gradle_daemon_options)
+* [Logging options](#sec:command_line_logging)
+  * [Setting log level](#setting_log_level)
+  * [Customizing log format](#sec:command_line_customizing_log_format)
+  * [Reporting problems](#sec:command_line_problems)
+  * [Showing or hiding warnings](#sec:command_line_warnings)
+  * [Rich console](#sec:rich_console)
+* [Execution options](#sec:command_line_execution_options)
+* [Dependency verification options](#sec:dependency_verification_options)
+* [Environment options](#sec:environment_options)
+* [Task options](#sec:task_options)
+  * [Built-in task options](#sec:builtin_task_options)
+* [Bootstrapping new projects](#sec:command_line_bootstrapping_projects)
+  * [Creating new Gradle builds](#creating_new_gradle_builds)
+  * [Standardize and provision Gradle](#standardize_and_provision_gradle)
+* [Continuous build](#sec:continuous_build)  
+The command-line interface is the **primary method of interacting with Gradle**.  
+The following is a reference for executing and customizing the Gradle command-line. It also serves as a reference when writing scripts or configuring continuous integration.  
+**Use of the [Gradle Wrapper](gradle_wrapper.html#gradle_wrapper) is highly encouraged** . Substitute `./gradlew` (in macOS / Linux) or `gradlew.bat` (in Windows) for `gradle` in the following examples.  
+Executing Gradle on the command-line conforms to the following structure:  
+
+```text
+gradle [taskName...] [--option-name...]
+```
+
+Options are allowed *before* and *after* task names.  
+
+```text
+gradle [--option-name...] [taskName...]
+```
+
+If multiple tasks are specified, you should separate them with a space.  
+
+```text
+gradle [taskName1 taskName2...] [--option-name...]
+```
+
+Options that accept values can be specified with or without `=` between the option and argument. The use of `=` is recommended.  
+
+```text
+gradle [...] --console=plain
+```
+
+Options that enable behavior have long-form options with inverses specified with `--no-`. The following are opposites.  
+
+```text
+gradle [...] --build-cache
+gradle [...] --no-build-cache
+```
+
+Many long-form options have short-option equivalents. The following are equivalent:  
+
+```text
+gradle --help
+gradle -h
+```
+
+|---|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|   | Many command-line flags can be specified in `gradle.properties` to avoid needing to be typed. See the [Configuring build environment guide](build_environment.html#sec:gradle_configuration_properties) for details. |
+
+## [Command-line usage](#command_line_usage)
+
+The following sections describe the use of the Gradle command-line interface.  
+Some plugins also add their own command line options. For example, `--tests`, which is added by [Java test filtering](java_testing.html#test_filtering). For more information on exposing command line options for your own tasks, see [Declaring command-line options](custom_tasks.html#sec:declaring_and_using_command_line_options).  
+
+### [Executing tasks](#sec:command_line_executing_tasks)
+
+You can learn about what projects and tasks are available in the [project reporting section](#sec:command_line_project_reporting).  
+Most builds support a common set of tasks known as [*lifecycle tasks*](organizing_tasks.html#sec:lifecycle_tasks). These include the `build`, `assemble`, and `check` tasks.  
+To execute a task called `myTask` on the root project, type:  
+
+```bash
+$ gradle :myTask
+```
+
+This will run the single `myTask` and all of its [dependencies](writing_tasks_intermediate.html#sec:task_dependencies).  
+
+### [Specify options for tasks](#sec:disambiguate_task_options_from_built_in_options)
+
+To pass an option to a task, prefix the option name with `--` after the task name:  
+
+```bash
+$ gradle :exampleTask --exampleOption=exampleValue
+```
+
+#### [Disambiguate task options from built-in options](#disambiguate_task_options_from_built_in_options)
+
+Gradle does not prevent tasks from registering options that conflict with Gradle's built-in options, like `--profile` or `--help`.  
+You can fix conflicting task options from Gradle's built-in options with a `--` delimiter before the task name in the command:  
+
+```bash
+$ gradle [--built-in-option-name...] -- [taskName...] [--task-option-name...]
+```
+
+Consider a task named `mytask` that accepts an option named `profile`:  
+* In `gradle mytask --profile`, Gradle accepts `--profile` as the built-in Gradle option.
+
+* In `gradle -- mytask --profile=value`, Gradle passes `--profile` as a task option.
+
+### [Executing tasks in multi-project builds](#executing_tasks_in_multi_project_builds)
+
+In a [multi-project build](multi_project_builds_intermediate.html#intro_multi_project_builds), subproject tasks can be executed with `:` separating the subproject name and task name. The following are equivalent when *run from the root project*:  
+
+```bash
+$ gradle :subproject:taskName
+```
+
+```text
+$ gradle subproject:taskName
+```
+
+You can also run a task for *all* subprojects using a task *selector* that consists of only the task name.  
+The following command runs the `test` task for all subprojects when invoked from the *root project directory*:  
+
+```bash
+$ gradle test
+```
+
+To recap:  
+
+```text
+// Run a task in the root project only
+$ gradle :exampleTask --exampleOption=exampleValue
+
+// Run a task that may exist in the root or any subproject (ambiguous if defined in more than one)
+$ gradle exampleTask --exampleOption=exampleValue
+
+// Run a task in a specific subproject
+$ gradle subproject:exampleTask --exampleOption=exampleValue
+$ gradle :subproject:exampleTask --exampleOption=exampleValue
+```
+
+|---|------------------------------------------------------------------------------------------------------------------------------------------------|
+|   | Some tasks selectors, like `help` or `dependencies`, will only run the task on the project they are invoked on and not on all the subprojects. |
+
+When invoking Gradle from within a subproject, the project name should be omitted:  
+
+```bash
+$ cd subproject
+```
+
+```bash
+$ gradle taskName
+```
+
+|---|------------------------------------------------------------------------------------------------------------------------------------|
+|   | When executing the Gradle Wrapper from a subproject directory, reference `gradlew` relatively. For example: `../gradlew taskName`. |
+
+### [Executing multiple tasks](#executing_multiple_tasks)
+
+You can also specify multiple tasks. The tasks' dependencies determine the precise order of execution, and a task having no dependencies may execute earlier than it is listed on the command-line.  
+For example, the following will execute the `test` and `deploy` tasks in the order that they are listed on the command-line and will also execute the dependencies for each task.  
+
+```bash
+$ gradle test deploy
+```
+
+### [Command line order safety](#command_line_order_safety)
+
+Although Gradle will always attempt to execute the build quickly, command line ordering safety will also be honored.  
+For example, the following will execute `clean` and `build` along with their dependencies:  
+
+```bash
+$ ./gradlew clean build
+```
+
+However, the intention implied in the command line order is that `clean` should run first and then `build`. It would be incorrect to execute `clean` *after* `build`, even if doing so would cause the build to execute faster since `clean` would remove what `build` created.  
+Conversely, if the command line order was `build` followed by `clean`, it would not be correct to execute `clean` before `build`. Although Gradle will execute the build as quickly as possible, it will also respect the safety of the order of tasks specified on the command line and ensure that `clean` runs before `build` when specified in that order.  
+Note that [command line order safety](incremental_build.html#incremental_build) relies on tasks properly declaring what they create, consume, or remove.  
+
+### [Excluding tasks from execution](#sec:excluding_tasks_from_the_command_line)
+
+You can exclude a task from being executed using the `-x` or `--exclude-task` command-line option and providing the name of the task to exclude:  
+
+```bash
+$ gradle dist --exclude-task test
+```
+
+```text
+> Task :compile
+compiling source
+
+> Task :dist
+building the distribution
+
+BUILD SUCCESSFUL in 0s
+2 actionable tasks: 2 executed
+```
+
+![commandLineTutorialTasks](img/commandLineTutorialTasks.png)  
+You can see that the `test` task is not executed, even though the `dist` task depends on it. The `test` task's dependencies, such as `compileTest`, are not executed either. The dependencies of `test` that other tasks depend on, such as `compile`, are still executed.  
+
+### [Forcing tasks to execute](#sec:rerun_tasks)
+
+You can force Gradle to execute all tasks ignoring [up-to-date checks](incremental_build.html#incremental_build) using the `--rerun-tasks` option:  
+
+```bash
+$ ./gradlew test --rerun-tasks
+```
+
+This will force `test` and *all* task dependencies of `test` to execute. It is similar to running `gradle clean test`, but without the build's generated output being deleted.  
+Alternatively, you can tell Gradle to rerun a specific task using the `--rerun` built-in [task option](#sec:task_options).  
+
+### [Continue the build after a task failure](#sec:continue_build_on_failure)
+
+By default, Gradle aborts execution and fails the build when any task fails. This allows the build to complete sooner and prevents cascading failures from obfuscating the root cause of an error.  
+You can use the `--continue` option to force Gradle to execute every task when a failure occurs:  
+
+```bash
+$ ./gradlew test --continue
+```
+
+When executed with `--continue`, Gradle executes *every* task in the build if all the dependencies for that task are completed without failure.  
+For example, tests do not run if there is a compilation error in the code under test because the `test` task depends on the `compilation` task. Gradle outputs each of the encountered failures at the end of the build.  
+
+|---|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|   | If any tests fail, many test suites fail the entire `test` task. Code coverage and reporting tools frequently run after the test task, so "fail fast" behavior may halt execution before those tools run. |
+
+### [Name abbreviation](#sec:name_abbreviation)
+
+When you specify tasks on the command-line, you don't have to provide the full name of the task. You can provide enough of the task name to identify the task uniquely. For example, it is likely `gradle che` is enough for Gradle to identify the `check` task.  
+The same applies to project names. You can execute the `check` task in the `library` subproject with the `gradle lib:che` command.  
+You can use [camel case](https://en.wikipedia.org/wiki/Camel_case) patterns for more complex abbreviations. These patterns are expanded to match camel case and [kebab case](https://en.wikipedia.org/wiki/Kebab_case) names. For example, the pattern `foBa` (or `fB`) matches `fooBar` and `foo-bar`.  
+More concretely, you can run the `compileTest` task in the `my-awesome-library` subproject with the command `gradle mAL:cT`.  
+
+```bash
+$ ./gradlew mAL:cT
+```
+
+```text
+> Task :my-awesome-library:compileTest
+compiling unit tests
+
+BUILD SUCCESSFUL in 0s
+1 actionable task: 1 executed
+```
+
+Abbreviations can also be used with the `-x` command-line option.  
+
+### [Tracing name expansion](#tracing_name_expansion)
+
+For complex projects, it might be ambiguous if the intended tasks were executed. When using abbreviated names, a single typo can lead to the execution of unexpected tasks.  
+When `INFO`, or more [verbose logging](logging.html#logLevels) is enabled, the output will contain extra information about the project and task name expansion.  
+For example, when executing the `mAL:cT` command on the previous example, the following log messages will be visible:  
+
+```text
+No exact project with name ':mAL' has been found. Checking for abbreviated names.
+Found exactly one project that matches the abbreviated name ':mAL': ':my-awesome-library'.
+No exact task with name ':cT' has been found. Checking for abbreviated names.
+Found exactly one task name, that matches the abbreviated name ':cT': ':compileTest'.
+```
+
+## [Common tasks](#common_tasks)
+
+The following are task conventions applied by built-in and most major Gradle plugins.  
+
+### [Computing all outputs](#computing_all_outputs)
+
+It is common in Gradle builds for the `build` task to designate assembling all outputs and running all checks:  
+
+```bash
+$ ./gradlew build
+```
+
+### [Running applications](#running_applications)
+
+It is common for applications to run with the `run` task, which assembles the application and executes some script or binary:  
+
+```bash
+$ ./gradlew run
+```
+
+### [Running all checks](#running_all_checks)
+
+It is common for *all* verification tasks, including tests and linting, to be executed using the `check` task:  
+
+```bash
+$ ./gradlew check
+```
+
+### [Cleaning outputs](#cleaning_outputs)
+
+You can delete the contents of the build directory using the `clean` task. Doing so will cause pre-computed outputs to be lost, causing significant additional build time for the subsequent task execution:  
+
+```bash
+$ ./gradlew clean
+```
+
+## [Project reporting](#sec:command_line_project_reporting)
+
+Gradle provides several built-in tasks which show particular details of your build. This can be useful for understanding your build's structure and dependencies, as well as debugging problems.  
+
+### [Listing projects](#listing_projects)
+
+Running the `projects` task gives you a list of the subprojects of the selected project, displayed in a hierarchy:  
+
+```bash
+$ ./gradlew projects
+```
+
+You also get a project report with [Build Scan](https://scans.gradle.com/).  
+
+### [Listing tasks](#sec:listing_tasks)
+
+Running `gradle tasks` gives you a list of the main tasks of the selected project. This report shows the default tasks for the project, if any, and a description for each task:  
+
+```bash
+$ ./gradlew tasks
+```
+
+By default, this report shows only those tasks assigned to a task group.  
+Groups (such as verification, publishing, help, build...​) are available as the header of each section when listing tasks:  
+
+```text
+> Task :tasks
+
+Build tasks
+-----------
+assemble - Assembles the outputs of this project.
+
+Build Setup tasks
+-----------------
+init - Initializes a new Gradle build.
+
+Distribution tasks
+------------------
+assembleDist - Assembles the main distributions
+
+Documentation tasks
+-------------------
+javadoc - Generates Javadoc API documentation for the main source code.
+```
+
+You can obtain more information in the task listing using the `--all` option:  
+
+```bash
+$ ./gradlew tasks --all
+```
+
+The option `--no-all` can limit the report to tasks assigned to a task group.  
+If you need to be more precise, you can display only the tasks from a specific group using the `--group` option:  
+
+```bash
+$ ./gradlew tasks --group="build setup"
+```
+
+### [Show task usage details](#sec:show_task_details)
+
+Running `gradle help --task someTask` gives you detailed information about a specific task:  
+
+```bash
+$ ./gradlew -q help --task libs
+```
+
+```text
+Detailed task information for libs
+
+Paths
+     :api:libs
+     :webapp:libs
+
+Type
+     Task (org.gradle.api.Task)
+
+Options
+     --rerun     Causes the task to be re-run even if up-to-date.
+
+Description
+     Builds the JAR
+
+Group
+     build
+```
+
+This information includes the full task path, the task type, possible [task-specific command line options](#sec:task_options), and the description of the given task.  
+You can get detailed information about the task class types using the `--types` option or using `--no-types` to hide this information.  
+
+### [Reporting dependencies](#reporting_dependencies)
+
+[Build Scan](https://scans.gradle.com/) gives a full, visual report of what dependencies exist on which configurations, transitive dependencies, and dependency version selection. They can be invoked using the `--scan` options:  
+
+```bash
+$ ./gradlew myTask --scan
+```
+
+This will give you a link to a web-based report, where you can find [dependency information](viewing_debugging_dependencies.html#sec:debugging-build-scans) like this:  
+![Build Scan dependencies report](img/gradle-core-test-build-scan-dependencies.png)  
+
+### [Listing project dependencies](#sec:listing_project_dependencies)
+
+Running the `dependencies` task gives you a list of the dependencies of the selected project, broken down by configuration. For each configuration, the direct and transitive dependencies of that configuration are shown in a tree.  
+Below is an example of this report:  
+
+```bash
+$ ./gradlew dependencies
+```
+
+```text
+> Task :app:dependencies
+
+------------------------------------------------------------
+Project ':app'
+------------------------------------------------------------
+
+compileClasspath - Compile classpath for source set 'main'.
++--- project :model
+|    \--- org.json:json:20220924
++--- com.google.inject:guice:5.1.0
+|    +--- javax.inject:javax.inject:1
+|    +--- aopalliance:aopalliance:1.0
+|    \--- com.google.guava:guava:30.1-jre -> 28.2-jre
+|         +--- com.google.guava:failureaccess:1.0.1
+|         +--- com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava
+|         +--- com.google.code.findbugs:jsr305:3.0.2
+|         +--- org.checkerframework:checker-qual:2.10.0 -> 3.28.0
+|         +--- com.google.errorprone:error_prone_annotations:2.3.4
+|         \--- com.google.j2objc:j2objc-annotations:1.3
++--- com.google.inject:guice:{strictly 5.1.0} -> 5.1.0 (c)
++--- org.json:json:{strictly 20220924} -> 20220924 (c)
++--- javax.inject:javax.inject:{strictly 1} -> 1 (c)
++--- aopalliance:aopalliance:{strictly 1.0} -> 1.0 (c)
++--- com.google.guava:guava:{strictly [28.0-jre, 28.5-jre]} -> 28.2-jre (c)
++--- com.google.guava:guava:{strictly 28.2-jre} -> 28.2-jre (c)
++--- com.google.guava:failureaccess:{strictly 1.0.1} -> 1.0.1 (c)
++--- com.google.guava:listenablefuture:{strictly 9999.0-empty-to-avoid-conflict-with-guava} -> 9999.0-empty-to-avoid-conflict-with-guava (c)
++--- com.google.code.findbugs:jsr305:{strictly 3.0.2} -> 3.0.2 (c)
++--- org.checkerframework:checker-qual:{strictly 3.28.0} -> 3.28.0 (c)
++--- com.google.errorprone:error_prone_annotations:{strictly 2.3.4} -> 2.3.4 (c)
+\--- com.google.j2objc:j2objc-annotations:{strictly 1.3} -> 1.3 (c)
+```
+
+Concrete examples of build scripts and output available in [Viewing and debugging dependencies](viewing_debugging_dependencies.html#sec:debugging-build-scans).  
+Running the `buildEnvironment` task visualises the buildscript dependencies of the selected project, similarly to how `gradle dependencies` visualizes the dependencies of the software being built:  
+
+```bash
+$ ./gradlew buildEnvironment
+```
+
+Running the `dependencyInsight` task gives you an insight into a particular dependency (or dependencies) that match specified input:  
+
+```bash
+$ ./gradlew dependencyInsight --dependency [...] --configuration [...]
+```
+
+The `--configuration` parameter restricts the report to a particular configuration such as `compileClasspath`.  
+
+### [Listing project properties](#sec:listing_properties)
+
+Running the `properties` task gives you a list of the properties of the selected project:  
+
+```bash
+$ ./gradlew -q api:properties
+```
+
+```text
+------------------------------------------------------------
+Project ':api'
+------------------------------------------------------------
+
+allprojects: [project ':api']
+ant: org.gradle.api.internal.project.DefaultAntBuilder@12345
+antBuilderFactory: org.gradle.api.internal.project.DefaultAntBuilderFactory@12345
+artifacts: org.gradle.api.internal.artifacts.dsl.DefaultArtifactHandler_Decorated@12345
+asDynamicObject: DynamicObject for project ':api'
+baseClassLoaderScope: org.gradle.api.internal.initialization.DefaultClassLoaderScope@12345
+```
+
+You can also query a single property with the optional `--property` argument:  
+
+```bash
+$ ./gradlew -q api:properties --property allprojects
+```
+
+```text
+------------------------------------------------------------
+Project ':api'
+------------------------------------------------------------
+
+allprojects: [project ':api']
+```
+
+## [Command-line completion](#sec:command_line_completion)
+
+Gradle provides `bash` and `zsh` tab completion support for tasks, options, and Gradle properties through [gradle-completion](https://github.com/gradle/gradle-completion) (installed separately):  
+![gradle completion 4.0](img/gradle-completion-4.0.gif)  
+
+## [Debugging options](#sec:command_line_debugging)
+
+
+`-?`, `-h`, `--help`
+
+:   Shows a help message with the built-in CLI options. To show project-contextual options, including help on a specific task, see the `help` task.
+
+
+`-v`, `--version`
+
+:   Prints Gradle, Groovy, Ant, Launcher \& Daemon JVM, and operating system version information and exit without executing any tasks.
+
+
+`-V`, `--show-version`
+
+:   Prints Gradle, Groovy, Ant, Launcher \& Daemon JVM, and operating system version information and continue execution of specified tasks.
+
+
+`-S`, `--full-stacktrace`
+
+:   Print out the full (very verbose) stacktrace for any exceptions. See also [logging options](#sec:command_line_logging).
+
+
+`-s`, `--stacktrace`
+
+:   Print out the stacktrace also for user exceptions (e.g. compile error). See also [logging options](#sec:command_line_logging).
+
+
+`--scan`
+
+:   Create a [Build Scan](https://gradle.com/develocity/product/build-scan) with fine-grained information about all aspects of your Gradle build.
+
+
+`-Dorg.gradle.debug=true`
+
+:   A [Gradle property](build_environment.html#sec:gradle_configuration_properties) that debugs the [Gradle Daemon](gradle_daemon.html#gradle_daemon) process. Gradle will wait for you to attach a debugger at `localhost:5005` by default.
+
+
+`-Dorg.gradle.debug.host=(host address)`
+
+:   A [Gradle property](build_environment.html#sec:gradle_configuration_properties) that specifies the host address to listen on or connect to when debug is enabled. In the server mode on Java 9 and above, passing `*` for the host will make the server listen on all network interfaces. By default, no host address is passed to JDWP, so on Java 9 and above, the loopback address is used, while earlier versions listen on all interfaces.
+
+
+`-Dorg.gradle.debug.port=(port number)`
+
+:   A [Gradle property](build_environment.html#sec:gradle_configuration_properties) that specifies the port number to listen on when debug is enabled. *Default is `5005`.*
+
+
+`-Dorg.gradle.debug.server=(true,false)`
+
+:   A [Gradle property](build_environment.html#sec:gradle_configuration_properties) that if set to `true` and debugging is enabled, will cause Gradle to run the build with the socket-attach mode of the debugger. Otherwise, the socket-listen mode is used. *Default is `true`.*
+
+
+`-Dorg.gradle.debug.suspend=(true,false)`
+
+:   A [Gradle property](build_environment.html#sec:gradle_configuration_properties) that if set to `true` and debugging is enabled, the JVM running Gradle will suspend until a debugger is attached. *Default is `true`.*
+
+## [Performance options](#sec:command_line_performance)
+
+Try these options when optimizing and [improving](performance.html#performance_gradle) build performance.  
+Many of these options can be [specified](build_environment.html#sec:gradle_configuration_properties) in the `gradle.properties` file, so command-line flags are unnecessary.  
+
+
+`--build-cache`, `--no-build-cache`
+
+:   Toggles the [Gradle Build Cache](build_cache.html#build_cache). Gradle will try to reuse outputs from previous builds. *Default is off*.
+
+
+`--configuration-cache`, `--no-configuration-cache`
+
+:   Toggles the [Configuration Cache](configuration_cache.html#config_cache). Gradle will try to reuse the build configuration from previous builds. *Default is off*.
+
+
+`--configuration-cache-problems=(fail,warn)`
+
+:   Configures how the configuration cache handles problems. Default is `fail`.
+
+    Set to `warn` to report problems without failing the build.  
+    Set to `fail` to report problems and fail the build if there are any problems.
+
+
+`--configure-on-demand`, `--no-configure-on-demand` Incubating
+
+:   Toggles configure-on-demand. Only relevant projects are configured in this build run. *Default is off*.
+
+
+`--max-workers`
+
+:   Sets the maximum number of workers that Gradle may use. *Default is number of processors*.
+
+
+`--parallel`, `--no-parallel`
+
+:   Build projects in parallel. For limitations of this option, see [Parallel Project Execution](performance.html#sec:enable_parallel_execution). *Default is off*.
+
+
+`--priority`
+
+:   Specifies the scheduling priority for the Gradle daemon and all processes launched by it. Values are `normal` or `low`. *Default is normal*.
+
+
+`--profile`
+
+:   Generates a high-level performance report in the `layout.buildDirectory.dir("reports/profile")` directory. `--scan` is preferred.
+
+
+`--scan`
+
+:   Generate a Build Scan with detailed performance diagnostics.
+
+![Build Scan performance report](img/gradle-core-test-build-scan-performance.png)  
+
+
+`--watch-fs`, `--no-watch-fs`
+
+:   Toggles [watching the file system](file_system_watching.html#sec:daemon_watch_fs). When enabled, Gradle reuses information it collects about the file system between builds. *Enabled by default on operating systems where Gradle supports this feature.*
+
+### [Gradle daemon options](#gradle_daemon_options)
+
+You can manage the [Gradle Daemon](gradle_daemon.html#gradle_daemon) through the following command line options.  
+
+
+`--daemon`, `--no-daemon`
+
+:   Use the [Gradle Daemon](gradle_daemon.html#gradle_daemon) to run the build. Starts the daemon if not running or the existing daemon is busy. *Default is on*.
+
+
+`--foreground`
+
+:   Starts the Gradle Daemon in a foreground process.
+
+
+`--status` (Standalone command)
+
+:   Run `gradle --status` to list running and recently stopped Gradle daemons. It only displays daemons of the same Gradle version.
+
+
+`--stop` (Standalone command)
+
+:   Run `gradle --stop` to stop all Gradle Daemons of the same version.
+
+
+`-Dorg.gradle.daemon.idletimeout=(number of milliseconds)`
+
+:   A [Gradle property](build_environment.html#sec:gradle_configuration_properties) wherein the Gradle Daemon will stop itself after this number of milliseconds of idle time. *Default is 10800000* (3 hours).
+
+## [Logging options](#sec:command_line_logging)
+
+### [Setting log level](#setting_log_level)
+
+You can customize the [verbosity](logging.html#logging) of Gradle logging with the following options, ordered from least verbose to most verbose.  
+
+
+`-Dorg.gradle.logging.level=(quiet,warn,lifecycle,info,debug)`
+
+:   A [Gradle property](build_environment.html#sec:gradle_configuration_properties) that sets the logging level.
+
+
+`-q`, `--quiet`
+
+:   Log errors only.
+
+
+`-w`, `--warn`
+
+:   Set log level to warn.
+
+
+`-i`, `--info`
+
+:   Set log level to info.
+
+
+`-d`, `--debug`
+
+:   Log in debug mode (includes normal stacktrace).
+
+*Lifecycle* is the default log level.  
+
+### [Customizing log format](#sec:command_line_customizing_log_format)
+
+You can control the use of rich output (colors and font variants) by specifying the console mode in the following ways:  
+
+
+`-Dorg.gradle.console=(auto,plain,colored,rich,verbose)`
+
+:   A [Gradle property](build_environment.html#sec:gradle_configuration_properties) that specifies the console mode. Different modes are described immediately below.
+
+
+`--console=(auto,plain,colored,rich,verbose)`
+
+:   Specifies which type of console output to generate.
+
+    Set to `plain` to generate plain text only. This option disables all color and other rich output in the console output. This is the default when Gradle is *not* attached to a terminal.  
+    Set to `colored` to generate colored output without rich status information such as progress bars.  
+    Set to `auto` (the default) to enable color and other rich output in the console output when the build process is attached to a console or to generate plain text only when not attached to a console. *This is the default when Gradle is attached to a terminal.*  
+    Set to `rich` to enable color and other rich output in the console output, regardless of whether the build process is not attached to a console. When not attached to a console, the build output will use ANSI control characters to generate the rich output.  
+Set to `verbose` to enable color and other rich output like `rich` with output task names and outcomes at the lifecycle log level, (as is done by default in Gradle 3.5 and earlier).  
+
+### [Reporting problems](#sec:command_line_problems)
+
+
+`--problems-report` (enabled by default) Incubating
+
+:   Enable the generation of `build/reports/problems-report.html`. This is the default behaviour. The report is generated with problems provided to the [Problems API](reporting_problems.html#sec:reporting_problems).
+
+
+`--no-problems-report` Incubating
+
+:   Disable the generation of `build/reports/problems-report.html`, by default this report is generated with problems provided to the [Problems API](reporting_problems.html#sec:reporting_problems).
+
+### [Showing or hiding warnings](#sec:command_line_warnings)
+
+By default, Gradle won't display all warnings (e.g. deprecation warnings). Instead, Gradle will collect them and render a summary at the end of the build like:  
+
+```text
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 5.0.
+```
+
+You can control the verbosity of warnings on the console with the following options:  
+
+
+`-Dorg.gradle.warning.mode=(all,fail,none,summary)`
+
+:   A [Gradle property](build_environment.html#sec:gradle_configuration_properties) that specifies the warning mode. Different modes are described immediately below.
+
+
+`--warning-mode=(all,fail,none,summary)`
+
+:   Specifies how to log warnings. Default is `summary`.
+
+    Set to `all` to log all warnings.  
+    Set to `fail` to log all warnings and fail the build if there are any warnings.  
+    Set to `summary` to suppress all warnings and log a summary at the end of the build.  
+Set to `none` to suppress all warnings, including the summary at the end of the build.  
+
+### [Rich console](#sec:rich_console)
+
+Gradle's rich console displays extra information while builds are running.  
+![Gradle Rich Console](img/rich-cli.png)  
+Features:  
+* Progress bar and timer visually describe the overall status
+
+* Parallel work-in-progress lines below describe what is happening now
+
+* Colors and fonts are used to highlight significant output and errors
+
+## [Execution options](#sec:command_line_execution_options)
+
+The following options affect how builds are executed by changing what is built or how dependencies are resolved.  
+
+
+`--include-build`
+
+:   Run the build as a [composite](composite_builds.html#composite_builds), including the specified build.
+
+
+`--offline`
+
+:   Specifies that the build should operate [without accessing network resources](dependency_caching.html#sec:controlling-dependency-caching-command-line).
+
+
+`-U`, `--refresh-dependencies`
+
+:   Refresh the [state of dependencies](dependency_caching.html#sec:controlling-dependency-caching-command-line).
+
+
+`--continue`
+
+:   [Continue task execution](#sec:continue_build_on_failure) after a task failure.
+
+
+`-m`, `--dry-run`
+
+:   Run Gradle with all task actions disabled. Use this to show which task would have executed.
+
+
+`--task-graph` Since 9.1.0
+
+:   Run Gradle with all task actions disabled and print the task dependency graph.
+
+
+`-t`, `--continuous`
+
+:   Enables [continuous build](#sec:continuous_build). Gradle does not exit and will re-execute tasks when task file inputs change.
+
+
+`--write-locks`
+
+:   Indicates that all resolved configurations that are *lockable* should have their [lock state](dependency_locking.html#locking-versions) persisted.
+
+
+`--update-locks <group:name>[,<group:name>]*`
+
+:   Indicates that versions for the specified modules have to be updated in the [lock file](dependency_locking.html#locking-versions).
+
+    This flag also implies `--write-locks`.
+
+
+`-a`, `--no-rebuild`
+
+:   Do not rebuild project dependencies. Useful for [debugging and fine-tuning `buildSrc`](sharing_build_logic_between_subprojects.html#sec:using_buildsrc), but can lead to wrong results. Use with caution!
+
+## [Dependency verification options](#sec:dependency_verification_options)
+
+Learn more about this in [dependency verification](dependency_verification.html#verifying-dependencies).  
+
+
+`-F=(strict,lenient,off)`, `--dependency-verification=(strict,lenient,off)`
+
+:   Configures the [dependency verification mode](dependency_verification.html#sec:disabling-verification).
+
+    The default mode is `strict`.
+
+
+`-M`, `--write-verification-metadata`
+
+:   Generates checksums for dependencies used in the project (comma-separated list) for [dependency verification](dependency_verification.html#sec:bootstrapping-verification).
+
+
+`--refresh-keys`
+
+:   Refresh the public keys used for dependency verification.
+
+
+`--export-keys`
+
+:   Exports the public keys used for dependency verification.
+
+## [Environment options](#sec:environment_options)
+
+You can [customize](build_environment.html#build_environment) many aspects of build scripts, settings, caches, and so on through the options below.  
+
+
+`-g`, `--gradle-user-home`
+
+:   Specifies the Gradle User Home directory. The default is the `.gradle` directory in the user's home directory.
+
+
+`-p`, `--project-dir`
+
+:   Specifies the start directory for Gradle. Defaults to current directory.
+
+
+`--project-cache-dir`
+
+:   Specifies the project-specific cache directory. Default value is `.gradle` in the root project directory.
+
+
+`-D`, `--system-prop`
+
+:   Sets a [system property](build_environment.html#sec:gradle_system_properties) of the JVM, for example `-Dmyprop=myvalue`.
+
+
+`-I`, `--init-script`
+
+:   Specifies an [initialization script](init_scripts.html#init_scripts).
+
+
+`-P`, `--project-prop`
+
+:   Sets a [project property](build_environment.html#sec:project_properties) of the root project, for example `-Pmyprop=myvalue`.
+
+
+`-Dorg.gradle.jvmargs`
+
+:   A [Gradle property](build_environment.html#sec:gradle_configuration_properties) that sets JVM arguments.
+
+
+`-Dorg.gradle.java.home`
+
+:   A [Gradle property](build_environment.html#sec:gradle_configuration_properties) that sets the JDK home dir.
+
+## [Task options](#sec:task_options)
+
+Tasks may define task-specific options which are different from most of the global options described in the sections above (which are interpreted by Gradle itself, can appear anywhere in the command line, and can be listed using the `--help` option).  
+Task options:  
+1. Are consumed and interpreted by the tasks themselves;
+
+2. **Must** be specified immediately after the task in the command-line;
+
+3. May be listed using `gradle help --task someTask` (see [Show task usage details](#sec:show_task_details)).
+
+To learn how to declare command-line options for your own tasks, see [Declaring and Using Command Line Options](custom_tasks.html#sec:declaring_and_using_command_line_options).  
+
+### [Built-in task options](#sec:builtin_task_options)
+
+Built-in task options are options available as task options for all tasks. At this time, the following built-in task options exist:  
+
+
+`--rerun`
+
+:   Causes the task to be rerun even if up-to-date. Similar to [--rerun-tasks](#sec:rerun_tasks), but for a specific task.
+
+## [Bootstrapping new projects](#sec:command_line_bootstrapping_projects)
+
+### [Creating new Gradle builds](#creating_new_gradle_builds)
+
+Use the built-in `gradle init` task to create a new Gradle build, with new or existing projects.  
+
+```bash
+$ gradle init
+```
+
+Most of the time, a project type is specified. Available types include `basic` (default), `java-library`, `java-application`, and more. See [init plugin documentation](build_init_plugin.html#build_init_plugin) for details.  
+
+```bash
+$ gradle init --type java-library
+```
+
+### [Standardize and provision Gradle](#standardize_and_provision_gradle)
+
+The built-in `gradle wrapper` task generates a script, `gradlew`, that invokes a declared version of Gradle, downloading it beforehand if necessary.  
+
+```bash
+$ ./gradlew wrapper --gradle-version=8.1
+```
+
+You can also specify `--distribution-type=(bin|all)`, `--gradle-distribution-url`, `--gradle-distribution-sha256-sum` in addition to `--gradle-version`.
+
+
+Full details on using these options are documented in the [Gradle wrapper section](gradle_wrapper.html#gradle_wrapper).  
+
+## [Continuous build](#sec:continuous_build)
+
+Continuous Build allows you to automatically re-execute the requested tasks when file inputs change. You can execute the build in this mode using the `-t` or `--continuous` command-line option.  
+Learn more in [Continuous Builds](continuous_builds.html#continuous_builds).

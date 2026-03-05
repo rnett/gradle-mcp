@@ -293,18 +293,19 @@ object UpdateTools {
     }
 
     val throwingGradleDocsService = object : GradleDocsService {
-        override suspend fun getAllDocsPages(version: String?): List<DocsPage> {
-            throw UnsupportedOperationException("Not used for tool listing")
-        }
-
-        override suspend fun getDocsPageAsMarkdown(path: String, version: String?): String {
+        override suspend fun getDocsPageContent(path: String, version: String?): DocsPageContent {
             throw UnsupportedOperationException("Not used for tool listing")
         }
         override suspend fun getReleaseNotes(version: String?): String {
             throw UnsupportedOperationException("Not used for tool listing")
         }
-        override suspend fun searchDocs(query: String, isRegex: Boolean, version: String?): List<DocsSearchResult> {
+        override suspend fun searchDocs(query: String, version: String?): List<DocsSearchResult> {
             throw UnsupportedOperationException("Not used for tool listing")
+        }
+        override suspend fun summarizeSections(version: String?): List<DocsSectionSummary> {
+            throw UnsupportedOperationException("Not used for tool listing")
+        }
+        override fun close() {
         }
     }
     

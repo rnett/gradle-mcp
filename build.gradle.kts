@@ -95,6 +95,7 @@ dependencies {
     implementation(libs.lucene.codecs)
     implementation(libs.lucene.analysis.common)
     implementation(libs.lucene.queryparser)
+    implementation(libs.lucene.highlighter)
 
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)
@@ -118,10 +119,13 @@ kotlin {
     }
 }
 
+val isCI = providers.environmentVariable("CI").orNull != null
+
 tasks.test {
     useJUnitPlatform()
     systemProperty("GRADLE_MCP_LOG_DIR", layout.buildDirectory.dir("test-logs").get().asFile.absolutePath)
-    maxParallelForks = 4
+    systemProperty("docs.updateSnapshots", System.getProperty("docs.updateSnapshots"))
+    maxParallelForks = if (isCI) 3 else 6
 }
 
 tasks.named<UpdateDaemonJvm>("updateDaemonJvm") {

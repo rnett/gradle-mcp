@@ -1,9 +1,13 @@
 package dev.rnett.gradle.mcp.tools
 
+import dev.rnett.gradle.mcp.DocsPageContent
 import dev.rnett.gradle.mcp.GradleDocsService
 import dev.rnett.gradle.mcp.mcp.McpContext
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
+import io.modelcontextprotocol.kotlin.sdk.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.ImageContent
+import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.serialization.Serializable
 import java.nio.file.Path
 
@@ -13,65 +17,76 @@ class GradleDocsTools(
 
     @Serializable
     data class QueryGradleDocsArgs(
-        @Description("The authoritative search query for the documentation. Supports keywords and phrases to find relevant User Guide sections.")
+        @Description("The search query for the documentation. Use `tag:<section>` to filter (e.g., `tag:userguide configuration`). Available tags: `userguide`, `dsl`, `javadoc`, `samples`, `release-notes`.")
         val query: String? = null,
-        @Description("The specific documentation page path to read (e.g., 'command_line_interface.html'). If omitted, a searchable list of all pages is returned.")
+        @Description("The specific documentation page or image path to read (e.g., 'userguide/command_line_interface.md' or 'userguide/img/cli.png'). If omitted and no query is provided, a summary of documentation sections is returned.")
         val path: String? = null,
         @Description("The specific Gradle version documentation to target (e.g., '8.6'). Defaults to the project's detected version or the latest release.")
         val version: String? = null,
-        @Description("If true, fetches the authoritative release notes for the specified version. Ideal for researching breaking changes and new features.")
-        val releaseNotes: Boolean = false,
-        @Description("The absolute path to the project root directory. Used to automatically detect the project's Gradle version for high-resolution documentation targeting.")
+        @Description("The absolute path to the project root directory. Used to automatically detect the project's Gradle version for documentation targeting.")
         val projectRoot: GradleProjectRootInput? = null
     )
 
-    val gradleDocs by tool<QueryGradleDocsArgs, String>(
+    val gradleDocs by tool<QueryGradleDocsArgs, CallToolResult>(
         ToolNames.GRADLE_DOCS,
         """
-            |The authoritative tool for searching and reading official Gradle documentation, release notes, and version-specific guides.
-            |It provides high-performance access to the entire Gradle User Guide, rendered as markdown for seamless agent consumption.
+            |Search and read official Gradle documentation, including the User Guide, DSL Reference, Javadoc, and Release Notes.
             |
-            |### Authoritative Features
-            |- **Precision Search**: Use `query` to find specific sections, DSL elements, or plugin documentation across the entire authoritative guide.
-            |- **Exhaustive Content Retrieval**: Read full documentation pages directly in your context using the `path` argument.
-            |- **Authoritative Release Insights**: Set `releaseNotes=true` to retrieve the definitive list of changes, improvements, and deprecations for any Gradle version.
-            |- **Version-Specific Targeting**: Automatically targets your project's Gradle version or allows for surgical manual version selection.
+            |### Features
+            |- **Unified Search**: Search across all documentation or scope to specific sections using tags.
+            |- **Scoped Searching**: Use the `tag:` syntax in your query to target specific documentation areas:
+            |  - `tag:userguide <query>`: Search the Gradle User Guide.
+            |  - `tag:dsl <query>`: Search the DSL Reference (Groovy and Kotlin DSL).
+            |  - `tag:javadoc <query>`: Search the Java API Reference.
+            |  - `tag:samples <query>`: Search Gradle samples and examples.
+            |  - `tag:release-notes <query>`: Search within version release notes.
+            |- **Direct Page and Asset Access**: Read specific pages (.md) or view images (.png, .jpg, etc.) by providing their `path`.
+            |- **Section Summaries**: Call with no arguments to see available documentation sections and their content counts for the targeted version.
             |
             |### Common Usage Patterns
-            |- **Search User Guide**: `gradle_docs(query="kotlin dsl configuration")`
-            |- **Read Guide Section**: `gradle_docs(path="working_with_files.html")`
-            |- **Check Version Changes**: `gradle_docs(releaseNotes=true, version="8.5")`
-            |- **List Available Pages**: `gradle_docs()`
+            |- **Summary of Docs**: `gradle_docs()`
+            |- **Search User Guide**: `gradle_docs(query="tag:userguide working with files")`
+            |- **Read Page**: `gradle_docs(path="userguide/command_line_interface.md")`
+            |- **Read Image**: `gradle_docs(path="userguide/img/command-line-options.png")`
+            |- **Target Specific Version**: `gradle_docs(query="tag:release-notes", version="8.5")`
             |
-            |Note: `releaseNotes` takes precedence over `path`, which takes precedence over `query`.
-            |For detailed documentation navigation strategies, refer to the `gradle-docs` skill.
+            |Note: `path` takes precedence over `query`.
+            |For detailed navigation strategies and available tags, refer to the `gradle-docs` skill.
         """.trimMargin()
     ) { args ->
         val resolvedVersion = resolveVersion(args.version, args.projectRoot)
         when {
-            args.releaseNotes -> gradleDocsService.getReleaseNotes(resolvedVersion)
-            args.path != null -> gradleDocsService.getDocsPageAsMarkdown(args.path, resolvedVersion)
+            args.path != null -> {
+                val content = gradleDocsService.getDocsPageContent(args.path, resolvedVersion)
+                when (content) {
+                    is DocsPageContent.Markdown -> CallToolResult(listOf(TextContent(content.content)))
+                    is DocsPageContent.Image -> CallToolResult(listOf(ImageContent(content.base64, content.mimeType)))
+                }
+            }
             args.query != null -> {
-                val results = gradleDocsService.searchDocs(args.query, false, resolvedVersion)
+                val results = gradleDocsService.searchDocs(args.query, resolvedVersion)
                 if (results.isEmpty()) {
-                    "No documentation matches found for '${args.query}' in version ${resolvedVersion ?: "current"}."
+                    CallToolResult(listOf(TextContent("No documentation matches found for '${args.query}' in version ${resolvedVersion ?: "current"}.")))
                 } else {
                     val displayVersion = resolvedVersion ?: "current"
-                    "Search results for '${args.query}' in Gradle $displayVersion:\n\n" +
+                    val text = "Search results for '${args.query}' in Gradle $displayVersion:\n\n" +
                             results.joinToString("\n\n") { result ->
-                                "### ${result.title}\nPath: `${result.path}`\n\n```markdown\n${result.snippet}\n```"
+                                "### ${result.title}\nSection: `${result.tag}` | Path: `${result.path}`\n\n```markdown\n${result.snippet}\n```"
                             }
+                    CallToolResult(listOf(TextContent(text)))
                 }
             }
 
             else -> {
-                val pages = gradleDocsService.getAllDocsPages(resolvedVersion)
-                if (pages.isEmpty()) {
-                    "No documentation pages found for version ${resolvedVersion ?: "current"}."
+                val summaries = gradleDocsService.summarizeSections(resolvedVersion)
+                if (summaries.isEmpty()) {
+                    CallToolResult(listOf(TextContent("No documentation sections found for version ${resolvedVersion ?: "current"}.")))
                 } else {
                     val displayVersion = resolvedVersion ?: "current"
-                    "Available documentation pages for Gradle $displayVersion:\n\n" +
-                            pages.joinToString("\n") { page -> "- ${page.title}: `${page.path}`" }
+                    val text = "Documentation sections for Gradle $displayVersion:\n\n" +
+                            summaries.joinToString("\n") { section -> "- **${section.displayName}** (`tag:${section.tag}`): ${section.count} pages" } +
+                            "\n\nUse `query=\"tag:<tag> ...\"` to search a specific section, or provide a `path` from search results to read a page."
+                    CallToolResult(listOf(TextContent(text)))
                 }
             }
         }

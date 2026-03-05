@@ -10,6 +10,7 @@ import org.jsoup.Jsoup
 
 interface MarkdownService : AutoCloseable {
     suspend fun downloadAsMarkdown(url: String): String
+    fun convertHtml(html: String): String
 }
 
 class DefaultMarkdownService(private val client: HttpClient = HttpClient()) : MarkdownService {
@@ -32,12 +33,19 @@ class DefaultMarkdownService(private val client: HttpClient = HttpClient()) : Ma
         // Get the main content if possible
         val mainContent = doc.selectFirst("main, .main-content, #content, .chapter") ?: doc.body()
 
+        return convertHtml(mainContent.html())
+    }
+
+    override fun convertHtml(html: String): String {
         val options = MutableDataSet()
+        options.set(FlexmarkHtmlConverter.OUTPUT_ATTRIBUTES_ID, false)
+        options.set(FlexmarkHtmlConverter.SETEXT_HEADINGS, false)
+        
         val converter = FlexmarkHtmlConverter.builder(options).build()
-        return converter.convert(mainContent.html())
+        return converter.convert(html)
     }
 
     override fun close() {
-        client.close()
+        // Do not close shared client
     }
 }

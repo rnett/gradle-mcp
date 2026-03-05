@@ -98,8 +98,9 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
         })
 
         val consoleLines = consoleOutput.lines()
-        appendLine("Console output: ${consoleLines.size} lines, last 50 shown")
-        consoleLines.takeLast(50).forEach { appendLine("  $it") }
+        val lineLimit = if (this@toOutputString.status == BuildOutcome.Success) 10 else 50
+        appendLine("Console output: ${consoleLines.size} lines, last $lineLimit shown")
+        consoleLines.takeLast(lineLimit).forEach { appendLine("  $it") }
     }
 }
 

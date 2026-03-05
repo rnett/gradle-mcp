@@ -1,6 +1,6 @@
 package dev.rnett.gradle.mcp.tools
 
-import dev.rnett.gradle.mcp.DocsPage
+import dev.rnett.gradle.mcp.DocsSectionSummary
 import dev.rnett.gradle.mcp.GradleDocsService
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import io.mockk.coEvery
@@ -35,8 +35,8 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
         // Set as MCP root
         server.setServerRoots(Root(projectRoot.toUri().toString(), "test-project"))
 
-        coEvery { mockDocsService.getAllDocsPages("8.5") } returns listOf(
-            DocsPage("Test Page", "test.html")
+        coEvery { mockDocsService.summarizeSections("8.5") } returns listOf(
+            DocsSectionSummary("userguide", "User Guide", 42)
         )
 
         // Call tool without version
@@ -44,14 +44,14 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
         val call = server.client.callTool(ToolNames.GRADLE_DOCS, args)
 
         val text = (call!!.content[0] as TextContent).text ?: ""
-        assertContains(text, "Available documentation pages for Gradle 8.5:")
-        assertContains(text, "- Test Page: `test.html`")
+        assertContains(text, "Documentation sections for Gradle 8.5:")
+        assertContains(text, "- **User Guide** (`tag:userguide`): 42 pages")
     }
 
     @Test
     fun `test fallback to current when no project root or detection fails`() = runTest {
-        coEvery { mockDocsService.getAllDocsPages(null) } returns listOf(
-            DocsPage("Current Page", "current.html")
+        coEvery { mockDocsService.summarizeSections(null) } returns listOf(
+            DocsSectionSummary("userguide", "User Guide", 10)
         )
 
         // No MCP roots set, no version provided
@@ -59,8 +59,8 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
         val call = server.client.callTool(ToolNames.GRADLE_DOCS, args)
 
         val text = (call!!.content[0] as TextContent).text ?: ""
-        assertContains(text, "Available documentation pages for Gradle current:")
-        assertContains(text, "- Current Page: `current.html`")
+        assertContains(text, "Documentation sections for Gradle current:")
+        assertContains(text, "- **User Guide** (`tag:userguide`): 10 pages")
     }
 
     @Test
@@ -76,8 +76,8 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
         // Set as MCP root so it's valid
         server.setServerRoots(Root(projectRoot.toUri().toString(), "explicit-project"))
 
-        coEvery { mockDocsService.getAllDocsPages("7.6.3") } returns listOf(
-            DocsPage("Explicit Page", "explicit.html")
+        coEvery { mockDocsService.summarizeSections("7.6.3") } returns listOf(
+            DocsSectionSummary("userguide", "User Guide", 5)
         )
 
         // Call tool with projectRoot
@@ -85,7 +85,7 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
         val call = server.client.callTool(ToolNames.GRADLE_DOCS, args)
 
         val text = (call!!.content[0] as TextContent).text ?: ""
-        assertContains(text, "Available documentation pages for Gradle 7.6.3:")
-        assertContains(text, "- Explicit Page: `explicit.html`")
+        assertContains(text, "Documentation sections for Gradle 7.6.3:")
+        assertContains(text, "- **User Guide** (`tag:userguide`): 5 pages")
     }
 }

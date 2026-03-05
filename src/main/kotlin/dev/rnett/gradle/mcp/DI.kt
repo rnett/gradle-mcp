@@ -16,6 +16,7 @@ import dev.rnett.gradle.mcp.gradle.dependencies.GradleSourceService
 import dev.rnett.gradle.mcp.gradle.dependencies.SourcesService
 import dev.rnett.gradle.mcp.gradle.dependencies.search.DefaultIndexService
 import dev.rnett.gradle.mcp.gradle.dependencies.search.IndexService
+import dev.rnett.gradle.mcp.lucene.LuceneReaderCache
 import dev.rnett.gradle.mcp.maven.DefaultMavenCentralService
 import dev.rnett.gradle.mcp.maven.DefaultMavenRepoService
 import dev.rnett.gradle.mcp.maven.MavenCentralService
@@ -36,6 +37,7 @@ import dev.rnett.gradle.mcp.tools.dependencies.DependencySourceTools
 import dev.rnett.gradle.mcp.tools.dependencies.GradleDependencyTools
 import dev.rnett.gradle.mcp.tools.skills.SkillTools
 import io.ktor.client.*
+import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.serialization.kotlinx.xml.*
@@ -71,6 +73,11 @@ object DI {
             xml(xml, io.ktor.http.ContentType.Application.Xml)
             xml(xml, io.ktor.http.ContentType.Text.Xml)
         }
+        install(HttpTimeout) {
+            requestTimeoutMillis = 300000
+            connectTimeoutMillis = 30000
+            socketTimeoutMillis = 300000
+        }
     }
 
     fun createModule(config: ApplicationConfig): Module = module {
@@ -85,6 +92,11 @@ object DI {
         single<ReplManager> { DefaultReplManager(get()) }
         single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
         single<MarkdownService> { DefaultMarkdownService(get()) }
+        single { HtmlConverter(get()) }
+        single { LuceneReaderCache() }
+        single<DistributionDownloaderService> { DefaultDistributionDownloaderService(get(), get()) }
+        single<ContentExtractorService> { DefaultContentExtractorService(get(), get(), get()) }
+        single<GradleDocsIndexService> { DefaultGradleDocsIndexService(get(), get(), get()) }
         single<GradleDocsService> { DefaultGradleDocsService(get(), get(), get()) }
         single<GradleDependencyService> { DefaultGradleDependencyService(get()) }
         single<MavenRepoService> { DefaultMavenRepoService(get()) }

@@ -1,9 +1,16 @@
 package dev.rnett.gradle.mcp.tools.repl
 
+import dev.rnett.gradle.mcp.ContentExtractorService
 import dev.rnett.gradle.mcp.DI
+import dev.rnett.gradle.mcp.DefaultContentExtractorService
+import dev.rnett.gradle.mcp.DefaultDistributionDownloaderService
+import dev.rnett.gradle.mcp.DefaultGradleDocsIndexService
 import dev.rnett.gradle.mcp.DefaultMarkdownService
+import dev.rnett.gradle.mcp.DistributionDownloaderService
+import dev.rnett.gradle.mcp.GradleDocsIndexService
 import dev.rnett.gradle.mcp.GradleDocsService
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.HtmlConverter
 import dev.rnett.gradle.mcp.MarkdownService
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.BundledJarProvider
@@ -18,6 +25,7 @@ import dev.rnett.gradle.mcp.gradle.dependencies.DefaultGradleSourceService
 import dev.rnett.gradle.mcp.gradle.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.gradle.dependencies.GradleSourceService
 import dev.rnett.gradle.mcp.gradle.fixtures.GradleProjectFixture
+import dev.rnett.gradle.mcp.lucene.LuceneReaderCache
 import dev.rnett.gradle.mcp.maven.DefaultMavenCentralService
 import dev.rnett.gradle.mcp.maven.DefaultMavenRepoService
 import dev.rnett.gradle.mcp.maven.MavenCentralService
@@ -116,6 +124,11 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
         single { GradleMcpEnvironment(tempDir) }
         single<MarkdownService> { DefaultMarkdownService() }
+        single { HtmlConverter(get()) }
+        single { LuceneReaderCache() }
+        single<DistributionDownloaderService> { DefaultDistributionDownloaderService(get(), get()) }
+        single<ContentExtractorService> { DefaultContentExtractorService(get(), get(), get()) }
+        single<GradleDocsIndexService> { DefaultGradleDocsIndexService(get(), get(), get()) }
         single<GradleDocsService> { dev.rnett.gradle.mcp.DefaultGradleDocsService(get(), get(), get()) }
         single<GradleDependencyService> { DefaultGradleDependencyService(get()) }
         single<MavenRepoService> { DefaultMavenRepoService(get()) }

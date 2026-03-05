@@ -1,0 +1,1498 @@
+# Project
+
+**Table of Contents**
+
+
+[Lifecycle](org.gradle.api.Project.html#N1488C)
+
+[Tasks](org.gradle.api.Project.html#N148CD)
+
+[Dependencies](org.gradle.api.Project.html#N148EE)
+
+[Multi-project Builds](org.gradle.api.Project.html#N1491B)
+
+[Plugins](org.gradle.api.Project.html#N14920)
+
+[Dynamic Project Properties](org.gradle.api.Project.html#N1492F)
+
+[Properties](org.gradle.api.Project.html#N149C8)
+
+[Methods](org.gradle.api.Project.html#N14D3E)
+
+[Script blocks](org.gradle.api.Project.html#N15064)
+
+[Property details](org.gradle.api.Project.html#N152B2)
+
+[Method details](org.gradle.api.Project.html#N15670)
+
+[Script block details](org.gradle.api.Project.html#N15F99)  
+
+| API Documentation: | [`Project`](../javadoc/org/gradle/api/Project.html) |
+|--------------------|-----------------------------------------------------|
+
+This interface is the main API you use to interact with Gradle from your build file. From a `Project`, you have programmatic access to all of Gradle's features.  
+
+### Lifecycle
+
+There is a one-to-one relationship between a `Project` and a `build.gradle` file. During build initialisation, Gradle assembles a `Project` object for each project which is to participate in the build, as follows:  
+* Create a [`Settings`](../dsl/org.gradle.api.initialization.Settings.html) instance for the build.
+* Evaluate the `settings.gradle` script, if present, against the [`Settings`](../dsl/org.gradle.api.initialization.Settings.html) object to configure it.
+* Use the configured [`Settings`](../dsl/org.gradle.api.initialization.Settings.html) object to create the hierarchy of `Project` instances.
+* Finally, evaluate each `Project` by executing its `build.gradle` file, if present, against the project. The projects are evaluated in breadth-wise order, such that a project is evaluated before its child projects. This order can be overridden by calling [`Project.evaluationDependsOnChildren()`](../javadoc/org/gradle/api/Project.html#evaluationDependsOnChildren--) or by adding an explicit evaluation dependency using [`Project.evaluationDependsOn(java.lang.String)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:evaluationDependsOn(java.lang.String)).  
+
+### Tasks
+
+A project is essentially a collection of [`Task`](../dsl/org.gradle.api.Task.html) objects. Each task performs some basic piece of work, such as compiling classes, or running unit tests, or zipping up a WAR file. You add tasks to a project using one of the `create()` methods on [`TaskContainer`](../dsl/org.gradle.api.tasks.TaskContainer.html), such as [`TaskContainer.create(java.lang.String)`](../dsl/org.gradle.api.tasks.TaskContainer.html#org.gradle.api.tasks.TaskContainer:create(java.lang.String)). You can locate existing tasks using one of the lookup methods on [`TaskContainer`](../dsl/org.gradle.api.tasks.TaskContainer.html), such as [`TaskCollection.getByName(java.lang.String)`](../dsl/org.gradle.api.tasks.TaskCollection.html#org.gradle.api.tasks.TaskCollection:getByName(java.lang.String)).  
+
+### Dependencies
+
+A project generally has a number of dependencies it needs in order to do its work. Also, a project generally produces a number of artifacts, which other projects can use. Those dependencies are grouped in configurations, and can be retrieved and uploaded from repositories. You use the [`ConfigurationContainer`](../dsl/org.gradle.api.artifacts.ConfigurationContainer.html) returned by [`Project.getConfigurations()`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:configurations) method to manage the configurations. The [`DependencyHandler`](../dsl/org.gradle.api.artifacts.dsl.DependencyHandler.html) returned by [`Project.getDependencies()`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:dependencies) method to manage the dependencies. The [`ArtifactHandler`](../dsl/org.gradle.api.artifacts.dsl.ArtifactHandler.html) returned by [`Project.getArtifacts()`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:artifacts) method to manage the artifacts. The [`RepositoryHandler`](../dsl/org.gradle.api.artifacts.dsl.RepositoryHandler.html) returned by [`Project.getRepositories()`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:repositories) method to manage the repositories.  
+
+### Multi-project Builds
+
+Projects are arranged into a hierarchy of projects. A project has a name, and a fully qualified path which uniquely identifies it in the hierarchy.  
+
+### Plugins
+
+Plugins can be used to modularise and reuse project configuration. Plugins can be applied using the [`PluginAware.apply(java.util.Map)`](../dsl/org.gradle.api.plugins.PluginAware.html#org.gradle.api.plugins.PluginAware:apply(java.util.Map)) method, or by using the [`PluginDependenciesSpec`](../dsl/org.gradle.plugin.use.PluginDependenciesSpec.html) plugins script block.  
+
+### Dynamic Project Properties
+
+Gradle executes the project's build file against the `Project` instance to configure the project. Any property or method which your script uses is delegated through to the associated `Project` object. This means, that you can use any of the methods and properties on the `Project` interface directly in your script.
+
+For example:
+
+```
+defaultTasks('some-task')  // Delegates to Project.defaultTasks()
+reportsDir = file('reports') // Delegates to Project.file() and the Java Plugin
+```
+
+You can also access the `Project` instance using the `project` property. This can make the script clearer in some cases. For example, you could use `project.name` rather than `name` to access the project's name.
+
+A project has 5 property 'scopes', which it searches for properties. You can access these properties by name in your build file, or by calling the project's [`Project.property(java.lang.String)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:property(java.lang.String)) method. The scopes are:  
+* The `Project` object itself. This scope includes any property getters and setters declared by the `Project` implementation class. For example, [`Project.getRootProject()`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:rootProject) is accessible as the `rootProject` property. The properties of this scope are readable or writable depending on the presence of the corresponding getter or setter method.
+* The *extra* properties of the project. Each project maintains a map of extra properties, which can contain any arbitrary name -\> value pair. Once defined, the properties of this scope are readable and writable. See [extra properties]() for more details.
+* The *extensions* added to the project by the plugins. Each extension is available as a read-only property with the same name as the extension.
+* The tasks of the project. A task is accessible by using its name as a property name. The properties of this scope are read-only. For example, a task called `compile` is accessible as the `compile` property.
+* The extra properties and convention properties are inherited from the project's parent, recursively up to the root project. The properties of this scope are read-only.
+
+When reading a property, the project searches the above scopes in order, and returns the value from the first scope it finds the property in. If not found, an exception is thrown. See [`Project.property(java.lang.String)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:property(java.lang.String)) for more details.
+
+When writing a property, the project searches the above scopes in order, and sets the property in the first scope it finds the property in. If not found, an exception is thrown. See [`Project.setProperty(java.lang.String, java.lang.Object)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:setProperty(java.lang.String, java.lang.Object)) for more details.  
+
+#### Extra Properties
+
+All extra properties must be defined through the "ext" namespace. Once an extra property has been defined, it is available directly on the owning object (in the below case the Project, Task, and sub-projects respectively) and can be read and updated. Only the initial declaration that needs to be done via the namespace.
+
+```
+project.ext.prop1 = "foo"
+task doStuff {
+    ext.prop2 = "bar"
+}
+subprojects { ext.${prop3} = false }
+```
+
+Reading extra properties is done through the "ext" or through the owning object.
+
+```
+ext.isSnapshot = version.endsWith("-SNAPSHOT")
+if (isSnapshot) {
+    // do snapshot stuff
+}
+```
+
+#### Dynamic Methods
+
+A project has 5 method 'scopes', which it searches for methods:  
+* The `Project` object itself.
+* The build file. The project searches for a matching method declared in the build file.
+* The *extensions* added to the project by the plugins. Each extension is available as a method which takes a closure or [`Action`](../javadoc/org/gradle/api/Action.html) as a parameter.
+* The tasks of the project. A method is added for each task, using the name of the task as the method name and taking a single closure or [`Action`](../javadoc/org/gradle/api/Action.html) parameter. The method calls the [`Task.configure(groovy.lang.Closure)`](../javadoc/org/gradle/api/Task.html#configure-groovy.lang.Closure-) method for the associated task with the provided closure. For example, if the project has a task called `compile`, then a method is added with the following signature: `void compile(Closure configureClosure)`.
+* The methods of the parent project, recursively up to the root project.
+* A property of the project whose value is a closure. The closure is treated as a method and called with the provided parameters. The property is located as described above.  
+
+### Properties
+
+|                                          Property                                           |                                                                                                                                                                              Description                                                                                                                                                                               |
+|---------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [`allprojects`](org.gradle.api.Project.html#org.gradle.api.Project:allprojects)             | The set containing this project and its subprojects.                                                                                                                                                                                                                                                                                                                   |
+| [`ant`](org.gradle.api.Project.html#org.gradle.api.Project:ant)                             | The `AntBuilder` for this project. You can use this in your build file to execute ant tasks. See example below.                                                                                                                                                                                                                                                        |
+| [`artifacts`](org.gradle.api.Project.html#org.gradle.api.Project:artifacts)                 | Returns a handler for assigning artifacts produced by the project to configurations.                                                                                                                                                                                                                                                                                   |
+| [`buildDir`](org.gradle.api.Project.html#org.gradle.api.Project:buildDir)                   | Deprecated The build directory of this project. The build directory is the directory which all artifacts are generated into. The default value for the build directory is *projectDir*`/build`                                                                                                                                                                         |
+| [`buildFile`](org.gradle.api.Project.html#org.gradle.api.Project:buildFile)                 | The build script for this project.                                                                                                                                                                                                                                                                                                                                     |
+| [`buildscript`](org.gradle.api.Project.html#org.gradle.api.Project:buildscript)             | The build script handler for this project. You can use this handler to query details about the build script for this project, and manage the classpath used to compile and execute the project's build script.                                                                                                                                                         |
+| [`childProjects`](org.gradle.api.Project.html#org.gradle.api.Project:childProjects)         | The direct children of this project.                                                                                                                                                                                                                                                                                                                                   |
+| [`configurations`](org.gradle.api.Project.html#org.gradle.api.Project:configurations)       | The configurations of this project.                                                                                                                                                                                                                                                                                                                                    |
+| [`defaultTasks`](org.gradle.api.Project.html#org.gradle.api.Project:defaultTasks)           | The names of the default tasks of this project. These are used when no tasks names are provided when starting the build.                                                                                                                                                                                                                                               |
+| [`dependencies`](org.gradle.api.Project.html#org.gradle.api.Project:dependencies)           | The dependency handler of this project. The returned dependency handler instance can be used for adding new dependencies. For accessing already declared dependencies, the configurations can be used.                                                                                                                                                                 |
+| [`dependencyLocking`](org.gradle.api.Project.html#org.gradle.api.Project:dependencyLocking) | Provides access to configuring dependency locking                                                                                                                                                                                                                                                                                                                      |
+| [`description`](org.gradle.api.Project.html#org.gradle.api.Project:description)             | The description of this project, if any.                                                                                                                                                                                                                                                                                                                               |
+| [`extensions`](org.gradle.api.Project.html#org.gradle.api.Project:extensions)               | Allows adding DSL extensions to the project. Useful for plugin authors.                                                                                                                                                                                                                                                                                                |
+| [`gradle`](org.gradle.api.Project.html#org.gradle.api.Project:gradle)                       | The [`Gradle`](../dsl/org.gradle.api.invocation.Gradle.html) invocation which this project belongs to.                                                                                                                                                                                                                                                                 |
+| [`group`](org.gradle.api.Project.html#org.gradle.api.Project:group)                         | The group of this project. Gradle always uses the `toString()` value of the group. The group defaults to the path with dots as separators.                                                                                                                                                                                                                             |
+| [`layout`](org.gradle.api.Project.html#org.gradle.api.Project:layout)                       | Provides access to various important directories for this project.                                                                                                                                                                                                                                                                                                     |
+| [`logger`](org.gradle.api.Project.html#org.gradle.api.Project:logger)                       | The logger for this project. You can use this in your build file to write log messages.                                                                                                                                                                                                                                                                                |
+| [`logging`](org.gradle.api.Project.html#org.gradle.api.Project:logging)                     | The [`LoggingManager`](../javadoc/org/gradle/api/logging/LoggingManager.html) which can be used to receive logging and to control the standard output/error capture for this project's build script. By default, System.out is redirected to the Gradle logging system at the QUIET log level, and System.err is redirected at the ERROR log level.                    |
+| [`name`](org.gradle.api.Project.html#org.gradle.api.Project:name)                           | The name of this project. The project's name is not necessarily unique within a project hierarchy. You should use the [`Project.getPath()`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:path) method for a unique identifier for the project. If the root project is unnamed and is located on a file system root it will have a randomly-generated name |
+| [`normalization`](org.gradle.api.Project.html#org.gradle.api.Project:normalization)         | Provides access to configuring input normalization.                                                                                                                                                                                                                                                                                                                    |
+| [`parent`](org.gradle.api.Project.html#org.gradle.api.Project:parent)                       | The parent project of this project, if any.                                                                                                                                                                                                                                                                                                                            |
+| [`path`](org.gradle.api.Project.html#org.gradle.api.Project:path)                           | The path of this project, starting with ':'. See [`Settings.include(java.lang.String[])`](../dsl/org.gradle.api.initialization.Settings.html#org.gradle.api.initialization.Settings:include(java.lang.String[])) for more information about project paths.                                                                                                             |
+| [`pluginManager`](org.gradle.api.Project.html#org.gradle.api.Project:pluginManager)         | The plugin manager for this plugin aware object.                                                                                                                                                                                                                                                                                                                       |
+| [`plugins`](org.gradle.api.Project.html#org.gradle.api.Project:plugins)                     | The container of plugins that have been applied to this object.                                                                                                                                                                                                                                                                                                        |
+| [`project`](org.gradle.api.Project.html#org.gradle.api.Project:project)                     | Returns this project. This method is useful in build files to explicitly access project properties and methods. For example, using `project.name` can express your intent better than using `name`. This method also allows you to access project properties from a scope where the property may be hidden, such as, for example, from a method or closure.            |
+| [`projectDir`](org.gradle.api.Project.html#org.gradle.api.Project:projectDir)               | The directory containing the project build file.                                                                                                                                                                                                                                                                                                                       |
+| [`properties`](org.gradle.api.Project.html#org.gradle.api.Project:properties)               | The properties of this project. See [here]() for details of the properties which are available for a project.                                                                                                                                                                                                                                                          |
+| [`repositories`](org.gradle.api.Project.html#org.gradle.api.Project:repositories)           | Returns a handler to create repositories which are used for retrieving dependencies and uploading artifacts produced by the project.                                                                                                                                                                                                                                   |
+| [`resources`](org.gradle.api.Project.html#org.gradle.api.Project:resources)                 | Provides access to resource-specific utility methods, for example factory methods that create various resources.                                                                                                                                                                                                                                                       |
+| [`rootDir`](org.gradle.api.Project.html#org.gradle.api.Project:rootDir)                     | The root directory of this project. The root directory is the project directory of the root project.                                                                                                                                                                                                                                                                   |
+| [`rootProject`](org.gradle.api.Project.html#org.gradle.api.Project:rootProject)             | The root project for the hierarchy that this project belongs to. In the case of a single-project build, this method returns this project.                                                                                                                                                                                                                              |
+| [`state`](org.gradle.api.Project.html#org.gradle.api.Project:state)                         | The evaluation state of this project. You can use this to access information about the evaluation of this project, such as whether it has failed.                                                                                                                                                                                                                      |
+| [`status`](org.gradle.api.Project.html#org.gradle.api.Project:status)                       | The status of this project. Gradle always uses the `toString()` value of the status. The status defaults to `release`.                                                                                                                                                                                                                                                 |
+| [`subprojects`](org.gradle.api.Project.html#org.gradle.api.Project:subprojects)             | The set containing the subprojects of this project.                                                                                                                                                                                                                                                                                                                    |
+| [`tasks`](org.gradle.api.Project.html#org.gradle.api.Project:tasks)                         | The tasks of this project.                                                                                                                                                                                                                                                                                                                                             |
+| [`version`](org.gradle.api.Project.html#org.gradle.api.Project:version)                     | The version of this project. Gradle always uses the `toString()` value of the version. The version defaults to `unspecified`.                                                                                                                                                                                                                                          |
+
+#### Properties added by the `application` plugin
+
+|                                    Property                                     |                                                 Description                                                  |
+|---------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
+| [`application`](org.gradle.api.Project.html#org.gradle.api.Project:application) | The [`JavaApplication`](../dsl/org.gradle.api.plugins.JavaApplication.html) added by the application plugin. |
+
+#### Properties added by the `checkstyle` plugin
+
+|                                   Property                                    |                                                         Description                                                         |
+|-------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
+| [`checkstyle`](org.gradle.api.Project.html#org.gradle.api.Project:checkstyle) | The [`CheckstyleExtension`](../dsl/org.gradle.api.plugins.quality.CheckstyleExtension.html) added by the checkstyle plugin. |
+
+#### Properties added by the `codenarc` plugin
+
+|                                 Property                                  |                                                      Description                                                      |
+|---------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------|
+| [`codenarc`](org.gradle.api.Project.html#org.gradle.api.Project:codenarc) | The [`CodeNarcExtension`](../dsl/org.gradle.api.plugins.quality.CodeNarcExtension.html) added by the codenarc plugin. |
+
+#### Properties added by the `distribution` plugin
+
+|                                      Property                                       |                                                          Description                                                           |
+|-------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------|
+| [`distributions`](org.gradle.api.Project.html#org.gradle.api.Project:distributions) | The [`DistributionContainer`](../dsl/org.gradle.api.distribution.DistributionContainer.html) added by the distribution plugin. |
+
+#### Properties added by the `eclipse` plugin
+
+|                                Property                                 |                                                   Description                                                    |
+|-------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------|
+| [`eclipse`](org.gradle.api.Project.html#org.gradle.api.Project:eclipse) | The [`EclipseModel`](../dsl/org.gradle.plugins.ide.eclipse.model.EclipseModel.html) added by the eclipse plugin. |
+
+#### Properties added by the `idea` plugin
+
+|                             Property                              |                                             Description                                              |
+|-------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
+| [`idea`](org.gradle.api.Project.html#org.gradle.api.Project:idea) | The [`IdeaModel`](../dsl/org.gradle.plugins.ide.idea.model.IdeaModel.html) added by the idea plugin. |
+
+#### Properties added by the `jacoco` plugin
+
+|                               Property                                |                                                          Description                                                           |
+|-----------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------|
+| [`jacoco`](org.gradle.api.Project.html#org.gradle.api.Project:jacoco) | The [`JacocoPluginExtension`](../dsl/org.gradle.testing.jacoco.plugins.JacocoPluginExtension.html) added by the jacoco plugin. |
+
+#### Properties added by the `java` plugin
+
+|                                  Property                                   |                                                  Description                                                  |
+|-----------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
+| [`base`](org.gradle.api.Project.html#org.gradle.api.Project:base)           | The [`BasePluginExtension`](../dsl/org.gradle.api.plugins.BasePluginExtension.html) added by the java plugin. |
+| [`java`](org.gradle.api.Project.html#org.gradle.api.Project:java)           | The [`JavaPluginExtension`](../dsl/org.gradle.api.plugins.JavaPluginExtension.html) added by the java plugin. |
+| [`reporting`](org.gradle.api.Project.html#org.gradle.api.Project:reporting) | The [`ReportingExtension`](../dsl/org.gradle.api.reporting.ReportingExtension.html) added by the java plugin. |
+
+#### Properties added by the `pmd` plugin
+
+|                            Property                             |                                              Description                                               |
+|-----------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|
+| [`pmd`](org.gradle.api.Project.html#org.gradle.api.Project:pmd) | The [`PmdExtension`](../dsl/org.gradle.api.plugins.quality.PmdExtension.html) added by the pmd plugin. |
+
+#### Properties added by the `publishing` plugin
+
+|                                   Property                                    |                                                     Description                                                     |
+|-------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------|
+| [`publishing`](org.gradle.api.Project.html#org.gradle.api.Project:publishing) | The [`PublishingExtension`](../dsl/org.gradle.api.publish.PublishingExtension.html) added by the publishing plugin. |
+
+#### Properties added by the `signing` plugin
+
+|                                Property                                 |                                                  Description                                                   |
+|-------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
+| [`signing`](org.gradle.api.Project.html#org.gradle.api.Project:signing) | The [`SigningExtension`](../dsl/org.gradle.plugins.signing.SigningExtension.html) added by the signing plugin. |
+
+#### Properties added by the `visual-studio` plugin
+
+|                                     Property                                      |                                                               Description                                                               |
+|-----------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| [`visualStudio`](org.gradle.api.Project.html#org.gradle.api.Project:visualStudio) | The [`VisualStudioRootExtension`](../dsl/org.gradle.ide.visualstudio.VisualStudioRootExtension.html) added by the visual-studio plugin. |
+
+#### Properties added by the `xcode` plugin
+
+|                              Property                               |                                                Description                                                 |
+|---------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
+| [`xcode`](org.gradle.api.Project.html#org.gradle.api.Project:xcode) | The [`XcodeRootExtension`](../dsl/org.gradle.ide.xcode.XcodeRootExtension.html) added by the xcode plugin. |
+
+### Methods
+
+|                                                                        Method                                                                         |                                                                                                                                                                                                                                  Description                                                                                                                                                                                                                                   |
+|-------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [absoluteProjectPath](org.gradle.api.Project.html#org.gradle.api.Project:absoluteProjectPath(java.lang.String))`(path)`                               | Converts a name to an absolute project path, resolving names relative to this project.                                                                                                                                                                                                                                                                                                                                                                                         |
+| [afterEvaluate](org.gradle.api.Project.html#org.gradle.api.Project:afterEvaluate(groovy.lang.Closure))`(closure)`                                     | Adds a closure to call immediately after this project is evaluated.                                                                                                                                                                                                                                                                                                                                                                                                            |
+| [afterEvaluate](org.gradle.api.Project.html#org.gradle.api.Project:afterEvaluate(org.gradle.api.Action))`(action)`                                    | Adds an action to call immediately after this project is evaluated.                                                                                                                                                                                                                                                                                                                                                                                                            |
+| [allprojects](org.gradle.api.Project.html#org.gradle.api.Project:allprojects(org.gradle.api.Action))`(action)`                                        | Configures this project and each of its sub-projects.                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| [ant](org.gradle.api.Project.html#org.gradle.api.Project:ant(org.gradle.api.Action))`(configureAction)`                                               | Executes the given action against the `AntBuilder` for this project. You can use this in your build file to execute ant tasks. See example in javadoc for [`Project.getAnt()`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:ant)                                                                                                                                                                                                                                  |
+| [apply](org.gradle.api.Project.html#org.gradle.api.Project:apply(groovy.lang.Closure))`(closure)`                                                     | Applies zero or more plugins or scripts.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| [apply](org.gradle.api.Project.html#org.gradle.api.Project:apply(java.util.Map))`(options)`                                                           | Applies a plugin or script, using the given options provided as a map. Does nothing if the plugin has already been applied.                                                                                                                                                                                                                                                                                                                                                    |
+| [apply](org.gradle.api.Project.html#org.gradle.api.Project:apply(org.gradle.api.Action))`(action)`                                                    | Applies zero or more plugins or scripts.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| [artifacts](org.gradle.api.Project.html#org.gradle.api.Project:artifacts(org.gradle.api.Action))`(configureAction)`                                   | Configures the published artifacts for this project.                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| [beforeEvaluate](org.gradle.api.Project.html#org.gradle.api.Project:beforeEvaluate(groovy.lang.Closure))`(closure)`                                   | Adds a closure to call immediately before this project is evaluated.                                                                                                                                                                                                                                                                                                                                                                                                           |
+| [beforeEvaluate](org.gradle.api.Project.html#org.gradle.api.Project:beforeEvaluate(org.gradle.api.Action))`(action)`                                  | Adds an action to call immediately before this project is evaluated.                                                                                                                                                                                                                                                                                                                                                                                                           |
+| [configure](org.gradle.api.Project.html#org.gradle.api.Project:configure(java.lang.Iterable, groovy.lang.Closure))`(objects, configureClosure)`       | Configures a collection of objects via a closure. This is equivalent to calling [`Project.configure(java.lang.Object, groovy.lang.Closure)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:configure(java.lang.Object, groovy.lang.Closure)) for each of the given objects.                                                                                                                                                                                        |
+| [configure](org.gradle.api.Project.html#org.gradle.api.Project:configure(java.lang.Iterable, org.gradle.api.Action))`(objects, configureAction)`      | Configures a collection of objects via an action.                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| [configure](org.gradle.api.Project.html#org.gradle.api.Project:configure(java.lang.Object, groovy.lang.Closure))`(object, configureClosure)`          | Configures an object via a closure, with the closure's delegate set to the supplied object. This way you don't have to specify the context of a configuration statement multiple times.                                                                                                                                                                                                                                                                                        |
+| [container](org.gradle.api.Project.html#org.gradle.api.Project:container(java.lang.Class))`(type)`                                                    | Deprecated Creates a container for managing named objects of the specified type. The specified type must have a public constructor which takes the name as a String parameter.                                                                                                                                                                                                                                                                                                 |
+| [container](org.gradle.api.Project.html#org.gradle.api.Project:container(java.lang.Class, groovy.lang.Closure))`(type, factoryClosure)`               | Deprecated Creates a container for managing named objects of the specified type. The given closure is used to create object instances. The name of the instance to be created is passed as a parameter to the closure.                                                                                                                                                                                                                                                         |
+| [container](org.gradle.api.Project.html#org.gradle.api.Project:container(java.lang.Class, org.gradle.api.NamedDomainObjectFactory))`(type, factory)`  | Deprecated Creates a container for managing named objects of the specified type. The given factory is used to create object instances.                                                                                                                                                                                                                                                                                                                                         |
+| [copy](org.gradle.api.Project.html#org.gradle.api.Project:copy(groovy.lang.Closure))`(closure)`                                                       | Copies the specified files. The given closure is used to configure a [`CopySpec`](../javadoc/org/gradle/api/file/CopySpec.html), which is then used to copy the files. Example:                                                                                                                                                                                                                                                                                                |
+| [copy](org.gradle.api.Project.html#org.gradle.api.Project:copy(org.gradle.api.Action))`(action)`                                                      | Copies the specified files. The given action is used to configure a [`CopySpec`](../javadoc/org/gradle/api/file/CopySpec.html), which is then used to copy the files.                                                                                                                                                                                                                                                                                                          |
+| [copySpec](org.gradle.api.Project.html#org.gradle.api.Project:copySpec())`()`                                                                         | Creates a [`CopySpec`](../javadoc/org/gradle/api/file/CopySpec.html) which can later be used to copy files or create an archive.                                                                                                                                                                                                                                                                                                                                               |
+| [copySpec](org.gradle.api.Project.html#org.gradle.api.Project:copySpec(groovy.lang.Closure))`(closure)`                                               | Creates a [`CopySpec`](../javadoc/org/gradle/api/file/CopySpec.html) which can later be used to copy files or create an archive. The given closure is used to configure the [`CopySpec`](../javadoc/org/gradle/api/file/CopySpec.html) before it is returned by this method.                                                                                                                                                                                                   |
+| [copySpec](org.gradle.api.Project.html#org.gradle.api.Project:copySpec(org.gradle.api.Action))`(action)`                                              | Creates a [`CopySpec`](../javadoc/org/gradle/api/file/CopySpec.html) which can later be used to copy files or create an archive. The given action is used to configure the [`CopySpec`](../javadoc/org/gradle/api/file/CopySpec.html) before it is returned by this method.                                                                                                                                                                                                    |
+| [defaultTasks](org.gradle.api.Project.html#org.gradle.api.Project:defaultTasks(java.lang.String[]))`(defaultTasks)`                                   | Sets the names of the default tasks of this project. These are used when no tasks names are provided when starting the build.                                                                                                                                                                                                                                                                                                                                                  |
+| [delete](org.gradle.api.Project.html#org.gradle.api.Project:delete(java.lang.Object[]))`(paths)`                                                      | Deletes files and directories.                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| [delete](org.gradle.api.Project.html#org.gradle.api.Project:delete(org.gradle.api.Action))`(action)`                                                  | Deletes the specified files. The given action is used to configure a [`DeleteSpec`](../javadoc/org/gradle/api/file/DeleteSpec.html), which is then used to delete the files.                                                                                                                                                                                                                                                                                                   |
+| [dependencyLocking](org.gradle.api.Project.html#org.gradle.api.Project:dependencyLocking(org.gradle.api.Action))`(configuration)`                     | Configures dependency locking                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| [evaluationDependsOn](org.gradle.api.Project.html#org.gradle.api.Project:evaluationDependsOn(java.lang.String))`(path)`                               | Declares that this project has an evaluation dependency on the project with the given path.                                                                                                                                                                                                                                                                                                                                                                                    |
+| [file](org.gradle.api.Project.html#org.gradle.api.Project:file(java.lang.Object))`(path)`                                                             | Resolves a file path relative to the project directory of this project. This method converts the supplied path based on its type:                                                                                                                                                                                                                                                                                                                                              |
+| [file](org.gradle.api.Project.html#org.gradle.api.Project:file(java.lang.Object, org.gradle.api.PathValidation))`(path, validation)`                  | Resolves a file path relative to the project directory of this project and validates it using the given scheme. See [`PathValidation`](../javadoc/org/gradle/api/PathValidation.html) for the list of possible validations.                                                                                                                                                                                                                                                    |
+| [fileTree](org.gradle.api.Project.html#org.gradle.api.Project:fileTree(java.lang.Object))`(baseDir)`                                                  | Creates a new `ConfigurableFileTree` using the given base directory. The given baseDir path is evaluated as per [`Project.file(java.lang.Object)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:file(java.lang.Object)).                                                                                                                                                                                                                                          |
+| [fileTree](org.gradle.api.Project.html#org.gradle.api.Project:fileTree(java.lang.Object, groovy.lang.Closure))`(baseDir, configureClosure)`           | Creates a new `ConfigurableFileTree` using the given base directory. The given baseDir path is evaluated as per [`Project.file(java.lang.Object)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:file(java.lang.Object)). The closure will be used to configure the new file tree. The file tree is passed to the closure as its delegate. Example:                                                                                                                |
+| [fileTree](org.gradle.api.Project.html#org.gradle.api.Project:fileTree(java.lang.Object, org.gradle.api.Action))`(baseDir, configureAction)`          | Creates a new `ConfigurableFileTree` using the given base directory. The given baseDir path is evaluated as per [`Project.file(java.lang.Object)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:file(java.lang.Object)). The action will be used to configure the new file tree. Example:                                                                                                                                                                         |
+| [fileTree](org.gradle.api.Project.html#org.gradle.api.Project:fileTree(java.util.Map))`(args)`                                                        | Creates a new `ConfigurableFileTree` using the provided map of arguments. The map will be applied as properties on the new file tree. Example:                                                                                                                                                                                                                                                                                                                                 |
+| [files](org.gradle.api.Project.html#org.gradle.api.Project:files(java.lang.Object, groovy.lang.Closure))`(paths, configureClosure)`                   | Creates a new `ConfigurableFileCollection` using the given paths. The paths are evaluated as per [`Project.files(java.lang.Object[])`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:files(java.lang.Object[])). The file collection is configured using the given closure. The file collection is passed to the closure as its delegate. Example:                                                                                                                 |
+| [files](org.gradle.api.Project.html#org.gradle.api.Project:files(java.lang.Object, org.gradle.api.Action))`(paths, configureAction)`                  | Creates a new `ConfigurableFileCollection` using the given paths. The paths are evaluated as per [`Project.files(java.lang.Object[])`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:files(java.lang.Object[])). The file collection is configured using the given action. Example:                                                                                                                                                                                |
+| [files](org.gradle.api.Project.html#org.gradle.api.Project:files(java.lang.Object[]))`(paths)`                                                        | Returns a [`ConfigurableFileCollection`](../javadoc/org/gradle/api/file/ConfigurableFileCollection.html) containing the given files. You can pass any of the following types to this method:                                                                                                                                                                                                                                                                                   |
+| [findProject](org.gradle.api.Project.html#org.gradle.api.Project:findProject(java.lang.String))`(path)`                                               | Locates a project by path. If the path is relative, it is interpreted relative to this project.                                                                                                                                                                                                                                                                                                                                                                                |
+| [findProperty](org.gradle.api.Project.html#org.gradle.api.Project:findProperty(java.lang.String))`(propertyName)`                                     | Returns the value of the given property or null if not found. This method locates a property as follows:                                                                                                                                                                                                                                                                                                                                                                       |
+| [getAllTasks](org.gradle.api.Project.html#org.gradle.api.Project:getAllTasks(boolean))`(recursive)`                                                   | Returns a map of the tasks contained in this project, and optionally its subprojects.                                                                                                                                                                                                                                                                                                                                                                                          |
+| [getTasksByName](org.gradle.api.Project.html#org.gradle.api.Project:getTasksByName(java.lang.String, boolean))`(name, recursive)`                     | Returns the set of tasks with the given name contained in this project, and optionally its subprojects. *NOTE:* This is an expensive operation since it requires all projects to be configured.                                                                                                                                                                                                                                                                                |
+| [hasProperty](org.gradle.api.Project.html#org.gradle.api.Project:hasProperty(java.lang.String))`(propertyName)`                                       | Determines if this project has the given property. See [here]() for details of the properties which are available for a project.                                                                                                                                                                                                                                                                                                                                               |
+| [mkdir](org.gradle.api.Project.html#org.gradle.api.Project:mkdir(java.lang.Object))`(path)`                                                           | Creates a directory and returns a file pointing to it.                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| [normalization](org.gradle.api.Project.html#org.gradle.api.Project:normalization(org.gradle.api.Action))`(configuration)`                             | Configures input normalization.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| [project](org.gradle.api.Project.html#org.gradle.api.Project:project(java.lang.String))`(path)`                                                       | Locates a project by path. If the path is relative, it is interpreted relative to this project.                                                                                                                                                                                                                                                                                                                                                                                |
+| [project](org.gradle.api.Project.html#org.gradle.api.Project:project(java.lang.String, groovy.lang.Closure))`(path, configureClosure)`                | Locates a project by path and configures it using the given closure. If the path is relative, it is interpreted relative to this project. The target project is passed to the closure as the closure's delegate.                                                                                                                                                                                                                                                               |
+| [project](org.gradle.api.Project.html#org.gradle.api.Project:project(java.lang.String, org.gradle.api.Action))`(path, configureAction)`               | Locates a project by path and configures it using the given action. If the path is relative, it is interpreted relative to this project.                                                                                                                                                                                                                                                                                                                                       |
+| [property](org.gradle.api.Project.html#org.gradle.api.Project:property(java.lang.String))`(propertyName)`                                             | Returns the value of the given property. This method locates a property as follows:                                                                                                                                                                                                                                                                                                                                                                                            |
+| [relativePath](org.gradle.api.Project.html#org.gradle.api.Project:relativePath(java.lang.Object))`(path)`                                             | Returns the relative path from the project directory to the given path. The given path object is (logically) resolved as described for [`Project.file(java.lang.Object)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:file(java.lang.Object)), from which a relative path is calculated.                                                                                                                                                                         |
+| [relativeProjectPath](org.gradle.api.Project.html#org.gradle.api.Project:relativeProjectPath(java.lang.String))`(path)`                               | Converts a name to a project path relative to this project.                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| [setProperty](org.gradle.api.Project.html#org.gradle.api.Project:setProperty(java.lang.String, java.lang.Object))`(name, value)`                      | Sets a property of this project. This method searches for a property with the given name in the following locations, and sets the property on the first location where it finds the property.                                                                                                                                                                                                                                                                                  |
+| [subprojects](org.gradle.api.Project.html#org.gradle.api.Project:subprojects(org.gradle.api.Action))`(action)`                                        | Configures the sub-projects of this project                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| [sync](org.gradle.api.Project.html#org.gradle.api.Project:sync(org.gradle.api.Action))`(action)`                                                      | Synchronizes the contents of a destination directory with some source directories and files. The given action is used to configure a [`SyncSpec`](../javadoc/org/gradle/api/file/SyncSpec.html), which is then used to synchronize the files.                                                                                                                                                                                                                                  |
+| [tarTree](org.gradle.api.Project.html#org.gradle.api.Project:tarTree(java.lang.Object))`(tarPath)`                                                    | Creates a new `FileTree` which contains the contents of the given TAR file. The given tarPath path can be:                                                                                                                                                                                                                                                                                                                                                                     |
+| [task](org.gradle.api.Project.html#org.gradle.api.Project:task(java.lang.String))`(name)`                                                             | Deprecated Creates a [`Task`](../dsl/org.gradle.api.Task.html) with the given name and adds it to this project. Calling this method is equivalent to calling [`Project.task(java.util.Map, java.lang.String)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:task(java.util.Map, java.lang.String)) with an empty options map.                                                                                                                                     |
+| [task](org.gradle.api.Project.html#org.gradle.api.Project:task(java.lang.String, groovy.lang.Closure))`(name, configureClosure)`                      | Deprecated Creates a [`Task`](../dsl/org.gradle.api.Task.html) with the given name and adds it to this project. Before the task is returned, the given closure is executed to configure the task.                                                                                                                                                                                                                                                                              |
+| [task](org.gradle.api.Project.html#org.gradle.api.Project:task(java.lang.String, org.gradle.api.Action))`(name, configureAction)`                     | Deprecated Creates a [`Task`](../dsl/org.gradle.api.Task.html) with the given name and adds it to this project. Before the task is returned, the given action is executed to configure the task.                                                                                                                                                                                                                                                                               |
+| [task](org.gradle.api.Project.html#org.gradle.api.Project:task(java.util.Map, java.lang.String))`(args, name)`                                        | Deprecated Creates a [`Task`](../dsl/org.gradle.api.Task.html) with the given name and adds it to this project. A map of creation options can be passed to this method to control how the task is created. The following options are available:                                                                                                                                                                                                                                |
+| [task](org.gradle.api.Project.html#org.gradle.api.Project:task(java.util.Map, java.lang.String, groovy.lang.Closure))`(args, name, configureClosure)` | Deprecated Creates a [`Task`](../dsl/org.gradle.api.Task.html) with the given name and adds it to this project. Before the task is returned, the given closure is executed to configure the task. A map of creation options can be passed to this method to control how the task is created. See [`Project.task(java.util.Map, java.lang.String)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:task(java.util.Map, java.lang.String)) for the available options. |
+| [uri](org.gradle.api.Project.html#org.gradle.api.Project:uri(java.lang.Object))`(path)`                                                               | Resolves a file path to a URI, relative to the project directory of this project. Evaluates the provided path object as described for [`Project.file(java.lang.Object)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:file(java.lang.Object)), with the exception that any URI scheme is supported, not just 'file:' URIs.                                                                                                                                        |
+| [zipTree](org.gradle.api.Project.html#org.gradle.api.Project:zipTree(java.lang.Object))`(zipPath)`                                                    | Creates a new `FileTree` which contains the contents of the given ZIP file. The given zipPath path is evaluated as per [`Project.file(java.lang.Object)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:file(java.lang.Object)). You can combine this method with the [`Project.copy(org.gradle.api.Action)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:copy(org.gradle.api.Action)) method to unzip a ZIP file.                                   |
+
+### Script blocks
+
+|                                                   Block                                                    |                                                                                                                                                    Description                                                                                                                                                    |
+|------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [`allprojects`](org.gradle.api.Project.html#org.gradle.api.Project:allprojects(groovy.lang.Closure))       | Configures this project and each of its sub-projects.                                                                                                                                                                                                                                                             |
+| [`ant`](org.gradle.api.Project.html#org.gradle.api.Project:ant(groovy.lang.Closure))                       | Executes the given closure against the `AntBuilder` for this project. You can use this in your build file to execute ant tasks. The `AntBuild` is passed to the closure as the closure's delegate. See example in javadoc for [`Project.getAnt()`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:ant) |
+| [`artifacts`](org.gradle.api.Project.html#org.gradle.api.Project:artifacts(groovy.lang.Closure))           | Configures the published artifacts for this project.                                                                                                                                                                                                                                                              |
+| [`buildscript`](org.gradle.api.Project.html#org.gradle.api.Project:buildscript(groovy.lang.Closure))       | Configures the build script classpath for this project.                                                                                                                                                                                                                                                           |
+| [`configurations`](org.gradle.api.Project.html#org.gradle.api.Project:configurations(groovy.lang.Closure)) | Configures the dependency configurations for this project.                                                                                                                                                                                                                                                        |
+| [`dependencies`](org.gradle.api.Project.html#org.gradle.api.Project:dependencies(groovy.lang.Closure))     | Configures the dependencies for this project.                                                                                                                                                                                                                                                                     |
+| [`repositories`](org.gradle.api.Project.html#org.gradle.api.Project:repositories(groovy.lang.Closure))     | Configures the repositories for this project.                                                                                                                                                                                                                                                                     |
+| [`subprojects`](org.gradle.api.Project.html#org.gradle.api.Project:subprojects(groovy.lang.Closure))       | Configures the sub-projects of this project.                                                                                                                                                                                                                                                                      |
+
+#### Script blocks added by the `application` plugin
+
+|                                                Block                                                 |                                                       Description                                                       |
+|------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------|
+| [`application`](org.gradle.api.Project.html#org.gradle.api.Project:application(groovy.lang.Closure)) | Configures the [`JavaApplication`](../dsl/org.gradle.api.plugins.JavaApplication.html) added by the application plugin. |
+
+#### Script blocks added by the `checkstyle` plugin
+
+|                                               Block                                                |                                                              Description                                                               |
+|----------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|
+| [`checkstyle`](org.gradle.api.Project.html#org.gradle.api.Project:checkstyle(groovy.lang.Closure)) | Configures the [`CheckstyleExtension`](../dsl/org.gradle.api.plugins.quality.CheckstyleExtension.html) added by the checkstyle plugin. |
+
+#### Script blocks added by the `codenarc` plugin
+
+|                                             Block                                              |                                                           Description                                                            |
+|------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
+| [`codenarc`](org.gradle.api.Project.html#org.gradle.api.Project:codenarc(groovy.lang.Closure)) | Configures the [`CodeNarcExtension`](../dsl/org.gradle.api.plugins.quality.CodeNarcExtension.html) added by the codenarc plugin. |
+
+#### Script blocks added by the `distribution` plugin
+
+|                                                  Block                                                   |                                                                Description                                                                |
+|----------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| [`distributions`](org.gradle.api.Project.html#org.gradle.api.Project:distributions(groovy.lang.Closure)) | Configures the [`DistributionContainer`](../dsl/org.gradle.api.distribution.DistributionContainer.html) added by the distribution plugin. |
+
+#### Script blocks added by the `eclipse` plugin
+
+|                                            Block                                             |                                                         Description                                                         |
+|----------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
+| [`eclipse`](org.gradle.api.Project.html#org.gradle.api.Project:eclipse(groovy.lang.Closure)) | Configures the [`EclipseModel`](../dsl/org.gradle.plugins.ide.eclipse.model.EclipseModel.html) added by the eclipse plugin. |
+
+#### Script blocks added by the `idea` plugin
+
+|                                         Block                                          |                                                   Description                                                   |
+|----------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
+| [`idea`](org.gradle.api.Project.html#org.gradle.api.Project:idea(groovy.lang.Closure)) | Configures the [`IdeaModel`](../dsl/org.gradle.plugins.ide.idea.model.IdeaModel.html) added by the idea plugin. |
+
+#### Script blocks added by the `jacoco` plugin
+
+|                                           Block                                            |                                                                Description                                                                |
+|--------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| [`jacoco`](org.gradle.api.Project.html#org.gradle.api.Project:jacoco(groovy.lang.Closure)) | Configures the [`JacocoPluginExtension`](../dsl/org.gradle.testing.jacoco.plugins.JacocoPluginExtension.html) added by the jacoco plugin. |
+
+#### Script blocks added by the `java` plugin
+
+|                                              Block                                               |                                                       Description                                                        |
+|--------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------|
+| [`base`](org.gradle.api.Project.html#org.gradle.api.Project:base(groovy.lang.Closure))           | Configures the [`BasePluginExtension`](../dsl/org.gradle.api.plugins.BasePluginExtension.html) added by the java plugin. |
+| [`java`](org.gradle.api.Project.html#org.gradle.api.Project:java(groovy.lang.Closure))           | Configures the [`JavaPluginExtension`](../dsl/org.gradle.api.plugins.JavaPluginExtension.html) added by the java plugin. |
+| [`reporting`](org.gradle.api.Project.html#org.gradle.api.Project:reporting(groovy.lang.Closure)) | Configures the [`ReportingExtension`](../dsl/org.gradle.api.reporting.ReportingExtension.html) added by the java plugin. |
+
+#### Script blocks added by the `pmd` plugin
+
+|                                        Block                                         |                                                    Description                                                    |
+|--------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------|
+| [`pmd`](org.gradle.api.Project.html#org.gradle.api.Project:pmd(groovy.lang.Closure)) | Configures the [`PmdExtension`](../dsl/org.gradle.api.plugins.quality.PmdExtension.html) added by the pmd plugin. |
+
+#### Script blocks added by the `publishing` plugin
+
+|                                               Block                                                |                                                          Description                                                           |
+|----------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------|
+| [`publishing`](org.gradle.api.Project.html#org.gradle.api.Project:publishing(groovy.lang.Closure)) | Configures the [`PublishingExtension`](../dsl/org.gradle.api.publish.PublishingExtension.html) added by the publishing plugin. |
+
+#### Script blocks added by the `signing` plugin
+
+|                                            Block                                             |                                                        Description                                                        |
+|----------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
+| [`signing`](org.gradle.api.Project.html#org.gradle.api.Project:signing(groovy.lang.Closure)) | Configures the [`SigningExtension`](../dsl/org.gradle.plugins.signing.SigningExtension.html) added by the signing plugin. |
+
+#### Script blocks added by the `visual-studio` plugin
+
+|                                                 Block                                                  |                                                                    Description                                                                     |
+|--------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
+| [`visualStudio`](org.gradle.api.Project.html#org.gradle.api.Project:visualStudio(groovy.lang.Closure)) | Configures the [`VisualStudioRootExtension`](../dsl/org.gradle.ide.visualstudio.VisualStudioRootExtension.html) added by the visual-studio plugin. |
+
+#### Script blocks added by the `xcode` plugin
+
+|                                          Block                                           |                                                      Description                                                      |
+|------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------|
+| [`xcode`](org.gradle.api.Project.html#org.gradle.api.Project:xcode(groovy.lang.Closure)) | Configures the [`XcodeRootExtension`](../dsl/org.gradle.ide.xcode.XcodeRootExtension.html) added by the xcode plugin. |
+
+### Property details
+
+#### [`Set`](https://docs.oracle.com/javase/8/docs/api/java/util/Set.html)`<`[`Project`](../dsl/org.gradle.api.Project.html)`>` `allprojects` (read-only)
+
+The set containing this project and its subprojects.  
+
+#### [`AntBuilder`](../javadoc/org/gradle/api/AntBuilder.html) `ant` (read-only)
+
+The `AntBuilder` for this project. You can use this in your build file to execute ant tasks. See example below.
+
+```
+task printChecksum {
+  doLast {
+    ant {
+      //using ant checksum task to store the file checksum in the checksumOut ant property
+      checksum(property: 'checksumOut', file: 'someFile.txt')
+
+      //we can refer to the ant property created by checksum task:
+      println "The checksum is: " + checksumOut
+    }
+
+    //we can refer to the ant property later as well:
+    println "I just love to print checksums: " + ant.checksumOut
+  }
+}
+```
+
+Consider following example of ant target:
+
+```
+<target name='printChecksum'>
+  <checksum property='checksumOut'>
+    <fileset dir='.'>
+      <include name='agile.txt'/>
+    </fileset>
+  </checksum>
+  <echo>The checksum is: ${checksumOut}</echo>
+</target>
+```
+
+Here's how it would look like in gradle. Observe how the ant XML is represented in groovy by the ant builder
+
+```
+task printChecksum {
+  doLast {
+    ant {
+      checksum(property: 'checksumOut') {
+        fileset(dir: '.') {
+          include name: 'agile1.txt'
+        }
+      }
+    }
+    logger.lifecycle("The checksum is $ant.checksumOut")
+  }
+}
+```
+
+#### [`ArtifactHandler`](../dsl/org.gradle.api.artifacts.dsl.ArtifactHandler.html) `artifacts` (read-only)
+
+Returns a handler for assigning artifacts produced by the project to configurations.
+
+Examples: See docs for [`ArtifactHandler`](../dsl/org.gradle.api.artifacts.dsl.ArtifactHandler.html)  
+
+#### [`File`](https://docs.oracle.com/javase/8/docs/api/java/io/File.html) `buildDir`
+
+Note: This property is [deprecated](../userguide/feature_lifecycle.html) and will be removed in the next major version of Gradle.
+
+The build directory of this project. The build directory is the directory which all artifacts are generated into. The default value for the build directory is *projectDir*`/build`  
+
+#### [`File`](https://docs.oracle.com/javase/8/docs/api/java/io/File.html) `buildFile` (read-only)
+
+The build script for this project.
+
+If the file exists, it will be evaluated against this project when this project is configured.  
+
+#### [`ScriptHandler`](../javadoc/org/gradle/api/initialization/dsl/ScriptHandler.html) `buildscript` (read-only)
+
+The build script handler for this project. You can use this handler to query details about the build script for this project, and manage the classpath used to compile and execute the project's build script.  
+
+#### [`Map`](https://docs.oracle.com/javase/8/docs/api/java/util/Map.html)`<`[`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html)`, `[`Project`](../dsl/org.gradle.api.Project.html)`>` `childProjects` (read-only)
+
+The direct children of this project.  
+
+#### [`ConfigurationContainer`](../dsl/org.gradle.api.artifacts.ConfigurationContainer.html) `configurations` (read-only)
+
+The configurations of this project.
+
+Examples: See docs for [`ConfigurationContainer`](../dsl/org.gradle.api.artifacts.ConfigurationContainer.html)  
+
+#### [`List`](https://docs.oracle.com/javase/8/docs/api/java/util/List.html)`<`[`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html)`>` `defaultTasks`
+
+The names of the default tasks of this project. These are used when no tasks names are provided when starting the build.  
+
+#### [`DependencyHandler`](../dsl/org.gradle.api.artifacts.dsl.DependencyHandler.html) `dependencies` (read-only)
+
+The dependency handler of this project. The returned dependency handler instance can be used for adding new dependencies. For accessing already declared dependencies, the configurations can be used.
+
+Examples: See docs for [`DependencyHandler`](../dsl/org.gradle.api.artifacts.dsl.DependencyHandler.html)  
+
+#### [`DependencyLockingHandler`](../javadoc/org/gradle/api/artifacts/dsl/DependencyLockingHandler.html) `dependencyLocking` (read-only)
+
+Provides access to configuring dependency locking  
+
+#### [`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) `description`
+
+The description of this project, if any.  
+
+#### [`ExtensionContainer`](../javadoc/org/gradle/api/plugins/ExtensionContainer.html) `extensions` (read-only)
+
+Allows adding DSL extensions to the project. Useful for plugin authors.  
+
+#### [`Gradle`](../dsl/org.gradle.api.invocation.Gradle.html) `gradle` (read-only)
+
+The [`Gradle`](../dsl/org.gradle.api.invocation.Gradle.html) invocation which this project belongs to.  
+
+#### [`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) `group`
+
+The group of this project. Gradle always uses the `toString()` value of the group. The group defaults to the path with dots as separators.  
+
+#### [`ProjectLayout`](../dsl/org.gradle.api.file.ProjectLayout.html) `layout` (read-only)
+
+Provides access to various important directories for this project.  
+
+#### [`Logger`](../javadoc/org/gradle/api/logging/Logger.html) `logger` (read-only)
+
+The logger for this project. You can use this in your build file to write log messages.  
+
+#### [`LoggingManager`](../javadoc/org/gradle/api/logging/LoggingManager.html) `logging` (read-only)
+
+The [`LoggingManager`](../javadoc/org/gradle/api/logging/LoggingManager.html) which can be used to receive logging and to control the standard output/error capture for this project's build script. By default, System.out is redirected to the Gradle logging system at the QUIET log level, and System.err is redirected at the ERROR log level.  
+
+#### [`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) `name` (read-only)
+
+The name of this project. The project's name is not necessarily unique within a project hierarchy. You should use the [`Project.getPath()`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:path) method for a unique identifier for the project. If the root project is unnamed and is located on a file system root it will have a randomly-generated name  
+
+#### [`InputNormalizationHandler`](../dsl/org.gradle.normalization.InputNormalizationHandler.html) `normalization` (read-only)
+
+Provides access to configuring input normalization.  
+
+#### [`Project`](../dsl/org.gradle.api.Project.html) `parent` (read-only)
+
+The parent project of this project, if any.
+
+There are two cases where a project will not have a parent:  
+* The project is the root project of the build.
+* The project is located in a nested directory (not the root of the build), [`Project.getProjectDir()`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:projectDir) has been used after including the project in order to locate it, and no project has been included that is located in this project's parent directory.  
+
+#### [`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) `path` (read-only)
+
+The path of this project, starting with ':'. See [`Settings.include(java.lang.String[])`](../dsl/org.gradle.api.initialization.Settings.html#org.gradle.api.initialization.Settings:include(java.lang.String[])) for more information about project paths.  
+
+#### [`PluginManager`](../dsl/org.gradle.api.plugins.PluginManager.html) `pluginManager` (read-only)
+
+The plugin manager for this plugin aware object.  
+
+#### [`PluginContainer`](../javadoc/org/gradle/api/plugins/PluginContainer.html) `plugins` (read-only)
+
+The container of plugins that have been applied to this object.
+
+While not deprecated, it is preferred to use the methods of this interface or the [`PluginAware.getPluginManager()`](../dsl/org.gradle.api.plugins.PluginAware.html#org.gradle.api.plugins.PluginAware:pluginManager) than use the plugin container.
+
+Use one of the 'apply' methods on this interface or on the [`PluginAware.getPluginManager()`](../dsl/org.gradle.api.plugins.PluginAware.html#org.gradle.api.plugins.PluginAware:pluginManager) to apply plugins instead of applying via the plugin container.
+
+Use [`PluginManager.hasPlugin(java.lang.String)`](../dsl/org.gradle.api.plugins.PluginManager.html#org.gradle.api.plugins.PluginManager:hasPlugin(java.lang.String)) or similar to query for the application of plugins instead of doing so via the plugin container.  
+
+#### [`Project`](../dsl/org.gradle.api.Project.html) `project` (read-only)
+
+Returns this project. This method is useful in build files to explicitly access project properties and methods. For example, using `project.name` can express your intent better than using `name`. This method also allows you to access project properties from a scope where the property may be hidden, such as, for example, from a method or closure.  
+
+#### [`File`](https://docs.oracle.com/javase/8/docs/api/java/io/File.html) `projectDir` (read-only)
+
+The directory containing the project build file.  
+
+#### [`Map`](https://docs.oracle.com/javase/8/docs/api/java/util/Map.html)`<`[`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html)`, ? extends `[`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html)`>` `properties` (read-only)
+
+The properties of this project. See [here]() for details of the properties which are available for a project.  
+
+#### [`RepositoryHandler`](../dsl/org.gradle.api.artifacts.dsl.RepositoryHandler.html) `repositories` (read-only)
+
+Returns a handler to create repositories which are used for retrieving dependencies and uploading artifacts produced by the project.  
+
+#### [`ResourceHandler`](../dsl/org.gradle.api.resources.ResourceHandler.html) `resources` (read-only)
+
+Provides access to resource-specific utility methods, for example factory methods that create various resources.  
+
+#### [`File`](https://docs.oracle.com/javase/8/docs/api/java/io/File.html) `rootDir` (read-only)
+
+The root directory of this project. The root directory is the project directory of the root project.  
+
+#### [`Project`](../dsl/org.gradle.api.Project.html) `rootProject` (read-only)
+
+The root project for the hierarchy that this project belongs to. In the case of a single-project build, this method returns this project.  
+
+#### [`ProjectState`](../javadoc/org/gradle/api/ProjectState.html) `state` (read-only)
+
+The evaluation state of this project. You can use this to access information about the evaluation of this project, such as whether it has failed.  
+
+#### [`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) `status`
+
+The status of this project. Gradle always uses the `toString()` value of the status. The status defaults to `release`.
+
+The status of the project is only relevant, if you upload libraries together with a module descriptor. The status specified here, will be part of this module descriptor.  
+
+#### [`Set`](https://docs.oracle.com/javase/8/docs/api/java/util/Set.html)`<`[`Project`](../dsl/org.gradle.api.Project.html)`>` `subprojects` (read-only)
+
+The set containing the subprojects of this project.  
+
+#### [`TaskContainer`](../dsl/org.gradle.api.tasks.TaskContainer.html) `tasks` (read-only)
+
+The tasks of this project.  
+
+#### [`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) `version`
+
+The version of this project. Gradle always uses the `toString()` value of the version. The version defaults to `unspecified`.  
+
+#### [`JavaApplication`](../dsl/org.gradle.api.plugins.JavaApplication.html) `application` (read-only)
+
+The [`JavaApplication`](../dsl/org.gradle.api.plugins.JavaApplication.html) added by the application plugin.  
+
+#### [`CheckstyleExtension`](../dsl/org.gradle.api.plugins.quality.CheckstyleExtension.html) `checkstyle` (read-only)
+
+The [`CheckstyleExtension`](../dsl/org.gradle.api.plugins.quality.CheckstyleExtension.html) added by the checkstyle plugin.  
+
+#### [`CodeNarcExtension`](../dsl/org.gradle.api.plugins.quality.CodeNarcExtension.html) `codenarc` (read-only)
+
+The [`CodeNarcExtension`](../dsl/org.gradle.api.plugins.quality.CodeNarcExtension.html) added by the codenarc plugin.  
+
+#### [`DistributionContainer`](../dsl/org.gradle.api.distribution.DistributionContainer.html) `distributions` (read-only)
+
+The [`DistributionContainer`](../dsl/org.gradle.api.distribution.DistributionContainer.html) added by the distribution plugin.  
+
+#### [`EclipseModel`](../dsl/org.gradle.plugins.ide.eclipse.model.EclipseModel.html) `eclipse` (read-only)
+
+The [`EclipseModel`](../dsl/org.gradle.plugins.ide.eclipse.model.EclipseModel.html) added by the eclipse plugin.  
+
+#### [`IdeaModel`](../dsl/org.gradle.plugins.ide.idea.model.IdeaModel.html) `idea` (read-only)
+
+The [`IdeaModel`](../dsl/org.gradle.plugins.ide.idea.model.IdeaModel.html) added by the idea plugin.  
+
+#### [`JacocoPluginExtension`](../dsl/org.gradle.testing.jacoco.plugins.JacocoPluginExtension.html) `jacoco` (read-only)
+
+The [`JacocoPluginExtension`](../dsl/org.gradle.testing.jacoco.plugins.JacocoPluginExtension.html) added by the jacoco plugin.  
+
+#### [`BasePluginExtension`](../dsl/org.gradle.api.plugins.BasePluginExtension.html) `base` (read-only)
+
+The [`BasePluginExtension`](../dsl/org.gradle.api.plugins.BasePluginExtension.html) added by the java plugin.  
+
+#### [`JavaPluginExtension`](../dsl/org.gradle.api.plugins.JavaPluginExtension.html) `java` (read-only)
+
+The [`JavaPluginExtension`](../dsl/org.gradle.api.plugins.JavaPluginExtension.html) added by the java plugin.  
+
+#### [`ReportingExtension`](../dsl/org.gradle.api.reporting.ReportingExtension.html) `reporting` (read-only)
+
+The [`ReportingExtension`](../dsl/org.gradle.api.reporting.ReportingExtension.html) added by the java plugin.  
+
+#### [`PmdExtension`](../dsl/org.gradle.api.plugins.quality.PmdExtension.html) `pmd` (read-only)
+
+The [`PmdExtension`](../dsl/org.gradle.api.plugins.quality.PmdExtension.html) added by the pmd plugin.  
+
+#### [`PublishingExtension`](../dsl/org.gradle.api.publish.PublishingExtension.html) `publishing` (read-only)
+
+The [`PublishingExtension`](../dsl/org.gradle.api.publish.PublishingExtension.html) added by the publishing plugin.  
+
+#### [`SigningExtension`](../dsl/org.gradle.plugins.signing.SigningExtension.html) `signing` (read-only)
+
+The [`SigningExtension`](../dsl/org.gradle.plugins.signing.SigningExtension.html) added by the signing plugin.  
+
+#### [`VisualStudioRootExtension`](../dsl/org.gradle.ide.visualstudio.VisualStudioRootExtension.html) `visualStudio` (read-only)
+
+The [`VisualStudioRootExtension`](../dsl/org.gradle.ide.visualstudio.VisualStudioRootExtension.html) added by the visual-studio plugin.  
+
+#### [`XcodeRootExtension`](../dsl/org.gradle.ide.xcode.XcodeRootExtension.html) `xcode` (read-only)
+
+The [`XcodeRootExtension`](../dsl/org.gradle.ide.xcode.XcodeRootExtension.html) added by the xcode plugin.  
+
+### Method details
+
+#### [`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) `absoluteProjectPath`([`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) path)
+
+Converts a name to an absolute project path, resolving names relative to this project.  
+
+#### `void` `afterEvaluate`([`Closure`](https://docs.groovy-lang.org/4.0.29/html/gapi/groovy/lang/Closure.html) closure)
+
+Adds a closure to call immediately after this project is evaluated.  
+
+#### `void` `afterEvaluate`([`Action`](../javadoc/org/gradle/api/Action.html)`<? super `[`Project`](../dsl/org.gradle.api.Project.html)`>` action)
+
+Adds an action to call immediately after this project is evaluated.
+
+Passes the project to the action as a parameter. Actions passed to this method execute in the same order they were passed. A parent project may add an action to its child projects to further configure those projects based on their state after their build files run.
+
+If the project has already been evaluated, this method fails.
+
+If you call this method within an `afterEvaluate` action, the passed action executes after all previously added `afterEvaluate` actions finish executing.  
+
+#### `void` `allprojects`([`Action`](../javadoc/org/gradle/api/Action.html)`<? super `[`Project`](../dsl/org.gradle.api.Project.html)`>` action)
+
+Configures this project and each of its sub-projects.
+
+This method executes the given [`Action`](../javadoc/org/gradle/api/Action.html) against this project and each of its sub-projects.  
+
+#### [`AntBuilder`](../javadoc/org/gradle/api/AntBuilder.html) `ant`([`Action`](../javadoc/org/gradle/api/Action.html)`<? super `[`AntBuilder`](../javadoc/org/gradle/api/AntBuilder.html)`>` configureAction)
+
+Executes the given action against the `AntBuilder` for this project. You can use this in your build file to execute ant tasks. See example in javadoc for [`Project.getAnt()`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:ant)  
+
+#### `void` `apply`([`Closure`](https://docs.groovy-lang.org/4.0.29/html/gapi/groovy/lang/Closure.html) closure)
+
+Applies zero or more plugins or scripts.
+
+The given closure is used to configure an [`ObjectConfigurationAction`](../javadoc/org/gradle/api/plugins/ObjectConfigurationAction.html), which "builds" the plugin application.
+
+This method differs from [`PluginAware.apply(java.util.Map)`](../dsl/org.gradle.api.plugins.PluginAware.html#org.gradle.api.plugins.PluginAware:apply(java.util.Map)) in that it allows methods of the configuration action to be invoked more than once.  
+
+#### `void` `apply`([`Map`](https://docs.oracle.com/javase/8/docs/api/java/util/Map.html)`<`[`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html)`, ?>` options)
+
+Applies a plugin or script, using the given options provided as a map. Does nothing if the plugin has already been applied.
+
+The given map is applied as a series of method calls to a newly created [`ObjectConfigurationAction`](../javadoc/org/gradle/api/plugins/ObjectConfigurationAction.html). That is, each key in the map is expected to be the name of a method [`ObjectConfigurationAction`](../javadoc/org/gradle/api/plugins/ObjectConfigurationAction.html) and the value to be compatible arguments to that method.
+
+The following options are available:  
+* `from`: A script to apply. Accepts any path supported by [`Project.uri(java.lang.Object)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:uri(java.lang.Object)).
+* `plugin`: The id or implementation class of the plugin to apply.
+* `to`: The target delegate object or objects. The default is this plugin aware object. Use this to configure objects other than this object.  
+
+#### `void` `apply`([`Action`](../javadoc/org/gradle/api/Action.html)`<? super `[`ObjectConfigurationAction`](../javadoc/org/gradle/api/plugins/ObjectConfigurationAction.html)`>` action)
+
+Applies zero or more plugins or scripts.
+
+The given closure is used to configure an [`ObjectConfigurationAction`](../javadoc/org/gradle/api/plugins/ObjectConfigurationAction.html), which "builds" the plugin application.
+
+This method differs from [`PluginAware.apply(java.util.Map)`](../dsl/org.gradle.api.plugins.PluginAware.html#org.gradle.api.plugins.PluginAware:apply(java.util.Map)) in that it allows methods of the configuration action to be invoked more than once.  
+
+#### `void` `artifacts`([`Action`](../javadoc/org/gradle/api/Action.html)`<? super `[`ArtifactHandler`](../dsl/org.gradle.api.artifacts.dsl.ArtifactHandler.html)`>` configureAction)
+
+Configures the published artifacts for this project.
+
+This method executes the given action against the [`ArtifactHandler`](../dsl/org.gradle.api.artifacts.dsl.ArtifactHandler.html) for this project.
+
+Example:
+
+```
+configurations {
+  //declaring new configuration that will be used to associate with artifacts
+  schema
+}
+
+task schemaJar(type: Jar) {
+  //some imaginary task that creates a jar artifact with the schema
+}
+
+//associating the task that produces the artifact with the configuration
+artifacts {
+  //configuration name and the task:
+  schema schemaJar
+}
+```
+
+#### `void` `beforeEvaluate`([`Closure`](https://docs.groovy-lang.org/4.0.29/html/gapi/groovy/lang/Closure.html) closure)
+
+Adds a closure to call immediately before this project is evaluated.  
+
+#### `void` `beforeEvaluate`([`Action`](../javadoc/org/gradle/api/Action.html)`<? super `[`Project`](../dsl/org.gradle.api.Project.html)`>` action)
+
+Adds an action to call immediately before this project is evaluated.
+
+Passes the project to the action as a parameter. Actions passed to this method execute in the same order they were passed.
+
+If the project has already been evaluated, the action never executes.
+
+If you call this method within a `beforeEvaluate` action, the passed action never executes.  
+
+#### [`Iterable`](https://docs.oracle.com/javase/8/docs/api/java/lang/Iterable.html)`<?>` `configure`([`Iterable`](https://docs.oracle.com/javase/8/docs/api/java/lang/Iterable.html)`<?>` objects, [`Closure`](https://docs.groovy-lang.org/4.0.29/html/gapi/groovy/lang/Closure.html) configureClosure)
+
+Configures a collection of objects via a closure. This is equivalent to calling [`Project.configure(java.lang.Object, groovy.lang.Closure)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:configure(java.lang.Object, groovy.lang.Closure)) for each of the given objects.  
+
+#### [`Iterable`](https://docs.oracle.com/javase/8/docs/api/java/lang/Iterable.html)`<``T``>` `configure`([`Iterable`](https://docs.oracle.com/javase/8/docs/api/java/lang/Iterable.html)`<``T``>` objects, [`Action`](../javadoc/org/gradle/api/Action.html)`<? super ``T``>` configureAction)
+
+Configures a collection of objects via an action.  
+
+#### [`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) `configure`([`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) object, [`Closure`](https://docs.groovy-lang.org/4.0.29/html/gapi/groovy/lang/Closure.html) configureClosure)
+
+Configures an object via a closure, with the closure's delegate set to the supplied object. This way you don't have to specify the context of a configuration statement multiple times.
+
+Instead of:
+
+```
+MyType myType = new MyType()
+myType.doThis()
+myType.doThat()
+```
+
+you can do:
+
+```
+MyType myType = configure(new MyType()) {
+    doThis()
+    doThat()
+}
+```
+
+The object being configured is also passed to the closure as a parameter, so you can access it explicitly if required:
+
+```
+configure(someObj) { obj -> obj.doThis() }
+```
+
+#### [`NamedDomainObjectContainer`](../dsl/org.gradle.api.NamedDomainObjectContainer.html)`<``T``>` `container`([`Class`](https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html)`<``T``>` type)
+
+Note: This method is [deprecated](../userguide/feature_lifecycle.html) and will be removed in the next major version of Gradle.
+
+Creates a container for managing named objects of the specified type. The specified type must have a public constructor which takes the name as a String parameter.
+
+All objects *MUST* expose their name as a bean property named "name". The name must be constant for the life of the object.  
+
+#### [`NamedDomainObjectContainer`](../dsl/org.gradle.api.NamedDomainObjectContainer.html)`<``T``>` `container`([`Class`](https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html)`<``T``>` type, [`Closure`](https://docs.groovy-lang.org/4.0.29/html/gapi/groovy/lang/Closure.html) factoryClosure)
+
+Note: This method is [deprecated](../userguide/feature_lifecycle.html) and will be removed in the next major version of Gradle.
+
+Creates a container for managing named objects of the specified type. The given closure is used to create object instances. The name of the instance to be created is passed as a parameter to the closure.
+
+All objects *MUST* expose their name as a bean property named "name". The name must be constant for the life of the object.  
+
+#### [`NamedDomainObjectContainer`](../dsl/org.gradle.api.NamedDomainObjectContainer.html)`<``T``>` `container`([`Class`](https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html)`<``T``>` type, [`NamedDomainObjectFactory`](../javadoc/org/gradle/api/NamedDomainObjectFactory.html)`<``T``>` factory)
+
+Note: This method is [deprecated](../userguide/feature_lifecycle.html) and will be removed in the next major version of Gradle.
+
+Creates a container for managing named objects of the specified type. The given factory is used to create object instances.
+
+All objects *MUST* expose their name as a bean property named "name". The name must be constant for the life of the object.  
+
+#### [`WorkResult`](../javadoc/org/gradle/api/tasks/WorkResult.html) `copy`([`Closure`](https://docs.groovy-lang.org/4.0.29/html/gapi/groovy/lang/Closure.html) closure)
+
+Copies the specified files. The given closure is used to configure a [`CopySpec`](../javadoc/org/gradle/api/file/CopySpec.html), which is then used to copy the files. Example:
+
+```
+copy {
+   from configurations.runtimeClasspath
+   into 'build/deploy/lib'
+}
+```
+
+Note that CopySpecs can be nested:
+
+```
+copy {
+   into 'build/webroot'
+   exclude '**/.svn/**'
+   from('src/main/webapp') {
+      include '**/*.jsp'
+      filter(ReplaceTokens, tokens:[copyright:'2009', version:'2.3.1'])
+   }
+   from('src/main/js') {
+      include '**/*.js'
+   }
+}
+```
+
+#### [`WorkResult`](../javadoc/org/gradle/api/tasks/WorkResult.html) `copy`([`Action`](../javadoc/org/gradle/api/Action.html)`<? super `[`CopySpec`](../javadoc/org/gradle/api/file/CopySpec.html)`>` action)
+
+Copies the specified files. The given action is used to configure a [`CopySpec`](../javadoc/org/gradle/api/file/CopySpec.html), which is then used to copy the files.  
+
+#### [`CopySpec`](../javadoc/org/gradle/api/file/CopySpec.html) `copySpec`()
+
+Creates a [`CopySpec`](../javadoc/org/gradle/api/file/CopySpec.html) which can later be used to copy files or create an archive.  
+
+#### [`CopySpec`](../javadoc/org/gradle/api/file/CopySpec.html) `copySpec`([`Closure`](https://docs.groovy-lang.org/4.0.29/html/gapi/groovy/lang/Closure.html) closure)
+
+Creates a [`CopySpec`](../javadoc/org/gradle/api/file/CopySpec.html) which can later be used to copy files or create an archive. The given closure is used to configure the [`CopySpec`](../javadoc/org/gradle/api/file/CopySpec.html) before it is returned by this method.
+
+```
+def baseSpec = copySpec {
+   from "source"
+   include "**/*.java"
+}
+
+task copy(type: Copy) {
+   into "target"
+   with baseSpec
+}
+```
+
+#### [`CopySpec`](../javadoc/org/gradle/api/file/CopySpec.html) `copySpec`([`Action`](../javadoc/org/gradle/api/Action.html)`<? super `[`CopySpec`](../javadoc/org/gradle/api/file/CopySpec.html)`>` action)
+
+Creates a [`CopySpec`](../javadoc/org/gradle/api/file/CopySpec.html) which can later be used to copy files or create an archive. The given action is used to configure the [`CopySpec`](../javadoc/org/gradle/api/file/CopySpec.html) before it is returned by this method.  
+
+#### `void` `defaultTasks`([`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html)`...` defaultTasks)
+
+Sets the names of the default tasks of this project. These are used when no tasks names are provided when starting the build.  
+
+#### `boolean` `delete`([`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html)`...` paths)
+
+Deletes files and directories.
+
+This will not follow symlinks. If you need to follow symlinks too use [`Project.delete(org.gradle.api.Action)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:delete(org.gradle.api.Action)).  
+
+#### [`WorkResult`](../javadoc/org/gradle/api/tasks/WorkResult.html) `delete`([`Action`](../javadoc/org/gradle/api/Action.html)`<? super `[`DeleteSpec`](../javadoc/org/gradle/api/file/DeleteSpec.html)`>` action)
+
+Deletes the specified files. The given action is used to configure a [`DeleteSpec`](../javadoc/org/gradle/api/file/DeleteSpec.html), which is then used to delete the files.
+
+Example:
+
+```
+project.delete {
+    delete 'somefile'
+    followSymlinks = true
+}
+```
+
+#### `void` `dependencyLocking`([`Action`](../javadoc/org/gradle/api/Action.html)`<? super `[`DependencyLockingHandler`](../javadoc/org/gradle/api/artifacts/dsl/DependencyLockingHandler.html)`>` configuration)
+
+Configures dependency locking  
+
+#### [`Project`](../dsl/org.gradle.api.Project.html) `evaluationDependsOn`([`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) path)
+
+Declares that this project has an evaluation dependency on the project with the given path.  
+
+#### [`File`](https://docs.oracle.com/javase/8/docs/api/java/io/File.html) `file`([`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) path)
+
+Resolves a file path relative to the project directory of this project. This method converts the supplied path based on its type:  
+* A [`CharSequence`](https://docs.oracle.com/javase/8/docs/api/java/lang/CharSequence.html), including [`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) or [`GString`](https://docs.groovy-lang.org/4.0.29/html/gapi/groovy/lang/GString.html). Interpreted relative to the project directory. A string that starts with `file:` is treated as a file URL.
+* A [`File`](https://docs.oracle.com/javase/8/docs/api/java/io/File.html). If the file is an absolute file, it is returned as is. Otherwise, the file's path is interpreted relative to the project directory.
+* A [`Path`](https://docs.oracle.com/javase/8/docs/api/java/nio/file/Path.html). The path must be associated with the default provider and is treated the same way as an instance of `File`.
+* A [`URI`](https://docs.oracle.com/javase/8/docs/api/java/net/URI.html) or [`URL`](https://docs.oracle.com/javase/8/docs/api/java/net/URL.html). The URL's path is interpreted as the file path. Only `file:` URLs are supported.
+* A [`Directory`](../javadoc/org/gradle/api/file/Directory.html) or [`RegularFile`](../javadoc/org/gradle/api/file/RegularFile.html).
+* A [`Provider`](../javadoc/org/gradle/api/provider/Provider.html) of any supported type. The provider's value is resolved recursively.
+* A [`TextResource`](../dsl/org.gradle.api.resources.TextResource.html).
+* A Groovy [`Closure`](https://docs.groovy-lang.org/4.0.29/html/gapi/groovy/lang/Closure.html) or Kotlin function that returns any supported type. The closure's return value is resolved recursively.
+* A [`Callable`](https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/Callable.html) that returns any supported type. The callable's return value is resolved recursively.  
+
+#### [`File`](https://docs.oracle.com/javase/8/docs/api/java/io/File.html) `file`([`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) path, [`PathValidation`](../javadoc/org/gradle/api/PathValidation.html) validation)
+
+Resolves a file path relative to the project directory of this project and validates it using the given scheme. See [`PathValidation`](../javadoc/org/gradle/api/PathValidation.html) for the list of possible validations.  
+
+#### [`ConfigurableFileTree`](../javadoc/org/gradle/api/file/ConfigurableFileTree.html) `fileTree`([`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) baseDir)
+
+Creates a new `ConfigurableFileTree` using the given base directory. The given baseDir path is evaluated as per [`Project.file(java.lang.Object)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:file(java.lang.Object)).
+
+The returned file tree is lazy, so that it scans for files only when the contents of the file tree are queried. The file tree is also live, so that it scans for files each time the contents of the file tree are queried.
+
+```
+def myTree = fileTree("src")
+myTree.include "**/*.java"
+myTree.builtBy "someTask"
+
+task copy(type: Copy) {
+   from myTree
+}
+```
+
+The order of the files in a `FileTree` is not stable, even on a single computer.  
+
+#### [`ConfigurableFileTree`](../javadoc/org/gradle/api/file/ConfigurableFileTree.html) `fileTree`([`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) baseDir, [`Closure`](https://docs.groovy-lang.org/4.0.29/html/gapi/groovy/lang/Closure.html) configureClosure)
+
+Creates a new `ConfigurableFileTree` using the given base directory. The given baseDir path is evaluated as per [`Project.file(java.lang.Object)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:file(java.lang.Object)). The closure will be used to configure the new file tree. The file tree is passed to the closure as its delegate. Example:
+
+```
+def myTree = fileTree('src') {
+   exclude '**/.data/**'
+   builtBy 'someTask'
+}
+
+task copy(type: Copy) {
+   from myTree
+}
+```
+
+The returned file tree is lazy, so that it scans for files only when the contents of the file tree are queried. The file tree is also live, so that it scans for files each time the contents of the file tree are queried.
+
+The order of the files in a `FileTree` is not stable, even on a single computer.  
+
+#### [`ConfigurableFileTree`](../javadoc/org/gradle/api/file/ConfigurableFileTree.html) `fileTree`([`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) baseDir, [`Action`](../javadoc/org/gradle/api/Action.html)`<? super `[`ConfigurableFileTree`](../javadoc/org/gradle/api/file/ConfigurableFileTree.html)`>` configureAction)
+
+Creates a new `ConfigurableFileTree` using the given base directory. The given baseDir path is evaluated as per [`Project.file(java.lang.Object)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:file(java.lang.Object)). The action will be used to configure the new file tree. Example:
+
+```
+def myTree = fileTree('src') {
+   exclude '**/.data/**'
+   builtBy 'someTask'
+}
+
+task copy(type: Copy) {
+   from myTree
+}
+```
+
+The returned file tree is lazy, so that it scans for files only when the contents of the file tree are queried. The file tree is also live, so that it scans for files each time the contents of the file tree are queried.
+
+The order of the files in a `FileTree` is not stable, even on a single computer.  
+
+#### [`ConfigurableFileTree`](../javadoc/org/gradle/api/file/ConfigurableFileTree.html) `fileTree`([`Map`](https://docs.oracle.com/javase/8/docs/api/java/util/Map.html)`<`[`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html)`, ?>` args)
+
+Creates a new `ConfigurableFileTree` using the provided map of arguments. The map will be applied as properties on the new file tree. Example:
+
+```
+def myTree = fileTree(dir:'src', excludes:['**/ignore/**', '**/.data/**'])
+
+task copy(type: Copy) {
+    from myTree
+}
+```
+
+The returned file tree is lazy, so that it scans for files only when the contents of the file tree are queried. The file tree is also live, so that it scans for files each time the contents of the file tree are queried.
+
+The order of the files in a `FileTree` is not stable, even on a single computer.  
+
+#### [`ConfigurableFileCollection`](../javadoc/org/gradle/api/file/ConfigurableFileCollection.html) `files`([`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) paths, [`Closure`](https://docs.groovy-lang.org/4.0.29/html/gapi/groovy/lang/Closure.html) configureClosure)
+
+Creates a new `ConfigurableFileCollection` using the given paths. The paths are evaluated as per [`Project.files(java.lang.Object[])`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:files(java.lang.Object[])). The file collection is configured using the given closure. The file collection is passed to the closure as its delegate. Example:
+
+```
+files "$buildDir/classes" {
+    builtBy 'compile'
+}
+```
+
+The returned file collection is lazy, so that the paths are evaluated only when the contents of the file collection are queried. The file collection is also live, so that it evaluates the above each time the contents of the collection is queried.  
+
+#### [`ConfigurableFileCollection`](../javadoc/org/gradle/api/file/ConfigurableFileCollection.html) `files`([`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) paths, [`Action`](../javadoc/org/gradle/api/Action.html)`<? super `[`ConfigurableFileCollection`](../javadoc/org/gradle/api/file/ConfigurableFileCollection.html)`>` configureAction)
+
+Creates a new `ConfigurableFileCollection` using the given paths. The paths are evaluated as per [`Project.files(java.lang.Object[])`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:files(java.lang.Object[])). The file collection is configured using the given action. Example:
+
+```
+files "$buildDir/classes" {
+    builtBy 'compile'
+}
+```
+
+The returned file collection is lazy, so that the paths are evaluated only when the contents of the file collection are queried. The file collection is also live, so that it evaluates the above each time the contents of the collection is queried.  
+
+#### [`ConfigurableFileCollection`](../javadoc/org/gradle/api/file/ConfigurableFileCollection.html) `files`([`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html)`...` paths)
+
+Returns a [`ConfigurableFileCollection`](../javadoc/org/gradle/api/file/ConfigurableFileCollection.html) containing the given files. You can pass any of the following types to this method:  
+* A [`CharSequence`](https://docs.oracle.com/javase/8/docs/api/java/lang/CharSequence.html), including [`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) or [`GString`](https://docs.groovy-lang.org/4.0.29/html/gapi/groovy/lang/GString.html). Interpreted relative to the project directory, as per [`Project.file(java.lang.Object)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:file(java.lang.Object)). A string that starts with `file:` is treated as a file URL.
+* A [`File`](https://docs.oracle.com/javase/8/docs/api/java/io/File.html). Interpreted relative to the project directory, as per [`Project.file(java.lang.Object)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:file(java.lang.Object)).
+* A [`Path`](https://docs.oracle.com/javase/8/docs/api/java/nio/file/Path.html), as per [`Project.file(java.lang.Object)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:file(java.lang.Object)).
+* A [`URI`](https://docs.oracle.com/javase/8/docs/api/java/net/URI.html) or [`URL`](https://docs.oracle.com/javase/8/docs/api/java/net/URL.html). The URL's path is interpreted as a file path. Only `file:` URLs are supported.
+* A [`Directory`](../javadoc/org/gradle/api/file/Directory.html) or [`RegularFile`](../javadoc/org/gradle/api/file/RegularFile.html).
+* A [`Collection`](https://docs.oracle.com/javase/8/docs/api/java/util/Collection.html), [`Iterable`](https://docs.oracle.com/javase/8/docs/api/java/lang/Iterable.html), or an array that contains objects of any supported type. The elements of the collection are recursively converted to files.
+* A [`FileCollection`](../javadoc/org/gradle/api/file/FileCollection.html). The contents of the collection are included in the returned collection.
+* A [`FileTree`](../javadoc/org/gradle/api/file/FileTree.html) or [`DirectoryTree`](../javadoc/org/gradle/api/file/DirectoryTree.html). The contents of the tree are included in the returned collection.
+* A [`Provider`](../javadoc/org/gradle/api/provider/Provider.html) of any supported type. The provider's value is recursively converted to files. If the provider represents an output of a task, that task is executed if the file collection is used as an input to another task.
+* A [`Callable`](https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/Callable.html) that returns any supported type. The return value of the `call()` method is recursively converted to files. A `null` return value is treated as an empty collection.
+* A Groovy [`Closure`](https://docs.groovy-lang.org/4.0.29/html/gapi/groovy/lang/Closure.html) or Kotlin function that returns any of the types listed here. The return value of the closure is recursively converted to files. A `null` return value is treated as an empty collection.
+* A [`Task`](../dsl/org.gradle.api.Task.html). Converted to the task's output files. The task is executed if the file collection is used as an input to another task.
+* A [`TaskOutputs`](../javadoc/org/gradle/api/tasks/TaskOutputs.html). Converted to the output files the related task. The task is executed if the file collection is used as an input to another task.
+* Anything else is treated as an error.
+
+The returned file collection is lazy, so that the paths are evaluated only when the contents of the file collection are queried. The file collection is also live, so that it evaluates the above each time the contents of the collection is queried.
+
+The returned file collection maintains the iteration order of the supplied paths.
+
+The returned file collection maintains the details of the tasks that produce the files, so that these tasks are executed if this file collection is used as an input to some task.
+
+This method can also be used to create an empty collection, which can later be mutated to add elements.  
+
+#### [`Project`](../dsl/org.gradle.api.Project.html) `findProject`([`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) path)
+
+Locates a project by path. If the path is relative, it is interpreted relative to this project.  
+
+#### [`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) `findProperty`([`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) propertyName)
+
+Returns the value of the given property or null if not found. This method locates a property as follows:  
+1. If this project object has a property with the given name, return the value of the property.
+2. If this project has an extension with the given name, return the extension.
+3. If this project's convention object has a property with the given name, return the value of the property.
+4. If this project has an extra property with the given name, return the value of the property.
+5. If this project has a task with the given name, return the task.
+6. Search up through this project's ancestor projects for a convention property or extra property with the given name.
+7. If not found, null value is returned.  
+
+#### [`Map`](https://docs.oracle.com/javase/8/docs/api/java/util/Map.html)`<`[`Project`](../dsl/org.gradle.api.Project.html)`, `[`Set`](https://docs.oracle.com/javase/8/docs/api/java/util/Set.html)`<`[`Task`](../dsl/org.gradle.api.Task.html)`>>` `getAllTasks`(`boolean` recursive)
+
+Returns a map of the tasks contained in this project, and optionally its subprojects.  
+
+#### [`Set`](https://docs.oracle.com/javase/8/docs/api/java/util/Set.html)`<`[`Task`](../dsl/org.gradle.api.Task.html)`>` `getTasksByName`([`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) name, `boolean` recursive)
+
+Returns the set of tasks with the given name contained in this project, and optionally its subprojects. *NOTE:* This is an expensive operation since it requires all projects to be configured.  
+
+#### `boolean` `hasProperty`([`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) propertyName)
+
+Determines if this project has the given property. See [here]() for details of the properties which are available for a project.  
+
+#### [`File`](https://docs.oracle.com/javase/8/docs/api/java/io/File.html) `mkdir`([`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) path)
+
+Creates a directory and returns a file pointing to it.  
+
+#### `void` `normalization`([`Action`](../javadoc/org/gradle/api/Action.html)`<? super `[`InputNormalizationHandler`](../dsl/org.gradle.normalization.InputNormalizationHandler.html)`>` configuration)
+
+Configures input normalization.  
+
+#### [`Project`](../dsl/org.gradle.api.Project.html) `project`([`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) path)
+
+Locates a project by path. If the path is relative, it is interpreted relative to this project.  
+
+#### [`Project`](../dsl/org.gradle.api.Project.html) `project`([`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) path, [`Closure`](https://docs.groovy-lang.org/4.0.29/html/gapi/groovy/lang/Closure.html) configureClosure)
+
+Locates a project by path and configures it using the given closure. If the path is relative, it is interpreted relative to this project. The target project is passed to the closure as the closure's delegate.  
+
+#### [`Project`](../dsl/org.gradle.api.Project.html) `project`([`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) path, [`Action`](../javadoc/org/gradle/api/Action.html)`<? super `[`Project`](../dsl/org.gradle.api.Project.html)`>` configureAction)
+
+Locates a project by path and configures it using the given action. If the path is relative, it is interpreted relative to this project.  
+
+#### [`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) `property`([`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) propertyName)
+
+Returns the value of the given property. This method locates a property as follows:  
+1. If this project object has a property with the given name, return the value of the property.
+2. If this project has an extension with the given name, return the extension.
+3. If this project's convention object has a property with the given name, return the value of the property.
+4. If this project has an extra property with the given name, return the value of the property.
+5. If this project has a task with the given name, return the task.
+6. Search up through this project's ancestor projects for a convention property or extra property with the given name.
+7. If not found, a [`MissingPropertyException`](https://docs.groovy-lang.org/4.0.29/html/gapi/groovy/lang/MissingPropertyException.html) is thrown.  
+
+#### [`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) `relativePath`([`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) path)
+
+Returns the relative path from the project directory to the given path. The given path object is (logically) resolved as described for [`Project.file(java.lang.Object)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:file(java.lang.Object)), from which a relative path is calculated.  
+
+#### [`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) `relativeProjectPath`([`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) path)
+
+Converts a name to a project path relative to this project.  
+
+#### `void` `setProperty`([`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) name, [`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) value)
+
+Sets a property of this project. This method searches for a property with the given name in the following locations, and sets the property on the first location where it finds the property.  
+1. The project object itself. For example, the `rootDir` project property.
+2. The project's extra properties.
+
+If the property is not found, a [`MissingPropertyException`](https://docs.groovy-lang.org/4.0.29/html/gapi/groovy/lang/MissingPropertyException.html) is thrown.  
+
+#### `void` `subprojects`([`Action`](../javadoc/org/gradle/api/Action.html)`<? super `[`Project`](../dsl/org.gradle.api.Project.html)`>` action)
+
+Configures the sub-projects of this project
+
+This method executes the given [`Action`](../javadoc/org/gradle/api/Action.html) against the sub-projects of this project.  
+
+#### [`WorkResult`](../javadoc/org/gradle/api/tasks/WorkResult.html) `sync`([`Action`](../javadoc/org/gradle/api/Action.html)`<? super `[`SyncSpec`](../javadoc/org/gradle/api/file/SyncSpec.html)`>` action)
+
+Synchronizes the contents of a destination directory with some source directories and files. The given action is used to configure a [`SyncSpec`](../javadoc/org/gradle/api/file/SyncSpec.html), which is then used to synchronize the files.
+
+This method is like the [`Project.copy(org.gradle.api.Action)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:copy(org.gradle.api.Action)) task, except the destination directory will only contain the files copied. All files that exist in the destination directory will be deleted before copying files, unless a preserve option is specified.
+
+Example:
+
+```
+project.sync {
+   from 'my/shared/dependencyDir'
+   into 'build/deps/compile'
+}
+```
+
+Note that you can preserve output that already exists in the destination directory:
+
+```
+project.sync {
+    from 'source'
+    into 'dest'
+    preserve {
+        include 'extraDir/**'
+        include 'dir1/**'
+        exclude 'dir1/extra.txt'
+    }
+}
+```
+
+#### [`FileTree`](../javadoc/org/gradle/api/file/FileTree.html) `tarTree`([`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) tarPath)
+
+Creates a new `FileTree` which contains the contents of the given TAR file. The given tarPath path can be:  
+* an instance of [`Resource`](../javadoc/org/gradle/api/resources/Resource.html)
+* any other object is evaluated as per [`Project.file(java.lang.Object)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:file(java.lang.Object))
+
+The returned file tree is lazy, so that it scans for files only when the contents of the file tree are queried. The file tree is also live, so that it scans for files each time the contents of the file tree are queried.
+
+Unless custom implementation of resources is passed, the tar tree attempts to guess the compression based on the file extension.
+
+You can combine this method with the [`Project.copy(org.gradle.api.Action)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:copy(org.gradle.api.Action)) method to untar a TAR file:
+
+```
+task untar(type: Copy) {
+  from tarTree('someCompressedTar.gzip')
+
+  //tar tree attempts to guess the compression based on the file extension
+  //however if you must specify the compression explicitly you can:
+  from tarTree(resources.gzip('someTar.ext'))
+
+  //in case you work with unconventionally compressed tars
+  //you can provide your own implementation of a ReadableResource:
+  //from tarTree(yourOwnResource as ReadableResource)
+
+  into 'dest'
+}
+```
+
+#### [`Task`](../dsl/org.gradle.api.Task.html) `task`([`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) name)
+
+Note: This method is [deprecated](../userguide/feature_lifecycle.html) and will be removed in the next major version of Gradle.
+
+Creates a [`Task`](../dsl/org.gradle.api.Task.html) with the given name and adds it to this project. Calling this method is equivalent to calling [`Project.task(java.util.Map, java.lang.String)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:task(java.util.Map, java.lang.String)) with an empty options map.
+
+After the task is added to the project, it is made available as a property of the project, so that you can reference the task by name in your build file. See [properties]() for more details
+
+If a task with the given name already exists in this project, an exception is thrown.  
+
+#### [`Task`](../dsl/org.gradle.api.Task.html) `task`([`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) name, [`Closure`](https://docs.groovy-lang.org/4.0.29/html/gapi/groovy/lang/Closure.html) configureClosure)
+
+Note: This method is [deprecated](../userguide/feature_lifecycle.html) and will be removed in the next major version of Gradle.
+
+Creates a [`Task`](../dsl/org.gradle.api.Task.html) with the given name and adds it to this project. Before the task is returned, the given closure is executed to configure the task.
+
+After the task is added to the project, it is made available as a property of the project, so that you can reference the task by name in your build file. See [here]() for more details  
+
+#### [`Task`](../dsl/org.gradle.api.Task.html) `task`([`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) name, [`Action`](../javadoc/org/gradle/api/Action.html)`<? super `[`Task`](../dsl/org.gradle.api.Task.html)`>` configureAction)
+
+Note: This method is [deprecated](../userguide/feature_lifecycle.html) and will be removed in the next major version of Gradle.
+
+Creates a [`Task`](../dsl/org.gradle.api.Task.html) with the given name and adds it to this project. Before the task is returned, the given action is executed to configure the task.
+
+After the task is added to the project, it is made available as a property of the project, so that you can reference the task by name in your build file. See [here]() for more details  
+
+#### [`Task`](../dsl/org.gradle.api.Task.html) `task`([`Map`](https://docs.oracle.com/javase/8/docs/api/java/util/Map.html)`<`[`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html)`, ?>` args, [`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) name)
+
+Note: This method is [deprecated](../userguide/feature_lifecycle.html) and will be removed in the next major version of Gradle.
+
+Creates a [`Task`](../dsl/org.gradle.api.Task.html) with the given name and adds it to this project. A map of creation options can be passed to this method to control how the task is created. The following options are available:  
+
+|    Option     |                                    Description                                     |                        Default Value                        |
+|---------------|------------------------------------------------------------------------------------|-------------------------------------------------------------|
+| `type`        | The class of the task to create.                                                   | [`DefaultTask`](../javadoc/org/gradle/api/DefaultTask.html) |
+| `overwrite`   | Replace an existing task?                                                          | `false`                                                     |
+| `dependsOn`   | A task name or set of task names which this task depends on                        | `[]`                                                        |
+| `action`      | A closure or [`Action`](../javadoc/org/gradle/api/Action.html) to add to the task. | `null`                                                      |
+| `description` | A description of the task.                                                         | `null`                                                      |
+| `group`       | A task group which this task belongs to.                                           | `null`                                                      |
+
+After the task is added to the project, it is made available as a property of the project, so that you can reference the task by name in your build file. See [here]() for more details
+
+If a task with the given name already exists in this project and the `override` option is not set to true, an exception is thrown.  
+
+#### [`Task`](../dsl/org.gradle.api.Task.html) `task`([`Map`](https://docs.oracle.com/javase/8/docs/api/java/util/Map.html)`<`[`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html)`, ?>` args, [`String`](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html) name, [`Closure`](https://docs.groovy-lang.org/4.0.29/html/gapi/groovy/lang/Closure.html) configureClosure)
+
+Note: This method is [deprecated](../userguide/feature_lifecycle.html) and will be removed in the next major version of Gradle.
+
+Creates a [`Task`](../dsl/org.gradle.api.Task.html) with the given name and adds it to this project. Before the task is returned, the given closure is executed to configure the task. A map of creation options can be passed to this method to control how the task is created. See [`Project.task(java.util.Map, java.lang.String)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:task(java.util.Map, java.lang.String)) for the available options.
+
+After the task is added to the project, it is made available as a property of the project, so that you can reference the task by name in your build file. See [here]() for more details
+
+If a task with the given name already exists in this project and the `override` option is not set to true, an exception is thrown.  
+
+#### [`URI`](https://docs.oracle.com/javase/8/docs/api/java/net/URI.html) `uri`([`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) path)
+
+Resolves a file path to a URI, relative to the project directory of this project. Evaluates the provided path object as described for [`Project.file(java.lang.Object)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:file(java.lang.Object)), with the exception that any URI scheme is supported, not just 'file:' URIs.  
+
+#### [`FileTree`](../javadoc/org/gradle/api/file/FileTree.html) `zipTree`([`Object`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html) zipPath)
+
+Creates a new `FileTree` which contains the contents of the given ZIP file. The given zipPath path is evaluated as per [`Project.file(java.lang.Object)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:file(java.lang.Object)). You can combine this method with the [`Project.copy(org.gradle.api.Action)`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:copy(org.gradle.api.Action)) method to unzip a ZIP file.
+
+The returned file tree is lazy, so that it scans for files only when the contents of the file tree are queried. The file tree is also live, so that it scans for files each time the contents of the file tree are queried.  
+
+### Script block details
+
+#### `allprojects` { }
+
+Configures this project and each of its sub-projects.
+
+This method executes the given closure against this project and its sub-projects. The target [`Project`](../dsl/org.gradle.api.Project.html) is passed to the closure as the closure's delegate.  
+
+Delegates to:
+:
+Each [`Project`](../dsl/org.gradle.api.Project.html) in [`allprojects`](org.gradle.api.Project.html#org.gradle.api.Project:allprojects)  
+
+#### `ant` { }
+
+Executes the given closure against the `AntBuilder` for this project. You can use this in your build file to execute ant tasks. The `AntBuild` is passed to the closure as the closure's delegate. See example in javadoc for [`Project.getAnt()`](../dsl/org.gradle.api.Project.html#org.gradle.api.Project:ant)  
+
+Delegates to:
+:
+[`AntBuilder`](../javadoc/org/gradle/api/AntBuilder.html) from [`ant`](org.gradle.api.Project.html#org.gradle.api.Project:ant)  
+
+#### `artifacts` { }
+
+Configures the published artifacts for this project.
+
+This method executes the given closure against the [`ArtifactHandler`](../dsl/org.gradle.api.artifacts.dsl.ArtifactHandler.html) for this project. The [`ArtifactHandler`](../dsl/org.gradle.api.artifacts.dsl.ArtifactHandler.html) is passed to the closure as the closure's delegate.
+
+Example:
+
+```
+configurations {
+  //declaring new configuration that will be used to associate with artifacts
+  schema
+}
+
+task schemaJar(type: Jar) {
+  //some imaginary task that creates a jar artifact with the schema
+}
+
+//associating the task that produces the artifact with the configuration
+artifacts {
+  //configuration name and the task:
+  schema schemaJar
+}
+```
+
+Delegates to:
+:
+[`ArtifactHandler`](../dsl/org.gradle.api.artifacts.dsl.ArtifactHandler.html) from [`artifacts`](org.gradle.api.Project.html#org.gradle.api.Project:artifacts)  
+
+#### `buildscript` { }
+
+Configures the build script classpath for this project.
+
+The given closure is executed against this project's [`ScriptHandler`](../javadoc/org/gradle/api/initialization/dsl/ScriptHandler.html). The [`ScriptHandler`](../javadoc/org/gradle/api/initialization/dsl/ScriptHandler.html) is passed to the closure as the closure's delegate.  
+
+Delegates to:
+:
+[`ScriptHandler`](../javadoc/org/gradle/api/initialization/dsl/ScriptHandler.html) from [`buildscript`](org.gradle.api.Project.html#org.gradle.api.Project:buildscript)  
+
+#### `configurations` { }
+
+Configures the dependency configurations for this project.
+
+This method executes the given closure against the [`ConfigurationContainer`](../dsl/org.gradle.api.artifacts.ConfigurationContainer.html) for this project. The [`ConfigurationContainer`](../dsl/org.gradle.api.artifacts.ConfigurationContainer.html) is passed to the closure as the closure's delegate.
+
+Examples: See docs for [`ConfigurationContainer`](../dsl/org.gradle.api.artifacts.ConfigurationContainer.html)  
+
+Delegates to:
+:
+[`ConfigurationContainer`](../dsl/org.gradle.api.artifacts.ConfigurationContainer.html) from [`configurations`](org.gradle.api.Project.html#org.gradle.api.Project:configurations)  
+
+#### `dependencies` { }
+
+Configures the dependencies for this project.
+
+This method executes the given closure against the [`DependencyHandler`](../dsl/org.gradle.api.artifacts.dsl.DependencyHandler.html) for this project. The [`DependencyHandler`](../dsl/org.gradle.api.artifacts.dsl.DependencyHandler.html) is passed to the closure as the closure's delegate.
+
+Examples: See docs for [`DependencyHandler`](../dsl/org.gradle.api.artifacts.dsl.DependencyHandler.html)  
+
+Delegates to:
+:
+[`DependencyHandler`](../dsl/org.gradle.api.artifacts.dsl.DependencyHandler.html) from [`dependencies`](org.gradle.api.Project.html#org.gradle.api.Project:dependencies)  
+
+#### `repositories` { }
+
+Configures the repositories for this project.
+
+This method executes the given closure against the [`RepositoryHandler`](../dsl/org.gradle.api.artifacts.dsl.RepositoryHandler.html) for this project. The [`RepositoryHandler`](../dsl/org.gradle.api.artifacts.dsl.RepositoryHandler.html) is passed to the closure as the closure's delegate.  
+
+Delegates to:
+:
+[`RepositoryHandler`](../dsl/org.gradle.api.artifacts.dsl.RepositoryHandler.html) from [`repositories`](org.gradle.api.Project.html#org.gradle.api.Project:repositories)  
+
+#### `subprojects` { }
+
+Configures the sub-projects of this project.
+
+This method executes the given closure against each of the sub-projects of this project. The target [`Project`](../dsl/org.gradle.api.Project.html) is passed to the closure as the closure's delegate.  
+
+Delegates to:
+:
+Each [`Project`](../dsl/org.gradle.api.Project.html) in [`subprojects`](org.gradle.api.Project.html#org.gradle.api.Project:subprojects)  
+
+#### `application` { }
+
+Configures the [`JavaApplication`](../dsl/org.gradle.api.plugins.JavaApplication.html) added by the application plugin.  
+
+Delegates to:
+:
+[`JavaApplication`](../dsl/org.gradle.api.plugins.JavaApplication.html) from [`application`](org.gradle.api.Project.html#org.gradle.api.Project:application)  
+
+#### `checkstyle` { }
+
+Configures the [`CheckstyleExtension`](../dsl/org.gradle.api.plugins.quality.CheckstyleExtension.html) added by the checkstyle plugin.  
+
+Delegates to:
+:
+[`CheckstyleExtension`](../dsl/org.gradle.api.plugins.quality.CheckstyleExtension.html) from [`checkstyle`](org.gradle.api.Project.html#org.gradle.api.Project:checkstyle)  
+
+#### `codenarc` { }
+
+Configures the [`CodeNarcExtension`](../dsl/org.gradle.api.plugins.quality.CodeNarcExtension.html) added by the codenarc plugin.  
+
+Delegates to:
+:
+[`CodeNarcExtension`](../dsl/org.gradle.api.plugins.quality.CodeNarcExtension.html) from [`codenarc`](org.gradle.api.Project.html#org.gradle.api.Project:codenarc)  
+
+#### `distributions` { }
+
+Configures the [`DistributionContainer`](../dsl/org.gradle.api.distribution.DistributionContainer.html) added by the distribution plugin.  
+
+Delegates to:
+:
+[`DistributionContainer`](../dsl/org.gradle.api.distribution.DistributionContainer.html) from [`distributions`](org.gradle.api.Project.html#org.gradle.api.Project:distributions)  
+
+#### `eclipse` { }
+
+Configures the [`EclipseModel`](../dsl/org.gradle.plugins.ide.eclipse.model.EclipseModel.html) added by the eclipse plugin.  
+
+Delegates to:
+:
+[`EclipseModel`](../dsl/org.gradle.plugins.ide.eclipse.model.EclipseModel.html) from [`eclipse`](org.gradle.api.Project.html#org.gradle.api.Project:eclipse)  
+
+#### `idea` { }
+
+Configures the [`IdeaModel`](../dsl/org.gradle.plugins.ide.idea.model.IdeaModel.html) added by the idea plugin.  
+
+Delegates to:
+:
+[`IdeaModel`](../dsl/org.gradle.plugins.ide.idea.model.IdeaModel.html) from [`idea`](org.gradle.api.Project.html#org.gradle.api.Project:idea)  
+
+#### `jacoco` { }
+
+Configures the [`JacocoPluginExtension`](../dsl/org.gradle.testing.jacoco.plugins.JacocoPluginExtension.html) added by the jacoco plugin.  
+
+Delegates to:
+:
+[`JacocoPluginExtension`](../dsl/org.gradle.testing.jacoco.plugins.JacocoPluginExtension.html) from [`jacoco`](org.gradle.api.Project.html#org.gradle.api.Project:jacoco)  
+
+#### `base` { }
+
+Configures the [`BasePluginExtension`](../dsl/org.gradle.api.plugins.BasePluginExtension.html) added by the java plugin.  
+
+Delegates to:
+:
+[`BasePluginExtension`](../dsl/org.gradle.api.plugins.BasePluginExtension.html) from [`base`](org.gradle.api.Project.html#org.gradle.api.Project:base)  
+
+#### `java` { }
+
+Configures the [`JavaPluginExtension`](../dsl/org.gradle.api.plugins.JavaPluginExtension.html) added by the java plugin.  
+
+Delegates to:
+:
+[`JavaPluginExtension`](../dsl/org.gradle.api.plugins.JavaPluginExtension.html) from [`java`](org.gradle.api.Project.html#org.gradle.api.Project:java)  
+
+#### `reporting` { }
+
+Configures the [`ReportingExtension`](../dsl/org.gradle.api.reporting.ReportingExtension.html) added by the java plugin.  
+
+Delegates to:
+:
+[`ReportingExtension`](../dsl/org.gradle.api.reporting.ReportingExtension.html) from [`reporting`](org.gradle.api.Project.html#org.gradle.api.Project:reporting)  
+
+#### `pmd` { }
+
+Configures the [`PmdExtension`](../dsl/org.gradle.api.plugins.quality.PmdExtension.html) added by the pmd plugin.  
+
+Delegates to:
+:
+[`PmdExtension`](../dsl/org.gradle.api.plugins.quality.PmdExtension.html) from [`pmd`](org.gradle.api.Project.html#org.gradle.api.Project:pmd)  
+
+#### `publishing` { }
+
+Configures the [`PublishingExtension`](../dsl/org.gradle.api.publish.PublishingExtension.html) added by the publishing plugin.  
+
+Delegates to:
+:
+[`PublishingExtension`](../dsl/org.gradle.api.publish.PublishingExtension.html) from [`publishing`](org.gradle.api.Project.html#org.gradle.api.Project:publishing)  
+
+#### `signing` { }
+
+Configures the [`SigningExtension`](../dsl/org.gradle.plugins.signing.SigningExtension.html) added by the signing plugin.  
+
+Delegates to:
+:
+[`SigningExtension`](../dsl/org.gradle.plugins.signing.SigningExtension.html) from [`signing`](org.gradle.api.Project.html#org.gradle.api.Project:signing)  
+
+#### `visualStudio` { }
+
+Configures the [`VisualStudioRootExtension`](../dsl/org.gradle.ide.visualstudio.VisualStudioRootExtension.html) added by the visual-studio plugin.  
+
+Delegates to:
+:
+[`VisualStudioRootExtension`](../dsl/org.gradle.ide.visualstudio.VisualStudioRootExtension.html) from [`visualStudio`](org.gradle.api.Project.html#org.gradle.api.Project:visualStudio)  
+
+#### `xcode` { }
+
+Configures the [`XcodeRootExtension`](../dsl/org.gradle.ide.xcode.XcodeRootExtension.html) added by the xcode plugin.  
+
+Delegates to:
+:
+    [`XcodeRootExtension`](../dsl/org.gradle.ide.xcode.XcodeRootExtension.html) from [`xcode`](org.gradle.api.Project.html#org.gradle.api.Project:xcode)
+**Docs**
+
+* [User Manual](/userguide/userguide.html)
+* [DSL Reference](/dsl/)
+* [Release Notes](/release-notes.html)
+* [Javadoc](/javadoc/)  
+**News**
+
+* [Blog](https://blog.gradle.org/)
+* [Newsletter](https://newsletter.gradle.org/)
+* [Twitter](https://twitter.com/gradle)  
+**Products**
+
+* [Build Scan®](https://gradle.com/develocity/product/build-scan)
+* [Build Cache](https://gradle.com/build-cache)
+* [Develocity Docs](https://gradle.com/enterprise/resources)  
+**Get Help**
+
+* [Forums](https://discuss.gradle.org/c/help-discuss)
+* [GitHub](https://github.com/gradle/)
+* [Training](https://gradle.org/training/)
+* [Services](https://gradle.org/services/)
+
+##### Stay `UP-TO-DATE` on new features and news:
+
+By entering your email, you agree to our [Terms](https://gradle.org/terms/) and [Privacy Policy](https://gradle.org/privacy/).  
+Subscribe

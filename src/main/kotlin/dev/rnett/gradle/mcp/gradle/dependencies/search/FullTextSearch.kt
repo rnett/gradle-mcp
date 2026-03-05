@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.gradle.dependencies.search
 
 import com.github.benmanes.caffeine.cache.Caffeine
+import dev.rnett.gradle.mcp.lucene.LuceneUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.lucene.analysis.Analyzer
@@ -15,8 +16,6 @@ import org.apache.lucene.document.Field
 import org.apache.lucene.document.FieldType
 import org.apache.lucene.index.DirectoryReader
 import org.apache.lucene.index.IndexOptions
-import org.apache.lucene.index.IndexWriter
-import org.apache.lucene.index.IndexWriterConfig
 import org.apache.lucene.index.ReaderUtil
 import org.apache.lucene.queryparser.flexible.standard.StandardQueryParser
 import org.apache.lucene.search.IndexSearcher
@@ -164,33 +163,21 @@ object FullTextSearch : SearchProvider {
             val indexDir = outputDir.resolve(v3IndexDirName)
             indexDir.createDirectories()
 
-            val dir = FSDirectory.open(indexDir)
             createAnalyzer().use { analyzer ->
-                val iwc = IndexWriterConfig(analyzer)
-                iwc.openMode = IndexWriterConfig.OpenMode.CREATE
-
-                iwc.ramBufferSizeMB = 100.0
                 var count = 0
-                IndexWriter(dir, iwc).use { writer ->
+                LuceneUtils.writeIndex(indexDir, analyzer) { writer ->
                     dependencyDir.walk()
                         .filter { it.isRegularFile() && it.extension in SearchProvider.SOURCE_EXTENSIONS }
                         .forEach {
                             val doc = Document()
-                            // KeywordField is indexed as a single token, but NOT lowercased unless we do it here.
-                            // However, we want to store the original case for file retrieval.
-                            // Our PerFieldAnalyzerWrapper with keywordLowercaseAnalyzer will handle case-insensitivity during search.
                             val path = it.relativeTo(dependencyDir).toString().replace('\\', '/')
                             doc.add(Field(PATH, path, pathFieldType))
                             doc.add(Field(CONTENTS, it.readText(), contentFieldType))
 
-                            writer.addDocument(
-                                doc
-                            )
+                            writer.addDocument(doc)
                             count++
                         }
                     writer.forceMerge(1)
-                    writer.flush()
-                    writer.commit()
                 }
                 invalidateCache(indexDir)
                 count
@@ -199,21 +186,13 @@ object FullTextSearch : SearchProvider {
         LOGGER.info("Full-text indexing for $dependencyDir took $duration ($fileCount files)")
     }
 
-    /**
-     * Note: for [FullTextSearch], the relative path prefix in [indexDirs] is used to correct the paths in the merged index.
-     * Merged results will have paths relative to the combined set.
-     */
     override suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path) = withContext(Dispatchers.IO) {
         val duration = measureTime {
             val indexDir = outputDir.resolve(v3IndexDirName)
             indexDir.createDirectories()
 
-            val dir = FSDirectory.open(indexDir)
             createAnalyzer().use { analyzer ->
-                val iwc = IndexWriterConfig(analyzer)
-                iwc.openMode = IndexWriterConfig.OpenMode.CREATE
-
-                IndexWriter(dir, iwc).use { writer ->
+                LuceneUtils.writeIndex(indexDir, analyzer) { writer ->
                     indexDirs.forEach { (idxParentDir, relativePrefix) ->
                         val srcIndexDir = idxParentDir.resolve(v3IndexDirName)
                         DirectoryReader.open(FSDirectory.open(srcIndexDir)).use { reader ->
@@ -232,8 +211,6 @@ object FullTextSearch : SearchProvider {
                         }
                     }
                     writer.forceMerge(1)
-                    writer.flush()
-                    writer.commit()
                 }
                 invalidateCache(indexDir)
             }

@@ -90,39 +90,10 @@ class MarkdownServiceTest {
     }
 
     @Test
-    fun `downloadAsMarkdown handles Javadoc-like structure`() = runTest {
-        val mockEngine = MockEngine { _ ->
-            respond(
-                content = """
-                    <html>
-                    <body>
-                        <header role="banner" class="flex-header">
-                            <nav role="navigation" class="top-nav">Javadoc Nav</nav>
-                        </header>
-                        <main role="main">
-                            <div class="header">
-                                <div class="sub-title">org.gradle.api</div>
-                                <h1 title="Interface Project" class="title">Interface Project</h1>
-                            </div>
-                            <div class="summary">
-                                <p>Project summary content.</p>
-                            </div>
-                        </main>
-                    </body>
-                    </html>
-                """.trimIndent(),
-                status = HttpStatusCode.OK,
-                headers = headersOf(HttpHeaders.ContentType, "text/html")
-            )
-        }
-        val client = HttpClient(mockEngine)
-        val service = DefaultMarkdownService(client)
-
-        val result = service.downloadAsMarkdown("https://example.com/test.html")
-
-        assertContains(result, "Interface Project")
-        assertContains(result, "org.gradle.api")
-        assertContains(result, "Project summary content.")
-        kotlin.test.assertFalse(result.contains("Javadoc Nav"), "Should strip javadoc nav")
+    fun `convertHtml only runs flexmark`() {
+        val service = DefaultMarkdownService()
+        val html = "<h1>Title</h1><p>Content</p>"
+        val result = service.convertHtml(html)
+        assertEquals("# Title\n\nContent\n", result)
     }
 }
