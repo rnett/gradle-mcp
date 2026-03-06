@@ -1,14 +1,13 @@
 ---
 name: managing_gradle_dependencies
 description: >
-  Audits and manages project dependency graphs authoritatively, performs high-resolution 
-  update checks, and discovers new libraries with precision Maven Central search. 
-  This skill is the STRONGLY PREFERRED way to handle dependency intelligence, offering 
-  surgical insights into your dependency tree, automated version update detection, 
-  and seamless integration with Maven Central for artifact discovery. Use it for auditing 
-  project dependencies, identifying stable update paths, or searching for the exact 
-  Group:Artifact:Version (GAV) of a new library. Do NOT use for general build lifecycle tasks 
-  (use running_gradle_builds).
+  The ONLY authoritative way to audit and manage project dependency graphs. 
+  Provides high-resolution update checks, surgical tree analysis, and 
+  precise Maven Central discovery. Manual build file parsing and generic 
+  shell commands like `grep` or `cat` are UNRELIABLE and DISCOURAGED 
+  as they miss transitive dependencies, version resolution, and 
+  dynamic configuration. Use it for auditing dependencies, identifying 
+  stable updates, and finding GAV coordinates.
 license: Apache-2.0
 allowed-tools: gradle inspect_dependencies search_maven_central
 metadata:

@@ -48,12 +48,12 @@ abstract class BaseMcpServerTest {
         single<GradleConfiguration> {
             GradleConfiguration(4, kotlin.time.Duration.parse("10m"), false)
         }
-        single<InitScriptProvider> { DefaultInitScriptProvider(tempDir.resolve("init-scripts")) }
-        single<BundledJarProvider> { DefaultBundledJarProvider(tempDir.resolve("jars")) }
+        single<InitScriptProvider> { DefaultInitScriptProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("init-scripts")) }
+        single<BundledJarProvider> { DefaultBundledJarProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("jars")) }
         single { buildManager }
         single<dev.rnett.gradle.mcp.repl.ReplManager> { dev.rnett.gradle.mcp.repl.DefaultReplManager(get()) }
         single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
-        single { GradleMcpEnvironment(tempDir) }
+        single { GradleMcpEnvironment(SharedTestInfrastructure.sharedMcpWorkingDir) }
         single<MarkdownService> { DefaultMarkdownService() }
         single<GradleDocsService> { mockk<GradleDocsService>(relaxed = true) }
         single<GradleDependencyService> { mockk<GradleDependencyService>(relaxed = true) }

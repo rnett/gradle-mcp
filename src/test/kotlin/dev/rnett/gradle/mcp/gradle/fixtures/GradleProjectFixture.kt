@@ -1,8 +1,12 @@
 package dev.rnett.gradle.mcp.gradle.fixtures
 
 import dev.rnett.gradle.mcp.BuildConfig
+import dev.rnett.gradle.mcp.mcp.fixtures.SharedTestInfrastructure
 import java.nio.file.Files
 import java.nio.file.Path
+import java.security.MessageDigest
+import kotlin.io.path.createDirectories
+import kotlin.io.path.exists
 import kotlin.io.path.writeText
 
 /**
@@ -21,11 +25,18 @@ class GradleProjectFixture private constructor(
         fun create(
             builder: GradleProjectBuilder.() -> Unit = {}
         ): GradleProjectFixture {
-            val projectDir = Files.createTempDirectory("gradle-mcp-test-")
-            val projectBuilder = GradleProjectBuilder(projectDir)
+            val projectBuilder = GradleProjectBuilder()
             projectBuilder.builder()
-            projectBuilder.build()
-            return GradleProjectFixture(projectDir, cleanupOnClose = true)
+
+            val hash = projectBuilder.computeHash()
+            val projectDir = SharedTestInfrastructure.sharedWorkingDir.resolve("projects").resolve(hash)
+
+            if (!projectDir.exists()) {
+                projectDir.createDirectories()
+                projectBuilder.build(projectDir)
+            }
+
+            return GradleProjectFixture(projectDir, cleanupOnClose = false)
         }
     }
 
@@ -43,7 +54,7 @@ class GradleProjectFixture private constructor(
     /**
      * Returns the absolute path to the gradle user home.
      */
-    fun gradleUserHome(): Path = projectDir.resolve("gradle-user-home")
+    fun gradleUserHome(): Path = SharedTestInfrastructure.sharedWorkingDir.resolve("gradle-user-home").apply { createDirectories() }
 
     /**
      * Returns the absolute path as a string.
@@ -54,7 +65,7 @@ class GradleProjectFixture private constructor(
 /**
  * Builder for creating test Gradle projects.
  */
-class GradleProjectBuilder(private val projectDir: Path) {
+class GradleProjectBuilder {
     private var gradleVersion: String = BuildConfig.GRADLE_VERSION
     private var settingsContent: String? = null
     private var buildScriptContent: String? = null
@@ -67,6 +78,30 @@ class GradleProjectBuilder(private val projectDir: Path) {
         val buildScript: String? = null,
         val files: Map<String, String> = emptyMap()
     )
+
+    fun computeHash(): String {
+        val md = MessageDigest.getInstance("SHA-256")
+        fun String.update() = md.update(this.toByteArray())
+
+        "gradleVersion=$gradleVersion\n".update()
+        "useKotlinDsl=$useKotlinDsl\n".update()
+        "settingsContent=${settingsContent ?: "null"}\n".update()
+        "buildScriptContent=${buildScriptContent ?: "null"}\n".update()
+
+        subprojects.sortedBy { it.name }.forEach { sp ->
+            "subproject=${sp.name}\n".update()
+            "subproject.buildScript=${sp.buildScript ?: "null"}\n".update()
+            sp.files.toSortedMap().forEach { (k, v) ->
+                "subproject.file=$k:$v\n".update()
+            }
+        }
+
+        files.toSortedMap().forEach { (k, v) ->
+            "file=$k:$v\n".update()
+        }
+
+        return md.digest().joinToString("") { "%02x".format(it) }.take(16)
+    }
 
     /**
      * Sets the Gradle version for the project.
@@ -113,13 +148,13 @@ class GradleProjectBuilder(private val projectDir: Path) {
     /**
      * Builds the project structure on disk.
      */
-    fun build() {
+    fun build(projectDir: Path) {
         // Create gradle user home
-        val gradleUserHome = projectDir.resolve("gradle-user-home")
+        val gradleUserHome = SharedTestInfrastructure.sharedWorkingDir.resolve("gradle-user-home")
         Files.createDirectories(gradleUserHome)
 
         // Create gradle wrapper
-        createGradleWrapper()
+        createGradleWrapper(projectDir)
 
         // Create settings file
         val settingsFile = if (useKotlinDsl) "settings.gradle.kts" else "settings.gradle"
@@ -166,7 +201,7 @@ class GradleProjectBuilder(private val projectDir: Path) {
         }
     }
 
-    private fun createGradleWrapper() {
+    private fun createGradleWrapper(projectDir: Path) {
         // Create gradle wrapper directory
         val wrapperDir = projectDir.resolve("gradle").resolve("wrapper")
         Files.createDirectories(wrapperDir)

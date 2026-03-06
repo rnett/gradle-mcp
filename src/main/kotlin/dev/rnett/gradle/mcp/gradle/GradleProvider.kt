@@ -85,7 +85,6 @@ interface GradleProvider : AutoCloseable {
     fun runBuild(
         projectRoot: GradleProjectRoot,
         args: GradleInvocationArguments,
-
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>> = emptyMap(),
         stdoutLineHandler: ((String) -> Unit)? = null,
         stderrLineHandler: ((String) -> Unit)? = null,
@@ -545,7 +544,7 @@ class DefaultGradleProvider(
                         val total = runningBuild.totalItems.get()
                         if (total > 0) {
                             val completed = runningBuild.completedItems.get()
-                            progressHandler?.invoke(completed.toDouble() / total, 1.0, "Starting task: $taskPath")
+                            progressHandler?.invoke(completed.toDouble() / total, 1.0, "Executing task: $taskPath")
                         }
                     }
                 } else if (event is ProjectConfigurationStartEvent) {

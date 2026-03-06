@@ -67,14 +67,13 @@ class GradleProviderTest {
     }
 
     private fun createTestProvider(): DefaultGradleProvider {
-        val tempDir = java.nio.file.Files.createTempDirectory("gradle-mcp-test-init-")
         return DefaultGradleProvider(
             GradleConfiguration(
                 maxConnections = 5,
                 ttl = 60.seconds,
                 allowPublicScansPublishing = false
             ),
-            initScriptProvider = DefaultInitScriptProvider(tempDir),
+            initScriptProvider = DefaultInitScriptProvider(dev.rnett.gradle.mcp.mcp.fixtures.SharedTestInfrastructure.sharedWorkingDir.resolve("init-scripts")),
             buildManager = BuildManager()
         )
     }

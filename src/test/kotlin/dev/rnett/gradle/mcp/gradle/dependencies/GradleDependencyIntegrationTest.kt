@@ -9,6 +9,7 @@ import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.gradle.fixtures.GradleProjectFixture
 import dev.rnett.gradle.mcp.gradle.fixtures.testGradleProject
+import dev.rnett.gradle.mcp.mcp.fixtures.SharedTestInfrastructure
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
@@ -34,7 +35,7 @@ class GradleDependencyIntegrationTest {
                 ttl = 10.seconds,
                 allowPublicScansPublishing = false
             ),
-            initScriptProvider = DefaultInitScriptProvider(),
+            initScriptProvider = DefaultInitScriptProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("init-scripts")),
             buildManager = BuildManager()
         )
         service = DefaultGradleDependencyService(provider)

@@ -26,7 +26,7 @@ class GradleExecutionTools(
         val background: Boolean = false,
         @Description("Terminating an active background build by providing its BuildId. If provided, all other arguments are ignored.")
         val stopBuildId: BuildId? = null,
-        @Description("Capturing and returning output for a specific task path (e.g., ':app:dependencies') exclusively. This is highly token-efficient as it eliminates all non-task console noise. Output over 100 lines will be truncated; use `inspect_build` for full logs.")
+        @Description("Capturing and returning output for a specific task path (e.g., ':app:dependencies') exclusively. This is highly token-efficient as it eliminates all non-task console noise. Output over 100 lines will be truncated; use `inspect_build` for full logs. DO NOT use this for tests; use `inspect_build` with `testName` for individual test output.")
         val captureTaskOutput: String? = null,
         @Description("Applying additional advanced invocation arguments for the Gradle process.")
         val invocationArguments: GradleInvocationArguments = GradleInvocationArguments.DEFAULT
@@ -37,8 +37,9 @@ class GradleExecutionTools(
         ToolNames.GRADLE,
         """
             |ALWAYS use this tool to execute Gradle builds, tasks, and tests instead of raw shell commands.
-            |It provides a managed environment with high-resolution feedback, background execution, and isolated task output capturing (`captureTaskOutput`), which is vastly superior and more token-efficient than parsing standard console logs.
-            |For deep diagnostics after a build, ALWAYS use `${ToolNames.INSPECT_BUILD}` with the returned `BuildId`.
+            |Direct shell execution of `./gradlew` is unreliable for AI agents because it produces interleaved, non-deterministic console output that is difficult to parse and lacks structured failure diagnostics.
+            |This tool provides a managed environment with high-resolution feedback, authoritative background orchestration, and surgical task output capturing (`captureTaskOutput`), which is vastly superior and more token-efficient than parsing raw logs.
+            |For deep diagnostics after any build, ALWAYS use `${ToolNames.INSPECT_BUILD}` with the returned `BuildId` to access exhaustive test failures, stack traces, and console tails.
             |Note: Avoid `--rerun-tasks` unless investigating cache issues.
         """.trimMargin()
     ) {

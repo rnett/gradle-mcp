@@ -3,6 +3,7 @@ package dev.rnett.gradle.mcp.gradle
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.TaskOutcome
 import dev.rnett.gradle.mcp.gradle.fixtures.testGradleProject
+import dev.rnett.gradle.mcp.mcp.fixtures.SharedTestInfrastructure
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
@@ -15,19 +16,17 @@ class TaskOutInitScriptTest {
 
     private lateinit var buildManager: BuildManager
     private lateinit var provider: DefaultGradleProvider
-    private lateinit var tempInitScriptsDir: java.nio.file.Path
 
     @BeforeAll
     fun setupAll() {
         buildManager = BuildManager()
-        tempInitScriptsDir = java.nio.file.Files.createTempDirectory("gradle-mcp-test-task-out-init-")
         provider = DefaultGradleProvider(
             GradleConfiguration(
                 maxConnections = 5,
                 ttl = 60.seconds,
                 allowPublicScansPublishing = false
             ),
-            initScriptProvider = DefaultInitScriptProvider(tempInitScriptsDir),
+            initScriptProvider = DefaultInitScriptProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("init-scripts")),
             buildManager = buildManager
         )
     }
@@ -36,7 +35,6 @@ class TaskOutInitScriptTest {
     fun cleanupAll() {
         provider.close()
         buildManager.close()
-        tempInitScriptsDir.toFile().deleteRecursively()
     }
 
 

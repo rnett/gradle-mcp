@@ -33,6 +33,15 @@ To see the full output and stack trace for a specific test:
 }
 ```
 
+#### **CRITICAL: Individual Test Case vs. Task Output**
+
+When a test fails, you must use the `testName` filter with `mode="details"` to see the failure.
+
+**DO NOT** attempt to read the output of the test task (e.g. `:app:test`) using `taskPath` or `captureTaskOutput`.
+
+- **Task output** is the aggregated log of the entire test process. It is often truncated, interleaved, and lacks the full stack traces and per-test isolation needed for debugging.
+- **Individual test output** (retrieved via `testName`) is authoritative, includes full stdout/stderr for just that test case, and provides the complete stack trace for any failure.
+
 ## Build Failures vs. Test Failures
 
 Sometimes a test run fails not because a test failed, but because the build itself failed (e.g., compilation error, configuration error, or a task dependency failed).

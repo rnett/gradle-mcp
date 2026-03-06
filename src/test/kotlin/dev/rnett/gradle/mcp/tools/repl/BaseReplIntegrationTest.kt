@@ -31,6 +31,7 @@ import dev.rnett.gradle.mcp.maven.DefaultMavenRepoService
 import dev.rnett.gradle.mcp.maven.MavenCentralService
 import dev.rnett.gradle.mcp.maven.MavenRepoService
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
+import dev.rnett.gradle.mcp.mcp.fixtures.SharedTestInfrastructure
 import dev.rnett.gradle.mcp.repl.DefaultReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.DefaultReplManager
 import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
@@ -117,12 +118,12 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single { DI.xml }
         single { DI.createHttpClient(get(), get()) }
         single { GradleConfiguration(4, 10.minutes, false) }
-        single { DefaultInitScriptProvider(tempDir.resolve("init-scripts")) } bind InitScriptProvider::class
-        single { DefaultBundledJarProvider(tempDir.resolve("jars")) } bind BundledJarProvider::class
+        single { DefaultInitScriptProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("init-scripts")) } bind InitScriptProvider::class
+        single { DefaultBundledJarProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("jars")) } bind BundledJarProvider::class
         single<BuildManager> { BuildManager() }
         single<ReplManager> { DefaultReplManager(get()) }
         single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
-        single { GradleMcpEnvironment(tempDir) }
+        single { GradleMcpEnvironment(SharedTestInfrastructure.sharedMcpWorkingDir) }
         single<MarkdownService> { DefaultMarkdownService() }
         single { HtmlConverter(get()) }
         single { LuceneReaderCache() }

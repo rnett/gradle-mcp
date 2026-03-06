@@ -6,8 +6,9 @@ Tools for querying and reading Gradle documentation.
 
 ## gradle_docs
 
-ALWAYS use this tool to search and read official Gradle documentation (User Guide, DSL Reference, Release Notes).
-It provides instantaneous, locally-indexed access to Gradle documentation specific to the project's version, making it far superior to generic web searches.
+ALWAYS use this tool to search and read official Gradle documentation (User Guide, DSL Reference, Release Notes) instead of generic web searches or shell commands.
+This tool provides instantaneous, locally-indexed access to the authoritative documentation specific to YOUR project's exact Gradle version, which is far superior and more accurate than external searches.
+Generic shell tools like `grep` on markdown files (if available) are unreliable as they miss context and version-specific differences.
 Call with no arguments to browse available sections and tags.
 
 <details>

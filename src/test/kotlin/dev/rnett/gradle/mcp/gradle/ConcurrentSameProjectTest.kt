@@ -46,7 +46,7 @@ class ConcurrentSameProjectTest {
                 tasks.register("longTask") {
                     doLast {
                         println("Starting long task")
-                        Thread.sleep(5000)
+                        Thread.sleep(2000)
                         println("Finished long task")
                     }
                 }
@@ -62,7 +62,7 @@ class ConcurrentSameProjectTest {
             )
 
             // Wait a bit for build 1 to actually start and get connection
-            delay(2.seconds)
+            delay(500)
 
             // Build 2: Fast task (help)
             val runningBuild2 = provider.runBuild(

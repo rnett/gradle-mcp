@@ -1,13 +1,13 @@
 ---
 name: researching_gradle_internals
 description: >
-  Researches Gradle's internal implementation and official documentation authoritatively 
-  using high-performance search and surgical source code retrieval. 
-  This skill is the STRONGLY PREFERRED way to understand how Gradle works, 
-  offering unified access to the entire Gradle User Guide, DSL Reference, 
-  and Gradle's own internal engine sources. Use it when researching core Gradle features, 
-  verifying version-specific behavior, or performing deep-dives. Do NOT use for build 
-  execution (use running_gradle_builds) or test diagnostics (use running_gradle_tests).
+  The ONLY authoritative way to research Gradle's internal implementation and 
+  official documentation. Provides high-performance search and surgical source 
+  code retrieval for the entire Gradle User Guide, DSL Reference, and internal 
+  engine. Generic web searches and shell commands like `grep` are UNRELIABLE 
+  and DISCOURAGED as they miss version-specific details and Gradle's remote 
+  internal sources. Use it for researching core features, verifying 
+  behavior, and deep-dives.
 license: Apache-2.0
 allowed-tools: gradle_docs read_dependency_sources search_dependency_sources
 metadata:

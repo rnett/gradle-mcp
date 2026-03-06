@@ -57,12 +57,12 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
 
         val pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS,
 
-        @Description("Filter task results. In 'summary' mode, a prefix of the task path. In 'details' mode, the full path of the task. Specify this to get task details.")
+        @Description("Filter task results. In 'summary' mode, a prefix of the task path. In 'details' mode, the full path of the task. Specify this to get task details. DO NOT use this for tests; use testName instead.")
         val taskPath: String? = null,
         @Description("Filter task results by outcome (summary mode only).")
         val taskOutcome: TaskOutcome? = null,
 
-        @Description("Filter test results. In 'summary' mode, a prefix of the test name. In 'details' mode, the full name of the test. Specify this to get test details.")
+        @Description("Filter test results. In 'summary' mode, a prefix of the test name. In 'details' mode, the full name of the test. Specify this to get test details. ALWAYS use this instead of taskPath to see test outputs and stack traces.")
         val testName: String? = null,
         @Description("Filter test results by outcome (summary mode only).")
         val testOutcome: TestOutcome? = null,
@@ -349,7 +349,8 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         ToolNames.INSPECT_BUILD,
         """
             |ALWAYS use this tool to inspect detailed build information, monitor progress, and perform surgical failure diagnostics instead of reading raw console logs.
-            |This is the most token-efficient and reliable way to get specific test stdout/stderr, full task outputs, and deep-dive failure trees.
+            |This is the most token-efficient and reliable way to get specific test stdout/stderr, full task outputs, and deep-dive failure trees which are often obscured or interleaved in raw console output.
+            |CRITICAL: When a test fails, DO NOT use `taskPath` or generic shell `grep` to see its output. ALWAYS use `testName` with `mode="details"` to see the individual test case's full output, metadata, and stack trace.
             |Provides a managed interface to wait for specific log patterns, check active builds (omit `buildId`), or get detailed outputs (use `mode="details"` with `testName`, `taskPath`, etc).
             |For deep guidance on diagnostics, refer to the `managing_gradle_builds` and `executing_gradle_tests` skills if installed.
         """.trimMargin()

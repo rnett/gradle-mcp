@@ -1,10 +1,11 @@
 package dev.rnett.gradle.mcp.gradle.dependencies
 
-import dev.rnett.gradle.mcp.DI
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.dependencies.search.DefaultIndexService
 import io.ktor.client.*
+import io.ktor.client.engine.mock.*
+import io.ktor.http.*
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -38,7 +39,24 @@ class GradleSourceServiceTest {
     fun setup() {
         tempDir = createTempDirectory("gradle-mcp-test-")
         environment = GradleMcpEnvironment(tempDir.resolve("workingDir"))
-        httpClient = DI.createHttpClient()
+        httpClient = HttpClient(MockEngine) {
+            engine {
+                addHandler { request ->
+                    when (request.url.encodedPath) {
+                        "/distributions/gradle-8.5-src.zip" -> {
+                            val mockZip = MockGradleSourceZip.generate("8.5")
+                            respond(
+                                mockZip,
+                                HttpStatusCode.OK,
+                                headersOf(HttpHeaders.ContentType, "application/zip")
+                            )
+                        }
+
+                        else -> respondError(HttpStatusCode.NotFound)
+                    }
+                }
+            }
+        }
         val indexService = DefaultIndexService(environment)
         gradleSourceService = DefaultGradleSourceService(environment, indexService, httpClient)
     }

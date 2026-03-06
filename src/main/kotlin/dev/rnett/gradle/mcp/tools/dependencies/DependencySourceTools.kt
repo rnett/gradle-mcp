@@ -67,7 +67,8 @@ class DependencySourceTools(
         ToolNames.READ_DEPENDENCY_SOURCES,
         """
             |ALWAYS use this tool to read source files and explore directory structures of external library dependencies or Gradle's internal engine.
-            |It provides high-performance, cached access to the exact source code your project compiles against, which is vastly superior to generic web searches or external repository browsing.
+            |External dependency sources are NOT stored in your local project directory; generic shell tools like `cat`, `grep`, or `find` WILL FAIL to locate them.
+            |This tool provides high-performance, cached access to the exact source code your project compiles against, which is vastly superior and more reliable than generic web searches or external repository browsing.
             |To find specific classes or methods across all dependencies first, use the `${ToolNames.SEARCH_DEPENDENCY_SOURCES}` tool.
         """.trimMargin()
     ) { args ->
@@ -131,8 +132,9 @@ class DependencySourceTools(
     val searchDependencySources by tool<SearchDependencySourcesArgs, String>(
         ToolNames.SEARCH_DEPENDENCY_SOURCES,
         """
-            |Searching for symbols or text within the combined source code of all external library dependencies or Gradle's internal engine authoritatively.
-            |This tool provides high-performance, indexed search capabilities that far exceed basic grep-based exploration.
+            |ALWAYS use this tool to search for symbols or text within the combined source code of ALL external library dependencies or Gradle's internal engine authoritatively.
+            |Generic shell tools like `grep` or `find` on the local directory WILL NOT find these external sources as they reside in remote Gradle caches.
+            |This tool provides high-performance, indexed search capabilities that far exceed basic grep-based exploration, offering surgical precision across the entire dependency graph.
             |
             |### Authoritative Features
             |- **Locating Symbols Precisely**: Using authoritative regex patterns to find classes, methods, or interfaces across the entire dependency graph.

@@ -47,6 +47,8 @@ workflows.
 
 - **Why Text over JSON?**: LLMs process natural language better than raw JSON. Tools should return structured, human-readable text (often Markdown) to maximize reasoning.
 - **Why Tooling API?**: It is the official, supported way to interact with Gradle programmatically, providing better stability than parsing CLI output.
+- **MCPs vs Skills**: While using our skills in `./skills` should be encouraged as the primary endpoint, the MCP must work without the tools. This means that the MCP tool descriptions must contain enough information to use the without
+  relying on the skills.
 
 ---
 

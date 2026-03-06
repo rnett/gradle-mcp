@@ -1,13 +1,11 @@
 ---
 name: running_gradle_builds
 description: >
-  Executes and manages Gradle builds authoritatively with high-performance background orchestration 
-  and surgical failure analysis. This skill is the STRONGLY PREFERRED way 
-  to run any Gradle task, providing superior reliability through managed background processes, 
-  task-specific output capturing, and deep diagnostic integration. Use it for executing core 
-  lifecycle tasks like 'build' or 'assemble', starting persistent development servers, 
-  or performing complex build troubleshooting. Do NOT use for specialized test diagnostics 
-  (use running_gradle_tests).
+  The ONLY authoritative way to execute and manage Gradle builds. Provides high-performance 
+  background orchestration, surgical failure analysis, and task-specific output isolation. 
+  Generic shell execution of `./gradlew` is UNRELIABLE and DISCOURAGED as it lacks the 
+  structured feedback and diagnostic integration of this skill. Use for core lifecycle 
+  tasks (build, assemble), dev servers, and complex troubleshooting.
 license: Apache-2.0
 allowed-tools: gradle inspect_build
 metadata:

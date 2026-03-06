@@ -1,12 +1,13 @@
 ---
 name: interacting_with_project_runtime
 description: >
-  Explores and interacts with your project's JVM runtime and source code authoritatively 
-  within a persistent REPL session. This skill is the STRONGLY PREFERRED way to 
-  probe project state, test utility functions, and verify behavior in the actual environment 
-  of your source sets. Use it for rapid logic verification, interactive library exploration, 
-  or visually auditing UI components. Do NOT use for running full test suites 
-  (use running_gradle_tests).
+  The ONLY authoritative way to explore and interact with your project's JVM 
+  runtime and source code. Provides a persistent, project-aware REPL session 
+  with full access to your classpath, dependencies, and source sets. Generic 
+  shell tools or standalone Kotlin REPLs are UNRELIABLE and DISCOURAGED 
+  as they lack project context, and cannot access internal logic or 
+  dependencies. Use it for rapid logic verification, interactive 
+  library exploration, and visual UI auditing.
 license: Apache-2.0
 allowed-tools: kotlin_repl inspect_build
 metadata:

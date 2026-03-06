@@ -1,13 +1,12 @@
 ---
 name: running_gradle_tests
 description: >
-  Executes and diagnoses tests at scale with high-precision filtering and authoritative, 
-  surgical failure isolation. This skill is the STRONGLY PREFERRED way to manage 
-  your testing lifecycle, offering features like surgical test selection via '--tests' flags, 
-  managed background execution for long-running suites, and deep diagnostic integration 
-  for rapid failure resolution. Use it to run specific test classes or methods, 
-  monitor background test runs, or perform detailed post-mortem analysis of test failures. 
-  Do NOT use for general build lifecycle tasks or dependency auditing.
+  The ONLY authoritative way to execute and diagnose tests at scale. Provides high-precision 
+  filtering (--tests), surgical failure isolation, and deep diagnostic integration for 
+  rapid resolution. Generic shell execution of `./gradlew test` is UNRELIABLE for AI 
+  agents as it lacks per-test isolation, structured failure data, and stack trace 
+  summarization. Use it to run specific test classes or methods, monitor background 
+  runs, and perform detailed post-mortem analysis.
 license: Apache-2.0
 allowed-tools: gradle inspect_build
 metadata:
@@ -27,6 +26,7 @@ Executes tests with absolute precision and leverage deep diagnostic tools to iso
 - **ALWAYS** prefer foreground execution (default) unless the test suite is extremely long-running (>2 minutes) or you explicitly intend to perform independent research while it proceeds.
 - **ONLY** use `background: true` for managed background orchestration when context isolation and non-blocking exploration are required.
 - **ALWAYS** use `inspect_build` with `mode: "details"` and `tests: { name: "..." }` to access full test output and stack traces.
+- **NEVER** use `taskPath` or `captureTaskOutput` to investigate specific test failures; these provide the overall task log which is often truncated and lacks per-test isolation.
 - **NEVER** assume a test pass without verifying the results via `inspect_build` if failures occurred.
 
 ## Directives
@@ -98,7 +98,9 @@ Providing a path **with a leading colon** targets a **single specific project**.
 
 1. Identify the `BuildId` from the result.
 2. Use `inspect_build(buildId=ID, tests={outcome: "FAILED"})` to list all failed tests.
-3. Use `inspect_build(buildId=ID, mode="details", tests={name: TNAME})` to see the full output and stack trace for a specific test.
+3. **CRITICAL**: Use `inspect_build(buildId=ID, mode="details", tests={name: TNAME})` to see the full output and stack trace for a specific test.
+  - **DO NOT** use `taskPath` or `captureTaskOutput` for this.
+  - Per-test output is authoritative, isolated, and contains full stack traces that are often omitted from the task console.
 
 ## Examples
 

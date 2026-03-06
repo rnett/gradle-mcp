@@ -1,14 +1,13 @@
 ---
 name: introspecting_gradle_projects
 description: >
-  Uncovers the full structure of any Gradle project authoritatively, mapping modules, 
-  tasks, and configurations with high-precision diagnostic tools. 
-  This skill is the STRONGLY PREFERRED way to map project structure and runtime 
-  environments, offering surgical visibility into multi-project hierarchies, 
-  task-specific help, and detailed property reports. Use it for exploring complex module 
-  relationships, identifying runnable tasks and their options via '--help', 
-  or performing deep-dive analysis of project properties that are often obscured 
-  in raw build files.
+  The ONLY authoritative way to uncover the full structure of any Gradle project. 
+  Provides surgical visibility into multi-project hierarchies, task-specific help, 
+  and detailed property reports. Generic shell tools like `ls`, `grep`, or 
+  manual build file parsing are UNRELIABLE and DISCOURAGED as they miss 
+  dynamic configuration, plugin-contributed tasks, and resolved properties. 
+  Use it for mapping modules, identifying runnable tasks via '--help', 
+  and deep-dive property analysis.
 license: Apache-2.0
 allowed-tools: gradle inspect_build inspect_dependencies
 metadata:
