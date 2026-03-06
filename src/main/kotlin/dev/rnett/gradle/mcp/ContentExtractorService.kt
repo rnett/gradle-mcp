@@ -22,7 +22,7 @@ class DefaultContentExtractorService(
 ) : ContentExtractorService {
 
     override fun convertedDirs(version: String, kind: DocsKind): List<Path> {
-        val base = environment.cacheDir.resolve("gradle-docs").resolve(version).resolve("converted")
+        val base = environment.cacheDir.resolve("reading_gradle_docs").resolve(version).resolve("converted")
         return when (kind) {
             DocsKind.DSL -> listOf(base.resolve("dsl"), base.resolve("kotlin-dsl"))
             DocsKind.RELEASE_NOTES -> listOf(base)
@@ -31,7 +31,7 @@ class DefaultContentExtractorService(
     }
 
     override suspend fun ensureProcessed(version: String) {
-        val versionDir = environment.cacheDir.resolve("gradle-docs").resolve(version)
+        val versionDir = environment.cacheDir.resolve("reading_gradle_docs").resolve(version)
         val convertedDir = versionDir.resolve("converted")
         val doneMarker = convertedDir.resolve(".done")
 

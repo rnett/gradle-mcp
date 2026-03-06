@@ -36,7 +36,7 @@ class DefaultGradleDocsIndexService(
     private val analyzer = StandardAnalyzer()
 
     override suspend fun ensureIndexed(version: String) {
-        val versionDir = environment.cacheDir.resolve("gradle-docs").resolve(version)
+        val versionDir = environment.cacheDir.resolve("reading_gradle_docs").resolve(version)
         val indexDir = versionDir.resolve("index")
         val doneMarker = indexDir.resolve(".done")
 
@@ -72,7 +72,7 @@ class DefaultGradleDocsIndexService(
 
     override suspend fun search(query: String, version: String, maxResults: Int): List<DocsSearchResult> {
         ensureIndexed(version)
-        val indexDir = environment.cacheDir.resolve("gradle-docs").resolve(version).resolve("index")
+        val indexDir = environment.cacheDir.resolve("reading_gradle_docs").resolve(version).resolve("index")
 
         val reader = readerCache.get(indexDir)
         val searcher = IndexSearcher(reader)

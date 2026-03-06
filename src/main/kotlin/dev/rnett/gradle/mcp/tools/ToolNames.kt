@@ -1,7 +1,7 @@
 package dev.rnett.gradle.mcp.tools
 
 object ToolNames {
-    const val REPL = "project_repl"
+    const val REPL = "kotlin_repl"
     const val GRADLE = "gradle"
     const val INSPECT_BUILD = "inspect_build"
     const val INSPECT_DEPENDENCIES = "inspect_dependencies"

@@ -40,7 +40,7 @@ class GradleDocsServiceTest {
         val environment = GradleMcpEnvironment(tempDir)
 
         val version = "9.4.0"
-        val convertedDir = tempDir.resolve("cache/gradle-docs/$version/converted")
+        val convertedDir = tempDir.resolve("cache/reading_gradle_docs/$version/converted")
         Files.createDirectories(convertedDir.resolve("userguide"))
         Files.createDirectories(convertedDir.resolve("dsl"))
         Files.createDirectories(convertedDir.resolve("kotlin-dsl"))

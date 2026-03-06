@@ -76,7 +76,7 @@ class ContentExtractorServiceTest {
 
             service.ensureProcessed("9.4.0")
 
-            val convertedDir = tempDir.resolve("cache/gradle-docs/9.4.0/converted")
+            val convertedDir = tempDir.resolve("cache/reading_gradle_docs/9.4.0/converted")
             assertTrue(convertedDir.resolve(".done").exists(), "Done marker should exist")
 
             // Check extractions

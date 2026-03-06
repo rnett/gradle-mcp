@@ -6,35 +6,10 @@ Tools for executing Gradle tasks and running tests.
 
 ## gradle
 
-The authoritative tool for managing the Gradle build lifecycle.
-It is the STRONGLY PREFERRED way to execute any Gradle task, providing a managed environment with features that raw shell execution cannot match.
-Unless the Tooling API is demonstrably insufficient for a specific edge case, ALWAYS prefer this tool over direct shell commands.
-
-### High-Performance Features
-- **Managed Lifecycle**: Whether running in the foreground or background, the tool uses progressive disclosure to provide concise summaries without flooding the session history with raw console logs.
-- **Managed Background Execution**: Execute long-running builds, tests, or servers in the background. Receive a `BuildId` instantly, allowing you to monitor progress or perform other tasks while the build proceeds. This is functionally identical to foreground execution but non-blocking.
-- **Precision Task Output Capturing**: Use `captureTaskOutput` to extract clean, isolated output for a single task. This is the most token-efficient way to read task results like `dependencies`, `help`, or `properties` as it eliminates all background console noise.
-- **Surgical Build Control**: Seamlessly stop background processes using `stopBuildId` and transition to the `inspect_build` tool for deep post-mortem failure analysis.
-
-### Common Usage Patterns
-- **Standard Build**: `gradle(commandLine=["clean", "build"])`
-- **Background Server**: `gradle(commandLine=[":app:bootRun"], background=true)`
-- **Clean Dependency Report**: `gradle(commandLine=[":app:dependencies"], captureTaskOutput=":app:dependencies")`
-
-### Task Path Syntax Reference
-- `:task` (leading colon): Targets the task in the **root project only**.
-- `task` (no leading colon): Targets the task in **all projects** (root and all subprojects).
-- `:app:task`: Targets the task in the `app` subproject.
-
-**Safety Note**: Avoid using `--rerun-tasks` unless absolutely necessary, as it bypasses all Gradle caching and significantly increases build time.
-
-### Post-Build Diagnostics
-After a build finishes (or while a background build is running), use the `inspect_build` tool with the `BuildId` to:
-- Retrieve detailed test failure trees and stack traces.
-- Access specific test stdout/stderr (often missing from the general console).
-- Tail build logs or wait for specific log patterns.
-
-For expert-level workflows, refer to the `gradle-build` and `gradle-test` skills.
+ALWAYS use this tool to execute Gradle builds, tasks, and tests instead of raw shell commands.
+It provides a managed environment with high-resolution feedback, background execution, and isolated task output capturing (`captureTaskOutput`), which is vastly superior and more token-efficient than parsing standard console logs.
+For deep diagnostics after a build, ALWAYS use `inspect_build` with the returned `BuildId`.
+Note: Avoid `--rerun-tasks` unless investigating cache issues.
 
 <details>
 
@@ -46,7 +21,7 @@ For expert-level workflows, refer to the `gradle-build` and `gradle-test` skills
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The absolute path to the project root directory. Defaults to the current workspace root. Always provide this if you are working in a multi-root workspace to ensure the correct project is targeted."
+      "description": "The file system path of the Gradle project's root directory (containing gradlew script and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**"
     },
     "commandLine": {
       "type": [
@@ -56,25 +31,25 @@ For expert-level workflows, refer to the `gradle-build` and `gradle-test` skills
       "items": {
         "type": "string"
       },
-      "description": "The arguments for gradle (e.g., [\":app:test\", \"--tests\", \"MyTest\"]). This is the primary way to specify tasks and flags. Required if not stopping a build."
+      "description": "The arguments for gradle. Syntax: ':task' (root only), 'task' (all projects), or ':app:task'. Required if not stopping a build."
     },
     "background": {
       "type": "boolean",
-      "description": "If true, starts the build in the background and returns a BuildId immediately. Using background=true and monitoring via 'inspect_build' is functionally identical to running in the foreground, but allows the agent to perform other tasks while the build proceeds."
+      "description": "Setting to true starts the build in the background and returns a managed BuildId immediately. Use ONLY for persistent tasks (e.g., servers) or when you explicitly intend to perform other tasks in parallel. Foreground is STRONGLY PREFERRED for most tasks as it provides superior progressive disclosure."
     },
     "stopBuildId": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The BuildId of an active background build to stop. If provided, all other arguments are ignored and the specified build is terminated."
+      "description": "Terminating an active background build by providing its BuildId. If provided, all other arguments are ignored."
     },
     "captureTaskOutput": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The path of a specific task (e.g., ':app:dependencies') to capture and return output for exclusively. This is highly token-efficient as it filters out all non-task console noise. Output over 100 lines will be truncated; use 'inspect_build' for full logs."
+      "description": "Capturing and returning output for a specific task path (e.g., ':app:dependencies') exclusively. This is highly token-efficient as it eliminates all non-task console noise. Output over 100 lines will be truncated; use `inspect_build` for full logs."
     },
     "invocationArguments": {
       "type": "object",
@@ -121,7 +96,7 @@ For expert-level workflows, refer to the `gradle-build` and `gradle-test` skills
           "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
         }
       },
-      "description": "Additional advanced invocation arguments for the Gradle process."
+      "description": "Applying additional advanced invocation arguments for the Gradle process."
     }
   },
   "required": [],

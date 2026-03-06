@@ -45,21 +45,20 @@ class DependencySourceTools(
 
     @Serializable
     data class ReadDependencySourcesArgs(
-        @Description("The absolute path to the project root directory. Defaults to the current workspace root. Always provide this if you are working in a multi-root workspace to ensure the correct project is targeted.")
         val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
-        @Description("The project path to target (e.g., ':', ':app'). If null, all project dependencies are included. This has the lowest precedence.")
+        @Description("Targeting a specific project path (e.g., ':app'). If null, all dependencies are included.")
         val projectPath: String? = null,
-        @Description("Target a specific configuration (e.g., ':app:debugCompileClasspath'). If set, projectPath is ignored. Higher precedence than projectPath.")
+        @Description("Authoritatively targeting a configuration (e.g., ':app:debugCompileClasspath'). Higher precedence.")
         val configurationPath: String? = null,
-        @Description("Target a specific source set (e.g., ':app:main'). If set, projectPath and configurationPath are ignored. Higher precedence than configurationPath.")
+        @Description("Authoritatively targeting a source set (e.g., ':app:main'). Highest project precedence.")
         val sourceSetPath: String? = null,
-        @Description("If true, targets Gradle Build Tool's own authoritative source code instead of project dependencies. This has the HIGHEST precedence.")
+        @Description("Setting to true authoritatively targets Gradle's own source code. This has HIGHEST overall precedence.")
         val gradleSource: Boolean = false,
-        @Description("The specific file or directory path to read, relative to the combined source root. Use exact paths from 'search_dependency_sources'. Providing no path will list the top-level source directory.")
+        @Description("Reading a specific file or directory relative to the combined source root. Use exact paths from search results.")
         val path: String? = null,
-        @Description("If true, forces a re-download and re-indexing of all targeted sources. Use this only if you suspect cached data is corrupt or significantly outdated.")
+        @Description("Setting to true forces authoritative re-download and re-indexing of targeted sources.")
         val forceDownload: Boolean = false,
-        @Description("If true, retrieves a fresh dependency list from Gradle before processing. STRONGLY RECOMMENDED if your project dependencies have changed since the last source retrieval.")
+        @Description("Setting to true retrieves a fresh dependency list from Gradle. STRONGLY RECOMMENDED if dependencies changed.")
         val fresh: Boolean = false,
         val pagination: PaginationInput = PaginationInput.DEFAULT_LINES
     )
@@ -67,23 +66,9 @@ class DependencySourceTools(
     val readDependencySources by tool<ReadDependencySourcesArgs, String>(
         ToolNames.READ_DEPENDENCY_SOURCES,
         """
-            |The authoritative tool for reading source files and exploring directory structures from the combined source code of all external library dependencies or Gradle's internal engine.
-            |It provides surgical access to the implementation details of your project's ecosystem, cached for high-performance retrieval.
-            |
-            |### Authoritative Features
-            |- **Deep Source Exploration**: Navigate the entire directory structure of your project's dependencies or Gradle's own source code.
-            |- **Surgical File Retrieval**: Read the full content of any identified source file. Ideal for verifying library behavior or researching undocumented APIs.
-            |- **Managed Lifecycle**: Sources and indices are cached per scope (project, configuration, or source set). Subsequent reads are nearly instantaneous.
-            |- **Contextual Precedence**: Precisely target your search using `gradleSource`, `sourceSetPath`, `configurationPath`, or `projectPath`.
-            |- **Standardized Pagination**: Directory listings and extremely large files are paginated. Use `offset` and `limit` to browse large outputs safely.
-            |
-            |### Common Usage Patterns
-            |- **Explore App Dependencies**: `read_dependency_sources(projectPath=":app")`
-            |- **Read Gradle Source**: `read_dependency_sources(path="org/gradle/api/Project.java", gradleSource=true)`
-            |- **List Library Structure**: `read_dependency_sources(path="org/junit/", configurationPath=":app:testCompileClasspath")`
-            |
-            |To find specific classes or methods across all dependencies before reading, use the `search_dependency_sources` tool.
-            |For detailed source navigation strategies, refer to the `gradle-library-sources` skill.
+            |ALWAYS use this tool to read source files and explore directory structures of external library dependencies or Gradle's internal engine.
+            |It provides high-performance, cached access to the exact source code your project compiles against, which is vastly superior to generic web searches or external repository browsing.
+            |To find specific classes or methods across all dependencies first, use the `${ToolNames.SEARCH_DEPENDENCY_SOURCES}` tool.
         """.trimMargin()
     ) { args ->
         val root = with(server) { args.projectRoot.resolveRoot() }
@@ -123,23 +108,22 @@ class DependencySourceTools(
 
     @Serializable
     data class SearchDependencySourcesArgs(
-        @Description("The absolute path to the project root directory. Defaults to the current workspace root. Always provide this if you are working in a multi-root workspace to ensure the correct project is targeted.")
         val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
-        @Description("The project path to search (e.g., ':', ':app'). If null, all project dependencies are searched. This has the lowest precedence.")
+        @Description("Targeting a specific project path (e.g., ':app'). If null, all dependencies are searched.")
         val projectPath: String? = null,
-        @Description("Target a specific configuration (e.g., ':app:debugCompileClasspath'). If set, projectPath is ignored. Higher precedence than projectPath.")
+        @Description("Authoritatively targeting a configuration (e.g., ':app:debugCompileClasspath'). Higher precedence.")
         val configurationPath: String? = null,
-        @Description("Target a specific source set (e.g., ':app:main'). If set, projectPath and configurationPath are ignored. Higher precedence than configurationPath.")
+        @Description("Authoritatively targeting a source set (e.g., ':app:main'). Highest project precedence.")
         val sourceSetPath: String? = null,
-        @Description("If true, searches Gradle Build Tool's own authoritative source code instead of project dependencies. This has the HIGHEST precedence.")
+        @Description("Setting to true authoritatively searches Gradle Build Tool's own source code.")
         val gradleSource: Boolean = false,
-        @Description("The search query. For SYMBOLS search (default), use regex for classes or methods. For FULL_TEXT, use Lucene queries (e.g., '\"exact phrase\"', 'a AND b', 'path:**/Job.kt'). For GLOB, use Java glob syntax (e.g., '**/MyClass.kt'). If the query is not a valid glob, it will fall back to a case-insensitive substring match on file paths.")
+        @Description("Performing an authoritative search with a regex (SYMBOLS), Lucene query (FULL_TEXT), or glob (GLOB, e.g., '**/Job.kt').")
         val query: String,
-        @Description("The type of search to perform. SYMBOLS (default) is ideal for class/method lookup; FULL_TEXT is best for finding specific strings; GLOB is for finding files by path using standard glob patterns (*, **, ?, etc.).")
+        @Description("Selecting the search mode: SYMBOLS (default), FULL_TEXT (exhaustive strings), or GLOB (file paths).")
         val searchType: SearchType = SearchType.SYMBOLS,
-        @Description("If true, re-downloads and re-indexes the targeted sources. Use this only if you suspect cached data is corrupt or significantly outdated.")
+        @Description("Setting to true forces authoritative re-download and re-indexing of targeted sources.")
         val forceDownload: Boolean = false,
-        @Description("If true, retrieves a fresh dependency list from Gradle before searching. STRONGLY RECOMMENDED if your project dependencies have changed since the last search.")
+        @Description("Setting to true retrieves a fresh dependency list from Gradle before searching.")
         val fresh: Boolean = false,
         val pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS
     )
@@ -147,41 +131,25 @@ class DependencySourceTools(
     val searchDependencySources by tool<SearchDependencySourcesArgs, String>(
         ToolNames.SEARCH_DEPENDENCY_SOURCES,
         """
-            |The authoritative tool for searching for symbols or text within the combined source code of all external library dependencies or Gradle's internal engine.
-            |It provides high-performance, indexed search capabilities that far exceed basic grep-based exploration.
+            |Searching for symbols or text within the combined source code of all external library dependencies or Gradle's internal engine authoritatively.
+            |This tool provides high-performance, indexed search capabilities that far exceed basic grep-based exploration.
             |
-            |### High-Performance Features
-            |- **Precision Symbol Lookup**: Use authoritative regex patterns to find classes, methods, or interfaces across your entire dependency graph.
-            |- **Exhaustive Full-Text Indexing**: Perform surgical text searches using high-performance Lucene indexing. It supports standard Lucene query syntax:
-            |  - **Phrases**: `"exact phrase"` matches multiple words in sequence.
-            |  - **Wildcards**: `*` (zero or more characters), `?` (exactly one character).
-            |  - **Boolean Operators**: `AND`, `OR`, `NOT`, `+`, `-`.
-            |  - **Grouping**: `( )` for complex logical expressions.
-            |  - **Fuzzy Search**: `~` for similar spellings (e.g., `test~`).
-            |  - **Proximity Search**: `"word1 word2"~10` to find words within a specific distance.
-            |  - **Field Search**: Search within specific fields: `path` (file path, e.g., `path:**/Job.kt`) or `contents` (file content, default field).
-            |  Ideal for finding constants, strings, or specific implementation patterns across your entire dependency graph.
-            |- **Managed Search Scopes**: Narrow your search to specific projects, configurations, or source sets to maintain token efficiency and reduce noise.
-            |- **Flexible File Search (GLOB)**: Locate specific files by name or path pattern using standard Java glob syntax.
-            |  - `*`: Matches zero or more characters within a directory level.
-            |  - `**`: Matches zero or more characters across directory levels.
-            |  - `?`: Matches exactly one character.
-            |  - `{a,b}`: Matches any of the comma-separated strings.
-            |  - Fallback: If the pattern is not a valid glob, it performs a case-insensitive substring search on file paths.
-            |- **Deep Engine Access**: Search the authoritative source code of the Gradle Build Tool itself to understand core system behavior.
-            |- **Standardized Pagination**: Large result sets are paginated. Use `offset` and `limit` to browse large outputs safely.
+            |### Authoritative Features
+            |- **Locating Symbols Precisely**: Using authoritative regex patterns to find classes, methods, or interfaces across the entire dependency graph.
+            |- **Performing Exhaustive Full-Text Searches**: Utilizing high-performance Lucene indexing for surgical text searches, supporting phrases, wildcards, and boolean operators.
+            |- **Managing Search Scopes**: Narrowing searches to specific projects, configurations, or source sets to maintain token efficiency.
+            |- **Searching Files by Path (GLOB)**: Locating specific files using standard Java glob syntax (e.g., `**/*.java`).
+            |- **Accessing Gradle Engine Internals**: Searching the authoritative source code of the Gradle Build Tool itself to understand core system behavior.
             |
             |### Common Usage Patterns
-            |- **Find Class**: `search_dependency_sources(query="Assert", projectPath=":")`
-            |- **Search Constants**: `search_dependency_sources(query="THREAD_POOL_SIZE", searchType="FULL_TEXT")`
-            |- **Find XML File**: `search_dependency_sources(query="**/AndroidManifest.xml", searchType="GLOB")`
-            |- **Find Java File**: `search_dependency_sources(query="**/*.java", searchType="GLOB")`
-            |- **Find File with Substring**: `search_dependency_sources(query="LICENSE", searchType="GLOB")`
-            |- **Find Gradle Interface**: `search_dependency_sources(query="interface Project", gradleSource=true)`
+            |- **Finding a Class**: `searching_dependency_sources(query="Assert", projectPath=":")`
+            |- **Searching for Constants**: `searching_dependency_sources(query="THREAD_POOL_SIZE", searchType="FULL_TEXT")`
+            |- **Locating XML Files**: `searching_dependency_sources(query="**/AndroidManifest.xml", searchType="GLOB")`
+            |- **Finding Gradle Interfaces**: `searching_dependency_sources(query="interface Project", gradleSource=true)`
             |
-            |Once you have identified a file path from the search results, use the `${ToolNames.READ_DEPENDENCY_SOURCES}` tool to read the full content.
+            |Once identified, use the `${ToolNames.READ_DEPENDENCY_SOURCES}` tool to read the full content.
             |Note: All returned paths are relative to the combined source root.
-            |For detailed search strategies, refer to the `gradle-library-sources` skill.
+            |For detailed search strategies, refer to the `searching_gradle_sources` skill.
         """.trimMargin()
     ) { args ->
         val root = with(server) { args.projectRoot.resolveRoot() }

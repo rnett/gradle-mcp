@@ -45,12 +45,11 @@ Once that is available, we will use it to distribute our skills.
 
 The following skills are included in the `skills/` directory of the repository:
 
-* **[gradle-build](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-build/SKILL.md)**: Execute any Gradle task with robust background management and integrated failure analysis.
-* **[gradle-test](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-test/SKILL.md)**: Execute and diagnose tests at scale with intelligent filtering and specialized workflows for rapid failure resolution.
-* **[gradle-dependencies](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-dependencies/SKILL.md)**: Gain deep insights into your dependency graph, check for updates, and discover new libraries on Maven Central.
-* **[gradle-introspection](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-introspection/SKILL.md)**: Uncover the full structure of any Gradle project, explore available tasks, and inspect the detailed build environment.
-* **[gradle-library-sources](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-library-sources/SKILL.md)**: Deep-dive into the implementation details of any library or Gradle itself with high-performance symbol search and
-  full-text navigation.
-* **[gradle-repl](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-repl/SKILL.md)**: Execute Kotlin code interactively within your project's full runtime context, including all dependencies and source code.
-* **[gradle-docs](https://github.com/rnett/gradle-mcp/blob/main/skills/gradle-docs/SKILL.md)**: Expert access to Gradle documentation, release notes, and version-specific guides, searchable and rendered for easy consumption.
-* **[compose-view](https://github.com/rnett/gradle-mcp/blob/main/skills/compose-view/SKILL.md)**: Visually verify Compose UI components and previews instantly by rendering them to images directly from the interactive REPL.
+* **[managing_gradle_builds](https://github.com/rnett/gradle-mcp/blob/main/skills/managing_gradle_builds/SKILL.md)**: Manages the full Gradle build lifecycle authoritatively with high-performance background execution and failure analysis.
+* **[executing_gradle_tests](https://github.com/rnett/gradle-mcp/blob/main/skills/executing_gradle_tests/SKILL.md)**: Executes and diagnoses tests at scale with high-precision filtering and authoritative failure isolation.
+* **[managing_gradle_dependencies](https://github.com/rnett/gradle-mcp/blob/main/skills/managing_gradle_dependencies/SKILL.md)**: Manages and audits project dependency graphs authoritatively, performing high-resolution update checks.
+* **[introspecting_gradle_projects](https://github.com/rnett/gradle-mcp/blob/main/skills/introspecting_gradle_projects/SKILL.md)**: Uncovers the full structure of any Gradle project authoritatively, mapping modules and configurations.
+* **[searching_gradle_sources](https://github.com/rnett/gradle-mcp/blob/main/skills/searching_gradle_sources/SKILL.md)**: Explores and navigates the internal implementation of any library or Gradle itself authoritatively.
+* **[prototyping_gradle_logic](https://github.com/rnett/gradle-mcp/blob/main/skills/prototyping_gradle_logic/SKILL.md)**: Prototypes logic and executes Kotlin code interactively within your project's full runtime context authoritatively.
+* **[reading_gradle_docs](https://github.com/rnett/gradle-mcp/blob/main/skills/reading_gradle_docs/SKILL.md)**: Navigates official Gradle documentation, release notes, and version-specific guides expertly.
+* **[verifying_compose_ui](https://github.com/rnett/gradle-mcp/blob/main/skills/verifying_compose_ui/SKILL.md)**: Visually verifies Compose UI components and previews authoritatively by instantly rendering them to images.

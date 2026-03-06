@@ -1,71 +1,102 @@
-# Project Guidelines
+# Gradle MCP Project Memory
 
-This is a Gradle project a MCP server written using the Kotlin SDK that adds tools for interacting with and querying Gradle.
+This repository contains a Model Context Protocol (MCP) server written in Kotlin, designed to provide LLMs with deep, programmatic access to Gradle build systems. It serves as both a tool provider and a laboratory for agentic Gradle
+workflows.
 
-Use the Gradle MCP to interact with Gradle whenever possible.
+## Primacy Zone: Fundamental Mandates
 
-## General notes
+1. **Security & Secrets**: NEVER log, print, or commit API keys, secrets, or .env contents.
+2. **Source Control**: ALWAYS add changes to Git for persistence, but NEVER create commits or push unless explicitly instructed.
+3. **Tool Preference**: ALWAYS prefer using the Gradle MCP tools (`gradle`, `inspect_build`, etc.) over raw shell execution of `./gradlew` or generic shell commands.
+4. **Verification**: NO change is complete without passing relevant tests and the final `check` task.
+5. **Tool Metadata**: After modifying any tool descriptions or metadata, you MUST run `./gradlew :updateToolsList` to ensure consistency.
 
-* **Research before guessing**: Always research the correct way to implement a feature or use a library (e.g., by reviewing documentation or sources) before attempting implementation. Do not rely on trial-and-error guessing for complex APIs
-  like Kotlin Scripting.
-* **Use Gradle MCP**: Always use the Gradle MCP tools to run builds and tests whenever possible. When using a Gradle tool that supports a `projectRoot` argument, provide it when in doubt, unless you are certain it is not required by the
-  current MCP configuration.
-* If you have trouble solving or investigating an issue after a few tries, stop and think about what the issues are before proceeding. Do research if necessary, and rubber duck to yourself.
-* When writing skills, remember that skills support progressive disclosure and tune them accordingly. Read the docs on https://agentskills.io/home before creating or editing any skills.
-* Add your changes to git that you want to persist (i.e. not temp files), but don't EVER create commits or push.
-* When testing your changes, run related tests and make sure they pass before moving on to `check`.
-* If you changed the tool descriptions or metadata, you will need to run `:updateToolsList` before `check` will pass.
+---
 
-## Project structure notes
+## WHAT (Architecture & Terminology)
 
-The `test` task should be used to run tests.
-After making a change, make sure it passes.
+### Core Components
 
-When changing a tool, make sure that any skills or other tools that reference it are also updated.
+- **MCP Server**: The main entry point using the Model Context Protocol Kotlin SDK.
+- **Gradle Provider**: The internal engine that orchestrates Gradle Tooling API calls and manages background builds.
+- **Repl Worker**: A separate process (`repl-worker` module) that executes Kotlin snippets for prototyping and UI verification.
+- **Skills**: Specialized agentic workflows stored in `./skills/`. These are "agentic documentation" that guide Gemini on how to solve complex Gradle tasks.
 
-On some machines, the Gradle build tool project will be checked out in `./gradle-build-tool`.
-Be careful that your search, run, etc, commands don't involve it, unless that's your intent.
-For example, the "Build everything" operation will build it too, which we don't want.
-However, they make great sources of knowledge when you are working with Gradle's APIs - use them accordingly.
-There is an overview of the project structure [here](./gradle-sources-overview.md).
+### Key Terms
 
-## Code style notes
+- **BuildId**: A unique UUID used to track and monitor background builds.
+- **Task Output Capturing**: A mechanism to isolate the console output of a specific task, reducing context noise.
+- **ToolNames**: The source of truth for all MCP tool identifiers (see `src/main/kotlin/dev/rnett/gradle/mcp/tools/ToolNames.kt`).
 
-* Always name tests using descriptive names in english, using backticks.
-* Always put dependencies in the version catalog.
-* Use only the kotlin.test assertions configured with power-assert. Power-assert makes it unnecessary to use more complex assertions. Generally prefer to just use `kotlin.assert`.
-* Do not under any circumstances use reflection hacks for tests.
-* Always use `runTest` for suspending tests, not `runBlocking`.
-* Ensure that all tests close and clean up any resources or services they create
-* Use test resources (e.g. Gradle projects, GradleProvider) at the class level where possible – they are expensive to create.
-* Most MCP tools should return text, not JSON.
-* Always use isolated Koin contexts; avoid global contexts.
+---
 
-## Skill Development Guidelines
+## WHY (Architectural Rationale)
 
-Skills in this project are used by other agents to understand how to interact with Gradle effectively. Follow these rules to ensure skills are helpful and high-quality:
+### Kotlin & Koin
 
-### Structure and Files
+- **Why Kotlin?**: To leverage Gradle's native type system and the rich ecosystem of JVM-based build tools.
+- **Why Isolated Koin?**: To prevent global state leakage between tool calls and ensure deterministic behavior in the MCP server's request-response lifecycle.
 
-- **Organization**: Each skill must have its own directory under `skills/`.
-- **Primary Entrypoint**: The main file is always `SKILL.md`.
-- **Progressive Disclosure**: Detailed guides, troubleshooting, and edge cases should be moved to a `references/` subdirectory.
-- **Link Quality**: Use relative links to reference files (e.g., `[Advanced Diagnostics](references/diagnostics.md)`).
-- **File Size**: Keep all files under 500 lines to ensure they are easily digestible by agents.
-- **Skills docs**: Always update the `docs/skills.md` file with skill details when making changes or adding skills.
+### Testing & Assertions
 
-### SKILL.md Frontmatter
+- **Why Power Assert?**: It eliminates the need for complex assertion libraries by providing rich, contextual failure messages from simple `assert` calls.
+- **Why Class-Level Test Resources?**: Creating Gradle projects and daemon environments is expensive; we reuse them across tests to maintain a fast feedback loop.
+- **Rule**: NEVER use reflection hacks for tests. ALWAYS close and clean up any resources or services they create.
 
-- **Name**: Must exactly match the directory name (e.g., `gradle-build`).
-- **Description**: Sell the skill! Start with a strong action verb. Clearly state *what* it does and *when* it should be used.
-- **Allowed Tools**: List all MCP tools used in the skill, separated by spaces.
-- **Accuracy**: Only use tools defined in `ToolNames.kt`. Never use legacy names like `inspect_gradle_build` (use `inspect_build`) or `gradle_execute` (use `gradle`).
-- **Versioning**: Increment the `version` field in metadata when making functional changes or significant documentation updates.
+### MCP Design
 
-### Content and Best Practices
+- **Why Text over JSON?**: LLMs process natural language better than raw JSON. Tools should return structured, human-readable text (often Markdown) to maximize reasoning.
+- **Why Tooling API?**: It is the official, supported way to interact with Gradle programmatically, providing better stability than parsing CLI output.
 
-- **Expert Tone**: Write for an expert audience. Provide high-signal directives and specific task patterns.
-- **Directives**: Focus on the most common and effective workflows.
-- **Title and H1**: Use professional and persuasive titles in the frontmatter and the main H1 header (e.g., use "Advanced Test Execution" instead of "Running Tests").
-- **When to Use**: Always include a "When to Use" section in the frontmatter description or a dedicated section in `SKILL.md`.
-- **Verification**: Ensure all commands and tool parameters mentioned in the skill are correct and reflect the latest API.
+---
+
+## HOW (Operational Execution)
+
+### Build & Test Commands
+
+- **Build All**: `./gradlew build`
+- **Run Tests**: `./gradlew test`
+- **Quality Check**: `./gradlew check` (Runs all verification tasks including linting and tests)
+- **Update Tools**: `./gradlew :updateToolsList` (Mandatory after metadata changes)
+
+### Research & Problem Solving
+
+- **Research First**: ALWAYS research the correct way to implement a feature or use a library before attempting implementation. Do not rely on trial-and-error for complex APIs like Kotlin Scripting.
+- **Rubber Ducking**: If stuck after a few tries, stop and think about the issues before proceeding. Rubber duck to yourself and document your findings.
+
+### Code Style & Conventions
+
+- **Test Naming**: Always name tests using descriptive names in English, wrapped in backticks (e.g., `` `verify build status wait` ``).
+- **Concurrency**: ALWAYS use `runTest` for suspending tests, NEVER `runBlocking`.
+- **Dependency Catalog**: ALWAYS put dependencies in `gradle/libs.versions.toml`. Every version ref MUST have a corresponding entry for automated updates.
+
+### Skill Development Workflow
+
+Skills in this project guide other agents. They will be installed in users' skill directories as standalone skills. Follow the "Expert Tone" and "Progressive Disclosure" principles.
+
+1. **Scope**: "Update skills" directives ALWAYS refer to skills in `./skills/`, NEVER global skills.
+2. **Sync**: When changing a tool, you MUST update all referencing skills in `./skills/` and other dependent tools.
+3. **Create**: New directory in `skills/` with `SKILL.md`.
+4. **Refine**: Move deep-dives to `references/`.
+5. **Register**: Update `docs/skills.md` with the new skill details.
+6. **Reference**: Use relative links to living files to avoid "instruction rot."  But you CAN NOT link to library sources from skills, and double check whether cross skill links will work before adding them.
+7. **MCP Tooling:** Skills are largely focused around using this server's MCP tools. The skills in a given commit should work with the tools in a given commit - ensure they are consistent. They may not match the names used by the gradle MCP
+   server in your current session - that's OK.
+
+---
+
+## Gemini-Specific Optimization
+
+- **Prefix Stability**: This file (`AGENTS.md`) is designed to be at the start of the context. Maintain its structure to maximize context caching hits.
+- **Instruction Density**: Focus on non-obvious constraints. If it can be inferred from the file structure, don't add it here.
+- **Caching**: This workspace uses heavy caching for Gradle sources. Use `inspect_dependencies` and `search_dependency_sources` with `fresh = true` only when dependencies change.
+- **Gradle Source Exploration**: On some machines, the Gradle build tool project is checked out in `./managing-gradle-builds-tool`. Use it as a source of knowledge for Gradle's internal APIs, but be careful not to include it in broad
+  search/build commands unless intended. See [gradle-sources-overview.md](./gradle-sources-overview.md).
+
+---
+
+## Resource Index
+
+- **Gradle Sources Navigation**: [gradle-sources-overview.md](./gradle-sources-overview.md)
+- **Tool Definitions**: [ToolNames.kt](src/main/kotlin/dev/rnett/gradle/mcp/tools/ToolNames.kt)
+- **User/Human Facing Skill Docs**: [docs/skills.md](./docs/skills.md)

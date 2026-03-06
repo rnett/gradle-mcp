@@ -1,14 +1,14 @@
 ## 1. Skill Metadata Updates
 
-- [x] 1.1 Update `gradle-build` skill frontmatter and "When to Use" section
-- [x] 1.2 Update `gradle-test` skill frontmatter and "When to Use" section
-- [x] 1.3 Update `gradle-dependencies` skill frontmatter and "When to Use" section
-- [x] 1.4 Update `gradle-docs` skill frontmatter and "When to Use" section
-- [x] 1.5 Update `gradle-introspection` skill frontmatter and "When to Use" section
-- [x] 1.6 Update `gradle-library-sources` skill frontmatter and "When to Use" section
-- [x] 1.7 Update `gradle-repl` skill frontmatter and "When to Use" section
-- [x] 1.8 Update `compose-view` skill frontmatter and "When to Use" section
-- [x] 1.9 Add authoritative Gradle project and task path syntax details to `gradle-build`, `gradle-test`, and `gradle-introspection`
+- [x] 1.1 Update `managing-gradle-builds` skill frontmatter and "When to Use" section
+- [x] 1.2 Update `executing-gradle-tests` skill frontmatter and "When to Use" section
+- [x] 1.3 Update `managing-gradle-dependencies` skill frontmatter and "When to Use" section
+- [x] 1.4 Update `reading-gradle-docs` skill frontmatter and "When to Use" section
+- [x] 1.5 Update `introspecting-gradle-projects` skill frontmatter and "When to Use" section
+- [x] 1.6 Update `searching-gradle-sources` skill frontmatter and "When to Use" section
+- [x] 1.7 Update `prototyping-gradle-logic` skill frontmatter and "When to Use" section
+- [x] 1.8 Update `verifying-compose-ui` skill frontmatter and "When to Use" section
+- [x] 1.9 Add authoritative Gradle project and task path syntax details to `managing-gradle-builds`, `executing-gradle-tests`, and `introspecting-gradle-projects`
 
 ## 2. Tool Description Updates
 

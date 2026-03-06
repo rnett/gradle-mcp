@@ -79,7 +79,7 @@ class DefaultGradleDocsService(
         val resolvedVersion = resolveVersion(version)
         if (resolvedVersion == "current") return "current"
 
-        val versionDir = environment.cacheDir.resolve("gradle-docs").resolve(resolvedVersion)
+        val versionDir = environment.cacheDir.resolve("reading_gradle_docs").resolve(resolvedVersion)
 
         withContext(Dispatchers.IO) {
             Files.createDirectories(versionDir)
@@ -96,7 +96,7 @@ class DefaultGradleDocsService(
 
     override suspend fun getDocsPageContent(path: String, version: String?): DocsPageContent {
         val resolvedVersion = ensurePrepared(version ?: "current")
-        val convertedDir = environment.cacheDir.resolve("gradle-docs").resolve(resolvedVersion).resolve("converted")
+        val convertedDir = environment.cacheDir.resolve("reading_gradle_docs").resolve(resolvedVersion).resolve("converted")
 
         // Normalize path: if it was provided with .html, change to .md (for HTML-converted files)
         // But for images, we keep the extension
@@ -148,7 +148,7 @@ class DefaultGradleDocsService(
 
     override suspend fun summarizeSections(version: String?): List<DocsSectionSummary> {
         val resolvedVersion = ensurePrepared(version ?: "current")
-        val convertedDir = environment.cacheDir.resolve("gradle-docs").resolve(resolvedVersion).resolve("converted")
+        val convertedDir = environment.cacheDir.resolve("reading_gradle_docs").resolve(resolvedVersion).resolve("converted")
 
         if (!convertedDir.exists()) return emptyList()
 

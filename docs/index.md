@@ -108,10 +108,10 @@ AI agents can use Agent Skills to better understand how to use these tools for c
 
 Included skills:
 
-- `gradle-build`: Running Gradle Commands, Background Jobs, and Investigating Failures.
-- `gradle-test`: Running and Investigating Tests.
-- `gradle-repl`: Running Code in the Project's Environment (REPL).
-- `gradle-docs`: Searching and reading the Gradle User Guide.
+- `managing_gradle_builds`: Running Gradle Commands, Background Jobs, and Investigating Failures.
+- `executing_gradle_tests`: Running and Investigating Tests.
+- `prototyping_gradle_logic`: Running Code in the Project's Environment (REPL).
+- `reading_gradle_docs`: Searching and reading the Gradle User Guide.
 
 For instructions on how to use these skills, see the [Agent Skills](skills.md) documentation.
 

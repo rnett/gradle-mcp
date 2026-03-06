@@ -34,7 +34,7 @@ class DistributionDownloaderServiceTest {
         assertEquals("dummy-zip-content", Files.readString(path))
 
         // Verify relative path
-        val expectedRelative = "gradle-docs/9.4.0/gradle-9.4.0-docs.zip"
+        val expectedRelative = "reading_gradle_docs/9.4.0/gradle-9.4.0-docs.zip"
         assertTrue(path.toString().replace("\\", "/").endsWith(expectedRelative), "Should follow expected cache structure")
 
         tempDir.toFile().deleteRecursively()

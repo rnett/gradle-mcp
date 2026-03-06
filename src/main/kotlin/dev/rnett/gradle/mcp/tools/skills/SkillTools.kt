@@ -16,42 +16,40 @@ class SkillTools : McpServerComponent(
 
     @Serializable
     data class InstallSkillsArgs(
-        @Description("The absolute path to the directory where the skills should be installed. This should be a directory that your calling agent is configured to search for skills (e.g., its local 'skills' or 'documentation' directory).")
+        @Description("Providing the absolute path to the authoritative skill installation directory.")
         val directory: String,
-        @Description("If true, authoritatively replaces any existing skills in the target directory. If false (default), existing skills are preserved to avoid accidental overrides.")
-        val force: Boolean = false
+        @Description("Setting to true replaces existing skills in the target directory that were authored by this MCP server.")
+        val replaceOld: Boolean = true
     )
 
     val installSkills by tool<InstallSkillsArgs, String>(
         ToolNames.INSTALL_GRADLE_SKILLS,
         """
-            |The authoritative tool for installing and managing Gradle MCP skills in your local environment.
-            |These skills provide expert-level guidance, structured workflows, and high-signal instructions for interacting with Gradle effectively.
-            |
-            |### Authoritative Features
-            |- **Expert Workflow Integration**: Skills provide specialized instructions for core tasks like background build monitoring, surgical test diagnostics, and deep-dive source exploration.
-            |- **Managed Installation**: Automatically unpacks and configures the latest authoritative skills into your agent's searchable skills directory.
-            |- **Safe and Forceful Updates**: Supports both safe (non-overwriting) and authoritative (force=true) installation modes to ensure your environment is always up to date.
-            |
-            |### Core Skills Included
-            |- **gradle-build**: High-performance background execution and failure analysis.
-            |- **gradle-test**: Surgical test selection and detailed failure isolation.
-            |- **gradle-dependencies**: Authoritative dependency graph auditing and update detection.
-            |- **gradle-introspection**: Deep-dive project structure and environment mapping.
-            |- **gradle-docs**: High-speed search and retrieval of official Gradle documentation.
-            |- **gradle-library-sources**: Navigation and indexing of dependency source code.
-            |- **gradle-repl**: Interactive Kotlin prototyping with full project context.
-            |
-            |### Common Usage Patterns
-            |- **Initial Setup**: `install_gradle_skills(directory="/path/to/my/agent/skills")`
-            |- **Authoritative Update**: `install_gradle_skills(directory="/path/to/my/agent/skills", force=true)`
-            |
-            |Installing these skills is the STRONGLY PREFERRED first step for any agent wishing to perform high-quality, professional Gradle engineering.
+            |ALWAYS use this tool to install or update the official Gradle MCP skills into your agent's skill directory.
+            |These skills provide expert-level workflows, specialized instructions, and deep diagnostic patterns that are essential for mastering Gradle tasks.
+            |It automatically unpacks and configures the latest skills safely.
         """.trimMargin()
     ) { args ->
         val targetDir = File(args.directory)
         if (!targetDir.exists()) {
             targetDir.mkdirs()
+        }
+
+        if (args.replaceOld) {
+            // Remove existing skills from this repo to ensure clean update
+            val authorUrl = "https://github.com/rnett/gradle-mcp"
+            targetDir.listFiles { file -> file.isDirectory }?.forEach { skillDir ->
+                val skillFile = File(skillDir, "SKILL.md")
+                if (skillFile.exists()) {
+                    val content = skillFile.readText()
+                    if (content.contains("author: $authorUrl") ||
+                        content.contains("author: \"$authorUrl\"") ||
+                        content.contains("author: '$authorUrl'")
+                    ) {
+                        skillDir.deleteRecursively()
+                    }
+                }
+            }
         }
 
         val classLoader = this::class.java.classLoader
@@ -70,7 +68,7 @@ class SkillTools : McpServerComponent(
                         val skillDir = File(targetDir, skillName)
                         val exists = skillDir.exists()
 
-                        if (args.force || !exists || (installedSkills.contains(skillName) && !skippedSkills.contains(skillName))) {
+                        if (!exists || (installedSkills.contains(skillName) && !skippedSkills.contains(skillName))) {
                             val targetFile = File(targetDir, entryName)
                             targetFile.parentFile.mkdirs()
                             Files.copy(zis, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
@@ -93,7 +91,7 @@ class SkillTools : McpServerComponent(
             }
             if (skippedSkills.isNotEmpty()) {
                 if (installedSkills.isNotEmpty()) appendLine()
-                appendLine("Skipped ${skippedSkills.size} existing skills (use force=true to replace):")
+                appendLine("Skipped ${skippedSkills.size} existing skills (use replaceOld=true to replace skills from this server):")
                 skippedSkills.sorted().forEach {
                     appendLine("- $it")
                 }

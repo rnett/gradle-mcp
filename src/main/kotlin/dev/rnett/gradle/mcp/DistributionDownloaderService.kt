@@ -27,7 +27,7 @@ class DefaultDistributionDownloaderService(
 
     override suspend fun downloadDocs(version: String): Path {
         val fileName = "gradle-$version-docs.zip"
-        val destination = environment.cacheDir.resolve("gradle-docs").resolve(version).resolve(fileName)
+        val destination = environment.cacheDir.resolve("reading_gradle_docs").resolve(version).resolve(fileName)
 
         if (destination.exists()) {
             return destination

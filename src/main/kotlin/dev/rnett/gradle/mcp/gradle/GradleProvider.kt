@@ -29,6 +29,8 @@ import org.gradle.tooling.events.ProgressEvent
 import org.gradle.tooling.events.ProgressListener
 import org.gradle.tooling.events.StatusEvent
 import org.gradle.tooling.events.configuration.ProjectConfigurationFinishEvent
+import org.gradle.tooling.events.configuration.ProjectConfigurationStartEvent
+import org.gradle.tooling.events.lifecycle.BuildPhaseFinishEvent
 import org.gradle.tooling.events.lifecycle.BuildPhaseOperationDescriptor
 import org.gradle.tooling.events.lifecycle.BuildPhaseStartEvent
 import org.gradle.tooling.events.problems.ProblemAggregationEvent
@@ -37,6 +39,7 @@ import org.gradle.tooling.events.task.TaskFailureResult
 import org.gradle.tooling.events.task.TaskFinishEvent
 import org.gradle.tooling.events.task.TaskOperationDescriptor
 import org.gradle.tooling.events.task.TaskSkippedResult
+import org.gradle.tooling.events.task.TaskStartEvent
 import org.gradle.tooling.events.task.TaskSuccessResult
 import org.gradle.tooling.events.test.Destination
 import org.gradle.tooling.events.test.JvmTestOperationDescriptor
@@ -524,12 +527,34 @@ class DefaultGradleProvider(
                     val descriptor = event.descriptor
                     if (descriptor is BuildPhaseOperationDescriptor) {
                         runningBuild.onPhaseStart(descriptor.buildPhase, descriptor.buildItemsCount)
+                        progressHandler?.invoke(0.0, 1.0, "Starting phase: ${descriptor.buildPhase}")
+                    }
+                } else if (event is BuildPhaseFinishEvent) {
+                    val descriptor = event.descriptor
+                    if (descriptor is BuildPhaseOperationDescriptor) {
+                        progressHandler?.invoke(1.0, 1.0, "Finished phase: ${descriptor.buildPhase}")
                     }
                 }
             }, OperationType.BUILD_PHASE)
 
             addProgressListener({ event ->
-                if (event is TaskFinishEvent) {
+                if (event is TaskStartEvent) {
+                    val descriptor = event.descriptor
+                    if (descriptor is TaskOperationDescriptor) {
+                        val taskPath = descriptor.taskPath
+                        val total = runningBuild.totalItems.get()
+                        if (total > 0) {
+                            val completed = runningBuild.completedItems.get()
+                            progressHandler?.invoke(completed.toDouble() / total, 1.0, "Starting task: $taskPath")
+                        }
+                    }
+                } else if (event is ProjectConfigurationStartEvent) {
+                    val total = runningBuild.totalItems.get()
+                    if (total > 0) {
+                        val completed = runningBuild.completedItems.get()
+                        progressHandler?.invoke(completed.toDouble() / total, 1.0, "Configuring project: ${event.descriptor.displayName}")
+                    }
+                } else if (event is TaskFinishEvent) {
                     val descriptor = event.descriptor
                     if (descriptor is TaskOperationDescriptor) {
                         val taskPath = descriptor.taskPath
@@ -581,7 +606,7 @@ class DefaultGradleProvider(
                     val total = runningBuild.totalItems.get()
                     if (total > 0) {
                         val completed = runningBuild.completedItems.get()
-                        val currentProgress = if (event.total > 0) event.progress.toLong().toDouble() / event.total else 0.0
+                        val currentProgress = if (event.total > 0) event.progress.toDouble() / event.total else 0.0
                         val phaseProgress = (completed + currentProgress) / total
                         progressHandler?.invoke(phaseProgress, 1.0, event.descriptor.displayName)
                     } else {

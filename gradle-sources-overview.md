@@ -1,6 +1,6 @@
 # Gradle Sources Overview
 
-This document serves as a guide for navigating the Gradle source code (located in `gradle-build-tool/`). It focuses on "directions" to find key components relevant to the MCP server.
+This document serves as a guide for navigating the Gradle source code (located in `managing-gradle-builds-tool/`). It focuses on "directions" to find key components relevant to the MCP server.
 
 ## Top-Level Organization
 

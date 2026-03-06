@@ -20,14 +20,14 @@ more robust build/test execution.
 
 ### Modified Capabilities
 
-- `gradle-build`: Improve description and \"When to Use\" section.
-- `gradle-test`: Improve description and \"When to Use\" section.
-- `gradle-dependencies`: Improve description and \"When to Use\" section.
-- `gradle-docs`: Improve description and \"When to Use\" section.
-- `gradle-introspection`: Improve description and \"When to Use\" section.
-- `gradle-library-sources`: Improve description and \"When to Use\" section.
-- `gradle-repl`: Improve description and \"When to Use\" section.
-- `compose-view`: Improve description and \"When to Use\" section.
+- `managing-gradle-builds`: Improve description and \"When to Use\" section.
+- `executing-gradle-tests`: Improve description and \"When to Use\" section.
+- `managing-gradle-dependencies`: Improve description and \"When to Use\" section.
+- `reading-gradle-docs`: Improve description and \"When to Use\" section.
+- `introspecting-gradle-projects`: Improve description and \"When to Use\" section.
+- `searching-gradle-sources`: Improve description and \"When to Use\" section.
+- `prototyping-gradle-logic`: Improve description and \"When to Use\" section.
+- `verifying-compose-ui`: Improve description and \"When to Use\" section.
 
 ## Impact
 

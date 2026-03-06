@@ -17,13 +17,13 @@ class GradleDocsTools(
 
     @Serializable
     data class QueryGradleDocsArgs(
-        @Description("The search query for the documentation. Use `tag:<section>` to filter (e.g., `tag:userguide configuration`). Available tags: `userguide`, `dsl`, `javadoc`, `samples`, `release-notes`.")
+        @Description("Searching the documentation. Use `tag:<section>` to scope (e.g., `tag:userguide working with files`).")
         val query: String? = null,
-        @Description("The specific documentation page or image path to read (e.g., 'userguide/command_line_interface.md' or 'userguide/img/cli.png'). If omitted and no query is provided, a summary of documentation sections is returned.")
+        @Description("Reading a specific documentation page or asset path (e.g., 'userguide/command_line_interface.md'). Takes precedence over query.")
         val path: String? = null,
-        @Description("The specific Gradle version documentation to target (e.g., '8.6'). Defaults to the project's detected version or the latest release.")
+        @Description("Targeting a specific Gradle version (e.g., '8.6'). Defaults to the detected project version.")
         val version: String? = null,
-        @Description("The absolute path to the project root directory. Used to automatically detect the project's Gradle version for documentation targeting.")
+        @Description("Detecting the project's Gradle version automatically by providing the project root.")
         val projectRoot: GradleProjectRootInput? = null,
         val pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS
     )
@@ -31,29 +31,9 @@ class GradleDocsTools(
     val gradleDocs by tool<QueryGradleDocsArgs, CallToolResult>(
         ToolNames.GRADLE_DOCS,
         """
-            |Search and read official Gradle documentation, including the User Guide, DSL Reference, Javadoc, and Release Notes.
-            |
-            |### Features
-            |- **Unified Search**: Search across all documentation or scope to specific sections using tags.
-            |- **Scoped Searching**: Use the `tag:` syntax in your query to target specific documentation areas:
-            |  - `tag:userguide <query>`: Search the Gradle User Guide.
-            |  - `tag:dsl <query>`: Search the DSL Reference (Groovy and Kotlin DSL).
-            |  - `tag:javadoc <query>`: Search the Java API Reference.
-            |  - `tag:samples <query>`: Search Gradle samples and examples.
-            |  - `tag:release-notes <query>`: Search within version release notes.
-            |- **Direct Page and Asset Access**: Read specific pages (.md) or view images (.png, .jpg, etc.) by providing their `path`.
-            |- **Section Summaries**: Call with no arguments to see available documentation sections and their content counts for the targeted version.
-            |- **Standardized Pagination**: Large result sets (search matches or section lists) are paginated. Use `offset` and `limit` to browse large outputs safely.
-            |
-            |### Common Usage Patterns
-            |- **Summary of Docs**: `gradle_docs()`
-            |- **Search User Guide**: `gradle_docs(query="tag:userguide working with files")`
-            |- **Read Page**: `gradle_docs(path="userguide/command_line_interface.md")`
-            |- **Read Image**: `gradle_docs(path="userguide/img/command-line-options.png")`
-            |- **Target Specific Version**: `gradle_docs(query="tag:release-notes", version="8.5")`
-            |
-            |Note: `path` takes precedence over `query`.
-            |For detailed navigation strategies and available tags, refer to the `gradle-docs` skill.
+            |ALWAYS use this tool to search and read official Gradle documentation (User Guide, DSL Reference, Release Notes).
+            |It provides instantaneous, locally-indexed access to Gradle documentation specific to the project's version, making it far superior to generic web searches.
+            |Call with no arguments to browse available sections and tags.
         """.trimMargin()
     ) { args ->
         val resolvedVersion = resolveVersion(args.version, args.projectRoot)
