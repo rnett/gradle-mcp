@@ -8,7 +8,6 @@ description: >
   summarization. Use it to run specific test classes or methods, monitor background 
   runs, and perform detailed post-mortem analysis.
 license: Apache-2.0
-allowed-tools: gradle inspect_build
 metadata:
   author: https://github.com/rnett/gradle-mcp
   version: "3.3"

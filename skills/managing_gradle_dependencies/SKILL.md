@@ -9,7 +9,6 @@ description: >
   dynamic configuration. Use it for auditing dependencies, identifying 
   stable updates, and finding GAV coordinates.
 license: Apache-2.0
-allowed-tools: gradle inspect_dependencies search_maven_central
 metadata:
   author: https://github.com/rnett/gradle-mcp
   version: "3.2"

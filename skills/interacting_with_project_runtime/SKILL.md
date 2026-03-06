@@ -9,7 +9,6 @@ description: >
   dependencies. Use it for rapid logic verification, interactive 
   library exploration, and visual UI auditing.
 license: Apache-2.0
-allowed-tools: kotlin_repl inspect_build
 metadata:
   author: https://github.com/rnett/gradle-mcp
   version: "2.2"

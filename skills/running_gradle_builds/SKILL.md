@@ -7,7 +7,6 @@ description: >
   structured feedback and diagnostic integration of this skill. Use for core lifecycle 
   tasks (build, assemble), dev servers, and complex troubleshooting.
 license: Apache-2.0
-allowed-tools: gradle inspect_build
 metadata:
   author: https://github.com/rnett/gradle-mcp
   version: "3.4"

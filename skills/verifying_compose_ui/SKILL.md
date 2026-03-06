@@ -7,7 +7,6 @@ description: >
   visual feedback for any @Composable or @Preview. Do NOT use for general build 
   lifecycle tasks or dependency auditing.
 license: Apache-2.0
-allowed-tools: kotlin_repl inspect_build
 metadata:
   author: https://github.com/rnett/gradle-mcp
   version: "2.2"

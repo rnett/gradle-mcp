@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
@@ -35,7 +36,7 @@ class BuildManager : AutoCloseable {
     }
 
     private fun cleanUp() {
-        val now = kotlin.time.Clock.System.now()
+        val now = Clock.System.now()
         val expired = lastAccess.filter { (id, access) ->
             val build = builds[id]
             (build == null || build.hasBuildFinished) && (now - access) > 30.minutes
@@ -54,7 +55,7 @@ class BuildManager : AutoCloseable {
     }
 
     private fun updateAccess(id: BuildId) {
-        lastAccess[id] = kotlin.time.Clock.System.now()
+        lastAccess[id] = Clock.System.now()
     }
 
     fun registerBuild(build: RunningBuild) {

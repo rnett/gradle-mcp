@@ -301,7 +301,7 @@ object UpdateTools {
         override suspend fun getReleaseNotes(version: String?): String {
             throw UnsupportedOperationException("Not used for tool listing")
         }
-        override suspend fun searchDocs(query: String, version: String?): List<DocsSearchResult> {
+        override suspend fun searchDocs(query: String, version: String?): DocsSearchResponse {
             throw UnsupportedOperationException("Not used for tool listing")
         }
         override suspend fun summarizeSections(version: String?): List<DocsSectionSummary> {

@@ -9,7 +9,6 @@ description: >
   Use it for mapping modules, identifying runnable tasks via '--help', 
   and deep-dive property analysis.
 license: Apache-2.0
-allowed-tools: gradle inspect_build inspect_dependencies
 metadata:
   author: https://github.com/rnett/gradle-mcp
   version: "2.1"

@@ -7,8 +7,58 @@ import java.nio.file.Files
 import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class GradleDocsServiceTest {
+
+    @Test
+    fun `getDocsPageContent returns file content`() = runTest {
+        val tempDir = Files.createTempDirectory("gradle-mcp-test-docs-content")
+        val environment = GradleMcpEnvironment(tempDir)
+
+        val version = "9.4.0"
+        val convertedDir = tempDir.resolve("cache/reading_gradle_docs/$version/converted")
+        Files.createDirectories(convertedDir.resolve("userguide"))
+        convertedDir.resolve("userguide/test.md").writeText("# Test Page")
+
+        val indexer = mockk<GradleDocsIndexService>()
+        val httpClient = mockk<io.ktor.client.HttpClient>()
+        coEvery { indexer.ensureIndexed(version) } returns Unit
+
+        val service = DefaultGradleDocsService(httpClient, indexer, environment)
+        val content = service.getDocsPageContent("userguide/test.md", version)
+
+        assertTrue(content is DocsPageContent.Markdown)
+        assertEquals("# Test Page", (content as DocsPageContent.Markdown).content)
+
+        tempDir.toFile().deleteRecursively()
+    }
+
+    @Test
+    fun `getDocsPageContent returns directory listing for dot`() = runTest {
+        val tempDir = Files.createTempDirectory("gradle-mcp-test-docs-dir")
+        val environment = GradleMcpEnvironment(tempDir)
+
+        val version = "9.4.0"
+        val convertedDir = tempDir.resolve("cache/reading_gradle_docs/$version/converted")
+        Files.createDirectories(convertedDir.resolve("userguide"))
+        convertedDir.resolve("release-notes.md").writeText("notes")
+
+        val indexer = mockk<GradleDocsIndexService>()
+        val httpClient = mockk<io.ktor.client.HttpClient>()
+        coEvery { indexer.ensureIndexed(version) } returns Unit
+
+        val service = DefaultGradleDocsService(httpClient, indexer, environment)
+        val content = service.getDocsPageContent(".", version)
+
+        assertTrue(content is DocsPageContent.Markdown)
+        val text = (content as DocsPageContent.Markdown).content
+        assertTrue(text.contains("# Directory: /"))
+        assertTrue(text.contains("- userguide/"))
+        assertTrue(text.contains("- release-notes.md"))
+
+        tempDir.toFile().deleteRecursively()
+    }
 
     @Test
     fun `searchDocs uses indexer`() = runTest {

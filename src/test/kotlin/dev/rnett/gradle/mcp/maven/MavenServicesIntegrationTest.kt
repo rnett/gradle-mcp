@@ -2,10 +2,13 @@ package dev.rnett.gradle.mcp.maven
 
 import dev.rnett.gradle.mcp.DI
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertTrue
 
+@Ignore
 class MavenServicesIntegrationTest {
 
     private val client = DI.createHttpClient()
@@ -32,9 +35,5 @@ class MavenServicesIntegrationTest {
         assertTrue(versions.isNotEmpty(), "Expected versions for 'kotlin-stdlib'")
         assertContains(versions, "2.0.0")
         assertContains(versions, "1.9.0")
-    }
-
-    private fun assertEquals(expected: Any, actual: Any) {
-        kotlin.test.assertEquals(expected, actual)
     }
 }

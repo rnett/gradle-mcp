@@ -30,12 +30,16 @@ application {
 }
 
 val updateToolsList by tasks.registering(JavaExec::class) {
+    inputs.files(sourceSets.main.get().runtimeClasspath).withPathSensitivity(PathSensitivity.NONE)
+    inputs.dir(project.rootDir.resolve("docs/tools")).withPathSensitivity(PathSensitivity.RELATIVE)
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("dev.rnett.gradle.mcp.UpdateTools")
     args = listOf(project.rootDir.resolve("docs/tools").absolutePath)
 }
 
 val verifyToolsList by tasks.registering(JavaExec::class) {
+    inputs.files(sourceSets.main.get().runtimeClasspath).withPathSensitivity(PathSensitivity.NONE)
+    inputs.dir(project.rootDir.resolve("docs/tools")).withPathSensitivity(PathSensitivity.RELATIVE)
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("dev.rnett.gradle.mcp.UpdateTools")
     args = listOf(project.rootDir.resolve("docs/tools").absolutePath, "--verify")

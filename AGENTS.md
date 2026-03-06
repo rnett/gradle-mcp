@@ -20,7 +20,8 @@ workflows.
 - **MCP Server**: The main entry point using the Model Context Protocol Kotlin SDK.
 - **Gradle Provider**: The internal engine that orchestrates Gradle Tooling API calls and manages background builds.
 - **Repl Worker**: A separate process (`repl-worker` module) that executes Kotlin snippets for prototyping and UI verification.
-- **Skills**: Specialized agentic workflows stored in `./skills/`. These are "agentic documentation" that guide Gemini on how to solve complex Gradle tasks.
+- **Skills**: Specialized agentic workflows stored in `./skills/`. These are "agentic documentation" that guide Gemini on how to solve complex Gradle tasks. These skills are designed to be generic and portable, intended for installation by
+  any user of this Gradle MCP server. They must avoid project-specific hardcoding and focus on idiomatic Gradle usage across diverse environments.
 
 ### Key Terms
 

@@ -16,6 +16,45 @@ import kotlin.test.assertTrue
 class ContentExtractorServiceTest {
 
     @Test
+    fun `ensureProcessed extracts and converts docs with nested root`() = runTest {
+        val tempDir = Files.createTempDirectory("gradle-mcp-test-extract-nested")
+        try {
+            val environment = GradleMcpEnvironment(tempDir)
+
+            val zipPath = tempDir.resolve("test-docs-nested.zip")
+            val baos = ByteArrayOutputStream()
+            ZipOutputStream(baos).use { zos ->
+                // Nested root: gradle-9.4.0/docs/...
+                zos.putNextEntry(ZipEntry("gradle-9.4.0/docs/userguide/index.html"))
+                zos.write("<h1>Userguide</h1>".toByteArray())
+                zos.closeEntry()
+
+                zos.putNextEntry(ZipEntry("gradle-9.4.0/docs/release-notes.html"))
+                zos.write("<h1>Release Notes</h1>".toByteArray())
+                zos.closeEntry()
+            }
+            Files.write(zipPath, baos.toByteArray())
+
+            val downloader = mockk<DistributionDownloaderService>()
+            coEvery { downloader.downloadDocs("9.4.0") } returns zipPath
+
+            val markdownService = DefaultMarkdownService()
+            val htmlConverter = HtmlConverter(markdownService)
+            val service = DefaultContentExtractorService(downloader, htmlConverter, environment)
+
+            service.ensureProcessed("9.4.0")
+
+            val convertedDir = tempDir.resolve("cache/reading_gradle_docs/9.4.0/converted")
+            assertTrue(convertedDir.resolve("userguide/index.md").exists())
+            assertEquals("# Userguide", convertedDir.resolve("userguide/index.md").readText().trim())
+            assertEquals("# Release Notes", convertedDir.resolve("release-notes.md").readText().trim())
+
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
     fun `ensureProcessed extracts and converts docs`() = runTest {
         val tempDir = Files.createTempDirectory("gradle-mcp-test-extract")
         try {

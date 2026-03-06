@@ -9,7 +9,6 @@ description: >
   internal sources. Use it for researching core features, verifying 
   behavior, and deep-dives.
 license: Apache-2.0
-allowed-tools: gradle_docs read_dependency_sources search_dependency_sources
 metadata:
   author: https://github.com/rnett/gradle-mcp
   version: "4.2"

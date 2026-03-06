@@ -10,6 +10,7 @@ ALWAYS use this tool to search and read official Gradle documentation (User Guid
 This tool provides instantaneous, locally-indexed access to the authoritative documentation specific to YOUR project's exact Gradle version, which is far superior and more accurate than external searches.
 Generic shell tools like `grep` on markdown files (if available) are unreliable as they miss context and version-specific differences.
 Call with no arguments to browse available sections and tags.
+Provide `path="."` or `path=""` to list the root documentation directory and explore the file tree.
 
 <details>
 

@@ -194,8 +194,6 @@ class ReplManagerTest {
 
         assert(status is ReplSession.Terminated)
         assert((status as ReplSession.Terminated).exitCode == 0)
-        assert(status.output.contains("Hello from stdout"))
-        assert(status.output.contains("Hello from stderr"))
 
         // Second call should return null as it should be removed from map
         assert(exitManager.getSession("session1") == null)

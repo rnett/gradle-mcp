@@ -114,6 +114,21 @@ class DefaultGradleDocsService(
             throw RuntimeException("Docs page not found: $path (resolved to $targetPath)")
         }
 
+        if (targetPath.isDirectory()) {
+            val entries = targetPath.listDirectoryEntries().sortedBy { it.name }
+            val content = buildString {
+                appendLine("# Directory: ${if (path == "." || path == "") "/" else path}")
+                appendLine()
+                entries.forEach { entry ->
+                    val name = entry.name
+                    if (name.startsWith(".")) return@forEach
+                    val displayName = if (entry.isDirectory()) "$name/" else name
+                    appendLine("- $displayName")
+                }
+            }
+            return DocsPageContent.Markdown(content)
+        }
+
         return if (isImage(targetPath)) {
             val bytes = targetPath.readBytes()
             val base64 = Base64.getEncoder().encodeToString(bytes)

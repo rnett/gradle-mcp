@@ -50,8 +50,10 @@ class DefaultContentExtractorService(
                     val entry = entries.nextElement()
                     if (entry.isDirectory) continue
 
-                    val path = entry.name
-                    if (!path.startsWith("docs/")) continue
+                    val fullPath = entry.name
+                    val docsIndex = fullPath.indexOf("docs/")
+                    if (docsIndex == -1) continue
+                    val path = fullPath.substring(docsIndex)
 
                     // Skip ignored files (web assets like CSS/JS) and samples/zips (handled in second pass)
                     if (isIgnored(path) || path.startsWith("docs/samples/zips/")) continue
@@ -91,7 +93,7 @@ class DefaultContentExtractorService(
                 val entries = zip.entries()
                 while (entries.hasMoreElements()) {
                     val entry = entries.nextElement()
-                    if (entry.name.startsWith("docs/samples/zips/") && entry.name.endsWith(".zip")) {
+                    if (entry.name.contains("docs/samples/zips/") && entry.name.endsWith(".zip")) {
                         processSampleZip(zip, entry, convertedDir.resolve("samples"))
                     }
                 }

@@ -11,6 +11,7 @@ import org.apache.lucene.document.Field
 import org.apache.lucene.document.StringField
 import org.apache.lucene.document.TextField
 import org.apache.lucene.search.IndexSearcher
+import org.apache.lucene.search.uhighlight.DefaultPassageFormatter
 import org.apache.lucene.search.uhighlight.UnifiedHighlighter
 import java.nio.file.Files
 import java.nio.file.Path
@@ -94,8 +95,9 @@ class DefaultGradleDocsIndexService(
 
         val topDocs = searcher.search(luceneQuery, maxResults)
 
-        @Suppress("DEPRECATION")
-        val highlighter = UnifiedHighlighter(searcher, analyzer)
+        val highlighter = UnifiedHighlighter.builder(searcher, analyzer)
+            .withFormatter(DefaultPassageFormatter("**", "**", "... ", false))
+            .build()
         val snippets = highlighter.highlight("body", luceneQuery, topDocs)
 
         val results = topDocs.scoreDocs.mapIndexed { i, scoreDoc ->

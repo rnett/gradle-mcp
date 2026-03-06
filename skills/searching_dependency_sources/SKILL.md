@@ -12,7 +12,6 @@ description: >-
   (use researching_gradle_internals), or Maven Central discovery 
   (use managing_gradle_dependencies).
 license: Apache-2.0
-allowed-tools: read_dependency_sources search_dependency_sources
 metadata:
   author: https://github.com/rnett/gradle-mcp
   version: "1.3"

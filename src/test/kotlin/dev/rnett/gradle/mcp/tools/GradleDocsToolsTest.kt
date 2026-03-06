@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.tools
 
+import dev.rnett.gradle.mcp.DocsPageContent
 import dev.rnett.gradle.mcp.DocsSearchResponse
 import dev.rnett.gradle.mcp.DocsSearchResult
 import dev.rnett.gradle.mcp.DocsSectionSummary
@@ -18,6 +19,21 @@ import kotlin.test.assertTrue
 class GradleDocsToolsTest : BaseMcpServerTest() {
 
     val mockDocsService: GradleDocsService get() = server.koin.get()
+
+    @Test
+    fun `gradle_docs returns content for path`() = runTest {
+        val content = DocsPageContent.Markdown("# Test Content")
+        coEvery { mockDocsService.getDocsPageContent("test.md", any()) } returns content
+
+        val response = server.client.callTool(
+            ToolNames.GRADLE_DOCS, buildJsonObject {
+                put("path", "test.md")
+            }
+        ) as CallToolResult
+
+        val text = (response.content.first() as TextContent).text
+        assertEquals("# Test Content", text)
+    }
 
     @Test
     fun `gradle_docs supports pagination for search results`() = runTest {

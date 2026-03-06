@@ -55,7 +55,11 @@ object SymbolSearch : SearchProvider {
             }
             val fileCount = sourceFiles.size
             val symbols = coroutineScope {
-                sourceFiles.chunked(maxOf(1, fileCount / (Runtime.getRuntime().availableProcessors() / 2)))
+                val cores = Runtime.getRuntime().availableProcessors()
+                val targetParallelism = maxOf(1, cores / 2)
+                val chunkSize = maxOf(1, fileCount / targetParallelism)
+
+                sourceFiles.chunked(chunkSize)
                     .map { chunk ->
                         async(indexDispatcher) {
                             chunk.flatMap { findSymbols(it, dependencyDir) }
