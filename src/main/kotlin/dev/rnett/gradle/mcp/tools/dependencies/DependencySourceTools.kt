@@ -4,6 +4,7 @@ import dev.rnett.gradle.mcp.gradle.dependencies.GradleSourceService
 import dev.rnett.gradle.mcp.gradle.dependencies.SourcesService
 import dev.rnett.gradle.mcp.gradle.dependencies.search.FullTextSearch
 import dev.rnett.gradle.mcp.gradle.dependencies.search.GlobSearch
+import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResponse
 import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResult
 import dev.rnett.gradle.mcp.gradle.dependencies.search.SymbolSearch
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
@@ -138,7 +139,8 @@ class DependencySourceTools(
             |
             |### Authoritative Features
             |- **Locating Symbols Precisely**: Using authoritative regex patterns to find classes, methods, or interfaces across the entire dependency graph.
-            |- **Performing Exhaustive Full-Text Searches**: Utilizing high-performance Lucene indexing for surgical text searches, supporting phrases, wildcards, and boolean operators.
+            |- **Performing Exhaustive Full-Text Searches**: Utilizing high-performance Lucene indexing for surgical text searches. 
+            |  This mode supports standard Lucene query syntax. Characters like `:`, `=`, `+`, `-`, `*`, `/` are special operators and MUST be escaped with a backslash (e.g., `\:`) or enclosed in quotes for literal searches.
             |- **Managing Search Scopes**: Narrowing searches to specific projects, configurations, or source sets to maintain token efficiency.
             |- **Searching Files by Path (GLOB)**: Locating specific files using standard Java glob syntax (e.g., `**/*.java`).
             |- **Accessing Gradle Engine Internals**: Searching the authoritative source code of the Gradle Build Tool itself to understand core system behavior.
@@ -146,6 +148,7 @@ class DependencySourceTools(
             |### Common Usage Patterns
             |- **Finding a Class**: `searching_dependency_sources(query="Assert", projectPath=":")`
             |- **Searching for Constants**: `searching_dependency_sources(query="THREAD_POOL_SIZE", searchType="FULL_TEXT")`
+            |- **Literal Search with special characters**: `searching_dependency_sources(query="\"LANGUAGE:\"", searchType="FULL_TEXT")` or `searching_dependency_sources(query="LANGUAGE\\:", searchType="FULL_TEXT")`
             |- **Locating XML Files**: `searching_dependency_sources(query="**/AndroidManifest.xml", searchType="GLOB")`
             |- **Finding Gradle Interfaces**: `searching_dependency_sources(query="interface Project", gradleSource=true)`
             |
@@ -168,17 +171,28 @@ class DependencySourceTools(
             SearchType.FULL_TEXT -> FullTextSearch
             SearchType.GLOB -> GlobSearch
         }
-        val results = sourcesService.search(sources, provider, args.query, args.pagination)
+        val response = sourcesService.search(sources, provider, args.query, args.pagination)
         val refreshMessage = formatRefreshMessage(sources.lastRefresh())
-        refreshMessage + "\n\n" + formatSearchResults(results, args.query, args.pagination)
+        if (response.error != null) {
+            isError = true
+            return@tool response.error!!
+        }
+        refreshMessage + "\n\n" + formatSearchResults(response, args.query, args.pagination)
     }
 
-    private fun formatSearchResults(results: List<SearchResult>, query: String, pagination: PaginationInput): String {
+    private fun formatSearchResults(response: SearchResponse<SearchResult>, query: String, pagination: PaginationInput): String? {
+        if (response.error != null) {
+            return response.error
+        }
+        val results = response.results
         if (results.isEmpty() && pagination.offset == 0) {
             return "No results found for '$query'."
         }
 
         return buildString {
+            if (response.interpretedQuery != null) {
+                appendLine("Interpreted query: `${response.interpretedQuery}`")
+            }
             appendLine("Search results for '$query':\n")
             val paged = paginate(results, pagination, "search results", isAlreadyPaged = false) { result ->
                 buildString {

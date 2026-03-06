@@ -5,6 +5,7 @@ import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.gradle.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchProvider
+import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResponse
 import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResult
 import dev.rnett.gradle.mcp.gradle.dependencies.search.toSearchResults
 import dev.rnett.gradle.mcp.tools.PaginationInput
@@ -66,7 +67,7 @@ interface SourcesService {
      */
     suspend fun downloadSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, index: Boolean = true, forceDownload: Boolean = false, fresh: Boolean = false): SourcesDir
 
-    suspend fun search(sources: SourcesDir, provider: SearchProvider, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): List<SearchResult>
+    suspend fun search(sources: SourcesDir, provider: SearchProvider, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): SearchResponse<SearchResult>
 }
 
 class DefaultSourcesService(private val depService: GradleDependencyService, environment: GradleMcpEnvironment, private val indexService: IndexService) : SourcesService {
@@ -185,14 +186,18 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
         provider: SearchProvider,
         query: String,
         pagination: PaginationInput
-    ): List<SearchResult> {
-        val results = indexService.search(sources, provider, query, pagination)
+    ): SearchResponse<SearchResult> {
+        val response = indexService.search(sources, provider, query, pagination)
         val root = if (sources.path.startsWith(gradleSourcesDir)) {
             sources.sources
         } else {
             globalSourcesDir
         }
-        return results.toSearchResults(root)
+        return SearchResponse(
+            results = response.results.toSearchResults(root),
+            interpretedQuery = response.interpretedQuery,
+            error = response.error
+        )
     }
 
     @OptIn(ExperimentalPathApi::class)

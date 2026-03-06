@@ -5,6 +5,7 @@ import dev.rnett.gradle.mcp.gradle.dependencies.SourcesDir
 import dev.rnett.gradle.mcp.gradle.dependencies.SourcesService
 import dev.rnett.gradle.mcp.gradle.dependencies.search.FullTextSearch
 import dev.rnett.gradle.mcp.gradle.dependencies.search.GlobSearch
+import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResponse
 import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResult
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import dev.rnett.gradle.mcp.tools.ToolNames
@@ -45,13 +46,15 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             sourcesService.search(any(), GlobSearch, "**/Test.kt", any())
-        } returns listOf(
+        } returns SearchResponse(
+            listOf(
             SearchResult(
                 relativePath = "com/example/Test.kt",
                 file = sources.resolve("com/example/Test.kt"),
                 line = 1,
                 snippet = "class Test { }",
                 score = 1.0f
+            )
             )
         )
 
@@ -79,13 +82,15 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             sourcesService.search(any(), FullTextSearch, "test-query", any())
-        } returns listOf(
+        } returns SearchResponse(
+            listOf(
             SearchResult(
                 relativePath = "com/example/Test.kt",
                 file = sources.resolve("com/example/Test.kt"),
                 line = 10,
                 snippet = "class Test { }",
                 score = 1.0f
+            )
             )
         )
 
@@ -241,7 +246,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             sourcesService.search(any(), any(), any(), any())
-        } returns emptyList()
+        } returns SearchResponse(emptyList())
 
         server.client.callTool(
             ToolNames.SEARCH_DEPENDENCY_SOURCES, buildJsonObject {
@@ -300,7 +305,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             sourcesService.search(any(), any(), "test", any())
-        } returns searchResults
+        } returns SearchResponse(searchResults)
 
         val response = server.client.callTool(
             ToolNames.SEARCH_DEPENDENCY_SOURCES, buildJsonObject {
@@ -347,5 +352,30 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         assertTrue(result!!.contains("Showing lines 1 to 10 of 32")) // 30 files + root line + empty line at end? or just extra line from walk
         assertTrue(result.contains("File1.kt"))
         assertTrue(result.contains("offset=10"))
+    }
+
+    @Test
+    fun `search_dependency_sources returns error and sets isError`() = runTest {
+        val sourcesDir = tempDir.resolve("sources-root-error")
+        sourcesDir.createDirectories()
+
+        coEvery {
+            sourcesService.downloadAllSources(any(), any(), any(), any())
+        } returns SourcesDir(sourcesDir)
+
+        coEvery {
+            sourcesService.search(any(), FullTextSearch, "invalid query", any())
+        } returns SearchResponse(emptyList(), error = "Lucene Syntax Error")
+
+        val response = server.client.callTool(
+            ToolNames.SEARCH_DEPENDENCY_SOURCES, buildJsonObject {
+                put("query", "invalid query")
+                put("searchType", "FULL_TEXT")
+            }
+        ) as CallToolResult
+
+        assertEquals(true, response.isError, "isError should be true for search results with errors")
+        val result = (response.content.first() as TextContent).text
+        assertEquals("Lucene Syntax Error", result)
     }
 }

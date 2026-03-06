@@ -14,6 +14,7 @@ import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependencyReport
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleProjectDependencies
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleSourceSetDependencyReport
 import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchProvider
+import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResponse
 import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResult
 import dev.rnett.gradle.mcp.maven.MavenCentralSearchResponse
 import dev.rnett.gradle.mcp.maven.MavenCentralService
@@ -206,7 +207,7 @@ object UpdateTools {
             throw UnsupportedOperationException("Not used for tool listing")
         }
 
-        override suspend fun search(sources: SourcesDir, provider: SearchProvider, query: String, pagination: PaginationInput): List<SearchResult> {
+        override suspend fun search(sources: SourcesDir, provider: SearchProvider, query: String, pagination: PaginationInput): SearchResponse<SearchResult> {
             throw UnsupportedOperationException("Not used for tool listing")
         }
     }

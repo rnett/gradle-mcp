@@ -100,16 +100,16 @@ abstract class SearchIntegrationTestBase {
 
         // MyClass should be found (it's .kt)
         val resultsKt = sourcesService.search(sourcesDir, searchProvider, "MyClass")
-        assertTrue(resultsKt.isNotEmpty(), "Kotlin file should be indexed")
+        assertTrue(resultsKt.results.isNotEmpty(), "Kotlin file should be indexed")
 
         // Others should NOT be found
         val resultsXml = sourcesService.search(sourcesDir, searchProvider, "config")
-        assertTrue(resultsXml.isEmpty(), "XML file should NOT be indexed, but found: $resultsXml")
+        assertTrue(resultsXml.results.isEmpty(), "XML file should NOT be indexed, but found: ${resultsXml.results}")
 
         val resultsTxt = sourcesService.search(sourcesDir, searchProvider, "readme")
-        assertTrue(resultsTxt.isEmpty(), "TXT file should NOT be indexed, but found: $resultsTxt")
+        assertTrue(resultsTxt.results.isEmpty(), "TXT file should NOT be indexed, but found: ${resultsTxt.results}")
 
         val resultsGradle = sourcesService.search(sourcesDir, searchProvider, "plugin")
-        assertTrue(resultsGradle.isEmpty(), "Gradle file should NOT be indexed, but found: $resultsGradle")
+        assertTrue(resultsGradle.results.isEmpty(), "Gradle file should NOT be indexed, but found: ${resultsGradle.results}")
     }
 }

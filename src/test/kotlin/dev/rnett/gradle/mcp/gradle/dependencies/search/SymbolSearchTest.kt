@@ -179,7 +179,8 @@ class SymbolSearchTest {
         SymbolSearch.index(depDir, indexDir)
 
         suspend fun assertFound(query: String, expectedPath: String, expectedLine: Int) {
-            val results = SymbolSearch.search(indexDir, query)
+            val response = SymbolSearch.search(indexDir, query)
+            val results = response.results
             assertTrue(
                 results.any { it.relativePath == expectedPath && it.line == expectedLine },
                 "Symbol $query not found at $expectedPath:$expectedLine. Found: $results"

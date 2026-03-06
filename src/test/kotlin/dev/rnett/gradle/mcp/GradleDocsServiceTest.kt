@@ -20,12 +20,15 @@ class GradleDocsServiceTest {
 
         val version = "9.4.0"
         coEvery { indexer.ensureIndexed(version) } returns Unit
-        coEvery { indexer.search("test", version) } returns listOf(
+        coEvery { indexer.search("test", version) } returns DocsSearchResponse(
+            listOf(
             DocsSearchResult("Title", "path.html", "snippet", "userguide")
+            )
         )
 
         val service = DefaultGradleDocsService(httpClient, indexer, environment)
-        val results = service.searchDocs("test", version)
+        val response = service.searchDocs("test", version)
+        val results = response.results
 
         assertEquals(1, results.size)
         assertEquals("Title", results[0].title)

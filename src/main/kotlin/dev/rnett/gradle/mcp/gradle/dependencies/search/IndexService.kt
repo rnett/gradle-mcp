@@ -28,7 +28,7 @@ interface IndexService {
      */
     suspend fun mergeIndices(sourcesDir: SourcesDir, includedDeps: Map<Path, Index>)
 
-    suspend fun search(sourcesDir: SourcesDir, provider: SearchProvider, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): List<RelativeSearchResult>
+    suspend fun search(sourcesDir: SourcesDir, provider: SearchProvider, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): SearchResponse<RelativeSearchResult>
 }
 
 class DefaultIndexService(
@@ -112,18 +112,19 @@ class DefaultIndexService(
         provider: SearchProvider,
         query: String,
         pagination: PaginationInput
-    ): List<RelativeSearchResult> {
-        val (results, duration) = measureTimedValue {
+    ): SearchResponse<RelativeSearchResult> {
+        val (response, duration) = measureTimedValue {
             val providerIndexDir = sourcesDir.index.resolve(provider.name)
             if (!sourcesDir.index.exists()) {
-                return@measureTimedValue emptyList()
+                return@measureTimedValue SearchResponse(emptyList())
             }
             if (!providerIndexDir.exists()) {
                 throw IllegalStateException("Index for provider ${provider.name} not found in ${sourcesDir.index}")
             }
             provider.search(providerIndexDir, query, pagination)
         }
-        LOGGER.info("Search using ${provider.name} for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) in ${sourcesDir.path} took $duration (${results.size} results)")
-        return results
+        val res = response
+        LOGGER.info("Search using ${provider.name} for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) in ${sourcesDir.path} took $duration (${res.results.size} results)")
+        return res
     }
 }

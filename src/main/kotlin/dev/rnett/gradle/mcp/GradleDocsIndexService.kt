@@ -2,14 +2,14 @@ package dev.rnett.gradle.mcp
 
 import dev.rnett.gradle.mcp.lucene.LuceneReaderCache
 import dev.rnett.gradle.mcp.lucene.LuceneUtils
+import dev.rnett.gradle.mcp.lucene.addTextAndExact
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.apache.lucene.analysis.standard.StandardAnalyzer
+import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.document.Document
 import org.apache.lucene.document.Field
 import org.apache.lucene.document.StringField
 import org.apache.lucene.document.TextField
-import org.apache.lucene.queryparser.classic.MultiFieldQueryParser
 import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.search.uhighlight.UnifiedHighlighter
 import java.nio.file.Files
@@ -24,7 +24,7 @@ import kotlin.io.path.writeText
 
 interface GradleDocsIndexService : AutoCloseable {
     suspend fun ensureIndexed(version: String)
-    suspend fun search(query: String, version: String, maxResults: Int = 20): List<DocsSearchResult>
+    suspend fun search(query: String, version: String, maxResults: Int = 20): DocsSearchResponse
 }
 
 class DefaultGradleDocsIndexService(
@@ -33,7 +33,7 @@ class DefaultGradleDocsIndexService(
     private val readerCache: LuceneReaderCache
 ) : GradleDocsIndexService {
 
-    private val analyzer = StandardAnalyzer()
+    private val analyzer: Analyzer = LuceneUtils.createBoostedAnalyzer(setOf("title_exact", "body_exact"))
 
     override suspend fun ensureIndexed(version: String) {
         val versionDir = environment.cacheDir.resolve("reading_gradle_docs").resolve(version)
@@ -59,8 +59,8 @@ class DefaultGradleDocsIndexService(
                     val doc = Document().apply {
                         add(TextField("tag", tag, Field.Store.YES))
                         add(StringField("path", relativePath, Field.Store.YES))
-                        add(TextField("title", title, Field.Store.YES))
-                        add(TextField("body", content, Field.Store.YES))
+                        addTextAndExact("title", title)
+                        addTextAndExact("body", content)
                     }
                     writer.addDocument(doc)
                 }
@@ -70,19 +70,26 @@ class DefaultGradleDocsIndexService(
         }
     }
 
-    override suspend fun search(query: String, version: String, maxResults: Int): List<DocsSearchResult> {
+    override suspend fun search(query: String, version: String, maxResults: Int): DocsSearchResponse {
         ensureIndexed(version)
         val indexDir = environment.cacheDir.resolve("reading_gradle_docs").resolve(version).resolve("index")
 
         val reader = readerCache.get(indexDir)
         val searcher = IndexSearcher(reader)
-        val fields = arrayOf("title", "body", "tag")
-        val parser = MultiFieldQueryParser(fields, analyzer)
+
         val luceneQuery = try {
-            parser.parse(query)
-        } catch (_: Exception) {
-            // Fallback for potentially malformed queries from LLM
-            parser.parse(MultiFieldQueryParser.escape(query))
+            LuceneUtils.parseBoostedQuery(
+                query,
+                fields = arrayOf("title", "body", "tag"),
+                exactFields = arrayOf("title_exact", "body_exact"),
+                analyzer = analyzer,
+                extraBoosts = mapOf(arrayOf("title_exact") to 5.0f)
+            )
+        } catch (e: Exception) {
+            return DocsSearchResponse(
+                emptyList(),
+                error = LuceneUtils.formatSyntaxError(e.message)
+            )
         }
 
         val topDocs = searcher.search(luceneQuery, maxResults)
@@ -91,7 +98,7 @@ class DefaultGradleDocsIndexService(
         val highlighter = UnifiedHighlighter(searcher, analyzer)
         val snippets = highlighter.highlight("body", luceneQuery, topDocs)
 
-        return topDocs.scoreDocs.mapIndexed { i, scoreDoc ->
+        val results = topDocs.scoreDocs.mapIndexed { i, scoreDoc ->
             val luceneDoc = searcher.storedFields().document(scoreDoc.doc)
             val snippet = snippets.getOrNull(i) ?: luceneDoc.get("body")?.take(200) ?: ""
             DocsSearchResult(
@@ -101,6 +108,7 @@ class DefaultGradleDocsIndexService(
                 tag = luceneDoc.get("tag") ?: ""
             )
         }
+        return DocsSearchResponse(results, interpretedQuery = luceneQuery.toString())
     }
 
     override fun close() {

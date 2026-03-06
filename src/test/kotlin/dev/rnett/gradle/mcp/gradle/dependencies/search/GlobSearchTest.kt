@@ -26,22 +26,22 @@ class GlobSearchTest {
         val outputDir = tempDir.resolve("index")
         GlobSearch.index(dependencyDir, outputDir)
 
-        val results = GlobSearch.search(outputDir, "**/MyClass.kt")
+        val results = GlobSearch.search(outputDir, "**/MyClass.kt").results
         assertEquals(1, results.size)
         assertEquals("src/main/kotlin/MyClass.kt", results[0].relativePath)
 
-        val xmlResults = GlobSearch.search(outputDir, "**/*.xml")
+        val xmlResults = GlobSearch.search(outputDir, "**/*.xml").results
         assertEquals(1, xmlResults.size)
         assertEquals("src/main/resources/config.xml", xmlResults[0].relativePath)
 
-        val licenseResults = GlobSearch.search(outputDir, "LICENSE")
+        val licenseResults = GlobSearch.search(outputDir, "LICENSE").results
         assertEquals(1, licenseResults.size)
         assertEquals("LICENSE", licenseResults[0].relativePath)
 
-        val noResults = GlobSearch.search(outputDir, "NON_EXISTENT")
+        val noResults = GlobSearch.search(outputDir, "NON_EXISTENT").results
         assertTrue(noResults.isEmpty())
 
-        val substringResults = GlobSearch.search(outputDir, "config")
+        val substringResults = GlobSearch.search(outputDir, "config").results
         assertEquals(1, substringResults.size)
         assertEquals("src/main/resources/config.xml", substringResults[0].relativePath)
     }
@@ -69,15 +69,15 @@ class GlobSearchTest {
             mergedDir
         )
 
-        val results1 = GlobSearch.search(mergedDir, "lib1/File1.kt")
+        val results1 = GlobSearch.search(mergedDir, "lib1/File1.kt").results
         assertEquals(1, results1.size)
         assertEquals("lib1/File1.kt", results1[0].relativePath)
 
-        val results2 = GlobSearch.search(mergedDir, "lib2/File2.kt")
+        val results2 = GlobSearch.search(mergedDir, "lib2/File2.kt").results
         assertEquals(1, results2.size)
         assertEquals("lib2/File2.kt", results2[0].relativePath)
 
-        val allResults = GlobSearch.search(mergedDir, "**/*.kt")
+        val allResults = GlobSearch.search(mergedDir, "**/*.kt").results
         assertEquals(2, allResults.size)
     }
 

@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.tools
 
+import dev.rnett.gradle.mcp.DocsSearchResponse
 import dev.rnett.gradle.mcp.DocsSearchResult
 import dev.rnett.gradle.mcp.DocsSectionSummary
 import dev.rnett.gradle.mcp.GradleDocsService
@@ -11,6 +12,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class GradleDocsToolsTest : BaseMcpServerTest() {
@@ -23,7 +25,7 @@ class GradleDocsToolsTest : BaseMcpServerTest() {
             DocsSearchResult("title$i", "path$i", "snippet$i", "tag$i")
         }
 
-        coEvery { mockDocsService.searchDocs("test", any()) } returns results
+        coEvery { mockDocsService.searchDocs("test", any()) } returns DocsSearchResponse(results)
 
         val response = server.client.callTool(
             ToolNames.GRADLE_DOCS, buildJsonObject {
@@ -64,5 +66,20 @@ class GradleDocsToolsTest : BaseMcpServerTest() {
         assertTrue(text.contains("Display 4"))
         assertTrue(!text.contains("Display 1"))
         assertTrue(text.contains("Showing sections 3 to 4 of 5"))
+    }
+
+    @Test
+    fun `gradle_docs returns error and sets isError`() = runTest {
+        coEvery { mockDocsService.searchDocs("invalid query", any()) } returns DocsSearchResponse(emptyList(), error = "Lucene Syntax Error")
+
+        val response = server.client.callTool(
+            ToolNames.GRADLE_DOCS, buildJsonObject {
+                put("query", "invalid query")
+            }
+        ) as CallToolResult
+
+        assertEquals(true, response.isError, "isError should be true for search results with errors")
+        val text = (response.content.first() as TextContent).text
+        assertTrue(text!!.contains("Lucene Syntax Error"))
     }
 }

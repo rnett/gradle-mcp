@@ -31,19 +31,19 @@ class GradleDocsIndexServiceTest {
         val service = DefaultGradleDocsIndexService(extractor, environment, LuceneReaderCache())
 
         // Search for 'dependencies'
-        val results = service.search("dependencies", version)
+        val results = service.search("dependencies", version).results
         assertEquals(1, results.size)
         assertEquals("Userguide Test", results[0].title)
         assertEquals("userguide/test.md", results[0].path)
         assertEquals("userguide", results[0].tag)
 
         // Search by tag
-        val dslResults = service.search("tag:dsl", version)
+        val dslResults = service.search("tag:dsl", version).results
         assertEquals(1, dslResults.size)
         assertEquals("Project DSL", dslResults[0].title)
 
         // Search release notes
-        val rnResults = service.search("tag:release-notes", version)
+        val rnResults = service.search("tag:release-notes", version).results
         assertEquals(1, rnResults.size)
         assertEquals("Release Notes", rnResults[0].title)
 

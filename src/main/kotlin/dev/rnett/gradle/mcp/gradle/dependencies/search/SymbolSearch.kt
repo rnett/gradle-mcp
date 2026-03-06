@@ -151,7 +151,7 @@ object SymbolSearch : SearchProvider {
         LOGGER.info("Symbol index merging took $duration (${indexDirs.size} indices)")
     }
 
-    override suspend fun search(indexDir: Path, query: String, pagination: PaginationInput): List<RelativeSearchResult> = withContext(Dispatchers.IO) {
+    override suspend fun search(indexDir: Path, query: String, pagination: PaginationInput): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (results, duration) = measureTimedValue {
             val indexFile = indexDir.resolve(v1FileName)
             if (!indexFile.exists()) {
@@ -160,18 +160,29 @@ object SymbolSearch : SearchProvider {
 
             val allSymbols = readIndices(indexFile) { it.toList() }
 
-            val queryRegex = Regex(query, RegexOption.IGNORE_CASE)
+            val queryRegex = try {
+                Regex(query, RegexOption.IGNORE_CASE)
+            } catch (e: Exception) {
+                return@measureTimedValue SearchResponse(emptyList(), error = "Invalid regex: ${e.message}")
+            }
 
-            allSymbols.asSequence()
+            val matches = allSymbols.asSequence()
                 .filter { it.name.matches(queryRegex) }
-                .drop(pagination.offset)
-                .take(pagination.limit)
-                .map {
-                    RelativeSearchResult(it.path, offset = it.offset, line = it.line, score = null)
-                }.toList()
+                .toList()
+
+            SearchResponse(
+                matches.asSequence()
+                    .drop(pagination.offset)
+                    .take(pagination.limit)
+                    .map {
+                        RelativeSearchResult(it.path, offset = it.offset, line = it.line, score = null)
+                    }.toList(),
+                interpretedQuery = queryRegex.toString()
+            )
         }
-        LOGGER.info("Symbol search for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) took $duration (${results.size} results)")
-        return@withContext results
+        val response = results
+        LOGGER.info("Symbol search for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) took $duration (${response.results.size} results)")
+        return@withContext response
     }
 
 }

@@ -18,7 +18,6 @@ import org.apache.lucene.document.FieldType
 import org.apache.lucene.index.DirectoryReader
 import org.apache.lucene.index.IndexOptions
 import org.apache.lucene.index.ReaderUtil
-import org.apache.lucene.queryparser.flexible.standard.StandardQueryParser
 import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.search.ScoreMode
 import org.apache.lucene.store.FSDirectory
@@ -37,9 +36,10 @@ import kotlin.time.measureTimedValue
 object FullTextSearch : SearchProvider {
     private val LOGGER = LoggerFactory.getLogger(FullTextSearch::class.java)
     override val name: String = "full-text"
-    override val indexVersion: Int = 3
+    override val indexVersion: Int = 4
 
     private const val CONTENTS = "contents"
+    private const val CONTENTS_EXACT = "contents_exact"
     private const val PATH = "path"
 
     private val readerCache = Caffeine.newBuilder()
@@ -56,7 +56,7 @@ object FullTextSearch : SearchProvider {
         readerCache.invalidate(path)
     }
 
-    internal const val v3IndexDirName = "lucene-full-text-index-v3"
+    internal const val v4IndexDirName = "lucene-full-text-index-v4"
 
     private val contentFieldType = FieldType().apply {
         setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS)
@@ -74,7 +74,7 @@ object FullTextSearch : SearchProvider {
     }
 
     private fun createAnalyzer(): Analyzer {
-        val standard = object : Analyzer() {
+        val standardWithWordDelimiter = object : Analyzer() {
             override fun createComponents(fieldName: String): TokenStreamComponents {
                 val source = StandardTokenizer()
                 var filter: TokenStream = WordDelimiterGraphFilter(
@@ -100,12 +100,22 @@ object FullTextSearch : SearchProvider {
             }
         }
 
-        return PerFieldAnalyzerWrapper(standard, mapOf(PATH to keywordLowercaseAnalyzer))
+        return PerFieldAnalyzerWrapper(
+            standardWithWordDelimiter, mapOf(
+                PATH to keywordLowercaseAnalyzer,
+                CONTENTS_EXACT to LuceneUtils.exactAnalyzer
+            )
+        )
     }
 
-    override suspend fun search(indexDir: Path, query: String, pagination: PaginationInput): List<RelativeSearchResult> = withContext(Dispatchers.IO) {
-        val (results, duration) = measureTimedValue {
-            val idxDir = indexDir.resolve(v3IndexDirName)
+    private fun Document.addContents(content: String) {
+        add(Field(CONTENTS, content, contentFieldType))
+        add(Field(CONTENTS_EXACT, content, contentFieldType))
+    }
+
+    override suspend fun search(indexDir: Path, query: String, pagination: PaginationInput): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
+        val (response, duration) = measureTimedValue {
+            val idxDir = indexDir.resolve(v4IndexDirName)
             if (!idxDir.exists()) {
                 throw IllegalStateException("Lucene index directory does not exist: $idxDir")
             }
@@ -121,9 +131,14 @@ object FullTextSearch : SearchProvider {
             }
             val indexSearcher = IndexSearcher(reader)
             createAnalyzer().use { analyzer ->
-                val parser = StandardQueryParser(analyzer)
-                parser.allowLeadingWildcard = true
-                val q = parser.parse(query, CONTENTS)
+                val q = try {
+                    LuceneUtils.parseBoostedQuery(query, arrayOf(CONTENTS), arrayOf(CONTENTS_EXACT), analyzer)
+                } catch (e: Exception) {
+                    return@measureTimedValue SearchResponse(
+                        emptyList(),
+                        error = LuceneUtils.formatSyntaxError(e.message)
+                    )
+                }
 
                 val topDocs = LuceneUtils.searchPaginated(indexSearcher, q, pagination)
                 val weight = indexSearcher.createWeight(indexSearcher.rewrite(q), ScoreMode.COMPLETE_NO_SCORES, 1.0f)
@@ -136,7 +151,7 @@ object FullTextSearch : SearchProvider {
 
                 val pagedScoreDocs = topDocs.scoreDocs.drop(offset).take(limit)
 
-                pagedScoreDocs.flatMap { r ->
+                val results = pagedScoreDocs.flatMap { r ->
                     val leafContext = leaves[ReaderUtil.subIndex(r.doc, leaves)]
                     val localDocId = r.doc - leafContext.docBase
                     val matches = weight.matches(leafContext, localDocId) ?: return@flatMap emptyList()
@@ -145,27 +160,43 @@ object FullTextSearch : SearchProvider {
                     val path = doc.get(PATH)
 
                     val contentsMatches = matches.getMatches(CONTENTS)
+                    val exactMatches = matches.getMatches(CONTENTS_EXACT)
+
+                    val matchResults = mutableListOf<RelativeSearchResult>()
 
                     if (contentsMatches != null) {
-                        val results = mutableListOf<RelativeSearchResult>()
                         while (contentsMatches.next()) {
-                            results.add(RelativeSearchResult(path, offset = contentsMatches.startOffset(), score = r.score))
+                            matchResults.add(RelativeSearchResult(path, offset = contentsMatches.startOffset(), score = r.score))
                         }
-                        results
-                    } else {
+                    }
+
+                    if (exactMatches != null) {
+                        while (exactMatches.next()) {
+                            // Avoid duplicates if both fields match at the same offset
+                            if (matchResults.none { it.offset == exactMatches.startOffset() }) {
+                                matchResults.add(RelativeSearchResult(path, offset = exactMatches.startOffset(), score = r.score))
+                            }
+                        }
+                    }
+
+                    if (matchResults.isEmpty()) {
                         listOf(RelativeSearchResult(path, offset = 0, line = null, score = r.score, skipBoilerplate = true))
+                    } else {
+                        matchResults
                     }
                 }
+                SearchResponse(results, interpretedQuery = q.toString())
             }
         }
-        LOGGER.info("Full-text search for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) took $duration (${results.size} results)")
-        return@withContext results
+        val res = response
+        LOGGER.info("Full-text search for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) took $duration (${res.results.size} results)")
+        return@withContext res
     }
 
     override suspend fun index(dependencyDir: Path, outputDir: Path) = withContext(Dispatchers.IO) {
         LOGGER.info("Starting full-text indexing for $dependencyDir")
         val (fileCount, duration) = measureTimedValue {
-            val indexDir = outputDir.resolve(v3IndexDirName)
+            val indexDir = outputDir.resolve(v4IndexDirName)
             indexDir.createDirectories()
 
             createAnalyzer().use { analyzer ->
@@ -176,8 +207,9 @@ object FullTextSearch : SearchProvider {
                         .forEach {
                             val doc = Document()
                             val path = it.relativeTo(dependencyDir).toString().replace('\\', '/')
+                            val content = it.readText()
                             doc.add(Field(PATH, path, pathFieldType))
-                            doc.add(Field(CONTENTS, it.readText(), contentFieldType))
+                            doc.addContents(content)
 
                             writer.addDocument(doc)
                             count++
@@ -193,13 +225,13 @@ object FullTextSearch : SearchProvider {
 
     override suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path) = withContext(Dispatchers.IO) {
         val duration = measureTime {
-            val indexDir = outputDir.resolve(v3IndexDirName)
+            val indexDir = outputDir.resolve(v4IndexDirName)
             indexDir.createDirectories()
 
             createAnalyzer().use { analyzer ->
                 LuceneUtils.writeIndex(indexDir, analyzer) { writer ->
                     indexDirs.forEach { (idxParentDir, relativePrefix) ->
-                        val srcIndexDir = idxParentDir.resolve(v3IndexDirName)
+                        val srcIndexDir = idxParentDir.resolve(v4IndexDirName)
                         DirectoryReader.open(FSDirectory.open(srcIndexDir)).use { reader ->
                             val storedFields = reader.storedFields()
                             for (i in 0 until reader.maxDoc()) {
@@ -210,7 +242,7 @@ object FullTextSearch : SearchProvider {
 
                                 val newDoc = Document()
                                 newDoc.add(Field(PATH, newPath, pathFieldType))
-                                newDoc.add(Field(CONTENTS, content, contentFieldType))
+                                newDoc.addContents(content)
                                 writer.addDocument(newDoc)
                             }
                         }

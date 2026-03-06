@@ -9,7 +9,7 @@ interface SearchProvider {
     val name: String
     val indexVersion: Int
 
-    suspend fun search(indexDir: Path, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): List<RelativeSearchResult>
+    suspend fun search(indexDir: Path, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): SearchResponse<RelativeSearchResult>
     suspend fun index(dependencyDir: Path, outputDir: Path)
 
     /**
@@ -21,6 +21,12 @@ interface SearchProvider {
         val SOURCE_EXTENSIONS = setOf("kt", "kts", "java", "groovy")
     }
 }
+
+data class SearchResponse<T>(
+    val results: List<T>,
+    val interpretedQuery: String? = null,
+    val error: String? = null
+)
 
 data class RelativeSearchResult(
     val relativePath: String,

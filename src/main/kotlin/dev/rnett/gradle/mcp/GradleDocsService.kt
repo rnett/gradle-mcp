@@ -33,10 +33,17 @@ sealed class DocsPageContent {
     data class Image(val base64: String, val mimeType: String) : DocsPageContent()
 }
 
+@Serializable
+data class DocsSearchResponse(
+    val results: List<DocsSearchResult>,
+    val interpretedQuery: String? = null,
+    val error: String? = null
+)
+
 interface GradleDocsService : AutoCloseable {
     suspend fun getDocsPageContent(path: String, version: String? = null): DocsPageContent
     suspend fun getReleaseNotes(version: String? = null): String
-    suspend fun searchDocs(query: String, version: String? = null): List<DocsSearchResult>
+    suspend fun searchDocs(query: String, version: String? = null): DocsSearchResponse
     suspend fun summarizeSections(version: String? = null): List<DocsSectionSummary>
 }
 
@@ -141,7 +148,7 @@ class DefaultGradleDocsService(
         return (content as? DocsPageContent.Markdown)?.content ?: throw RuntimeException("Release notes not found as markdown")
     }
 
-    override suspend fun searchDocs(query: String, version: String?): List<DocsSearchResult> {
+    override suspend fun searchDocs(query: String, version: String?): DocsSearchResponse {
         val resolvedVersion = ensurePrepared(version ?: "current")
         return indexer.search(query, resolvedVersion)
     }

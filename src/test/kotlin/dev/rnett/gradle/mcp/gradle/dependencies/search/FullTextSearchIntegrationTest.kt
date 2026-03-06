@@ -59,17 +59,17 @@ class FullTextSearchIntegrationTest : SearchIntegrationTestBase() {
         val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
 
         // Search for phrase in FileA
-        val resultsA = sourcesService.search(sourcesDir, searchProvider, "\"unique phrase in FileA\"")
+        val resultsA = sourcesService.search(sourcesDir, searchProvider, "\"unique phrase in FileA\"").results
         assertTrue(resultsA.isNotEmpty(), "phrase in FileA not found")
         assertTrue(resultsA.any { it.relativePath == "com.example/depA-sources/example/FileA.kt" && it.line == 3 }, "phrase in FileA missing at line 3: ${resultsA}")
 
         // Search for phrase in FileB
-        val resultsB = sourcesService.search(sourcesDir, searchProvider, "\"unique phrase in FileB\"")
+        val resultsB = sourcesService.search(sourcesDir, searchProvider, "\"unique phrase in FileB\"").results
         assertTrue(resultsB.isNotEmpty(), "phrase in FileB not found")
         assertTrue(resultsB.any { it.relativePath == "com.other/depB-sources/other/FileB.java" && it.line == 4 }, "phrase in FileB missing at line 4: ${resultsB}")
 
         // Search for common word
-        val resultsHello = sourcesService.search(sourcesDir, searchProvider, "Hello")
+        val resultsHello = sourcesService.search(sourcesDir, searchProvider, "Hello").results
         assertTrue(resultsHello.isNotEmpty(), "Hello not found")
         val files = resultsHello.map { it.relativePath }.toSet()
         assertEquals(setOf("com.example/depA-sources/example/FileA.kt", "com.other/depB-sources/other/FileB.java"), files)

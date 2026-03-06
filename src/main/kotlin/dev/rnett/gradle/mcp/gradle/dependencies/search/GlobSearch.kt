@@ -22,7 +22,7 @@ object GlobSearch : SearchProvider {
 
     private const val v1FileName = "filenames-v1.txt"
 
-    override suspend fun search(indexDir: Path, query: String, pagination: PaginationInput): List<RelativeSearchResult> = withContext(Dispatchers.IO) {
+    override suspend fun search(indexDir: Path, query: String, pagination: PaginationInput): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (results, duration) = measureTimedValue {
             val file = indexDir.resolve(v1FileName)
             if (!file.exists()) {
@@ -42,7 +42,7 @@ object GlobSearch : SearchProvider {
 
             val paths = file.readLines()
 
-            paths.asSequence()
+            val matches = paths.asSequence()
                 .filter { path ->
                     if (matcher != null) {
                         try {
@@ -56,21 +56,28 @@ object GlobSearch : SearchProvider {
                         path.contains(query, ignoreCase = true)
                     }
                 }
-                .drop(pagination.offset)
-                .take(pagination.limit)
-                .map { relativePath ->
-                    RelativeSearchResult(
-                        relativePath = relativePath,
-                        offset = 0,
-                        line = null,
-                        score = 1.0f,
-                        snippet = null,
-                        skipBoilerplate = true
-                    )
-                }.toList()
+                .toList()
+
+            SearchResponse(
+                matches.asSequence()
+                    .drop(pagination.offset)
+                    .take(pagination.limit)
+                    .map { relativePath ->
+                        RelativeSearchResult(
+                            relativePath = relativePath,
+                            offset = 0,
+                            line = null,
+                            score = 1.0f,
+                            snippet = null,
+                            skipBoilerplate = true
+                        )
+                    }.toList(),
+                interpretedQuery = matcher?.toString() ?: "substring:$query"
+            )
         }
-        LOGGER.info("Glob search for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) took $duration (${results.size} results)")
-        return@withContext results
+        val response = results
+        LOGGER.info("Glob search for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) took $duration (${response.results.size} results)")
+        return@withContext response
     }
 
     override suspend fun index(dependencyDir: Path, outputDir: Path) = withContext(Dispatchers.IO) {
