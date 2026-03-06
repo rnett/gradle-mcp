@@ -1,5 +1,4 @@
-- Update mcp tools and skills based on new research (in ~/.agents) and new MCP and skill creation/editing skills.
-- A "gradle expert/build authoring" skill, which should be about Gradle build editing and mention things like the best practices.
+- A "gradle expert/build authoring" skill, which should be about Gradle build editing, source and doc viewing, etc, and mention things like the best practices from the docs.
 - Progress notifications for search, download, indexing, etc.
 - Make symbol indexing and archive extraction more performant, especially for the Gradle sources. Look at using lucene, or doing the full text search first and then searching for symbols.
 - A tool to read/search the source of one particular library, with the version used in our project. Should hopefully be faster than everything.

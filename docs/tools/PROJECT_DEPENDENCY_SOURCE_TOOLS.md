@@ -113,7 +113,7 @@ This tool provides high-performance, indexed search capabilities that far exceed
 
 Once identified, use the `read_dependency_sources` tool to read the full content.
 Note: All returned paths are relative to the combined source root.
-For detailed search strategies, refer to the `searching_gradle_sources` skill.
+For detailed search strategies, refer to the `searching_dependency_sources` skill.
 
 <details>
 

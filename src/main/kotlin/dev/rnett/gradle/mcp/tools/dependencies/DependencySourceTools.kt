@@ -154,7 +154,7 @@ class DependencySourceTools(
             |
             |Once identified, use the `${ToolNames.READ_DEPENDENCY_SOURCES}` tool to read the full content.
             |Note: All returned paths are relative to the combined source root.
-            |For detailed search strategies, refer to the `searching_gradle_sources` skill.
+            |For detailed search strategies, refer to the `searching_dependency_sources` skill.
         """.trimMargin()
     ) { args ->
         val root = with(server) { args.projectRoot.resolveRoot() }
