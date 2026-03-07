@@ -154,6 +154,15 @@ class Application(val args: Array<String>, val transport: Transport) {
 
         @JvmStatic
         fun main(args: Array<String>) {
+            if (System.getenv("JBANG_CDS_DUMP") == "true" || args.contains("--version") || args.contains("-v")) {
+                println("gradle-mcp version ${BuildConfig.APP_VERSION}")
+                if (System.getenv("JBANG_CDS_DUMP") == "true") {
+                    val app = Application(args, Transport.Sse())
+                    app.koinContext.get<McpServer>()
+                }
+                return
+            }
+
             val mode = args.getOrNull(0)
             if (mode == "stdio" || args.isEmpty()) {
                 stdio(if (mode == "stdio") args.drop(1).toTypedArray() else args)
