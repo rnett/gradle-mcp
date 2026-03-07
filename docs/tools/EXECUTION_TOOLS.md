@@ -103,7 +103,8 @@ Note: Avoid `--rerun-tasks` unless investigating cache issues. Use `invocationAr
             "INHERIT",
             "SHELL"
           ],
-          "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars. Recommended if Gradle isn't finding environment variables (e.g. for JDKs) that should be present, which can happen if the host process starts before the shell environment is fully loaded."
+          "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars. Recommended if Gradle isn't finding environment variables (e.g. for JDKs) that should be present, which can happen if the host process starts before the shell environment is fully loaded.",
+          "type": "string"
         }
       },
       "description": "Applying additional advanced invocation arguments for the Gradle process."

@@ -208,9 +208,13 @@ fun JsonNode.toKotlinxSerialization(): JsonElement = when (this) {
         items.map { it.toKotlinxSerialization() }
     )
 
-    is JsonObject -> kotlinx.serialization.json.JsonObject(
-        properties.mapValues { it.value.toKotlinxSerialization() }
-    )
+    is JsonObject -> {
+        val props = properties.mapValues { it.value.toKotlinxSerialization() }.toMutableMap()
+        if (props.containsKey("enum") && !props.containsKey("type")) {
+            props["type"] = JsonPrimitive("string")
+        }
+        kotlinx.serialization.json.JsonObject(props)
+    }
 
     is JsonBooleanValue -> JsonPrimitive(value)
     is JsonNullValue -> JsonNull

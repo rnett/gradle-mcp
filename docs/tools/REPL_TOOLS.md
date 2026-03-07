@@ -37,7 +37,8 @@ It provides a persistent session with full access to project classes and depende
         "stop",
         "run"
       ],
-      "description": "Executing an authoritative command: 'start', 'stop', or 'run'."
+      "description": "Executing an authoritative command: 'start', 'stop', or 'run'.",
+      "type": "string"
     },
     "projectRoot": {
       "type": "string",

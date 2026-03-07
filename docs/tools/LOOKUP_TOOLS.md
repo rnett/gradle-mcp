@@ -51,7 +51,8 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
         "summary",
         "details"
       ],
-      "description": "Applying a surgical lookup mode: 'summary' (default) or 'details'. Use 'details' for exhaustive, deep-dive information."
+      "description": "Applying a surgical lookup mode: 'summary' (default) or 'details'. Use 'details' for exhaustive, deep-dive information.",
+      "type": "string"
     },
     "wait": {
       "type": [
@@ -113,7 +114,8 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
         "FROM_CACHE",
         "NO_SOURCE"
       ],
-      "description": "Filter task results by outcome (summary mode only)."
+      "description": "Filter task results by outcome (summary mode only).",
+      "type": "string"
     },
     "testName": {
       "type": [
@@ -128,7 +130,8 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
         "FAILED",
         "SKIPPED"
       ],
-      "description": "Filter test results by outcome (summary mode only)."
+      "description": "Filter test results by outcome (summary mode only).",
+      "type": "string"
     },
     "testIndex": {
       "type": [

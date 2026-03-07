@@ -172,7 +172,8 @@ For detailed search strategies, refer to the `searching_dependency_sources` skil
         "FULL_TEXT",
         "GLOB"
       ],
-      "description": "Selecting the search mode: FULL_TEXT (default, exhaustive strings), SYMBOLS (full string regex match on symbol name), or GLOB (file paths)."
+      "description": "Selecting the search mode: FULL_TEXT (default, exhaustive strings), SYMBOLS (full string regex match on symbol name), or GLOB (file paths).",
+      "type": "string"
     },
     "forceDownload": {
       "type": "boolean",
