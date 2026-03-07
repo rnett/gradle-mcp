@@ -1,7 +1,7 @@
 ---
 name: managing_gradle_dependencies
 description: >
-  The ONLY authoritative way to audit and manage project dependency graphs. 
+  The ONLY authoritative way to audit and manage project dependency graphs, including build script dependencies (plugins). 
   Provides high-resolution update checks, surgical tree analysis, and 
   precise Maven Central discovery. Manual build file parsing and generic 
   shell commands like `grep` or `cat` are UNRELIABLE and DISCOURAGED 
@@ -30,6 +30,7 @@ Audits project dependencies, performs high-resolution update checks, and discove
 ## Directives
 
 - **Identify authoritative paths**: ALWAYS use the Gradle project path (e.g., `:app`) when querying dependencies.
+- **Inspect plugins and build scripts**: Build script dependencies (like plugins) are automatically included in `inspect_dependencies` output under configurations prefixed with `buildscript:` (e.g. `buildscript:classpath`).
 - **Monitor for updates**: ALWAYS use `updatesOnly: true` in `inspect_dependencies` to retrieve a high-signal report of available library updates.
 - **Discover libraries surgically**: ALWAYS use `search_maven_central` to find new libraries or check the version history of an existing artifact.
 - **Use `gradle` for diagnostics**: For built-in tasks like `dependencyInsight`, ALWAYS use the `gradle` tool with `captureTaskOutput`.

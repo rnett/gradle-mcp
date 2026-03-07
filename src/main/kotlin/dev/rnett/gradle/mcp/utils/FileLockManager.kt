@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.utils
 
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -10,8 +11,8 @@ import java.nio.channels.FileLock
 import java.nio.channels.OverlappingFileLockException
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
+import java.time.Clock
 import java.time.Duration
-import java.time.Instant
 import kotlin.io.path.createDirectories
 
 object FileLockManager {
@@ -26,15 +27,17 @@ object FileLockManager {
         lockFile: Path,
         timeout: Duration = Duration.ofSeconds(60),
         shared: Boolean = false,
+        clock: Clock = Clock.systemUTC(),
+        dispatcher: CoroutineDispatcher = Dispatchers.IO,
         action: suspend () -> T
     ): T {
         val absolutePath = lockFile.toAbsolutePath()
         absolutePath.parent.createDirectories()
 
-        val start = Instant.now()
-        var lastLog = Instant.now()
+        val start = clock.instant()
+        var lastLog = clock.instant()
 
-        return withContext(Dispatchers.IO) {
+        return withContext(dispatcher) {
             FileChannel.open(
                 absolutePath,
                 StandardOpenOption.CREATE,
@@ -55,7 +58,7 @@ object FileLockManager {
                     }
 
                     if (lock == null) {
-                        val now = Instant.now()
+                        val now = clock.instant()
                         if (Duration.between(start, now) > timeout) {
                             throw IOException("Failed to acquire ${if (shared) "shared" else "exclusive"} lock on $absolutePath after ${timeout.toSeconds()}s")
                         }

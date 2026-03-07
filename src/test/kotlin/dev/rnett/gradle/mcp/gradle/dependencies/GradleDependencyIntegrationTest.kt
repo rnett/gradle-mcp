@@ -111,6 +111,12 @@ class GradleDependencyIntegrationTest {
 
             buildScript(
                 """
+                buildscript {
+                    repositories { mavenCentral() }
+                    dependencies {
+                        classpath("org.slf4j:slf4j-api:${BuildConfig.SLF4J_VERSION}")
+                    }
+                }
                 plugins { id("java") }
                 repositories { mavenCentral() }
                 configurations {
@@ -268,7 +274,7 @@ class GradleDependencyIntegrationTest {
 
         // Check that variant information is present
         assertNotNull(serialization.variant, "Variant should not be null for KMP dependency")
-        assertTrue(serialization.variant!!.contains("jvmApiElements") || serialization.variant!!.contains("jvmRuntimeElements"), "Variant should be a JVM variant, got ${serialization.variant}")
+        assertTrue(serialization.variant.contains("jvmApiElements") || serialization.variant.contains("jvmRuntimeElements"), "Variant should be a JVM variant, got ${serialization.variant}")
 
         assertNotNull(serialization.version)
     }
@@ -327,7 +333,7 @@ class GradleDependencyIntegrationTest {
         assertNotNull(slf4j.latestVersion)
         // Verify latest version is stable (doesn't contain beta etc)
         val nonStable = listOf("alpha", "beta", "rc", "m", "preview", "snapshot", "canary")
-        assertTrue(nonStable.none { slf4j.latestVersion!!.contains(it, ignoreCase = true) }, "Latest version ${slf4j.latestVersion} should be stable")
+        assertTrue(nonStable.none { slf4j.latestVersion.contains(it, ignoreCase = true) }, "Latest version ${slf4j.latestVersion} should be stable")
     }
 
     // --- Tests from GradleDependencyConfigurationTest ---
@@ -377,5 +383,39 @@ class GradleDependencyIntegrationTest {
         val allDeps = rootProject.allDependencies("childConf")
         assertTrue(allDeps.any { it.id.contains("guava") })
         assertTrue(allDeps.any { it.id.contains("slf4j-api") })
+    }
+
+    @Test
+    fun `can get buildscript dependencies`() = runTest(timeout = 180.seconds) {
+        val projectRoot = GradleProjectRoot(complexProject.pathString())
+        val report = service.getDependencies(projectRoot, projectPath = ":")
+
+        val rootProject = report.projects.find { it.path == ":" }
+        assertNotNull(rootProject)
+
+        val buildscriptClasspath = rootProject.configurations.find { it.name == "buildscript:classpath" }
+        assertNotNull(buildscriptClasspath, "Should find buildscript:classpath configuration")
+
+        // buildscript configurations should be resolvable
+        assertTrue(buildscriptClasspath.isResolvable, "buildscript:classpath should be resolvable")
+    }
+
+    @Test
+    fun `can get dependencies and sources for normally applied plugins`() = runTest(timeout = 180.seconds) {
+        val projectRoot = GradleProjectRoot(complexProject.pathString())
+        val config = service.downloadConfigurationSources(projectRoot, ":sub-b:buildscript:classpath")
+
+        assertNotNull(config)
+        assertEquals("buildscript:classpath", config.name)
+        assertTrue(config.dependencies.isNotEmpty(), "Should have buildscript dependencies")
+
+        val allDeps = config.allDependencies().toList()
+
+        val kotlinPlugin = allDeps.find { it.name.contains("kotlin-gradle-plugin") }
+        assertNotNull(kotlinPlugin, "Should find kotlin-gradle-plugin")
+
+        // This fails locally if downloading sources isn't working/mocked perfectly in tests, but it tests the feature flow
+        // The fact that we even get the dependency is the primary win.
+        assertNotNull(kotlinPlugin.sourcesFile, "Should find sources for kotlin-gradle-plugin")
     }
 }

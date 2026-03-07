@@ -40,11 +40,23 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         val onlyDirect = realProject.hasProperty("mcp.onlyDirect") && realProject.property("mcp.onlyDirect").toString() == "true"
         val downloadSources = realProject.hasProperty("mcp.downloadSources") && realProject.property("mcp.downloadSources").toString() == "true"
         val versionFilter = if (realProject.hasProperty("mcp.versionFilter")) realProject.property("mcp.versionFilter").toString() else null
+        val targetConfig = if (realProject.hasProperty("mcp.configuration")) realProject.property("mcp.configuration").toString() else null
 
-        val configurations = getModelConfigurations(model)
-        val directDependencies = gatherDirectDependencies(configurations)
-        val latestVersions = if (checkUpdates) gatherLatestVersions(configurations, directDependencies, onlyDirect, versionFilter) else emptyMap()
-        val sourcesFiles = if (downloadSources) gatherSources(configurations) else emptyMap()
+        val modelConfigurations = getModelConfigurations(model)
+
+        val projectConfigs = if (targetConfig != null && targetConfig.startsWith("buildscript:")) {
+            emptyList()
+        } else {
+            modelConfigurations.mapNotNull { realProject.configurations.findByName(it.name) }
+        }
+        val buildscriptConfigs = realProject.buildscript.configurations.filter {
+            targetConfig == null || targetConfig == "buildscript:${it.name}"
+        }
+        val allConfigs = projectConfigs + buildscriptConfigs
+
+        val directDependencies = gatherDirectDependencies(allConfigs)
+        val latestVersions = if (checkUpdates) gatherLatestVersions(allConfigs, directDependencies, onlyDirect, versionFilter) else emptyMap()
+        val sourcesFiles = if (downloadSources) gatherSources(allConfigs) else emptyMap()
 
         mcpRenderer.latestVersions = latestVersions
         mcpRenderer.sourcesFiles = sourcesFiles
@@ -56,6 +68,17 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         outputKotlinSourceSets(project, realProject, mcpRenderer)
 
         super.generateReportFor(project, model)
+
+        mcpRenderer.startProject(project)
+        mcpRenderer.inBuildscript = true
+        for (config in buildscriptConfigs) {
+            val details = ConfigurationDetails.of(config)
+            mcpRenderer.startConfiguration(details)
+            mcpRenderer.render(details)
+            mcpRenderer.completeConfiguration(details)
+        }
+        mcpRenderer.inBuildscript = false
+        mcpRenderer.completeProject(project)
     }
 
     private fun getModelConfigurations(model: AbstractDependencyReportTask.DependencyReportModel): List<ConfigurationDetails> {
@@ -65,15 +88,14 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         return field.get(model) as List<ConfigurationDetails>
     }
 
-    private fun gatherDirectDependencies(configurations: List<ConfigurationDetails>): Set<String> {
+    private fun gatherDirectDependencies(configurations: List<Configuration>): Set<String> {
         val directDependencies = mutableSetOf<String>()
         val realProject = getProject()
-        configurations.forEach { configDetails ->
-            val config = realProject.configurations.findByName(configDetails.name)
-            config?.dependencies?.forEach { dep ->
+        configurations.forEach { config ->
+            config.dependencies.forEach { dep ->
                 if (dep is ProjectDependency) {
                     directDependencies.add("project:${dep.path}")
-                } else if (dep.group != null && dep.name != null) {
+                } else if (dep.group != null) {
                     directDependencies.add("${dep.group}:${dep.name}")
                 }
             }
@@ -82,7 +104,7 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
     }
 
     private fun gatherLatestVersions(
-        configurations: List<ConfigurationDetails>,
+        configurations: List<Configuration>,
         directDependencies: Set<String>,
         onlyDirect: Boolean,
         versionFilter: String?
@@ -90,10 +112,9 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         val realProject = getProject()
         val allUniqueModuleComponents = mutableSetOf<ModuleComponentIdentifier>()
 
-        configurations.filter { it.isCanBeResolved }.forEach { configDetails ->
+        configurations.filter { it.isCanBeResolved }.forEach { config ->
             try {
-                val config = realProject.configurations.findByName(configDetails.name)
-                config?.incoming?.resolutionResult?.allComponents?.forEach {
+                config.incoming.resolutionResult.allComponents.forEach {
                     val id = it.id
                     if (id is ModuleComponentIdentifier) {
                         allUniqueModuleComponents.add(id)
@@ -144,14 +165,13 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         return latestVersions
     }
 
-    private fun gatherSources(configurations: List<ConfigurationDetails>): Map<String, String> {
+    private fun gatherSources(configurations: List<Configuration>): Map<String, String> {
         val realProject = getProject()
         val components = mutableSetOf<ModuleComponentIdentifier>()
 
-        configurations.filter { it.isCanBeResolved }.forEach { configDetails ->
+        configurations.filter { it.isCanBeResolved }.forEach { config ->
             try {
-                val config = realProject.configurations.findByName(configDetails.name)
-                config?.incoming?.resolutionResult?.allComponents?.forEach {
+                config.incoming.resolutionResult.allComponents.forEach {
                     val id = it.id
                     if (id is ModuleComponentIdentifier) {
                         components.add(id)
@@ -192,6 +212,15 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
                 else -> "unknown"
             }
             mcpRenderer.outputRepository(project, name, url)
+        }
+        realProject.buildscript.repositories.forEach { repo ->
+            val name = repo.name
+            val url = when (repo) {
+                is MavenArtifactRepository -> repo.url.toString()
+                is IvyArtifactRepository -> repo.url.toString()
+                else -> "unknown"
+            }
+            mcpRenderer.outputRepository(project, "buildscript:$name", url)
         }
     }
 
@@ -240,6 +269,7 @@ class McpDependencyReportRenderer : DependencyReportRenderer {
     var sourcesFiles: Map<String, String> = emptyMap()
     var onlyDirect: Boolean = false
     var gradleProject: Project? = null
+    var inBuildscript: Boolean = false
     private var currentProject: ProjectDetails? = null
     private var currentConfigurationName: String? = null
 
@@ -272,14 +302,15 @@ class McpDependencyReportRenderer : DependencyReportRenderer {
     override fun startConfiguration(configuration: ConfigurationDetails) {
         this.currentConfigurationName = configuration.name
         val path = currentProject?.let { getProjectPath(it) } ?: "unknown"
-        val realConfig = gradleProject?.configurations?.findByName(configuration.name)
-        val extendsFrom = realConfig?.extendsFrom?.map { it.name }?.joinToString(",") ?: ""
-        output?.println("CONFIGURATION: $path | ${configuration.name} | ${configuration.description ?: ""} | ${configuration.isCanBeResolved} | $extendsFrom")
+        val realConfig = if (inBuildscript) gradleProject?.buildscript?.configurations?.findByName(configuration.name) else gradleProject?.configurations?.findByName(configuration.name)
+        val extendsFrom = realConfig?.extendsFrom?.map { if (inBuildscript) "buildscript:${it.name}" else it.name }?.joinToString(",") ?: ""
+        val prefix = if (inBuildscript) "buildscript:" else ""
+        output?.println("CONFIGURATION: $path | $prefix${configuration.name} | ${configuration.description ?: ""} | ${configuration.isCanBeResolved} | $extendsFrom")
     }
 
     override fun render(configuration: ConfigurationDetails) {
         val project = currentProject ?: return
-        val realConfig = gradleProject?.configurations?.findByName(configuration.name) ?: return
+        val realConfig = (if (inBuildscript) gradleProject?.buildscript?.configurations?.findByName(configuration.name) else gradleProject?.configurations?.findByName(configuration.name)) ?: return
         
         if (configuration.isCanBeResolved) {
             val root = configuration.resolutionResultRoot?.get() ?: return
@@ -296,10 +327,12 @@ class McpDependencyReportRenderer : DependencyReportRenderer {
                 val declaringConfig = findDeclaringConfiguration(realConfig, dep)
                 if (declaringConfig == null) return@forEach
 
+                val declaringName = if (inBuildscript) "buildscript:${declaringConfig.name}" else declaringConfig.name
+
                 if (declaringConfig == realConfig) {
                     renderDependencyResult(project, dep, 1, visited, null)
                 } else if (!declaringConfig.isCanBeResolved()) {
-                    renderDependencyResult(project, dep, 1, visited, declaringConfig.name)
+                    renderDependencyResult(project, dep, 1, visited, declaringName)
                 }
             }
         } else {
@@ -342,7 +375,7 @@ class McpDependencyReportRenderer : DependencyReportRenderer {
     }
 
     private fun isDeclaredInUnresolvable(configName: String, dep: RenderableDependency): Boolean {
-        val config = gradleProject?.configurations?.findByName(configName) ?: return false
+        val config = (if (inBuildscript) gradleProject?.buildscript?.configurations?.findByName(configName) else gradleProject?.configurations?.findByName(configName)) ?: return false
         val name = dep.getName()
         val depId = dep.getId()
         return config.dependencies.any { declared ->

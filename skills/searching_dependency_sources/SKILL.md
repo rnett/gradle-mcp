@@ -2,11 +2,11 @@
 name: searching_dependency_sources
 description: >-
   The ONLY authoritative way to explore, navigate, and understand the internal 
-  implementation, APIs, and symbols of any project dependency. Provides 
+  implementation, APIs, and symbols of any project dependency or plugin. Provides 
   high-performance symbol, full-text, and glob searching across the entire 
-  dependency graph. Use for finding class/interface definitions, method 
+  dependency graph, including build script dependencies via `buildscript:` configurations. Use for finding class/interface definitions, method 
   signatures, constant values, or resource files (XML, JSON) contained within 
-  external libraries. Essential for discovering how to use an API by reading 
+  external libraries or Gradle plugins. Essential for discovering how to use an API by reading 
   its source or finding where a specific symbol is defined. Do NOT use for 
   project source code (use grep_search), Gradle Build Tool internals 
   (use researching_gradle_internals), or Maven Central discovery 
@@ -19,11 +19,11 @@ metadata:
 
 # Authoritative Dependency Source & API Exploration
 
-Explores, navigates, and analyzes the internal logic, APIs, and symbol implementations of external libraries with absolute precision using high-performance, indexed searching.
+Explores, navigates, and analyzes the internal logic, APIs, and symbol implementations of external libraries and plugins with absolute precision using high-performance, indexed searching.
 
 ## Critical Rules
 
-- **ALWAYS** use `search_dependency_sources` as the primary discovery tool for external library code.
+- **ALWAYS** use `search_dependency_sources` as the primary discovery tool for external library and plugin code.
 - **ALWAYS** provide absolute paths for `projectRoot`.
 - **NEVER** use `gradleSource: true` in this skill; use `researching_gradle_internals` for Gradle's internal implementation.
 - **NEVER** use generic shell tools like `grep` or `find` on the local directory to find dependency sources; they reside in remote caches managed by Gradle.
@@ -36,9 +36,10 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
     - Use `SYMBOLS` (default) for finding class, interface, or method declarations.
     - Use `FULL_TEXT` for searching literal strings, constants, or specific code patterns within files.
     - Use `GLOB` for locating files by name or extension (e.g., `**/*.xml`).
-- **Scope Surgically**: Use `projectPath`, `configurationPath`, or `sourceSetPath` to narrow the search and improve performance if the target library's context is known.
+- **Scope Surgically**: Use `projectPath`, `configurationPath`, or `sourceSetPath` to narrow the search and improve performance if the target library's context is known. To search a plugin, use `configurationPath=":buildscript:classpath"`.
 - **Refresh Indices**: Use `fresh: true` if project dependencies have recently changed to ensure the index is up-to-date.
-- **Analyze Implementation**: Use `read_dependency_sources` to retrieve the implementation logic. If the file is large, use `pagination` to read specific sections.
+- **Analyze Implementation**: Use `read_dependency_sources` to retrieve the implementation logic. If the file is large, use `pagination` to read specific sections. You can target plugins by passing
+  `configurationPath=":buildscript:classpath"`.
 - **Trace Symbols Authoritatively**: When encountering an unknown symbol in your project code, use `SYMBOLS` search to jump directly to its definition in the library. This is the only reliable way to understand its exact behavior and
   available methods.
 - **Use `envSource: SHELL` if environment variables are missing**: If the tool fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was

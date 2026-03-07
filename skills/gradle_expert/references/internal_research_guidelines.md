@@ -82,20 +82,18 @@ Tool: `search_dependency_sources`
 
 ## 3. Third-Party Plugin Exploration
 
-When researching how a plugin works, use the authoritative dependency search and source retrieval tools.
+When researching how a plugin works, use the authoritative dependency search and source retrieval tools. Plugins are automatically exposed through configurations prefixed with `buildscript:`.
 
 ### Identify Plugin Dependencies
 
-Use the `buildEnvironment` task via the `gradle` tool to identify the correct `classpath` configuration and plugin coordinates for the build script.
+Use the `inspect_dependencies` tool to identify the plugin coordinates and versions used in the build script.
 
-Tool: `gradle`
+Tool: `inspect_dependencies`
 
 ```json
 {
-  "commandLine": [
-    ":buildEnvironment"
-  ],
-  "captureTaskOutput": ":buildEnvironment"
+  "projectPath": ":",
+  "configuration": "buildscript:classpath"
 }
 ```
 
@@ -109,13 +107,23 @@ Tool: `search_dependency_sources`
 {
   "query": "class MyPlugin",
   "projectPath": ":",
-  "configurationPath": ":classpath"
+  "configurationPath": ":buildscript:classpath"
 }
 ```
 
 ### Read Plugin Sources
 
-Use `read_dependency_sources` with the paths returned from the search to examine the implementation.
+Use `read_dependency_sources` with the paths returned from the search to examine the implementation. You can explicitly target the buildscript classpath:
+
+Tool: `read_dependency_sources`
+
+```json
+{
+  "projectPath": ":",
+  "configurationPath": ":buildscript:classpath",
+  "path": "com/example/MyPlugin.kt"
+}
+```
 
 ## 4. Best Practices for Research
 

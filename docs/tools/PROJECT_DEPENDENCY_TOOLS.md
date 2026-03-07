@@ -6,9 +6,10 @@ Tools for querying Gradle dependencies and checking for updates.
 
 ## inspect_dependencies
 
-ALWAYS use this tool to inspect project dependencies and check for updates instead of manually parsing build files or running shell commands like `grep`.
+ALWAYS use this tool to inspect project dependencies, build script dependencies (plugins), and check for updates instead of manually parsing build files or running shell commands like `grep`.
 Manual parsing is HIGHLY UNRELIABLE as it misses transitive dependencies, version resolution, and dynamic version updates.
 This tool provides the ONLY authoritative, searchable view of the project's exact resolved dependency graph, automatically detects available version updates, and resolves configurations natively.
+It automatically includes build classpath dependencies (plugins) under `buildscript:` prefixed configurations (e.g. `buildscript:classpath`).
 To discover new external libraries, use `search_maven_central`. For built-in Gradle tasks like `dependencyInsight`, use `gradle`.
 
 <details>

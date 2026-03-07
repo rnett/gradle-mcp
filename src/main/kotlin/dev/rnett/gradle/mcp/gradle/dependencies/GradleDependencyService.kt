@@ -243,7 +243,11 @@ class DefaultGradleDependencyService(
         additional += task
 
         if (!configuration.isNullOrBlank()) {
-            additional += listOf("--configuration", configuration)
+            if (configuration.startsWith("buildscript:")) {
+                additional += listOf("-Pmcp.configuration=$configuration")
+            } else {
+                additional += listOf("--configuration", configuration)
+            }
         }
         if (!sourceSet.isNullOrBlank()) {
             // The init-script may handle this flag; pass through for filtering on Gradle side if supported
@@ -281,14 +285,21 @@ class DefaultGradleDependencyService(
         val text = running.consoleOutput.toString()
         val parsed = parseStructuredOutput(text)
 
-        // If client requested sourceSet filtering and init script didn't filter, apply here
-        val filtered = if (!sourceSet.isNullOrBlank()) {
+        // If client requested configuration or sourceSet filtering, apply here
+        val filtered = if (!configuration.isNullOrBlank() || !sourceSet.isNullOrBlank()) {
             parsed.copy(
-                projects = parsed.projects.map { p ->
-                    p.copy(
-                        sourceSets = p.sourceSets.filter { it.name == sourceSet },
-                        configurations = p.configurations // do not filter configurations here; config-to-sources mapping is informational
-                    )
+                projects = parsed.projects.mapNotNull { p ->
+                    val newConfigs = if (!configuration.isNullOrBlank()) p.configurations.filter { it.name == configuration } else p.configurations
+                    val newSourceSets = if (!sourceSet.isNullOrBlank()) p.sourceSets.filter { it.name == sourceSet } else p.sourceSets
+
+                    if (newConfigs.isEmpty() && newSourceSets.isEmpty() && (p.configurations.isNotEmpty() || p.sourceSets.isNotEmpty())) {
+                        null
+                    } else {
+                        p.copy(
+                            sourceSets = newSourceSets,
+                            configurations = newConfigs
+                        )
+                    }
                 }
             )
         } else parsed
@@ -350,10 +361,14 @@ class DefaultGradleDependencyService(
         configurationPath: String,
         downloadSources: Boolean
     ): GradleConfigurationDependencies {
-        val lastColon = configurationPath.lastIndexOf(':')
+        val isBuildscript = configurationPath.contains(":buildscript:")
+        val searchPath = if (isBuildscript) configurationPath.replace(":buildscript:", "::") else configurationPath
+        val lastColon = searchPath.lastIndexOf(':')
         require(lastColon != -1) { "configurationPath must be an absolute Gradle path (e.g. :project:foo:implementation)" }
-        val projectPath = if (lastColon == 0) ":" else configurationPath.substring(0, lastColon)
-        val configurationName = configurationPath.substring(lastColon + 1)
+
+        val actualLastColon = if (isBuildscript) configurationPath.lastIndexOf(":buildscript:") else lastColon
+        val projectPath = if (actualLastColon == 0) ":" else configurationPath.substring(0, actualLastColon)
+        val configurationName = configurationPath.substring(actualLastColon + 1)
 
         val report = getDependencies(
             projectRoot,
