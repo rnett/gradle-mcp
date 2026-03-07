@@ -103,7 +103,7 @@ class GradleExecutionTools(
                     if (taskOut != null) {
                         val lines = taskOut.lines()
                         if (lines.size > TASK_OUTPUT_MAX_LINES) {
-                            appendLine("... (Task output truncated to last $TASK_OUTPUT_MAX_LINES lines. Use `${ToolNames.INSPECT_BUILD}` tool with buildId ${finished.id} and the console mode for full output)")
+                            appendLine("... (Task output truncated to last $TASK_OUTPUT_MAX_LINES lines. Use `${ToolNames.INSPECT_BUILD}(buildId=\"${finished.id}\", taskPath=\"${it.captureTaskOutput}\", mode=\"details\")` for the full task output or use `consoleTail=true` for the full console output)")
                             appendLine()
                             append(lines.takeLast(TASK_OUTPUT_MAX_LINES).joinToString("\n"))
                         } else {

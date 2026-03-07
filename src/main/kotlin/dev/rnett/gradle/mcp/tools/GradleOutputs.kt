@@ -51,7 +51,9 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
         }
 
         if (buildFailures.isNotEmpty()) {
-            appendLine("Failures: ${buildFailures.size} - use `${ToolNames.INSPECT_BUILD}` tool for more details")
+            appendLine("Failures: ${buildFailures.size}")
+            appendLine("  To see all build-level failures, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"summary\")`.")
+            appendLine("  To see details for a specific failure, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"details\", failureId=\"ID\")`.")
             appendLine(OutputFormatter.listResults(buildFailures, 10) {
                 buildString {
                     append(it.id.id)
@@ -70,7 +72,9 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
         }
 
         val problemsSummary = problems.toSummary()
-        appendLine("Problems:     ${problemsSummary.totalCount} - use `${ToolNames.INSPECT_BUILD}` tool for more details")
+        appendLine("Problems:     ${problemsSummary.totalCount}")
+        appendLine("  To see all problems, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"summary\")`.")
+        appendLine("  To see details for a specific problem, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"details\", problemId=\"ID\")`.")
         if (problemsSummary.errorCounts.isNotEmpty()) {
             appendLine("  Errors:     ${problemsSummary.errorCounts.size}")
             appendLine(OutputFormatter.listResults(problemsSummary.errorCounts.toList(), 5, item = ::formatProblem))
@@ -89,7 +93,9 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
         }
         appendLine()
 
-        appendLine("Tests:      ${testResults.totalCount} - use `${ToolNames.INSPECT_BUILD}` tool for more details")
+        appendLine("Tests:      ${testResults.totalCount}")
+        appendLine("  To see all test results, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"summary\")`.")
+        appendLine("  To see details and console output for a specific individual test, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"details\", testName=\"FULL_TEST_NAME\")`.")
         appendLine("  Passed:   ${testResults.passed.size}")
         appendLine("  Skipped:  ${testResults.skipped.size}")
         appendLine("  Failed:   ${testResults.failed.size}")

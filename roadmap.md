@@ -4,5 +4,6 @@
 - Some way to highlight which tests were running when a build was canceled. An in-progress status?
 - Search symbols based on FQNs, and "read" packages like directories
 - Ensure Gradle progress shows last started task when waiting, not the last finished. Maybe list of in-progress tasks? Or at least show the number in a kind of "and N other tasks"
+- Test progress for test tasks?
 - More skills in general.
 - Test with continuous builds

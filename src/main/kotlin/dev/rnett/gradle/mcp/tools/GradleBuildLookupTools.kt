@@ -118,7 +118,8 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                 }
             }
             appendLine()
-            appendLine("To inspect a specific build, call `inspect_build(buildId=\"ID\")`.")
+            appendLine("To inspect a specific build, call `${ToolNames.INSPECT_BUILD}(buildId=\"ID\", mode=\"summary\")`.")
+            appendLine("To see detailed failures, tests, or tasks, use `${ToolNames.INSPECT_BUILD}(buildId=\"ID\", mode=\"details\", ...)` with `failureId`, `testName`, or `taskPath` respectively.")
         }
     }
 
