@@ -1,13 +1,9 @@
 package dev.rnett.gradle.mcp
 
 import io.ktor.client.*
-import io.ktor.client.plugins.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import org.jsoup.Jsoup
 import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.StandardOpenOption
@@ -50,41 +46,16 @@ interface GradleDocsService : AutoCloseable {
 class DefaultGradleDocsService(
     private val httpClient: HttpClient,
     private val indexer: GradleDocsIndexService,
-    private val environment: GradleMcpEnvironment
+    private val environment: GradleMcpEnvironment,
+    private val versionService: GradleVersionService
 ) : GradleDocsService {
 
     private suspend fun resolveVersion(version: String?): String {
-        if (version != null && version != "current") return version
-
-        val rootUrl = "https://docs.gradle.org/current/userguide/userguide.html"
-        val response = httpClient.get(rootUrl) {
-            timeout {
-                requestTimeoutMillis = 5000
-            }
-        }
-        val html = response.bodyAsText()
-        val doc = Jsoup.parse(html)
-
-        val canonical = doc.selectFirst("link[rel=canonical]")?.attr("href")
-        if (canonical != null) {
-            val match = Regex("docs\\.gradle\\.org/([^/]+)/").find(canonical)
-            if (match != null) {
-                return match.groupValues[1]
-            }
-        }
-
-        val versionText = doc.select(".footer").text()
-        val versionMatch = Regex("Version (\\d+\\.\\d+(\\.\\d+)?)").find(versionText)
-        if (versionMatch != null) {
-            return versionMatch.groupValues[1]
-        }
-
-        return "current"
+        return versionService.resolveVersion(version)
     }
 
     private suspend fun ensurePrepared(version: String): String {
         val resolvedVersion = resolveVersion(version)
-        if (resolvedVersion == "current") return "current"
 
         val versionDir = environment.cacheDir.resolve("reading_gradle_docs").resolve(resolvedVersion)
 

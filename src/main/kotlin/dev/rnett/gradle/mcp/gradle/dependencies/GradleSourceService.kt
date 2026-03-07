@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.gradle.dependencies
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.GradleVersionService
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.gradle.dependencies.search.IndexService
@@ -39,7 +40,8 @@ interface GradleSourceService {
 class DefaultGradleSourceService(
     private val environment: GradleMcpEnvironment,
     private val indexService: IndexService,
-    private val httpClient: HttpClient
+    private val httpClient: HttpClient,
+    private val versionService: GradleVersionService
 ) : GradleSourceService {
     companion object {
         private val LOGGER = LoggerFactory.getLogger(DefaultGradleSourceService::class.java)
@@ -55,8 +57,8 @@ class DefaultGradleSourceService(
     @OptIn(ExperimentalPathApi::class)
     override suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean): SourcesDir = withContext(Dispatchers.IO) {
         val rootPath = GradlePathUtils.getRootProjectPath(projectRoot)
-        val version = GradlePathUtils.getGradleVersion(rootPath)
-            ?: throw IllegalStateException("Could not determine Gradle version for $rootPath")
+        val inputVersion = GradlePathUtils.getGradleVersion(rootPath)
+        val version = versionService.resolveVersion(inputVersion)
 
         val targetDir = SourcesDir(gradleSourcesDir.resolve(version))
         val markerFile = targetDir.path.resolve(".completed")

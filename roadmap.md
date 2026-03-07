@@ -1,10 +1,9 @@
-- Dedicated best practices tag.
-- Audit how the gradle docs/sources tools work with "current" as a version. Should probably look up the latest and use that.
 - Make the dependency and source tools include the build classpath, or have an option to.
 - Progress notifications for search, download, indexing, etc.
 - Handle stale/abandoned lock files
 - See if we can make it start with `--add-modules jdk.incubator.vector`.
 - Make symbol indexing and archive extraction more performant, especially for the Gradle sources. Look at using lucene, or doing the full text search first and then searching for symbols.
 - A tool to read/search the source of one particular library, with the version used in our project. Should hopefully be faster than everything.
+- Some way to highlight which tests were running when a build was canceled. An in-progress status?
 - More skills in general.
 - Test with continuous builds

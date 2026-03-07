@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.tools
 
 import dev.rnett.gradle.mcp.DocsPageContent
 import dev.rnett.gradle.mcp.GradleDocsService
+import dev.rnett.gradle.mcp.GradleVersionService
 import dev.rnett.gradle.mcp.mcp.McpContext
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
@@ -12,7 +13,8 @@ import kotlinx.serialization.Serializable
 import java.nio.file.Path
 
 class GradleDocsTools(
-    private val gradleDocsService: GradleDocsService
+    private val gradleDocsService: GradleDocsService,
+    private val versionService: GradleVersionService
 ) : McpServerComponent("Gradle Docs Tools", "Tools for querying and reading Gradle documentation.") {
 
     @Serializable
@@ -38,7 +40,8 @@ class GradleDocsTools(
             |Provide `path="."` or `path=""` to list the root documentation directory and explore the file tree.
         """.trimMargin()
     ) { args ->
-        val resolvedVersion = resolveVersion(args.version, args.projectRoot)
+        val inputVersion = resolveVersion(args.version, args.projectRoot)
+        val resolvedVersion = versionService.resolveVersion(inputVersion)
         when {
             args.path != null -> {
                 val content = gradleDocsService.getDocsPageContent(args.path, resolvedVersion)
@@ -53,14 +56,13 @@ class GradleDocsTools(
                 if (response.error != null) {
                     CallToolResult(listOf(TextContent(response.error)), isError = true)
                 } else if (response.results.isEmpty()) {
-                    CallToolResult(listOf(TextContent("No documentation matches found for '${args.query}' in version ${resolvedVersion ?: "current"}.")))
+                    CallToolResult(listOf(TextContent("No documentation matches found for '${args.query}' in Gradle $resolvedVersion.")))
                 } else {
-                    val displayVersion = resolvedVersion ?: "current"
                     val header = buildString {
                         if (response.interpretedQuery != null) {
                             appendLine("Interpreted query: `${response.interpretedQuery}`")
                         }
-                        appendLine("Search results for '${args.query}' in Gradle $displayVersion:\n")
+                        appendLine("Search results for '${args.query}' in Gradle $resolvedVersion:\n")
                     }
                     val pagedResults = paginate(response.results, args.pagination, "matches") { result ->
                         "### ${result.title}\nSection: `${result.tag}` | Path: `${result.path}`\n\n${result.snippet}\n"
@@ -72,13 +74,12 @@ class GradleDocsTools(
             else -> {
                 val summaries = gradleDocsService.summarizeSections(resolvedVersion)
                 if (summaries.isEmpty()) {
-                    CallToolResult(listOf(TextContent("No documentation sections found for version ${resolvedVersion ?: "current"}.")))
+                    CallToolResult(listOf(TextContent("No documentation sections found for Gradle $resolvedVersion.")))
                 } else {
-                    val displayVersion = resolvedVersion ?: "current"
                     val pagedSummaries = paginate(summaries, args.pagination, "sections") { section ->
                         "- **${section.displayName}** (`tag:${section.tag}`): ${section.count} pages"
                     }
-                    val text = "Documentation sections for Gradle $displayVersion:\n\n$pagedSummaries" +
+                    val text = "Documentation sections for Gradle $resolvedVersion:\n\n$pagedSummaries" +
                             "\n\nUse `query=\"tag:<tag> ...\"` to search a specific section, or provide a `path` from search results to read a page."
                     CallToolResult(listOf(TextContent(text)))
                 }

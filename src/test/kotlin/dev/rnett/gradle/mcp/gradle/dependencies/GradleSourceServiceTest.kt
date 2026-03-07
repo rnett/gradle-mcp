@@ -1,11 +1,14 @@
 package dev.rnett.gradle.mcp.gradle.dependencies
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.GradleVersionService
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.dependencies.search.DefaultIndexService
 import io.ktor.client.*
 import io.ktor.client.engine.mock.*
 import io.ktor.http.*
+import io.mockk.coEvery
+import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -58,7 +61,9 @@ class GradleSourceServiceTest {
             }
         }
         val indexService = DefaultIndexService(environment)
-        gradleSourceService = DefaultGradleSourceService(environment, indexService, httpClient)
+        val versionService = mockk<GradleVersionService>()
+        coEvery { versionService.resolveVersion(any()) } answers { it.invocation.args[0] as? String ?: "8.5" }
+        gradleSourceService = DefaultGradleSourceService(environment, indexService, httpClient, versionService)
     }
 
     @AfterEach

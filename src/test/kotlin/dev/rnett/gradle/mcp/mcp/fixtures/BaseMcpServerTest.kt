@@ -56,6 +56,7 @@ abstract class BaseMcpServerTest {
         single { GradleMcpEnvironment(SharedTestInfrastructure.sharedMcpWorkingDir) }
         single<MarkdownService> { DefaultMarkdownService() }
         single<GradleDocsService> { mockk<GradleDocsService>(relaxed = true) }
+        single<dev.rnett.gradle.mcp.GradleVersionService> { mockk<dev.rnett.gradle.mcp.GradleVersionService>(relaxed = true) }
         single<GradleDependencyService> { mockk<GradleDependencyService>(relaxed = true) }
         single<dev.rnett.gradle.mcp.maven.MavenRepoService> { mockk<dev.rnett.gradle.mcp.maven.MavenRepoService>(relaxed = true) }
         single<dev.rnett.gradle.mcp.maven.MavenCentralService> { mockk<dev.rnett.gradle.mcp.maven.MavenCentralService>(relaxed = true) }
@@ -71,12 +72,13 @@ abstract class BaseMcpServerTest {
             val replManager: dev.rnett.gradle.mcp.repl.ReplManager = get()
             val replEnvironmentService: ReplEnvironmentService = get()
             val gradleDocsService: GradleDocsService = get()
+            val gradleVersionService: dev.rnett.gradle.mcp.GradleVersionService = get()
             val gradleDependencyService: GradleDependencyService = get()
             val mavenRepoService: dev.rnett.gradle.mcp.maven.MavenRepoService = get()
             val mavenCentralService: dev.rnett.gradle.mcp.maven.MavenCentralService = get()
             val sourcesService: dev.rnett.gradle.mcp.gradle.dependencies.SourcesService = get()
             val gradleSourceService: GradleSourceService = get()
-            components(provider, replManager, replEnvironmentService, gradleDocsService, gradleDependencyService, mavenRepoService, mavenCentralService, sourcesService, gradleSourceService)
+            components(provider, replManager, replEnvironmentService, gradleDocsService, gradleVersionService, gradleDependencyService, mavenRepoService, mavenCentralService, sourcesService, gradleSourceService)
         }
 
         single {

@@ -97,13 +97,14 @@ object DI {
         single<DistributionDownloaderService> { DefaultDistributionDownloaderService(get(), get()) }
         single<ContentExtractorService> { DefaultContentExtractorService(get(), get(), get()) }
         single<GradleDocsIndexService> { DefaultGradleDocsIndexService(get(), get(), get()) }
-        single<GradleDocsService> { DefaultGradleDocsService(get(), get(), get()) }
+        single<GradleVersionService> { DefaultGradleVersionService(get()) }
+        single<GradleDocsService> { DefaultGradleDocsService(get(), get(), get(), get()) }
         single<GradleDependencyService> { DefaultGradleDependencyService(get()) }
         single<MavenRepoService> { DefaultMavenRepoService(get()) }
         single<MavenCentralService> { DefaultMavenCentralService(get()) }
         single<IndexService> { DefaultIndexService(get()) }
         single<SourcesService> { DefaultSourcesService(get(), get(), get()) }
-        single<GradleSourceService> { DefaultGradleSourceService(get(), get(), get()) }
+        single<GradleSourceService> { DefaultGradleSourceService(get(), get(), get(), get()) }
         single { BuildManager() }
         single<GradleProvider> {
             DefaultGradleProvider(
@@ -118,6 +119,7 @@ object DI {
             val replManager: ReplManager = get()
             val replEnvironmentService: ReplEnvironmentService = get()
             val gradleDocsService: GradleDocsService = get()
+            val gradleVersionService: GradleVersionService = get()
             val gradleDependencyService: GradleDependencyService = get()
             val mavenRepoService: MavenRepoService = get()
             val mavenCentralService: MavenCentralService = get()
@@ -128,6 +130,7 @@ object DI {
                 replManager,
                 replEnvironmentService,
                 gradleDocsService,
+                gradleVersionService,
                 gradleDependencyService,
                 mavenRepoService,
                 mavenCentralService,
@@ -164,6 +167,7 @@ object DI {
         replManager: ReplManager,
         replEnvironmentService: ReplEnvironmentService,
         gradleDocsService: GradleDocsService,
+        gradleVersionService: GradleVersionService,
         gradleDependencyService: GradleDependencyService,
         mavenRepoService: MavenRepoService,
         mavenCentralService: MavenCentralService,
@@ -173,7 +177,7 @@ object DI {
         GradleExecutionTools(provider),
         ReplTools(provider, replManager, replEnvironmentService),
         GradleBuildLookupTools(provider.buildManager),
-        GradleDocsTools(gradleDocsService),
+        GradleDocsTools(gradleDocsService, gradleVersionService),
         GradleDependencyTools(gradleDependencyService),
         DependencySearchTools(mavenRepoService, mavenCentralService),
         DependencySourceTools(sourcesService, gradleSourceService),

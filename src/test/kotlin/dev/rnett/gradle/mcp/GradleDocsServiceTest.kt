@@ -11,6 +11,12 @@ import kotlin.test.assertTrue
 
 class GradleDocsServiceTest {
 
+    private fun createVersionService(): GradleVersionService {
+        val versionService = mockk<GradleVersionService>()
+        coEvery { versionService.resolveVersion(any()) } answers { it.invocation.args[0] as? String ?: "9.4.0" }
+        return versionService
+    }
+
     @Test
     fun `getDocsPageContent returns file content`() = runTest {
         val tempDir = Files.createTempDirectory("gradle-mcp-test-docs-content")
@@ -25,7 +31,7 @@ class GradleDocsServiceTest {
         val httpClient = mockk<io.ktor.client.HttpClient>()
         coEvery { indexer.ensureIndexed(version) } returns Unit
 
-        val service = DefaultGradleDocsService(httpClient, indexer, environment)
+        val service = DefaultGradleDocsService(httpClient, indexer, environment, createVersionService())
         val content = service.getDocsPageContent("userguide/test.md", version)
 
         assertTrue(content is DocsPageContent.Markdown)
@@ -48,7 +54,7 @@ class GradleDocsServiceTest {
         val httpClient = mockk<io.ktor.client.HttpClient>()
         coEvery { indexer.ensureIndexed(version) } returns Unit
 
-        val service = DefaultGradleDocsService(httpClient, indexer, environment)
+        val service = DefaultGradleDocsService(httpClient, indexer, environment, createVersionService())
         val content = service.getDocsPageContent(".", version)
 
         assertTrue(content is DocsPageContent.Markdown)
@@ -72,11 +78,11 @@ class GradleDocsServiceTest {
         coEvery { indexer.ensureIndexed(version) } returns Unit
         coEvery { indexer.search("test", version) } returns DocsSearchResponse(
             listOf(
-            DocsSearchResult("Title", "path.html", "snippet", "userguide")
+                DocsSearchResult("Title", "path.html", "snippet", "userguide")
             )
         )
 
-        val service = DefaultGradleDocsService(httpClient, indexer, environment)
+        val service = DefaultGradleDocsService(httpClient, indexer, environment, createVersionService())
         val response = service.searchDocs("test", version)
         val results = response.results
 
@@ -109,7 +115,7 @@ class GradleDocsServiceTest {
 
         coEvery { indexer.ensureIndexed(version) } returns Unit
 
-        val service = DefaultGradleDocsService(httpClient, indexer, environment)
+        val service = DefaultGradleDocsService(httpClient, indexer, environment, createVersionService())
         val summaries = service.summarizeSections(version)
 
         // userguide (2), dsl (1+1=2), release-notes (1)
@@ -144,7 +150,7 @@ class GradleDocsServiceTest {
         val httpClient = mockk<io.ktor.client.HttpClient>()
         coEvery { indexer.ensureIndexed(version) } returns Unit
 
-        val service = DefaultGradleDocsService(httpClient, indexer, environment)
+        val service = DefaultGradleDocsService(httpClient, indexer, environment, createVersionService())
         val summaries = service.summarizeSections(version)
 
         // userguide (3), best-practices (2)

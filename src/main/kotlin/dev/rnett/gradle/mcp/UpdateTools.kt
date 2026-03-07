@@ -71,6 +71,11 @@ object UpdateTools {
             throw UnsupportedOperationException("Not supported in tool generator")
     }
 
+    private val throwingGradleVersionService = object : GradleVersionService {
+        override suspend fun resolveVersion(version: String?): String =
+            throw UnsupportedOperationException("Not supported in tool generator")
+    }
+
     @OptIn(ExperimentalPathApi::class)
     @JvmStatic
     fun main(args: Array<String>) {
@@ -86,6 +91,7 @@ object UpdateTools {
             throwingReplManager,
             throwingReplEnvironmentService,
             throwingGradleDocsService,
+            throwingGradleVersionService,
             throwingGradleDependencyService,
             throwingMavenRepoService,
             throwingMavenCentralService,

@@ -130,13 +130,14 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single<DistributionDownloaderService> { DefaultDistributionDownloaderService(get(), get()) }
         single<ContentExtractorService> { DefaultContentExtractorService(get(), get(), get()) }
         single<GradleDocsIndexService> { DefaultGradleDocsIndexService(get(), get(), get()) }
-        single<GradleDocsService> { dev.rnett.gradle.mcp.DefaultGradleDocsService(get(), get(), get()) }
+        single<dev.rnett.gradle.mcp.GradleVersionService> { dev.rnett.gradle.mcp.DefaultGradleVersionService(get()) }
+        single<GradleDocsService> { dev.rnett.gradle.mcp.DefaultGradleDocsService(get(), get(), get(), get()) }
         single<GradleDependencyService> { DefaultGradleDependencyService(get()) }
         single<MavenRepoService> { DefaultMavenRepoService(get()) }
         single<MavenCentralService> { DefaultMavenCentralService(get()) }
         single<dev.rnett.gradle.mcp.gradle.dependencies.search.IndexService> { dev.rnett.gradle.mcp.gradle.dependencies.search.DefaultIndexService(get()) }
         single<dev.rnett.gradle.mcp.gradle.dependencies.SourcesService> { dev.rnett.gradle.mcp.gradle.dependencies.DefaultSourcesService(get(), get(), get()) }
-        single<GradleSourceService> { DefaultGradleSourceService(get(), get(), get()) }
+        single<GradleSourceService> { DefaultGradleSourceService(get(), get(), get(), get()) }
         single<GradleProvider> {
             DefaultGradleProvider(
                 get(),
@@ -145,7 +146,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
             )
         }
         single {
-            DI.components(get(), get(), get(), get(), get(), get(), get(), get(), get())
+            DI.components(get(), get(), get(), get(), get(), get(), get(), get(), get(), get())
         }
         single {
             DI.createServer(get(), get())

@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.tools
 
 import dev.rnett.gradle.mcp.DocsSectionSummary
 import dev.rnett.gradle.mcp.GradleDocsService
+import dev.rnett.gradle.mcp.GradleVersionService
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import io.mockk.coEvery
 import io.modelcontextprotocol.kotlin.sdk.Root
@@ -16,10 +17,15 @@ import kotlin.test.assertContains
 class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
 
     val mockDocsService: GradleDocsService get() = server.koin.get()
+    val mockVersionService: GradleVersionService get() = server.koin.get()
 
     @BeforeTest
     override fun setup() = runTest {
         super.setup()
+        coEvery { mockVersionService.resolveVersion(any()) } answers {
+            val v = it.invocation.args[0] as? String
+            if (v == null || v == "current") "resolved-current" else v
+        }
     }
 
     @Test
@@ -50,7 +56,7 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
 
     @Test
     fun `test fallback to current when no project root or detection fails`() = runTest {
-        coEvery { mockDocsService.summarizeSections(null) } returns listOf(
+        coEvery { mockDocsService.summarizeSections("resolved-current") } returns listOf(
             DocsSectionSummary("userguide", "User Guide", 10)
         )
 
@@ -59,7 +65,7 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
         val call = server.client.callTool(ToolNames.GRADLE_DOCS, args)
 
         val text = (call!!.content[0] as TextContent).text ?: ""
-        assertContains(text, "Documentation sections for Gradle current:")
+        assertContains(text, "Documentation sections for Gradle resolved-current:")
         assertContains(text, "- **User Guide** (`tag:userguide`): 10 pages")
     }
 
