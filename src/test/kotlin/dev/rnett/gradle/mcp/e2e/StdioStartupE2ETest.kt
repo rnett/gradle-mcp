@@ -43,8 +43,8 @@ class StdioStartupE2ETest {
             val clientIn = clientInReader.asSource().buffered()
             val clientOut = clientOutWriter.asSink().buffered()
 
-            // Disable logback status messages to stdout
-            System.setProperty("logback.statusListenerClass", "ch.qos.logback.core.status.NopStatusListener")
+            // Disable logback status messages to stdout, but allow to file
+            System.setProperty("logback.statusListenerClass", "dev.rnett.gradle.mcp.logging.FileStatusListener")
 
             val application = Application(emptyArray(), Transport.Stdio(serverIn, serverOut))
             try {
