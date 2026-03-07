@@ -4,6 +4,7 @@ import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.gradle.dependencies.SourcesDir
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.tools.PaginationInput
+import dev.rnett.gradle.mcp.utils.FileLockManager
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import kotlin.io.path.ExperimentalPathApi
@@ -46,46 +47,19 @@ class DefaultIndexService(
 
         val dirName = dependency.sourcesFile?.nameWithoutExtension ?: "direct-${sourceDir.hashCode()}"
         val dir = indexDir.resolve(dependency.group).resolve(dirName)
+        val lockFile = dir.resolve(".lock")
         val markerFile = dir.resolve(markerFileName)
 
-        if (markerFile.exists()) {
-            return Index(dir)
+        val cached = FileLockManager.withLock(lockFile, shared = true) {
+            if (markerFile.exists()) Index(dir) else null
         }
+        if (cached != null) return cached
 
-        try {
-            providers.forEach { provider ->
-                val providerDir = dir.resolve(provider.name)
-                if (providerDir.exists()) {
-                    providerDir.deleteRecursively()
-                }
-
-                providerDir.createDirectories()
-                provider.index(sourceDir, providerDir)
-            }
-            markerFile.createFile()
-        } catch (e: Exception) {
-            LOGGER.error("Failed to index dependency $dependency", e)
-            dir.deleteRecursively()
-            return null
-        }
-        return Index(dir)
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    override suspend fun mergeIndices(
-        sourcesDir: SourcesDir,
-        includedDeps: Map<Path, Index>
-    ) {
-        val (unit, duration) = measureTimedValue {
-            val dir = sourcesDir.index
-            val hashFile = dir.resolve(".merged.hash")
-            val currentHash = combinedIndexVersion + "\n" + includedDeps.hashCode().toString()
-
-            if (hashFile.exists() && hashFile.readText() == currentHash) {
-                return@measureTimedValue
+        return FileLockManager.withLock(lockFile, shared = false) {
+            if (markerFile.exists()) {
+                return@withLock Index(dir)
             }
 
-            val includedIndices = includedDeps.mapValues { it.value.dir }
             try {
                 providers.forEach { provider ->
                     val providerDir = dir.resolve(provider.name)
@@ -94,17 +68,62 @@ class DefaultIndexService(
                     }
 
                     providerDir.createDirectories()
-                    provider.mergeIndices(includedIndices.entries.associate { it.value.resolve(provider.name) to it.key }, providerDir)
+                    provider.index(sourceDir, providerDir)
                 }
-                hashFile.createParentDirectories()
-                hashFile.writeText(currentHash)
+                markerFile.createFile()
+                Index(dir)
             } catch (e: Exception) {
-                LOGGER.error("Failed to merge indices for ${sourcesDir.path}", e)
+                LOGGER.error("Failed to index dependency $dependency", e)
                 dir.deleteRecursively()
-                throw e
+                null
             }
         }
-        LOGGER.info("Merging indices for ${sourcesDir.path} took $duration (${includedDeps.size} dependencies)")
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    override suspend fun mergeIndices(
+        sourcesDir: SourcesDir,
+        includedDeps: Map<Path, Index>
+    ) {
+        val lockFile = sourcesDir.index.resolve(".lock")
+        val currentHash = combinedIndexVersion + "\n" + includedDeps.hashCode().toString()
+
+        val upToDate = FileLockManager.withLock(lockFile, shared = true) {
+            val hashFile = sourcesDir.index.resolve(".merged.hash")
+            hashFile.exists() && hashFile.readText() == currentHash
+        }
+        if (upToDate) return
+
+        FileLockManager.withLock(lockFile, shared = false) {
+            val (unit, duration) = measureTimedValue {
+                val dir = sourcesDir.index
+                val hashFile = dir.resolve(".merged.hash")
+
+                if (hashFile.exists() && hashFile.readText() == currentHash) {
+                    return@measureTimedValue
+                }
+
+                val includedIndices = includedDeps.mapValues { it.value.dir }
+                try {
+                    providers.forEach { provider ->
+                        val providerDir = dir.resolve(provider.name)
+                        if (providerDir.exists()) {
+                            providerDir.deleteRecursively()
+                        }
+
+                        providerDir.createDirectories()
+                        provider.mergeIndices(includedIndices.entries.associate { it.value.resolve(provider.name) to it.key }, providerDir)
+                    }
+                    hashFile.createParentDirectories()
+                    hashFile.writeText(currentHash)
+                } catch (e: Exception) {
+                    LOGGER.error("Failed to merge indices for ${sourcesDir.path}", e)
+                    dir.deleteRecursively()
+                    throw e
+                }
+            }
+            LOGGER.info("Merging indices for ${sourcesDir.path} took $duration (${includedDeps.size} dependencies)")
+        }
     }
 
     override suspend fun search(

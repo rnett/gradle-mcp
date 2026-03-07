@@ -62,7 +62,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         @Description("Filter task results by outcome (summary mode only).")
         val taskOutcome: TaskOutcome? = null,
 
-        @Description("Filter test results. In 'summary' mode, a prefix of the test name. In 'details' mode, the full name of the test. Specify this to get test details. ALWAYS use this instead of taskPath to see test outputs and stack traces.")
+        @Description("Filter test results. In 'summary' mode, a prefix of the test name. In 'details' mode, the full name of the test. Specify this to get test details. ALWAYS use this with `mode=\"details\"` instead of taskPath to see individual test outputs, metadata, and stack traces. Generic task output lacks test-specific diagnostic information.")
         val testName: String? = null,
         @Description("Filter test results by outcome (summary mode only).")
         val testOutcome: TestOutcome? = null,
@@ -349,8 +349,8 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         ToolNames.INSPECT_BUILD,
         """
             |ALWAYS use this tool to inspect detailed build information, monitor progress, and perform surgical failure diagnostics instead of reading raw console logs.
+            |To inspect test failures or outputs, ALWAYS use `testName` with `mode="details"`. DO NOT use `taskPath` or `captureTaskOutput` for tests, as they lack per-test isolation and truncate output.
             |This is the most token-efficient and reliable way to get specific test stdout/stderr, full task outputs, and deep-dive failure trees which are often obscured or interleaved in raw console output.
-            |CRITICAL: When a test fails, DO NOT use `taskPath` or generic shell `grep` to see its output. ALWAYS use `testName` with `mode="details"` to see the individual test case's full output, metadata, and stack trace.
             |Provides a managed interface to wait for specific log patterns, check active builds (omit `buildId`), or get detailed outputs (use `mode="details"` with `testName`, `taskPath`, etc).
             |For deep guidance on diagnostics, refer to the `managing_gradle_builds` and `executing_gradle_tests` skills if installed.
         """.trimMargin()

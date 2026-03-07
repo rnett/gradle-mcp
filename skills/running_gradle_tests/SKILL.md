@@ -24,7 +24,7 @@ Executes tests with absolute precision and leverage deep diagnostic tools to iso
 - **ALWAYS** provide absolute paths for `projectRoot`.
 - **ALWAYS** prefer foreground execution (default) unless the test suite is extremely long-running (>2 minutes) or you explicitly intend to perform independent research while it proceeds.
 - **ONLY** use `background: true` for managed background orchestration when context isolation and non-blocking exploration are required.
-- **ALWAYS** use `inspect_build` with `mode: "details"` and `tests: { name: "..." }` to access full test output and stack traces.
+- **ALWAYS** use `inspect_build` with `mode: "details"` and `testName="..."` to access full test output and stack traces.
 - **NEVER** use `taskPath` or `captureTaskOutput` to investigate specific test failures; these provide the overall task log which is often truncated and lacks per-test isolation.
 - **NEVER** assume a test pass without verifying the results via `inspect_build` if failures occurred.
 
@@ -39,7 +39,7 @@ Executes tests with absolute precision and leverage deep diagnostic tools to iso
 - **Use `envSource: SHELL` if environment variables are missing**: If Gradle fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
   fully loaded. Set `invocationArguments: { envSource: "SHELL" }` to force a new shell process to query the environment.
 - **Check for environment failures**: If a test run fails with a general error, use `inspect_build(failures={})` to check for compilation or configuration issues.
-- **Investigate specifically**: Use the `tests: {}` option in `inspect_build` to isolate specific failure details. For detailed diagnostic workflows, see the `test_diagnostics.md` reference.
+- **Investigate specifically**: Use the `testName` option in `inspect_build` with `mode="details"` to isolate specific failure details. For detailed diagnostic workflows, see the `test_diagnostics.md` reference.
 - **Resolve `{baseDir}` manually**: If your environment does not automatically resolve the `{baseDir}` placeholder in reference links, treat it as the absolute path to the directory containing this `SKILL.md` file.
 
 ## Authoritative Test Selection Patterns
@@ -98,8 +98,8 @@ Providing a path **with a leading colon** targets a **single specific project**.
 ### Investigating Failures
 
 1. Identify the `BuildId` from the result.
-2. Use `inspect_build(buildId=ID, tests={outcome: "FAILED"})` to list all failed tests.
-3. **CRITICAL**: Use `inspect_build(buildId=ID, mode="details", tests={name: TNAME})` to see the full output and stack trace for a specific test.
+2. Use `inspect_build(buildId=ID, testOutcome="FAILED")` to list all failed tests.
+3. **CRITICAL**: Use `inspect_build(buildId=ID, mode="details", testName=TNAME)` to see the full output and stack trace for a specific test.
   - **DO NOT** use `taskPath` or `captureTaskOutput` for this.
   - Per-test output is authoritative, isolated, and contains full stack traces that are often omitted from the task console.
 
@@ -115,27 +115,23 @@ Providing a path **with a leading colon** targets a **single specific project**.
 ```
 
 ### List all failed tests in a build
-
 ```json
 {
   "buildId": "build_20240301_130000_def456",
-  "tests": {
-    "outcome": "FAILED"
-  }
+  "testOutcome": "FAILED"
 }
+```
 // Reasoning: Using inspect_build to isolate only the failures from a large test suite.
 ```
 
 ### Look up details for a specific failed test
-
 ```json
 {
   "buildId": "build_20240301_130000_def456",
   "mode": "details",
-  "tests": {
-    "name": "com.example.a.MyTest.shouldFail"
-  }
+  "testName": "com.example.a.MyTest.shouldFail"
 }
+```
 // Reasoning: Retrieving the full stack trace and isolated stdout/stderr for a specific failure.
 ```
 

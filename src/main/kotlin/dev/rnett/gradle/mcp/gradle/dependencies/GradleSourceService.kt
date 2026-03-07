@@ -6,13 +6,12 @@ import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.gradle.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.tools.GradlePathUtils
+import dev.rnett.gradle.mcp.utils.FileLockManager
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.utils.io.jvm.javaio.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import java.nio.file.FileSystems
 import java.nio.file.FileVisitResult
@@ -55,34 +54,51 @@ class DefaultGradleSourceService(
     }
 
     @OptIn(ExperimentalPathApi::class)
-    override suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean): SourcesDir = withContext(Dispatchers.IO) {
+    override suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean): SourcesDir {
         val rootPath = GradlePathUtils.getRootProjectPath(projectRoot)
         val inputVersion = GradlePathUtils.getGradleVersion(rootPath)
         val version = versionService.resolveVersion(inputVersion)
 
         val targetDir = SourcesDir(gradleSourcesDir.resolve(version))
+        val lockFile = targetDir.path.resolve(".lock")
         val markerFile = targetDir.path.resolve(".completed")
 
-        if (markerFile.exists() && !forceDownload) {
-            return@withContext targetDir
+        if (!forceDownload) {
+            val cached = FileLockManager.withLock(lockFile, shared = true) {
+                if (markerFile.exists()) targetDir else null
+            }
+            if (cached != null) return cached
         }
 
-        if (forceDownload) {
-            targetDir.path.deleteRecursively()
-        }
+        return FileLockManager.withLock(lockFile, shared = false) {
+            if (markerFile.exists() && !forceDownload) {
+                return@withLock targetDir
+            }
 
-        targetDir.path.createDirectories()
-        val sourceZip = downloadGradleSources(version)
-        try {
-            extractAndIndex(version, sourceZip, targetDir)
-            markerFile.createFile()
-            return@withContext targetDir
-        } catch (e: Exception) {
-            LOGGER.error("Failed to extract and index Gradle sources for version $version", e)
-            targetDir.path.deleteRecursively()
-            throw e
-        } finally {
-            sourceZip.deleteIfExists()
+            if (forceDownload) {
+                LOGGER.info("Force downloading Gradle sources for version $version")
+                targetDir.path.deleteRecursively()
+            }
+
+            targetDir.path.createDirectories()
+            val sourceZip = try {
+                downloadGradleSources(version)
+            } catch (e: Exception) {
+                LOGGER.error("Failed to download Gradle sources for version $version", e)
+                throw e
+            }
+
+            try {
+                extractAndIndex(version, sourceZip, targetDir)
+                markerFile.createFile()
+                targetDir
+            } catch (e: Exception) {
+                LOGGER.error("Failed to extract and index Gradle sources for version $version", e)
+                targetDir.path.deleteRecursively()
+                throw e
+            } finally {
+                sourceZip.deleteIfExists()
+            }
         }
     }
 
@@ -118,7 +134,7 @@ class DefaultGradleSourceService(
             sourcesFile = sourceZip
         )
 
-        LOGGER.info("Indexing Gradle sources at ${targetDir.sources}")
+        LOGGER.info("Indexing Gradle sources at ${targetDir.sources} for version $version")
         val duration = measureTime {
             val index = indexService.index(dummyDependency, targetDir.sources)
                 ?: throw IllegalStateException("Failed to index Gradle sources at ${targetDir.sources}")
@@ -127,7 +143,7 @@ class DefaultGradleSourceService(
                 index.dir.toFile().copyRecursively(targetDir.index.toFile(), overwrite = true)
             }
         }
-        LOGGER.info("Indexed Gradle sources in $duration")
+        LOGGER.info("Indexed Gradle sources in $duration for version $version")
     }
 
     private suspend fun extractAndIndex(version: String, sourceZip: Path, targetDir: SourcesDir) {

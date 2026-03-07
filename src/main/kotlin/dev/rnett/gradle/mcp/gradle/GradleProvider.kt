@@ -2,7 +2,6 @@
 
 package dev.rnett.gradle.mcp.gradle
 
-import com.github.benmanes.caffeine.cache.Caffeine
 import dev.rnett.gradle.mcp.gradle.build.GradleBuildScan
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.gradle.build.TaskOutcome
@@ -18,7 +17,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.future.asDeferred
 import org.apache.commons.io.output.WriterOutputStream
 import org.gradle.tooling.ConfigurableLauncher
 import org.gradle.tooling.Failure
@@ -58,15 +56,12 @@ import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.reflect.KClass
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
-import kotlin.time.toJavaDuration
 
 interface GradleProvider : AutoCloseable {
 
@@ -118,95 +113,29 @@ class DefaultGradleProvider(
         private val LOGGER = LoggerFactory.getLogger(DefaultGradleProvider::class.java)
     }
 
-    private class ProjectConnectionWrapper(val connection: ProjectConnection) : ProjectConnection by connection {
-        private val refCount = AtomicInteger(0)
-        private var isStale = false
-
-        fun acquire() {
-            synchronized(this) {
-                if (isStale && refCount.get() == 0) {
-                    throw IllegalStateException("Cannot acquire a connection that is already stale and closed")
-                }
-                refCount.incrementAndGet()
-            }
-        }
-
-        fun release() {
-            synchronized(this) {
-                val count = refCount.decrementAndGet()
-                if (count == 0 && isStale) {
-                    closeInternal()
-                }
-            }
-        }
-
-        fun markStale() {
-            synchronized(this) {
-                isStale = true
-                if (refCount.get() == 0) {
-                    closeInternal()
-                }
-            }
-        }
-
-        private fun closeInternal() {
-            synchronized(this) {
-                if (refCount.get() > 0 || !isStale) return
-                try {
-                    connection.close()
-                } catch (e: Exception) {
-                    LOGGER.error("Error closing Gradle connection", e)
-                }
-            }
-        }
+    init {
+        Runtime.getRuntime().addShutdownHook(Thread {
+            this.close()
+        })
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val closed = java.util.concurrent.atomic.AtomicBoolean(false)
 
     override fun close() {
-        buildManager.listRunningBuilds().forEach { it.stop() }
-        connectionCache.synchronous().asMap().values.forEach { it.close() }
-        scope.cancel()
-    }
-
-    private val connectionCache = Caffeine.newBuilder()
-        .expireAfterAccess(config.ttl.toJavaDuration())
-        .maximumSize(config.maxConnections.toLong())
-        .removalListener<Path, ProjectConnectionWrapper> { _, connection, _ ->
-            connection?.markStale()
-        }
-        .buildAsync<Path, ProjectConnectionWrapper> { path, executor ->
-            CompletableFuture.supplyAsync({
-                ProjectConnectionWrapper(
-                    GradleConnector.newConnector()
-                        .forProjectDirectory(path.toFile())
-                        .connect()
-                ).apply { acquire() }
-            }, executor)
-        }
-
-    private suspend fun getConnectionWrapper(projectRoot: Path): ProjectConnectionWrapper {
-        LOGGER.debug("Getting connection for project root {}", projectRoot)
-        var connection = connectionCache.get(projectRoot).asDeferred().await()
-        if (!connection.isAlive()) {
-            LOGGER.debug("Connection for project root {} is stale, invalidating", projectRoot)
-            connectionCache.synchronous().invalidate(projectRoot)
-            connection = connectionCache.get(projectRoot).asDeferred().await()
-        }
-        return connection
-    }
-
-    suspend fun getConnection(projectRoot: Path): ProjectConnection = getConnectionWrapper(projectRoot)
-
-    private fun ProjectConnection.isAlive(): Boolean {
-        return try {
-            this.model(BuildEnvironment::class.java).get()
-            true
-        } catch (_: Throwable) {
-            false
+        if (closed.compareAndSet(false, true)) {
+            buildManager.listRunningBuilds().forEach { it.stop() }
+            scope.cancel()
         }
     }
 
+    private fun connect(projectRoot: Path): ProjectConnection {
+        return GradleConnector.newConnector()
+            .forProjectDirectory(projectRoot.toFile())
+            .connect()
+    }
+
+    suspend fun getConnection(projectRoot: Path): ProjectConnection = connect(projectRoot)
 
     @Suppress("UnstableApiUsage")
     class TestCollector(val captureFailedTestOutput: Boolean, val captureAllTestOutput: Boolean) : ProgressListener {
@@ -366,24 +295,24 @@ class DefaultGradleProvider(
                     stdoutLineHandler?.invoke(text)
                     Result.failure(InterceptedSpecialCommandException("Version command intercepted, result is in console output."))
                 } else {
-                    val wrapper = getConnectionWrapper(projectRoot)
-                    wrapper.acquire()
-                    try {
-                        val launcher = launcherProvider(wrapper)
-                        Result.success(
-                            launcher.invokeBuild(
-                                args,
-                                additionalProgressListeners,
-                                stdoutLineHandler,
-                                stderrLineHandler,
-                                progressHandler,
-                                buildId,
-                                runningBuild,
-                                invoker
+                    connect(projectRoot).use { connection ->
+                        try {
+                            val launcher = launcherProvider(connection)
+                            Result.success(
+                                launcher.invokeBuild(
+                                    args,
+                                    additionalProgressListeners,
+                                    stdoutLineHandler,
+                                    stderrLineHandler,
+                                    progressHandler,
+                                    buildId,
+                                    runningBuild,
+                                    invoker
+                                )
                             )
-                        )
-                    } finally {
-                        wrapper.release()
+                        } catch (e: Exception) {
+                            Result.failure(e)
+                        }
                     }
                 }
             } catch (e: Exception) {

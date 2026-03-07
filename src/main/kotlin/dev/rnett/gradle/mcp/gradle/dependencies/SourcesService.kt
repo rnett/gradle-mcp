@@ -9,6 +9,7 @@ import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResponse
 import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResult
 import dev.rnett.gradle.mcp.gradle.dependencies.search.toSearchResults
 import dev.rnett.gradle.mcp.tools.PaginationInput
+import dev.rnett.gradle.mcp.utils.FileLockManager
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
@@ -120,65 +121,111 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
     @OptIn(ExperimentalPathApi::class)
     override suspend fun downloadAllSources(projectRoot: GradleProjectRoot, index: Boolean, forceDownload: Boolean, fresh: Boolean): SourcesDir {
         val dir = sourcesDirectory(projectRoot, "", "root")
-        if (!fresh && !forceDownload && dir.sources.exists()) return dir
+        val lockFile = dir.metadata.resolve(".lock")
 
-        val deps = depService.downloadAllSources(projectRoot)
-        val allDeps = deps.projects.asSequence().flatMap { it.allDependencies() }
-        val currentHash = dependencyHash(allDeps)
+        // 1. Try shared lock first to see if we can just return the cached dir
+        if (!fresh && !forceDownload) {
+            val cached = FileLockManager.withLock(lockFile, shared = true) {
+                if (dir.sources.exists()) dir else null
+            }
+            if (cached != null) return cached
+        }
 
-        if (checkCached(dir, currentHash, forceDownload)) return dir
+        // 2. Need to update, acquire exclusive lock
+        return FileLockManager.withLock(lockFile, shared = false) {
+            if (!fresh && !forceDownload && dir.sources.exists()) return@withLock dir
 
-        extractSources(allDeps, dir, index)
-        saveCache(dir, currentHash)
-        return dir
+            val deps = depService.downloadAllSources(projectRoot)
+            val allDeps = deps.projects.asSequence().flatMap { it.allDependencies() }
+            val currentHash = dependencyHash(allDeps)
+
+            if (checkCached(dir, currentHash, forceDownload)) return@withLock dir
+
+            extractSources(allDeps, dir, index)
+            saveCache(dir, currentHash)
+            dir
+        }
     }
 
     @OptIn(ExperimentalPathApi::class)
     override suspend fun downloadProjectSources(projectRoot: GradleProjectRoot, projectPath: String, index: Boolean, forceDownload: Boolean, fresh: Boolean): SourcesDir {
         val dir = sourcesDirectory(projectRoot, projectPath, "project")
-        if (!fresh && !forceDownload && dir.sources.exists()) return dir
+        val lockFile = dir.metadata.resolve(".lock")
 
-        val deps = depService.downloadProjectSources(projectRoot, projectPath)
-        val allDeps = deps.allDependencies()
-        val currentHash = dependencyHash(allDeps)
+        if (!fresh && !forceDownload) {
+            val cached = FileLockManager.withLock(lockFile, shared = true) {
+                if (dir.sources.exists()) dir else null
+            }
+            if (cached != null) return cached
+        }
 
-        if (checkCached(dir, currentHash, forceDownload)) return dir
+        return FileLockManager.withLock(lockFile, shared = false) {
+            if (!fresh && !forceDownload && dir.sources.exists()) return@withLock dir
 
-        extractSources(allDeps, dir, index)
-        saveCache(dir, currentHash)
-        return dir
+            val deps = depService.downloadProjectSources(projectRoot, projectPath)
+            val allDeps = deps.allDependencies()
+            val currentHash = dependencyHash(allDeps)
+
+            if (checkCached(dir, currentHash, forceDownload)) return@withLock dir
+
+            extractSources(allDeps, dir, index)
+            saveCache(dir, currentHash)
+            dir
+        }
     }
 
     @OptIn(ExperimentalPathApi::class)
     override suspend fun downloadConfigurationSources(projectRoot: GradleProjectRoot, configurationPath: String, index: Boolean, forceDownload: Boolean, fresh: Boolean): SourcesDir {
         val dir = sourcesDirectory(projectRoot, configurationPath, "configuration")
-        if (!fresh && !forceDownload && dir.sources.exists()) return dir
+        val lockFile = dir.metadata.resolve(".lock")
 
-        val deps = depService.downloadConfigurationSources(projectRoot, configurationPath)
-        val allDeps = deps.allDependencies()
-        val currentHash = dependencyHash(allDeps)
+        if (!fresh && !forceDownload) {
+            val cached = FileLockManager.withLock(lockFile, shared = true) {
+                if (dir.sources.exists()) dir else null
+            }
+            if (cached != null) return cached
+        }
 
-        if (checkCached(dir, currentHash, forceDownload)) return dir
+        return FileLockManager.withLock(lockFile, shared = false) {
+            if (!fresh && !forceDownload && dir.sources.exists()) return@withLock dir
 
-        extractSources(allDeps, dir, index)
-        saveCache(dir, currentHash)
-        return dir
+            val deps = depService.downloadConfigurationSources(projectRoot, configurationPath)
+            val allDeps = deps.allDependencies()
+            val currentHash = dependencyHash(allDeps)
+
+            if (checkCached(dir, currentHash, forceDownload)) return@withLock dir
+
+            extractSources(allDeps, dir, index)
+            saveCache(dir, currentHash)
+            dir
+        }
     }
 
     @OptIn(ExperimentalPathApi::class)
     override suspend fun downloadSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, index: Boolean, forceDownload: Boolean, fresh: Boolean): SourcesDir {
         val dir = sourcesDirectory(projectRoot, sourceSetPath, "sourceSet")
-        if (!fresh && !forceDownload && dir.sources.exists()) return dir
+        val lockFile = dir.metadata.resolve(".lock")
 
-        val deps = depService.downloadSourceSetSources(projectRoot, sourceSetPath)
-        val allDeps = deps.configurations.asSequence().flatMap { it.allDependencies() }
-        val currentHash = dependencyHash(allDeps)
+        if (!fresh && !forceDownload) {
+            val cached = FileLockManager.withLock(lockFile, shared = true) {
+                if (dir.sources.exists()) dir else null
+            }
+            if (cached != null) return cached
+        }
 
-        if (checkCached(dir, currentHash, forceDownload)) return dir
+        return FileLockManager.withLock(lockFile, shared = false) {
+            if (!fresh && !forceDownload && dir.sources.exists()) return@withLock dir
 
-        extractSources(allDeps, dir, index)
-        saveCache(dir, currentHash)
-        return dir
+            val deps = depService.downloadSourceSetSources(projectRoot, sourceSetPath)
+            val allDeps = deps.configurations.asSequence().flatMap { it.allDependencies() }
+            val currentHash = dependencyHash(allDeps)
+
+            if (checkCached(dir, currentHash, forceDownload)) return@withLock dir
+
+            extractSources(allDeps, dir, index)
+            saveCache(dir, currentHash)
+            dir
+        }
     }
 
     override suspend fun search(
@@ -219,28 +266,34 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
             val ext = dep.sourcesFile!!.extension
             val relativePath = Path(dep.group!!).resolve(dep.sourcesFile.nameWithoutExtension)
             val dir = globalSourcesDir.resolve(relativePath)
+            val lockFile = dir.resolve(".lock")
             val extractionMarker = dir.resolve(".extracted")
 
-            if (!extractionMarker.exists()) {
-                val stream = when (ext) {
-                    "jar" -> JarInputStream(dep.sourcesFile.inputStream().buffered())
-                    "zip" -> ZipInputStream(dep.sourcesFile.inputStream().buffered())
-                    else -> {
-                        LOGGER.warn("Sources artifact with unrecognized extension: {}", dep.sourcesFile)
-                        return@mapNotNull null
+            val success = FileLockManager.withLock(lockFile) {
+                if (!extractionMarker.exists()) {
+                    val stream = when (ext) {
+                        "jar" -> JarInputStream(dep.sourcesFile.inputStream().buffered())
+                        "zip" -> ZipInputStream(dep.sourcesFile.inputStream().buffered())
+                        else -> {
+                            LOGGER.warn("Sources artifact with unrecognized extension: {}", dep.sourcesFile)
+                            return@withLock false
+                        }
                     }
-                }
-                dir.deleteRecursively()
-                dir.createDirectories()
-                try {
-                    ArchiveExtractor.extractInto(dir, stream)
-                    extractionMarker.createFile()
-                } catch (e: Exception) {
-                    LOGGER.error("Failed to extract sources for $dep", e)
                     dir.deleteRecursively()
-                    return@mapNotNull null
-                }
+                    dir.createDirectories()
+                    try {
+                        ArchiveExtractor.extractInto(dir, stream)
+                        extractionMarker.createFile()
+                        true
+                    } catch (e: Exception) {
+                        LOGGER.error("Failed to extract sources for $dep", e)
+                        dir.deleteRecursively()
+                        false
+                    }
+                } else true
             }
+
+            if (!success) return@mapNotNull null
 
             // Sync to target.sources
             val scopeLink = targetSources.resolve(relativePath)

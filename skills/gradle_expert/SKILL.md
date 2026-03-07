@@ -25,7 +25,7 @@ Provides authoritative guidance and automation for creating, modifying, and audi
 - **ALWAYS** use `libs.versions.toml` for dependency management if it exists.
 - **ALWAYS** use `gradle_docs` for authoritative documentation lookup instead of generic web searches.
 - **ALWAYS** use `search_dependency_sources` with `gradleSource = true` when researching core Gradle behavior.
-- **ALWAYS** use `inspect_build` with `testName` for individual test output instead of generic `taskPath` or shell `grep`.
+- **ALWAYS** use `inspect_build` with `testName` and `mode="details"` for individual test output instead of generic `taskPath`, `captureTaskOutput`, or shell `grep`.
 - **NEVER** guess internal API behavior; verify it by reading the source code of the Gradle Build Tool.
 
 ## Directives
@@ -33,7 +33,7 @@ Provides authoritative guidance and automation for creating, modifying, and audi
 - **Author builds idiomatically**: Use standard patterns for multi-project builds and convention plugins.
 - **Perform performance audits**: Identify configuration bottlenecks and recommend lazy API migrations.
 - **Research internals authoritatively**: Use `gradle_docs` and internal source search to understand "how it works" at the engine level. Use `read_dependency_sources` to explore implementation details.
-- **Diagnose failures surgically**: Use `inspect_build` with `testName` and `mode="details"` to analyze test failures and stack traces instead of reading raw console logs.
+- **Diagnose failures surgically**: Use `inspect_build` with `testName` and `mode="details"` to analyze test failures and stack traces instead of reading raw console logs. DO NOT use `taskPath` or `captureTaskOutput` for tests.
 - **Resolve dependencies precisely**: Use `inspect_dependencies` and `managing_gradle_dependencies` for auditing and updates.
 - **Consult best practices**: Refer to the [Best Practices Snapshot]({baseDir}/references/best_practices.md) for a high-level overview. **ALWAYS** use `gradle_docs` with `tag:best-practices` to retrieve the latest and most comprehensive
   guidelines from the official documentation.

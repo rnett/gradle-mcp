@@ -4,7 +4,7 @@ This document provides detailed instructions for diagnosing test failures using 
 
 ## Inspecting Test Results
 
-When a build fails due to test failures, use `inspect_build` with the `tests` inclusion to get a structured view of the results.
+When a build fails due to test failures, use `inspect_build` with `testOutcome` or `testName` to get a structured view of the results.
 
 ### Listing Failed Tests
 
@@ -13,9 +13,7 @@ To see all failed tests in a build:
 ```json
 {
   "buildId": "BUILD_ID",
-  "tests": {
-    "outcome": "FAILED"
-  }
+  "testOutcome": "FAILED"
 }
 ```
 
@@ -27,9 +25,7 @@ To see the full output and stack trace for a specific test:
 {
   "buildId": "BUILD_ID",
   "mode": "details",
-  "tests": {
-    "name": "com.example.MyTest.testMethod"
-  }
+  "testName": "com.example.MyTest.testMethod"
 }
 ```
 
@@ -48,14 +44,13 @@ Sometimes a test run fails not because a test failed, but because the build itse
 
 If `inspect_build` shows no failed tests but the build status is `FAILED`, or if you suspect a non-test issue:
 
-1. **Check Build Failures and Problems**:
+1. **Check Build Failures and Problems Summary**:
    ```json
    {
-     "buildId": "BUILD_ID",
-     "failures": {},
-     "problems": {}
+     "buildId": "BUILD_ID"
    }
    ```
+   If a specific failure or problem is found, you can inspect it further using `failureId` or `problemId` with `mode="details"`.
 2. **Refer to General Build Failure Analysis**: For a deep dive into non-test related failures, use the `running_gradle_builds` skill.
 
 ## Common Test Failure Scenarios
@@ -79,11 +74,11 @@ For builds with a large number of tests, use `limit` and `offset`:
 ```json
 {
   "buildId": "BUILD_ID",
-  "limit": 50,
-  "offset": 0,
-  "tests": {
-    "name": "com.example.service"
-  }
+  "pagination": {
+    "limit": 50,
+    "offset": 0
+  },
+  "testName": "com.example.service"
 }
 ```
 

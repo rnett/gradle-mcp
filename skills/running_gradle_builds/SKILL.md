@@ -61,7 +61,8 @@ Providing a task path **with a leading colon** (e.g., `:test`, `:app:test`) targ
 
 - **Core Lifecycle Execution**: When you need to execute standard Gradle tasks like `build`, `assemble`, or `clean` with maximum reliability and clean, parseable output.
 - **Persistent Development Processes**: When starting development servers (e.g., `bootRun`) or continuous builds where background management and real-time log monitoring are required.
-- **Surgical Build Troubleshooting**: When a build has failed and you need to perform deep-dive analysis of task failures or console logs using the `inspect_build` diagnostic suite.
+- **Surgical Build Troubleshooting**: When a build has failed and you need to perform deep-dive analysis of task failures or console logs using the `inspect_build` diagnostic suite. For test failures, ALWAYS use `testName` with
+  `mode="details"`.
 - **Task-Specific Information Retrieval**: When you need to extract isolated output from a single task (like `help` or `properties`) without the noise of the full build log.
 
 ## Workflows

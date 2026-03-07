@@ -10,6 +10,7 @@ ALWAYS use this tool to execute Gradle builds, tasks, and tests instead of raw s
 Direct shell execution of `./gradlew` is unreliable for AI agents because it produces interleaved, non-deterministic console output that is difficult to parse and lacks structured failure diagnostics.
 This tool provides a managed environment with high-resolution feedback, authoritative background orchestration, and surgical task output capturing (`captureTaskOutput`), which is vastly superior and more token-efficient than parsing raw logs.
 For deep diagnostics after any build, ALWAYS use `inspect_build` with the returned `BuildId` to access exhaustive test failures, stack traces, and console tails.
+To investigate individual test failures, ALWAYS use `inspect_build` with `testName` and `mode="details"`. DO NOT use `captureTaskOutput` for tests.
 Note: Recommend using `invocationArguments: { envSource: "SHELL" }` if Gradle isn't finding environment variables (e.g. for JDKs) that should be present. This is because some hosts start before the shell environment is fully loaded.
 Note: Avoid `--rerun-tasks` unless investigating cache issues.
 
@@ -51,7 +52,7 @@ Note: Avoid `--rerun-tasks` unless investigating cache issues.
         "string",
         "null"
       ],
-      "description": "Capturing and returning output for a specific task path (e.g., ':app:dependencies') exclusively. This is highly token-efficient as it eliminates all non-task console noise. Output over 100 lines will be truncated; use `inspect_build` for full logs. DO NOT use this for tests; use `inspect_build` with `testName` for individual test output."
+      "description": "Capturing and returning output for a specific task path (e.g., ':app:dependencies') exclusively. This is highly token-efficient as it eliminates all non-task console noise. Output over 100 lines will be truncated; use `inspect_build` for full logs. DO NOT use this for tests; ALWAYS use `inspect_build` with `testName` and `mode=\"details\"` for isolated, untruncated individual test output and stack traces."
     },
     "invocationArguments": {
       "type": "object",
