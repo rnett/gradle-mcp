@@ -93,6 +93,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         )
         return FinishedBuild(
             id = id,
+            startTime = Clock.System.now(),
             args = args,
             consoleOutput = console,
             publishedScans = scans,

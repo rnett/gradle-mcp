@@ -86,8 +86,8 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         val completed = buildResults.latestFinished(maxBuilds)
         val active = if (onlyCompleted) emptyList() else buildResults.listRunningBuilds()
 
-        val all = (completed.map { it to false } + active.map { it to true })
-            .sortedByDescending { (b, _) -> b.id.timestamp }
+        val all = (completed.map<Build, Pair<Build, Boolean>> { it to false } + active.map<Build, Pair<Build, Boolean>> { it to true })
+            .sortedByDescending { (b, _) -> b.startTime }
             .take(maxBuilds)
 
         if (all.isEmpty()) {
@@ -99,7 +99,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             all.forEach { (build, isActive) ->
                 val id = build.id
                 val commandLine = build.args.renderCommandLine()
-                val secondsAgo = Clock.System.now().minus(id.timestamp).inWholeSeconds
+                val secondsAgo = Clock.System.now().minus(build.startTime).inWholeSeconds
 
                 append(id).append(" | ")
                 append(commandLine).append(" | ")

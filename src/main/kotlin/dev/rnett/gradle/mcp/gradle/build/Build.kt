@@ -10,7 +10,7 @@ sealed interface Build {
     val status: BuildStatus
     val id: BuildId
     val args: GradleInvocationArguments
-    val startTime: Instant get() = id.timestamp
+    val startTime: Instant
     val consoleOutput: CharSequence
     val publishedScans: List<GradleBuildScan>
     val testResults: TestResults
@@ -93,6 +93,7 @@ interface FinishedBuild : Build {
 private data class FrozenBuild(
     override val id: BuildId,
     override val args: GradleInvocationArguments,
+    override val startTime: Instant,
     override val consoleOutput: CharSequence,
     override val publishedScans: List<GradleBuildScan>,
     override val testResults: TestResults,
@@ -109,6 +110,7 @@ private data class FrozenBuild(
 internal fun FinishedBuild.freeze(): FinishedBuild = FrozenBuild(
     id = id,
     args = args,
+    startTime = startTime,
     consoleOutput = consoleOutput,
     publishedScans = publishedScans,
     testResults = testResults,
@@ -123,6 +125,7 @@ internal fun FinishedBuild.freeze(): FinishedBuild = FrozenBuild(
 fun FinishedBuild(
     id: BuildId,
     args: GradleInvocationArguments,
+    startTime: Instant,
     consoleOutput: CharSequence,
     publishedScans: List<GradleBuildScan>,
     testResults: TestResults,
@@ -135,6 +138,7 @@ fun FinishedBuild(
 ): FinishedBuild = FrozenBuild(
     id = id,
     args = args,
+    startTime = startTime,
     consoleOutput = consoleOutput,
     publishedScans = publishedScans,
     testResults = testResults,

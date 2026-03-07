@@ -58,6 +58,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             every { consoleOutputLines } returns listOf("Started")
             coEvery { awaitFinished() } returns FinishedBuild(
                 id = buildId,
+                startTime = Clock.System.now(),
                 args = GradleInvocationArguments(additionalArguments = listOf("help")),
                 consoleOutput = "SUCCESS",
                 publishedScans = emptyList(),
@@ -73,6 +74,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val mockFinishedBuild = FinishedBuild(
             id = buildId,
+            startTime = Clock.System.now(),
             args = GradleInvocationArguments(additionalArguments = listOf("help")),
             consoleOutput = "SUCCESS",
             publishedScans = emptyList(),

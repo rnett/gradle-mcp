@@ -105,7 +105,7 @@ class BuildManager : AutoCloseable {
         if (limit < 1) return emptyList()
 
         val results = builds.values.filterIsInstance<FinishedBuild>()
-            .sortedByDescending { it.id.timestamp }
+            .sortedByDescending { it.startTime }
             .take(limit)
 
         results.forEach { updateAccess(it.id) }

@@ -65,6 +65,7 @@ class FinishedBuildTest {
 
         val result = FinishedBuild(
             id = BuildId.newId(),
+            startTime = Clock.System.now(),
             args = args,
             consoleOutput = "BUILD SUCCESSFUL",
             publishedScans = emptyList(),
@@ -97,6 +98,7 @@ class FinishedBuildTest {
 
         val result = FinishedBuild(
             id = BuildId.newId(),
+            startTime = Clock.System.now(),
             args = args,
             consoleOutput = "BUILD FAILED",
             publishedScans = emptyList(),
@@ -210,6 +212,7 @@ class FinishedBuildTest {
     fun `consoleOutputLines lazily splits console output`() {
         val result = FinishedBuild(
             id = BuildId.newId(),
+            startTime = Clock.System.now(),
             args = args,
             consoleOutput = "Line 1\nLine 2\nLine 3",
             publishedScans = emptyList(),
@@ -248,6 +251,7 @@ class FinishedBuildTest {
 
         val result = FinishedBuild(
             id = BuildId.newId(),
+            startTime = Clock.System.now(),
             args = args,
             consoleOutput = "",
             publishedScans = emptyList(),
@@ -295,6 +299,7 @@ class FinishedBuildTest {
 
         val result = FinishedBuild(
             id = BuildId.newId(),
+            startTime = Clock.System.now(),
             args = args,
             consoleOutput = "",
             publishedScans = emptyList(),
@@ -343,6 +348,7 @@ class FinishedBuildTest {
 
         val result = FinishedBuild(
             id = BuildId.newId(),
+            startTime = Clock.System.now(),
             args = args,
             consoleOutput = "",
             publishedScans = emptyList(),
@@ -411,6 +417,7 @@ class FinishedBuildTest {
 
         val result = FinishedBuild(
             id = BuildId.newId(),
+            startTime = Clock.System.now(),
             args = args,
             consoleOutput = consoleOutput,
             publishedScans = emptyList(),
@@ -451,6 +458,7 @@ class FinishedBuildTest {
 
         val result = FinishedBuild(
             id = BuildId.newId(),
+            startTime = Clock.System.now(),
             args = args,
             consoleOutput = consoleOutput,
             publishedScans = emptyList(),
@@ -468,6 +476,7 @@ class FinishedBuildTest {
     fun `getTaskOutput returns null if task not found`() {
         val result = FinishedBuild(
             id = BuildId.newId(),
+            startTime = Clock.System.now(),
             args = args,
             consoleOutput = "BUILD SUCCESSFUL",
             publishedScans = emptyList(),
@@ -509,6 +518,7 @@ class GradleResultTest {
     fun `can create successful gradle result`() {
         val finishedBuild = FinishedBuild(
             id = BuildId.newId(),
+            startTime = Clock.System.now(),
             args = args,
             consoleOutput = "BUILD SUCCESSFUL",
             publishedScans = emptyList(),
@@ -532,6 +542,7 @@ class GradleResultTest {
     fun `can create failed gradle result`() {
         val finishedBuild = FinishedBuild(
             id = BuildId.newId(),
+            startTime = Clock.System.now(),
             args = args,
             consoleOutput = "BUILD FAILED",
             publishedScans = emptyList(),
@@ -555,6 +566,7 @@ class GradleResultTest {
     fun `throwFailure returns build id and value on success`() {
         val finishedBuild = FinishedBuild(
             id = BuildId.newId(),
+            startTime = Clock.System.now(),
             args = args,
             consoleOutput = "",
             publishedScans = emptyList(),

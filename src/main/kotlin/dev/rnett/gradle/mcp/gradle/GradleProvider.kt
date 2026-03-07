@@ -58,6 +58,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Path
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.reflect.KClass
+import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -249,7 +250,7 @@ class DefaultGradleProvider(
         val runningBuild = RunningBuild(
             id = buildId,
             args = args,
-            startTime = buildId.timestamp,
+            startTime = Clock.System.now(),
             projectRoot = projectRoot,
             cancellationTokenSource = cancellationTokenSource
         ).also { buildManager.registerBuild(it) }

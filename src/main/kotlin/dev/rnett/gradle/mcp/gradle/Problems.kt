@@ -9,10 +9,10 @@ import org.gradle.tooling.events.problems.ProblemGroup
 @JvmInline
 @Description("The identifier of a problem. Use with `${ToolNames.INSPECT_BUILD}`. Note that the same problem may occur in different places in the build.")
 value class ProblemId(val id: String) {
-    constructor(group: String, name: String) : this("$group.$name")
+    constructor(group: String, name: String) : this("prob:$group.$name")
 }
 
-fun org.gradle.tooling.events.problems.ProblemId.toId() = ProblemId(name, group.fqName)
+fun org.gradle.tooling.events.problems.ProblemId.toId() = ProblemId("prob:${group.fqName}.$name")
 
 @Serializable
 @Description("A problem that occurred during a Gradle build, along with information about all of its occurences")

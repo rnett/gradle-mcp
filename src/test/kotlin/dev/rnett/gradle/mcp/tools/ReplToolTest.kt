@@ -183,6 +183,7 @@ class ReplToolTest : BaseMcpServerTest() {
 
         val finishedBuild = FinishedBuild(
             id = BuildId.newId(),
+            startTime = Clock.System.now(),
             args = GradleInvocationArguments(additionalArguments = emptyList()),
             consoleOutput = "FAILURE: Build failed with an exception.\n\n* What went wrong:\nExecution failed for task ':app:resolveReplEnvironment'.\n> SourceSet 'commonMain' found in project ':app', but it does not appear to be a JVM source set. REPL is only supported for JVM source sets.",
             publishedScans = emptyList(),
