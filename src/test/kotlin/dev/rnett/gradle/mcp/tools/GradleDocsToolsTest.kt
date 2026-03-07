@@ -23,7 +23,11 @@ class GradleDocsToolsTest : BaseMcpServerTest() {
     @Test
     fun `gradle_docs returns content for path`() = runTest {
         val content = DocsPageContent.Markdown("# Test Content")
-        coEvery { mockDocsService.getDocsPageContent("test.md", any()) } returns content
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                mockDocsService.getDocsPageContent("test.md", any())
+            }
+        } returns content
 
         val response = server.client.callTool(
             ToolNames.GRADLE_DOCS, buildJsonObject {
@@ -41,7 +45,11 @@ class GradleDocsToolsTest : BaseMcpServerTest() {
             DocsSearchResult("title$i", "path$i", "snippet$i", "tag$i")
         }
 
-        coEvery { mockDocsService.searchDocs("test", any()) } returns DocsSearchResponse(results)
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                mockDocsService.searchDocs("test", any())
+            }
+        } returns DocsSearchResponse(results)
 
         val response = server.client.callTool(
             ToolNames.GRADLE_DOCS, buildJsonObject {
@@ -66,7 +74,11 @@ class GradleDocsToolsTest : BaseMcpServerTest() {
             DocsSectionSummary("tag$i", "Display $i", i)
         }
 
-        coEvery { mockDocsService.summarizeSections(any()) } returns summaries
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                mockDocsService.summarizeSections(any())
+            }
+        } returns summaries
 
         val response = server.client.callTool(
             ToolNames.GRADLE_DOCS, buildJsonObject {
@@ -86,7 +98,11 @@ class GradleDocsToolsTest : BaseMcpServerTest() {
 
     @Test
     fun `gradle_docs returns error and sets isError`() = runTest {
-        coEvery { mockDocsService.searchDocs("invalid query", any()) } returns DocsSearchResponse(emptyList(), error = "Lucene Syntax Error")
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                mockDocsService.searchDocs("invalid query", any())
+            }
+        } returns DocsSearchResponse(emptyList(), error = "Lucene Syntax Error")
 
         val response = server.client.callTool(
             ToolNames.GRADLE_DOCS, buildJsonObject {

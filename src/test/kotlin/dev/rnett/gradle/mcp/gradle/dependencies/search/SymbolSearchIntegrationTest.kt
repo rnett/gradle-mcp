@@ -51,7 +51,9 @@ class SymbolSearchIntegrationTest : SearchIntegrationTestBase() {
             )
         )
 
-        val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
+        val sourcesDir = with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            sourcesService.downloadAllSources(projectRoot, index = true)
+        }
 
         // Search for Kotlin symbol
         val results1 = sourcesService.search(sourcesDir, searchProvider, "MyClass").results

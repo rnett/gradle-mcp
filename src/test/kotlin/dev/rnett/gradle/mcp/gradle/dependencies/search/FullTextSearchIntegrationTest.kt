@@ -56,7 +56,9 @@ class FullTextSearchIntegrationTest : SearchIntegrationTestBase() {
             )
         )
 
-        val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
+        val sourcesDir = with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            sourcesService.downloadAllSources(projectRoot, index = true)
+        }
 
         // Search for phrase in FileA
         val resultsA = sourcesService.search(sourcesDir, searchProvider, "\"unique phrase in FileA\"").results

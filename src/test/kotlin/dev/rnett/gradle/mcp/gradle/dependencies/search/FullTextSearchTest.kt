@@ -28,37 +28,39 @@ class FullTextSearchTest {
         val index1Dir = tempDir.resolve("index1")
         val index2Dir = tempDir.resolve("index2")
 
-        FullTextSearch.index(dep1Dir, index1Dir)
-        FullTextSearch.index(dep2Dir, index2Dir)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            FullTextSearch.index(dep1Dir, index1Dir)
+            FullTextSearch.index(dep2Dir, index2Dir)
 
-        val mergedIndexDir = tempDir.resolve("merged")
-        FullTextSearch.mergeIndices(
-            mapOf(
-                index1Dir to Path.of("lib1"),
-                index2Dir to Path.of("lib2")
-            ),
-            mergedIndexDir
-        )
+            val mergedIndexDir = tempDir.resolve("merged")
+            FullTextSearch.mergeIndices(
+                mapOf(
+                    index1Dir to Path.of("lib1"),
+                    index2Dir to Path.of("lib2")
+                ),
+                mergedIndexDir
+            )
 
-        val finalIndexDir = mergedIndexDir.resolve(FullTextSearch.v4IndexDirName)
-        FSDirectory.open(finalIndexDir).use { dir ->
-            DirectoryReader.open(dir).use { reader ->
-                assertEquals(3, reader.numDocs())
-                val paths = (0 until reader.maxDoc()).map {
-                    reader.storedFields().document(it).get("path")
-                }.toSet()
+            val finalIndexDir = mergedIndexDir.resolve(FullTextSearch.v4IndexDirName)
+            FSDirectory.open(finalIndexDir).use { dir ->
+                DirectoryReader.open(dir).use { reader ->
+                    assertEquals(3, reader.numDocs())
+                    val paths = (0 until reader.maxDoc()).map {
+                        reader.storedFields().document(it).get("path")
+                    }.toSet()
 
-                val expectedPaths = setOf(
-                    "lib1/File1.kt",
-                    "lib1/subdir/File2.kt",
-                    "lib2/File3.kt"
-                )
-                assertEquals(expectedPaths, paths)
+                    val expectedPaths = setOf(
+                        "lib1/File1.kt",
+                        "lib1/subdir/File2.kt",
+                        "lib2/File3.kt"
+                    )
+                    assertEquals(expectedPaths, paths)
+                }
             }
-        }
 
-        val results = FullTextSearch.search(mergedIndexDir, "Content").results
-        assertEquals(3, results.size, "Should find 3 matches in merged index")
+            val results = FullTextSearch.search(mergedIndexDir, "Content").results
+            assertEquals(3, results.size, "Should find 3 matches in merged index")
+        }
     }
 
     @Test
@@ -74,7 +76,9 @@ class FullTextSearchTest {
         depDir.resolve("TestFile.kt").writeText(fileContent)
 
         val indexDir = tempDir.resolve("index")
-        FullTextSearch.index(depDir, indexDir)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            FullTextSearch.index(depDir, indexDir)
+        }
 
         val results = FullTextSearch.search(indexDir, "match").results
         val searchResults = results.toSearchResults(depDir)
@@ -97,7 +101,9 @@ class FullTextSearchTest {
         )
 
         val indexDir = tempDir.resolve("index")
-        FullTextSearch.index(depDir, indexDir)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            FullTextSearch.index(depDir, indexDir)
+        }
 
         // camelCase
         val camel = FullTextSearch.search(indexDir, "camel").results.toSearchResults(depDir)
@@ -134,7 +140,9 @@ class FullTextSearchTest {
         depDir.resolve("File.kt").writeText("match match match")
 
         val indexDir = tempDir.resolve("index")
-        FullTextSearch.index(depDir, indexDir)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            FullTextSearch.index(depDir, indexDir)
+        }
 
         val results = FullTextSearch.search(indexDir, "match").results
         assertEquals(3, results.size, "Lucene should find 3 raw matches")
@@ -149,7 +157,9 @@ class FullTextSearchTest {
         depDir.resolve("File.kt").writeText("some content")
 
         val indexDir = tempDir.resolve("index")
-        FullTextSearch.index(depDir, indexDir)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            FullTextSearch.index(depDir, indexDir)
+        }
 
         assertEquals(0, FullTextSearch.search(indexDir, "nonexistent").results.size)
     }
@@ -160,7 +170,9 @@ class FullTextSearchTest {
         depDir.resolve("File.kt").writeText("val x = a + b * c / d")
 
         val indexDir = tempDir.resolve("index")
-        FullTextSearch.index(depDir, indexDir)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            FullTextSearch.index(depDir, indexDir)
+        }
 
         // Note: StandardTokenizer/WordDelimiterGraphFilter might not index operators as tokens
         // Let's see what happens.
@@ -177,7 +189,9 @@ class FullTextSearchTest {
         depDir.resolve("NotEmpty.kt").writeText("content")
 
         val indexDir = tempDir.resolve("index")
-        FullTextSearch.index(depDir, indexDir)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            FullTextSearch.index(depDir, indexDir)
+        }
 
         // Verify that we can at least find the non-empty one
         assertEquals(1, FullTextSearch.search(indexDir, "content").results.size)
@@ -198,17 +212,19 @@ class FullTextSearchTest {
         file.writeText("initial")
 
         val indexDir = tempDir.resolve("index")
-        FullTextSearch.index(depDir, indexDir)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            FullTextSearch.index(depDir, indexDir)
 
-        assertEquals(1, FullTextSearch.search(indexDir, "initial").results.size)
+            assertEquals(1, FullTextSearch.search(indexDir, "initial").results.size)
 
-        // Re-index with different content
-        file.writeText("updated")
-        FullTextSearch.index(depDir, indexDir)
+            // Re-index with different content
+            file.writeText("updated")
+            FullTextSearch.index(depDir, indexDir)
 
-        // FullTextSearch.index calls invalidateCache internally
-        assertEquals(0, FullTextSearch.search(indexDir, "initial").results.size)
-        assertEquals(1, FullTextSearch.search(indexDir, "updated").results.size)
+            // FullTextSearch.index calls invalidateCache internally
+            assertEquals(0, FullTextSearch.search(indexDir, "initial").results.size)
+            assertEquals(1, FullTextSearch.search(indexDir, "updated").results.size)
+        }
     }
 
     @Test
@@ -218,7 +234,9 @@ class FullTextSearchTest {
         depDir.resolve("File.kt").writeText(fileContent)
 
         val indexDir = tempDir.resolve("index")
-        FullTextSearch.index(depDir, indexDir)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            FullTextSearch.index(depDir, indexDir)
+        }
 
         val results = FullTextSearch.search(indexDir, "\"line 5\"").results.toSearchResults(depDir)
         assertEquals(1, results.size, "Should find exactly one match with phrase query")
@@ -239,7 +257,9 @@ class FullTextSearchTest {
         depDir.resolve("Directive.kt").writeText("// LANGUAGE: +ContextParameters")
 
         val indexDir = tempDir.resolve("index")
-        FullTextSearch.index(depDir, indexDir)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            FullTextSearch.index(depDir, indexDir)
+        }
 
         // Escaped colon should work
         val response = FullTextSearch.search(indexDir, "LANGUAGE\\:")
@@ -268,7 +288,9 @@ class FullTextSearchTest {
         depDir.resolve("Target.kt").writeText("val LANGUAGE = \"en\"")
 
         val indexDir = tempDir.resolve("index")
-        FullTextSearch.index(depDir, indexDir)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            FullTextSearch.index(depDir, indexDir)
+        }
 
         val response = FullTextSearch.search(indexDir, "LANGUAGE")
         val results = response.results
@@ -286,7 +308,9 @@ class FullTextSearchTest {
         depDir.resolve("Assignment.kt").writeText("val x = 10")
 
         val indexDir = tempDir.resolve("index")
-        FullTextSearch.index(depDir, indexDir)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            FullTextSearch.index(depDir, indexDir)
+        }
 
         // Escaped equals should work
         val response = FullTextSearch.search(indexDir, "val x \\= 10")
@@ -305,7 +329,9 @@ class FullTextSearchTest {
         depDir.resolve("File.kt").writeText("some content")
 
         val indexDir = tempDir.resolve("index")
-        FullTextSearch.index(depDir, indexDir)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            FullTextSearch.index(depDir, indexDir)
+        }
 
         val response = FullTextSearch.search(indexDir, "content")
         assertTrue(response.interpretedQuery != null, "Response should include interpreted query")

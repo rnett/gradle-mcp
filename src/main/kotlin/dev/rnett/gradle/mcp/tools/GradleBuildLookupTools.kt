@@ -13,6 +13,7 @@ import dev.rnett.gradle.mcp.gradle.build.TestOutcome
 import dev.rnett.gradle.mcp.gradle.build.failuresIfFailed
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.coroutineScope
@@ -116,6 +117,8 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                     appendLine(br.testResults.failed.size)
                 }
             }
+            appendLine()
+            appendLine("To inspect a specific build, call `inspect_build(buildId=\"ID\")`.")
         }
     }
 
@@ -344,15 +347,13 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         }
     }
 
-    @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
+    @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class, ExperimentalCoroutinesApi::class)
     val inspectBuild by tool<InspectBuildArgs, String>(
         ToolNames.INSPECT_BUILD,
         """
-            |ALWAYS use this tool to inspect detailed build information, monitor progress, and perform surgical failure diagnostics instead of reading raw console logs.
-            |To inspect test failures or outputs, ALWAYS use `testName` with `mode="details"`. DO NOT use `taskPath` or `captureTaskOutput` for tests, as they lack per-test isolation and truncate output.
-            |This is the most token-efficient and reliable way to get specific test stdout/stderr, full task outputs, and deep-dive failure trees which are often obscured or interleaved in raw console output.
-            |Provides a managed interface to wait for specific log patterns, check active builds (omit `buildId`), or get detailed outputs (use `mode="details"` with `testName`, `taskPath`, etc).
-            |For deep guidance on diagnostics, refer to the `managing_gradle_builds` and `executing_gradle_tests` skills if installed.
+            |Surgically inspects build information (test failures, task outputs, console logs, etc.), monitors progress, and manages active/recent builds.
+            |STRONGLY PREFERRED over reading raw console logs for diagnostics.
+            |Use `mode="details"` with `testName`, `taskPath`, `failureId`, or `problemId` for exhaustive information.
         """.trimMargin()
     ) {
         if (it.buildId == null) {
@@ -437,6 +438,14 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                 }
                 appendLine("--- Summary ---")
                 appendLine(build.toOutputString(true))
+                appendLine()
+                appendLine("--- How to Inspect Details ---")
+                appendLine("- Individual Tests:  `testName=\"FullTestName\"`, `mode=\"details\"` (REQUIRED for full output/stack trace)")
+                appendLine("- Task Outputs:      `taskPath=\":path:to:task\"`, `mode=\"details\"`")
+                appendLine("- Build Failures:    `failureId=\"ID\"`, `mode=\"details\"` (use summary mode first to find IDs)")
+                appendLine("- Problems/Errors:   `problemId=\"ID\"`, `mode=\"details\"` (use summary mode first to find IDs)")
+                appendLine("- Full Console:      `consoleTail=true` (tail) or `consoleTail=false` (head)")
+                appendLine("- Filtering:         Use `testOutcome`, `taskOutcome` with `mode=\"summary\"` to narrow down results.")
                 appendLine()
             } else {
                 if (hasTasks) {

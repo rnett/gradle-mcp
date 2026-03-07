@@ -1,17 +1,18 @@
 package dev.rnett.gradle.mcp
 
+import dev.rnett.gradle.mcp.gradle.dependencies.ArchiveExtractor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.zip.ZipFile
-import java.util.zip.ZipInputStream
 import kotlin.io.path.exists
 import kotlin.io.path.outputStream
 import kotlin.io.path.writeText
 
 interface ContentExtractorService {
     fun convertedDirs(version: String, kind: DocsKind): List<Path>
+
+    context(progress: ProgressReporter)
     suspend fun ensureProcessed(version: String)
 }
 
@@ -30,6 +31,7 @@ class DefaultContentExtractorService(
         }
     }
 
+    context(progress: ProgressReporter)
     override suspend fun ensureProcessed(version: String) {
         val versionDir = environment.cacheDir.resolve("reading_gradle_docs").resolve(version)
         val convertedDir = versionDir.resolve("converted")
@@ -44,10 +46,20 @@ class DefaultContentExtractorService(
         withContext(Dispatchers.IO) {
             Files.createDirectories(convertedDir)
 
-            ZipFile(zipPath.toFile()).use { zip ->
+            val extractionProgress = progress.withPhase("EXTRACTING")
+            val zipFile = java.util.zip.ZipFile(zipPath.toFile())
+            val totalEntries = zipFile.size().toDouble()
+            var processedEntries = 0.0
+
+            zipFile.use { zip ->
                 val entries = zip.entries()
                 while (entries.hasMoreElements()) {
                     val entry = entries.nextElement()
+                    processedEntries++
+                    if (processedEntries % 50 == 0.0 || processedEntries == totalEntries) {
+                        extractionProgress(processedEntries, totalEntries, "Extracting and converting documentation")
+                    }
+
                     if (entry.isDirectory) continue
 
                     val fullPath = entry.name
@@ -62,12 +74,13 @@ class DefaultContentExtractorService(
                     val relativePath = getRelativePath(path, kind)
 
                     // Zip-slip guard
+                    val normalizedConverted = convertedDir.normalize().toAbsolutePath()
                     val targetPath = if (kind == DocsKind.RELEASE_NOTES) {
-                        convertedDir.resolve(relativePath)
+                        normalizedConverted.resolve(relativePath)
                     } else {
-                        convertedDir.resolve(kind.dirName).resolve(relativePath)
+                        normalizedConverted.resolve(kind.dirName).resolve(relativePath)
                     }
-                    if (!targetPath.normalize().startsWith(convertedDir.normalize())) {
+                    if (!targetPath.normalize().toAbsolutePath().startsWith(normalizedConverted)) {
                         throw RuntimeException("Zip slip detected in entry: ${entry.name}")
                     }
 
@@ -89,12 +102,20 @@ class DefaultContentExtractorService(
             }
 
             // Second pass: nested sample ZIPs
-            ZipFile(zipPath.toFile()).use { zip ->
-                val entries = zip.entries()
-                while (entries.hasMoreElements()) {
-                    val entry = entries.nextElement()
-                    if (entry.name.contains("docs/samples/zips/") && entry.name.endsWith(".zip")) {
-                        processSampleZip(zip, entry, convertedDir.resolve("samples"))
+            val sampleZips = java.util.zip.ZipFile(zipPath.toFile()).use { zip ->
+                zip.entries().asSequence().filter { it.name.contains("docs/samples/zips/") && it.name.endsWith(".zip") }.map { it.name }.toList()
+            }
+            if (sampleZips.isNotEmpty()) {
+                val totalSamples = sampleZips.size.toDouble()
+                var processedSamples = 0.0
+                java.util.zip.ZipFile(zipPath.toFile()).use { zip ->
+                    for (entryName in sampleZips) {
+                        processedSamples++
+                        extractionProgress(processedSamples, totalSamples, "Extracting sample source: ${entryName.substringAfterLast('/')}")
+                        val entry = zip.getEntry(entryName)
+                        with<ProgressReporter, Unit>(extractionProgress.withMessage { "Extracting sample source: ${entryName.substringAfterLast('/')} - $it" }) {
+                            processSampleZip(zip, entry, convertedDir.resolve("samples"))
+                        }
                     }
                 }
             }
@@ -138,7 +159,8 @@ class DefaultContentExtractorService(
         return ext in setOf("js", "css", "map")
     }
 
-    private fun processSampleZip(outerZip: ZipFile, entry: java.util.zip.ZipEntry, samplesDest: Path) {
+    context(progress: ProgressReporter)
+    private fun processSampleZip(outerZip: java.util.zip.ZipFile, entry: java.util.zip.ZipEntry, samplesDest: Path) {
         val fullFileName = entry.name.substringAfterLast('/')
         val fileName = fullFileName.removeSuffix(".zip")
 
@@ -152,24 +174,9 @@ class DefaultContentExtractorService(
         val destDir = samplesDest.resolve(baseName).resolve(variant)
         Files.createDirectories(destDir)
 
-        ZipInputStream(outerZip.getInputStream(entry).buffered()).use { zis ->
-            var nestedEntry = zis.getNextEntry()
-            while (nestedEntry != null) {
-                if (!nestedEntry.isDirectory) {
-                    val target = destDir.resolve(nestedEntry.name)
-
-                    // Zip-slip guard
-                    if (!target.normalize().startsWith(destDir.normalize())) {
-                        throw RuntimeException("Zip slip detected in nested entry: ${nestedEntry.name}")
-                    }
-
-                    Files.createDirectories(target.parent)
-                    target.outputStream().buffered().use { output ->
-                        zis.copyTo(output)
-                    }
-                }
-                nestedEntry = zis.getNextEntry()
-            }
+        java.util.zip.ZipInputStream(outerZip.getInputStream(entry).buffered()).use { zis ->
+            ArchiveExtractor.extractInto(destDir, zis, skipSingleFirstDir = false)
         }
     }
+
 }

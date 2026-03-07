@@ -1,8 +1,10 @@
 package dev.rnett.gradle.mcp.gradle.dependencies.search
 
 import com.github.benmanes.caffeine.cache.Caffeine
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.lucene.LuceneUtils
 import dev.rnett.gradle.mcp.tools.PaginationInput
+import dev.rnett.gradle.mcp.withPhase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.lucene.analysis.Analyzer
@@ -193,6 +195,7 @@ object FullTextSearch : SearchProvider {
         return@withContext res
     }
 
+    context(progress: ProgressReporter)
     override suspend fun index(dependencyDir: Path, outputDir: Path) = withContext(Dispatchers.IO) {
         LOGGER.info("Starting full-text indexing for $dependencyDir")
         val (fileCount, duration) = measureTimedValue {
@@ -201,19 +204,26 @@ object FullTextSearch : SearchProvider {
 
             createAnalyzer().use { analyzer ->
                 var count = 0
-                LuceneUtils.writeIndex(indexDir, analyzer) { writer ->
-                    dependencyDir.walk()
-                        .filter { it.isRegularFile() && it.extension in SearchProvider.SOURCE_EXTENSIONS }
-                        .forEach {
-                            val doc = Document()
-                            val path = it.relativeTo(dependencyDir).toString().replace('\\', '/')
-                            val content = it.readText()
-                            doc.add(Field(PATH, path, pathFieldType))
-                            doc.addContents(content)
+                val sourceFiles = dependencyDir.walk()
+                    .filter { it.isRegularFile() && it.extension in SearchProvider.SOURCE_EXTENSIONS }
+                    .toList()
+                val total = sourceFiles.size.toDouble()
+                val indexingProgress = progress.withPhase("INDEXING")
 
-                            writer.addDocument(doc)
-                            count++
+                LuceneUtils.writeIndex(indexDir, analyzer) { writer ->
+                    sourceFiles.forEach {
+                        count++
+                        if (count % 100 == 0 || count.toDouble() == total) {
+                            indexingProgress(count.toDouble(), total, "Full-text indexing for $dependencyDir")
                         }
+                        val doc = Document()
+                        val path = it.relativeTo(dependencyDir).toString().replace('\\', '/')
+                        val content = it.readText()
+                        doc.add(Field(PATH, path, pathFieldType))
+                        doc.addContents(content)
+
+                        writer.addDocument(doc)
+                    }
                     writer.forceMerge(1)
                 }
                 invalidateCache(indexDir)
@@ -223,14 +233,22 @@ object FullTextSearch : SearchProvider {
         LOGGER.info("Full-text indexing for $dependencyDir took $duration ($fileCount files)")
     }
 
+    context(progress: ProgressReporter)
     override suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path) = withContext(Dispatchers.IO) {
         val duration = measureTime {
             val indexDir = outputDir.resolve(v4IndexDirName)
             indexDir.createDirectories()
 
             createAnalyzer().use { analyzer ->
+                val indexingProgress = progress.withPhase("INDEXING")
+                val total = indexDirs.size.toDouble()
+                var current = 0.0
+
                 LuceneUtils.writeIndex(indexDir, analyzer) { writer ->
                     indexDirs.forEach { (idxParentDir, relativePrefix) ->
+                        current++
+                        indexingProgress(current, total, "Merging full-text index for $relativePrefix")
+
                         val srcIndexDir = idxParentDir.resolve(v4IndexDirName)
                         DirectoryReader.open(FSDirectory.open(srcIndexDir)).use { reader ->
                             val storedFields = reader.storedFields()

@@ -29,10 +29,16 @@ class GradleDocsServiceTest {
 
         val indexer = mockk<GradleDocsIndexService>()
         val httpClient = mockk<io.ktor.client.HttpClient>()
-        coEvery { indexer.ensureIndexed(version) } returns Unit
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                indexer.ensureIndexed(version)
+            }
+        } returns Unit
 
         val service = DefaultGradleDocsService(httpClient, indexer, environment, createVersionService())
-        val content = service.getDocsPageContent("userguide/test.md", version)
+        val content = with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            service.getDocsPageContent("userguide/test.md", version)
+        }
 
         assertTrue(content is DocsPageContent.Markdown)
         assertEquals("# Test Page", (content as DocsPageContent.Markdown).content)
@@ -52,10 +58,16 @@ class GradleDocsServiceTest {
 
         val indexer = mockk<GradleDocsIndexService>()
         val httpClient = mockk<io.ktor.client.HttpClient>()
-        coEvery { indexer.ensureIndexed(version) } returns Unit
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                indexer.ensureIndexed(version)
+            }
+        } returns Unit
 
         val service = DefaultGradleDocsService(httpClient, indexer, environment, createVersionService())
-        val content = service.getDocsPageContent(".", version)
+        val content = with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            service.getDocsPageContent(".", version)
+        }
 
         assertTrue(content is DocsPageContent.Markdown)
         val text = (content as DocsPageContent.Markdown).content
@@ -75,15 +87,25 @@ class GradleDocsServiceTest {
         val httpClient = mockk<io.ktor.client.HttpClient>()
 
         val version = "9.4.0"
-        coEvery { indexer.ensureIndexed(version) } returns Unit
-        coEvery { indexer.search("test", version) } returns DocsSearchResponse(
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                indexer.ensureIndexed(version)
+            }
+        } returns Unit
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                indexer.search("test", version)
+            }
+        } returns DocsSearchResponse(
             listOf(
                 DocsSearchResult("Title", "path.html", "snippet", "userguide")
             )
         )
 
         val service = DefaultGradleDocsService(httpClient, indexer, environment, createVersionService())
-        val response = service.searchDocs("test", version)
+        val response = with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            service.searchDocs("test", version)
+        }
         val results = response.results
 
         assertEquals(1, results.size)
@@ -113,10 +135,16 @@ class GradleDocsServiceTest {
         val indexer = mockk<GradleDocsIndexService>()
         val httpClient = mockk<io.ktor.client.HttpClient>()
 
-        coEvery { indexer.ensureIndexed(version) } returns Unit
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                indexer.ensureIndexed(version)
+            }
+        } returns Unit
 
         val service = DefaultGradleDocsService(httpClient, indexer, environment, createVersionService())
-        val summaries = service.summarizeSections(version)
+        val summaries = with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            service.summarizeSections(version)
+        }
 
         // userguide (2), dsl (1+1=2), release-notes (1)
         assertEquals(3, summaries.size)
@@ -148,10 +176,16 @@ class GradleDocsServiceTest {
 
         val indexer = mockk<GradleDocsIndexService>()
         val httpClient = mockk<io.ktor.client.HttpClient>()
-        coEvery { indexer.ensureIndexed(version) } returns Unit
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                indexer.ensureIndexed(version)
+            }
+        } returns Unit
 
         val service = DefaultGradleDocsService(httpClient, indexer, environment, createVersionService())
-        val summaries = service.summarizeSections(version)
+        val summaries = with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            service.summarizeSections(version)
+        }
 
         // userguide (3), best-practices (2)
         assertEquals(2, summaries.size)

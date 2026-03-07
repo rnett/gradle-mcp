@@ -67,6 +67,7 @@ object UpdateTools {
     }
 
     private val throwingGradleSourceService = object : GradleSourceService {
+        context(progress: ProgressReporter)
         override suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean): SourcesDir =
             throw UnsupportedOperationException("Not supported in tool generator")
     }
@@ -197,18 +198,22 @@ object UpdateTools {
     }
 
     val throwingSourcesService = object : SourcesService {
+        context(progress: ProgressReporter)
         override suspend fun downloadAllSources(projectRoot: GradleProjectRoot, index: Boolean, forceDownload: Boolean, fresh: Boolean): SourcesDir {
             throw UnsupportedOperationException("Not used for tool listing")
         }
 
+        context(progress: ProgressReporter)
         override suspend fun downloadProjectSources(projectRoot: GradleProjectRoot, projectPath: String, index: Boolean, forceDownload: Boolean, fresh: Boolean): SourcesDir {
             throw UnsupportedOperationException("Not used for tool listing")
         }
 
+        context(progress: ProgressReporter)
         override suspend fun downloadConfigurationSources(projectRoot: GradleProjectRoot, configurationPath: String, index: Boolean, forceDownload: Boolean, fresh: Boolean): SourcesDir {
             throw UnsupportedOperationException("Not used for tool listing")
         }
 
+        context(progress: ProgressReporter)
         override suspend fun downloadSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, index: Boolean, forceDownload: Boolean, fresh: Boolean): SourcesDir {
             throw UnsupportedOperationException("Not used for tool listing")
         }
@@ -301,15 +306,19 @@ object UpdateTools {
     }
 
     val throwingGradleDocsService = object : GradleDocsService {
+        context(progress: ProgressReporter)
         override suspend fun getDocsPageContent(path: String, version: String?): DocsPageContent {
             throw UnsupportedOperationException("Not used for tool listing")
         }
+        context(progress: ProgressReporter)
         override suspend fun getReleaseNotes(version: String?): String {
             throw UnsupportedOperationException("Not used for tool listing")
         }
+        context(progress: ProgressReporter)
         override suspend fun searchDocs(query: String, version: String?): DocsSearchResponse {
             throw UnsupportedOperationException("Not used for tool listing")
         }
+        context(progress: ProgressReporter)
         override suspend fun summarizeSections(version: String?): List<DocsSectionSummary> {
             throw UnsupportedOperationException("Not used for tool listing")
         }

@@ -42,46 +42,48 @@ class GradleDocsTools(
     ) { args ->
         val inputVersion = resolveVersion(args.version, args.projectRoot)
         val resolvedVersion = versionService.resolveVersion(inputVersion)
-        when {
-            args.path != null -> {
-                val content = gradleDocsService.getDocsPageContent(args.path, resolvedVersion)
-                when (content) {
-                    is DocsPageContent.Markdown -> CallToolResult(listOf(TextContent(content.content)))
-                    is DocsPageContent.Image -> CallToolResult(listOf(ImageContent(content.base64, content.mimeType)))
+        with(progressReporter) {
+            when {
+                args.path != null -> {
+                    val content = gradleDocsService.getDocsPageContent(args.path, resolvedVersion)
+                    when (content) {
+                        is DocsPageContent.Markdown -> CallToolResult(listOf(TextContent(content.content)))
+                        is DocsPageContent.Image -> CallToolResult(listOf(ImageContent(content.base64, content.mimeType)))
+                    }
                 }
-            }
 
-            args.query != null -> {
-                val response = gradleDocsService.searchDocs(args.query, resolvedVersion)
-                if (response.error != null) {
-                    CallToolResult(listOf(TextContent(response.error)), isError = true)
-                } else if (response.results.isEmpty()) {
-                    CallToolResult(listOf(TextContent("No documentation matches found for '${args.query}' in Gradle $resolvedVersion.")))
-                } else {
-                    val header = buildString {
-                        if (response.interpretedQuery != null) {
-                            appendLine("Interpreted query: `${response.interpretedQuery}`")
+                args.query != null -> {
+                    val response = gradleDocsService.searchDocs(args.query, resolvedVersion)
+                    if (response.error != null) {
+                        CallToolResult(listOf(TextContent(response.error)), isError = true)
+                    } else if (response.results.isEmpty()) {
+                        CallToolResult(listOf(TextContent("No documentation matches found for '${args.query}' in Gradle $resolvedVersion.")))
+                    } else {
+                        val header = buildString {
+                            if (response.interpretedQuery != null) {
+                                appendLine("Interpreted query: `${response.interpretedQuery}`")
+                            }
+                            appendLine("Search results for '${args.query}' in Gradle $resolvedVersion:\n")
                         }
-                        appendLine("Search results for '${args.query}' in Gradle $resolvedVersion:\n")
+                        val pagedResults = paginate(response.results, args.pagination, "matches") { result ->
+                            "### ${result.title}\nSection: `${result.tag}` | Path: `${result.path}`\n\n${result.snippet}\n"
+                        }
+                        CallToolResult(listOf(TextContent(header + pagedResults)))
                     }
-                    val pagedResults = paginate(response.results, args.pagination, "matches") { result ->
-                        "### ${result.title}\nSection: `${result.tag}` | Path: `${result.path}`\n\n${result.snippet}\n"
-                    }
-                    CallToolResult(listOf(TextContent(header + pagedResults)))
                 }
-            }
 
-            else -> {
-                val summaries = gradleDocsService.summarizeSections(resolvedVersion)
-                if (summaries.isEmpty()) {
-                    CallToolResult(listOf(TextContent("No documentation sections found for Gradle $resolvedVersion.")))
-                } else {
-                    val pagedSummaries = paginate(summaries, args.pagination, "sections") { section ->
-                        "- **${section.displayName}** (`tag:${section.tag}`): ${section.count} pages"
+                else -> {
+                    val summaries = gradleDocsService.summarizeSections(resolvedVersion)
+                    if (summaries.isEmpty()) {
+                        CallToolResult(listOf(TextContent("No documentation sections found for Gradle $resolvedVersion.")))
+                    } else {
+                        val pagedSummaries = paginate(summaries, args.pagination, "sections") { section ->
+                            "- **${section.displayName}** (`tag:${section.tag}`): ${section.count} pages"
+                        }
+                        val text = "Documentation sections for Gradle $resolvedVersion:\n\n$pagedSummaries" +
+                                "\n\nUse `query=\"tag:<tag> ...\"` to search a specific section, or provide a `path` from search results to read a page."
+                        CallToolResult(listOf(TextContent(text)))
                     }
-                    val text = "Documentation sections for Gradle $resolvedVersion:\n\n$pagedSummaries" +
-                            "\n\nUse `query=\"tag:<tag> ...\"` to search a specific section, or provide a `path` from search results to read a page."
-                    CallToolResult(listOf(TextContent(text)))
                 }
             }
         }

@@ -91,10 +91,11 @@ Researches official documentation and probes Gradle's internal source code with 
 
 ```json
 {
-  "query": "interface Project",
+  "query": "Project",
+  "searchType": "SYMBOLS",
   "gradleSource": true
 }
-// Reasoning: Using gradleSource to find the ground-truth implementation of the core Project API.
+// Reasoning: Using gradleSource and SYMBOLS search to find the ground-truth implementation of the core Project API.
 ```
 
 ### Search release notes for a specific version

@@ -36,17 +36,24 @@ class ContentExtractorServiceTest {
             Files.write(zipPath, baos.toByteArray())
 
             val downloader = mockk<DistributionDownloaderService>()
-            coEvery { downloader.downloadDocs("9.4.0") } returns zipPath
+            coEvery {
+                with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                    downloader.downloadDocs("9.4.0")
+                }
+            } returns zipPath
 
             val markdownService = DefaultMarkdownService()
             val htmlConverter = HtmlConverter(markdownService)
             val service = DefaultContentExtractorService(downloader, htmlConverter, environment)
 
-            service.ensureProcessed("9.4.0")
+            with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+                service.ensureProcessed("9.4.0")
+            }
 
             val convertedDir = tempDir.resolve("cache/reading_gradle_docs/9.4.0/converted")
-            assertTrue(convertedDir.resolve("userguide/index.md").exists())
+            assertTrue(convertedDir.resolve("userguide/index.md").exists(), "userguide/index.md should exist")
             assertEquals("# Userguide", convertedDir.resolve("userguide/index.md").readText().trim())
+            assertTrue(convertedDir.resolve("release-notes.md").exists(), "release-notes.md should exist")
             assertEquals("# Release Notes", convertedDir.resolve("release-notes.md").readText().trim())
 
         } finally {
@@ -107,13 +114,19 @@ class ContentExtractorServiceTest {
             Files.write(zipPath, baos.toByteArray())
 
             val downloader = mockk<DistributionDownloaderService>()
-            coEvery { downloader.downloadDocs("9.4.0") } returns zipPath
+            coEvery {
+                with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                    downloader.downloadDocs("9.4.0")
+                }
+            } returns zipPath
 
             val markdownService = DefaultMarkdownService()
             val htmlConverter = HtmlConverter(markdownService)
             val service = DefaultContentExtractorService(downloader, htmlConverter, environment)
 
-            service.ensureProcessed("9.4.0")
+            with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+                service.ensureProcessed("9.4.0")
+            }
 
             val convertedDir = tempDir.resolve("cache/reading_gradle_docs/9.4.0/converted")
             assertTrue(convertedDir.resolve(".done").exists(), "Done marker should exist")

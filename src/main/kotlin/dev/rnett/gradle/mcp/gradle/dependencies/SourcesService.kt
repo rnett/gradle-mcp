@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.gradle.dependencies
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.gradle.dependencies.search.IndexService
@@ -10,11 +11,11 @@ import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResult
 import dev.rnett.gradle.mcp.gradle.dependencies.search.toSearchResults
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.utils.FileLockManager
+import dev.rnett.gradle.mcp.withMessage
+import dev.rnett.gradle.mcp.withPhase
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.jar.JarInputStream
-import java.util.zip.ZipInputStream
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
@@ -23,7 +24,6 @@ import kotlin.io.path.createParentDirectories
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
 import kotlin.io.path.extension
-import kotlin.io.path.inputStream
 import kotlin.io.path.nameWithoutExtension
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
@@ -51,21 +51,25 @@ interface SourcesService {
     /**
      * Download sources for all dependencies in the project.
      */
+    context(progress: ProgressReporter)
     suspend fun downloadAllSources(projectRoot: GradleProjectRoot, index: Boolean = true, forceDownload: Boolean = false, fresh: Boolean = false): SourcesDir
 
     /**
      * Download sources for all dependencies in a specific project.
      */
+    context(progress: ProgressReporter)
     suspend fun downloadProjectSources(projectRoot: GradleProjectRoot, projectPath: String, index: Boolean = true, forceDownload: Boolean = false, fresh: Boolean = false): SourcesDir
 
     /**
      * Download sources for all dependencies in a specific configuration.
      */
+    context(progress: ProgressReporter)
     suspend fun downloadConfigurationSources(projectRoot: GradleProjectRoot, configurationPath: String, index: Boolean = true, forceDownload: Boolean = false, fresh: Boolean = false): SourcesDir
 
     /**
      * Download sources for all dependencies in a specific source set.
      */
+    context(progress: ProgressReporter)
     suspend fun downloadSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, index: Boolean = true, forceDownload: Boolean = false, fresh: Boolean = false): SourcesDir
 
     suspend fun search(sources: SourcesDir, provider: SearchProvider, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): SearchResponse<SearchResult>
@@ -119,6 +123,7 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
     }
 
     @OptIn(ExperimentalPathApi::class)
+    context(progress: ProgressReporter)
     override suspend fun downloadAllSources(projectRoot: GradleProjectRoot, index: Boolean, forceDownload: Boolean, fresh: Boolean): SourcesDir {
         val dir = sourcesDirectory(projectRoot, "", "root")
         val lockFile = dir.metadata.resolve(".lock")
@@ -148,6 +153,7 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
     }
 
     @OptIn(ExperimentalPathApi::class)
+    context(progress: ProgressReporter)
     override suspend fun downloadProjectSources(projectRoot: GradleProjectRoot, projectPath: String, index: Boolean, forceDownload: Boolean, fresh: Boolean): SourcesDir {
         val dir = sourcesDirectory(projectRoot, projectPath, "project")
         val lockFile = dir.metadata.resolve(".lock")
@@ -175,6 +181,7 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
     }
 
     @OptIn(ExperimentalPathApi::class)
+    context(progress: ProgressReporter)
     override suspend fun downloadConfigurationSources(projectRoot: GradleProjectRoot, configurationPath: String, index: Boolean, forceDownload: Boolean, fresh: Boolean): SourcesDir {
         val dir = sourcesDirectory(projectRoot, configurationPath, "configuration")
         val lockFile = dir.metadata.resolve(".lock")
@@ -202,6 +209,7 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
     }
 
     @OptIn(ExperimentalPathApi::class)
+    context(progress: ProgressReporter)
     override suspend fun downloadSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, index: Boolean, forceDownload: Boolean, fresh: Boolean): SourcesDir {
         val dir = sourcesDirectory(projectRoot, sourceSetPath, "sourceSet")
         val lockFile = dir.metadata.resolve(".lock")
@@ -248,6 +256,7 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
     }
 
     @OptIn(ExperimentalPathApi::class)
+    context(progress: ProgressReporter)
     private suspend fun extractSources(deps: Sequence<GradleDependency>, target: SourcesDir, index: Boolean) {
         val validDeps = deps.filter { it.sourcesFile != null && it.group != null && it.version != null }.toSet()
         if (validDeps.isEmpty()) {
@@ -262,7 +271,14 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
         }
         targetSources.createDirectories()
 
+        val extractionProgress = progress.withPhase("EXTRACTING")
+        val total = validDeps.size.toDouble()
+        var current = 0.0
+
         val indices = validDeps.mapNotNull { dep ->
+            current++
+            extractionProgress(current, total, "Extracting sources for $dep")
+
             val ext = dep.sourcesFile!!.extension
             val relativePath = Path(dep.group!!).resolve(dep.sourcesFile.nameWithoutExtension)
             val dir = globalSourcesDir.resolve(relativePath)
@@ -271,18 +287,12 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
 
             val success = FileLockManager.withLock(lockFile) {
                 if (!extractionMarker.exists()) {
-                    val stream = when (ext) {
-                        "jar" -> JarInputStream(dep.sourcesFile.inputStream().buffered())
-                        "zip" -> ZipInputStream(dep.sourcesFile.inputStream().buffered())
-                        else -> {
-                            LOGGER.warn("Sources artifact with unrecognized extension: {}", dep.sourcesFile)
-                            return@withLock false
-                        }
-                    }
                     dir.deleteRecursively()
                     dir.createDirectories()
                     try {
-                        ArchiveExtractor.extractInto(dir, stream)
+                        with(extractionProgress.withMessage { "Extracting $dep: $it" }) {
+                            ArchiveExtractor.extractInto(dir, dep.sourcesFile!!)
+                        }
                         extractionMarker.createFile()
                         true
                     } catch (e: Exception) {

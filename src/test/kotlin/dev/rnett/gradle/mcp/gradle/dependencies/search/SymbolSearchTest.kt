@@ -176,7 +176,9 @@ class SymbolSearchTest {
         depDir.resolve("MyJavaClass.java").writeText(javaFile)
 
         val indexDir = tempDir.resolve("index")
-        SymbolSearch.index(depDir, indexDir)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            SymbolSearch.index(depDir, indexDir)
+        }
 
         suspend fun assertFound(query: String, expectedPath: String, expectedLine: Int) {
             val response = SymbolSearch.search(indexDir, query)

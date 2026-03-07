@@ -53,91 +53,105 @@ class LuceneQueryTest : SearchIntegrationTestBase() {
 
     @Test
     fun `test phrase search`() = runTest {
-        val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
-        val response = sourcesService.search(sourcesDir, searchProvider, "\"unique phrase for testing\"")
-        assertTrue(response.results.isNotEmpty(), "Phrase search failed")
-        assertTrue(response.results.any { it.relativePath.endsWith("FileA.kt") })
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
+            val response = sourcesService.search(sourcesDir, searchProvider, "\"unique phrase for testing\"")
+            assertTrue(response.results.isNotEmpty(), "Phrase search failed")
+            assertTrue(response.results.any { it.relativePath.endsWith("FileA.kt") })
+        }
     }
 
     @Test
     fun `test wildcard search`() = runTest {
-        val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
 
-        // Single character wildcard
-        val responseSingle = sourcesService.search(sourcesDir, searchProvider, "app?e")
-        assertTrue(responseSingle.results.isNotEmpty(), "Single character wildcard search failed")
-        assertTrue(responseSingle.results.any { it.relativePath.endsWith("FileA.kt") })
+            // Single character wildcard
+            val responseSingle = sourcesService.search(sourcesDir, searchProvider, "app?e")
+            assertTrue(responseSingle.results.isNotEmpty(), "Single character wildcard search failed")
+            assertTrue(responseSingle.results.any { it.relativePath.endsWith("FileA.kt") })
 
-        // Multiple character wildcard
-        val responseMulti = sourcesService.search(sourcesDir, searchProvider, "ban*")
-        assertTrue(responseMulti.results.isNotEmpty(), "Multiple character wildcard search failed")
-        assertTrue(responseMulti.results.any { it.relativePath.endsWith("FileA.kt") })
+            // Multiple character wildcard
+            val responseMulti = sourcesService.search(sourcesDir, searchProvider, "ban*")
+            assertTrue(responseMulti.results.isNotEmpty(), "Multiple character wildcard search failed")
+            assertTrue(responseMulti.results.any { it.relativePath.endsWith("FileA.kt") })
+        }
     }
 
     @Test
     fun `test boolean operators`() = runTest {
-        val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
 
-        // AND
-        val responseAnd = sourcesService.search(sourcesDir, searchProvider, "apple AND banana")
-        assertTrue(responseAnd.results.isNotEmpty(), "AND operator search failed")
-        assertTrue(responseAnd.results.all { it.relativePath.endsWith("FileA.kt") })
+            // AND
+            val responseAnd = sourcesService.search(sourcesDir, searchProvider, "apple AND banana")
+            assertTrue(responseAnd.results.isNotEmpty(), "AND operator search failed")
+            assertTrue(responseAnd.results.all { it.relativePath.endsWith("FileA.kt") })
 
-        // OR
-        val responseOr = sourcesService.search(sourcesDir, searchProvider, "apple OR orange")
-        assertEquals(2, responseOr.results.map { it.relativePath }.distinct().size, "OR operator search failed")
+            // OR
+            val responseOr = sourcesService.search(sourcesDir, searchProvider, "apple OR orange")
+            assertEquals(2, responseOr.results.map { it.relativePath }.distinct().size, "OR operator search failed")
 
-        // NOT
-        val responseNot = sourcesService.search(sourcesDir, searchProvider, "unique NOT testing")
-        assertTrue(responseNot.results.isNotEmpty(), "NOT operator search failed")
-        assertTrue(responseNot.results.all { it.relativePath.endsWith("FileB.java") })
+            // NOT
+            val responseNot = sourcesService.search(sourcesDir, searchProvider, "unique NOT testing")
+            assertTrue(responseNot.results.isNotEmpty(), "NOT operator search failed")
+            assertTrue(responseNot.results.all { it.relativePath.endsWith("FileB.java") })
+        }
     }
 
     @Test
     fun `test grouping`() = runTest {
-        val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
-        val response = sourcesService.search(sourcesDir, searchProvider, "(apple OR banana) AND unique")
-        assertTrue(response.results.isNotEmpty(), "Grouping search failed")
-        assertTrue(response.results.all { it.relativePath.endsWith("FileA.kt") })
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
+            val response = sourcesService.search(sourcesDir, searchProvider, "(apple OR banana) AND unique")
+            assertTrue(response.results.isNotEmpty(), "Grouping search failed")
+            assertTrue(response.results.all { it.relativePath.endsWith("FileA.kt") })
+        }
     }
 
     @Test
     fun `test fuzzy search`() = runTest {
-        val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
-        val response = sourcesService.search(sourcesDir, searchProvider, "aple~")
-        assertTrue(response.results.isNotEmpty(), "Fuzzy search failed")
-        assertTrue(response.results.any { it.relativePath.endsWith("FileA.kt") })
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
+            val response = sourcesService.search(sourcesDir, searchProvider, "aple~")
+            assertTrue(response.results.isNotEmpty(), "Fuzzy search failed")
+            assertTrue(response.results.any { it.relativePath.endsWith("FileA.kt") })
+        }
     }
 
     @Test
     fun `test proximity search`() = runTest {
-        val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
-        // "unique" and "phrase" are close together
-        val response = sourcesService.search(sourcesDir, searchProvider, "\"unique phrase\"~5")
-        assertTrue(response.results.isNotEmpty(), "Proximity search failed")
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
+            // "unique" and "phrase" are close together
+            val response = sourcesService.search(sourcesDir, searchProvider, "\"unique phrase\"~5")
+            assertTrue(response.results.isNotEmpty(), "Proximity search failed")
+        }
     }
 
     @Test
     fun `test field search`() = runTest {
-        val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
 
-        // Match a term to see current paths in index
-        val responsePackage = sourcesService.search(sourcesDir, searchProvider, "package")
-        val availablePaths = responsePackage.results.map { it.relativePath }.distinct()
-        assertTrue(availablePaths.isNotEmpty(), "No paths found in index")
+            // Match a term to see current paths in index
+            val responsePackage = sourcesService.search(sourcesDir, searchProvider, "package")
+            val availablePaths = responsePackage.results.map { it.relativePath }.distinct()
+            assertTrue(availablePaths.isNotEmpty(), "No paths found in index")
 
-        // Exact path search (case-insensitive because of analyzer)
-        val path = availablePaths.first { it.contains("FileB.java") }
-        val responseExact = sourcesService.search(sourcesDir, searchProvider, "path:\"${path.lowercase()}\"")
-        assertTrue(responseExact.results.isNotEmpty(), "Exact path search failed for $path. Available: $availablePaths")
+            // Exact path search (case-insensitive because of analyzer)
+            val path = availablePaths.first { it.contains("FileB.java") }
+            val responseExact = sourcesService.search(sourcesDir, searchProvider, "path:\"${path.lowercase()}\"")
+            assertTrue(responseExact.results.isNotEmpty(), "Exact path search failed for $path. Available: $availablePaths")
 
-        // Wildcard search in path (requires lowercase for wildcards in Lucene against lowercased fields)
-        val responseWildcard = sourcesService.search(sourcesDir, searchProvider, "path:*fileb.java")
-        assertTrue(responseWildcard.results.isNotEmpty(), "Wildcard path search failed for *fileb.java. Available: $availablePaths")
+            // Wildcard search in path (requires lowercase for wildcards in Lucene against lowercased fields)
+            val responseWildcard = sourcesService.search(sourcesDir, searchProvider, "path:*fileb.java")
+            assertTrue(responseWildcard.results.isNotEmpty(), "Wildcard path search failed for *fileb.java. Available: $availablePaths")
 
-        // Search in contents field explicitly
-        val responseContents = sourcesService.search(sourcesDir, searchProvider, "contents:orange")
-        assertTrue(responseContents.results.isNotEmpty(), "Field search (contents) failed")
-        assertTrue(responseContents.results.all { it.relativePath.endsWith("FileB.java") })
+            // Search in contents field explicitly
+            val responseContents = sourcesService.search(sourcesDir, searchProvider, "contents:orange")
+            assertTrue(responseContents.results.isNotEmpty(), "Field search (contents) failed")
+            assertTrue(responseContents.results.all { it.relativePath.endsWith("FileB.java") })
+        }
     }
 }

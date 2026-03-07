@@ -41,7 +41,9 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         sources.createDirectories()
 
         coEvery {
-            sourcesService.downloadAllSources(any(), any(), any(), any())
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                sourcesService.downloadAllSources(any(), any(), any(), any())
+            }
         } returns SourcesDir(sourcesDir)
 
         coEvery {
@@ -77,7 +79,9 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         sources.createDirectories()
 
         coEvery {
-            sourcesService.downloadAllSources(any(), any(), any(), any())
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                sourcesService.downloadAllSources(any(), any(), any(), any())
+            }
         } returns SourcesDir(sourcesDir)
 
         coEvery {
@@ -117,7 +121,9 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         testFile.writeText("package com.example\n\nclass Test")
 
         coEvery {
-            sourcesService.downloadAllSources(any(), any(), any(), any())
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                sourcesService.downloadAllSources(any(), any(), any(), any())
+            }
         } returns SourcesDir(sourcesDir)
 
         val response = server.client.callTool(
@@ -143,7 +149,9 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         sources.resolve("com/example/z_file.kt").writeText("")
 
         coEvery {
-            sourcesService.downloadAllSources(any(), any(), any(), any())
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                sourcesService.downloadAllSources(any(), any(), any(), any())
+            }
         } returns SourcesDir(sourcesDir)
 
         val response = server.client.callTool(
@@ -166,7 +174,9 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         sources.createDirectories()
 
         coEvery {
-            sourcesService.downloadAllSources(any(), any(), any(), any())
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                sourcesService.downloadAllSources(any(), any(), any(), any())
+            }
         } returns SourcesDir(sourcesDir)
 
         val response = server.client.callTool(
@@ -186,7 +196,9 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         sources.createDirectories()
 
         coEvery {
-            sourcesService.downloadAllSources(any(), any(), any(), any())
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                sourcesService.downloadAllSources(any(), any(), any(), any())
+            }
         } returns SourcesDir(sourcesDir)
 
         val response = server.client.callTool(
@@ -205,7 +217,9 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         sourcesDir.createDirectories()
 
         coEvery {
-            sourcesService.downloadProjectSources(any(), ":app", any(), any(), any())
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                sourcesService.downloadProjectSources(any(), ":app", any(), any(), any())
+            }
         } returns SourcesDir(sourcesDir)
 
         server.client.callTool(
@@ -221,7 +235,9 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         sourcesDir.createDirectories()
 
         coEvery {
-            gradleSourceService.getGradleSources(any(), any())
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                gradleSourceService.getGradleSources(any(), any())
+            }
         } returns SourcesDir(sourcesDir)
 
         server.client.callTool(
@@ -231,7 +247,9 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         ) as CallToolResult
 
         coEvery {
-            gradleSourceService.getGradleSources(any(), any())
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                gradleSourceService.getGradleSources(any(), any())
+            }
         }
     }
 
@@ -241,7 +259,9 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         sourcesDir.createDirectories()
 
         coEvery {
-            gradleSourceService.getGradleSources(any(), any())
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                gradleSourceService.getGradleSources(any(), any())
+            }
         } returns SourcesDir(sourcesDir)
 
         coEvery {
@@ -256,7 +276,9 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         ) as CallToolResult
 
         coEvery {
-            gradleSourceService.getGradleSources(any(), any())
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                gradleSourceService.getGradleSources(any(), any())
+            }
         }
     }
 
@@ -271,7 +293,9 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         metadata.resolve(".last_refresh").writeText(lastRefresh.toString())
 
         coEvery {
-            sourcesService.downloadAllSources(any(), any(), any(), any())
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                sourcesService.downloadAllSources(any(), any(), any(), any())
+            }
         } returns SourcesDir(sourcesDir)
 
         val response = server.client.callTool(
@@ -290,7 +314,9 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         sources.createDirectories()
 
         coEvery {
-            sourcesService.downloadAllSources(any(), any(), any(), any())
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                sourcesService.downloadAllSources(any(), any(), any(), any())
+            }
         } returns SourcesDir(sourcesDir)
 
         val searchResults = (1..5).map { i ->
@@ -336,7 +362,9 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         }
 
         coEvery {
-            sourcesService.downloadAllSources(any(), any(), any(), any())
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                sourcesService.downloadAllSources(any(), any(), any(), any())
+            }
         } returns SourcesDir(sourcesDir)
 
         val response = server.client.callTool(
@@ -360,7 +388,9 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         sourcesDir.createDirectories()
 
         coEvery {
-            sourcesService.downloadAllSources(any(), any(), any(), any())
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                sourcesService.downloadAllSources(any(), any(), any(), any())
+            }
         } returns SourcesDir(sourcesDir)
 
         coEvery {

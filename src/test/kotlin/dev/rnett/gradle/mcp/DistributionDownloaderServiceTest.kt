@@ -28,7 +28,9 @@ class DistributionDownloaderServiceTest {
         val client = HttpClient(mockEngine)
         val service = DefaultDistributionDownloaderService(client, environment, "https://example.com/")
 
-        val path = service.downloadDocs("9.4.0")
+        val path = with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            service.downloadDocs("9.4.0")
+        }
 
         assertTrue(path.exists(), "Cache file should exist")
         assertEquals("dummy-zip-content", Files.readString(path))

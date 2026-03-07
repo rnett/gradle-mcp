@@ -91,7 +91,9 @@ class GradleSourceServiceTest {
 
         val root = GradleProjectRoot(projectRoot.toString())
 
-        val sources = gradleSourceService.getGradleSources(root)
+        val sources = with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            gradleSourceService.getGradleSources(root)
+        }
 
         assertTrue(sources.sources.exists(), "Sources directory should exist")
         assertTrue(sources.sources.resolve("subprojects").exists(), "Extracted sources should contain 'subprojects' (pre-9.0 structure)")

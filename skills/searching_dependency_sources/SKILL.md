@@ -33,9 +33,9 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 ## Directives
 
 - **Identify Search Mode**:
-    - Use `SYMBOLS` (default) for finding class, interface, or method declarations.
-    - Use `FULL_TEXT` for searching literal strings, constants, or specific code patterns within files.
-    - Use `GLOB` for locating files by name or extension (e.g., `**/*.xml`).
+    - Use `FULL_TEXT` (default) for searching literal strings, constants, or specific code patterns within files.
+    - Use `SYMBOLS` for finding class, interface, or method declarations precisely (regex matches the full symbol name, use `.*` for partial matches).
+    - Use `GLOB` for locating files by name or extension (e.g., `**/*.xml` or `**/MyFile.kt`).
 - **Scope Surgically**: Use `projectPath`, `configurationPath`, or `sourceSetPath` to narrow the search and improve performance if the target library's context is known. To search a plugin, use `configurationPath=":buildscript:classpath"`.
 - **Refresh Indices**: Use `fresh: true` if project dependencies have recently changed to ensure the index is up-to-date.
 - **Analyze Implementation**: Use `read_dependency_sources` to retrieve the implementation logic. If the file is large, use `pagination` to read specific sections. You can target plugins by passing
@@ -51,7 +51,7 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 - **API & Symbol Discovery**: When you need to find the implementation, signature, or documentation of a class, interface, or method imported from a library.
 - **Library Usage Research**: When understanding how to use a library's API by reading its internal implementation or looking for usage patterns in its source.
 - **Internal Logic Auditing**: When researching how a dependency handles specific operations, edge cases, or performance-critical logic.
-- **Resource File Location**: When searching for configuration files (XML, JSON, properties) or metadata (AndroidManifest.xml) packaged within library jars.
+- **Resource File Location**: When searching for configuration files (XML, JSON, properties), specific named files (e.g., `build.gradle`), or metadata (AndroidManifest.xml) packaged within library jars.
 - **Constant & Literal Research**: When searching for specific constant values, error strings, or literal keys within external code.
 
 ## Workflows
@@ -65,14 +65,14 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 
 ### 2. Discovering API Usage through Source
 
-1. Search for a known entry point (e.g., a constructor or main class) using `SYMBOLS`.
+1. Search for a known entry point (e.g., a constructor or main class) using `SYMBOLS` or `FULL_TEXT`.
 2. Once the file is found, use `read_dependency_sources` to read its source.
 3. Look for internal calls, helper methods, or factory patterns to understand the library's preferred usage.
 
 ### 3. Searching for Constants or Error Codes
 
 1. Identify the constant name or a snippet of an error message.
-2. Call `search_dependency_sources(query="\"<text>\"", searchType="FULL_TEXT")`.
+2. Call `search_dependency_sources(query="\"<text>\"")` (defaults to `FULL_TEXT`).
 3. Review matches to find where the value is defined or used.
 
 ## Examples
@@ -101,20 +101,19 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 
 ```json
 {
-  "query": "DEFAULT_TIMEOUT_MS \\: 5000",
-  "searchType": "FULL_TEXT"
+  "query": "DEFAULT_TIMEOUT_MS \\: 5000"
 }
-// Reasoning: Using FULL_TEXT with escaped colon to find a specific constant assignment.
+// Reasoning: Using FULL_TEXT (default) with escaped colon to find a specific constant assignment.
 ```
 
-### Locate all Android Manifest files in dependencies
+### Locate a specific file by its exact name
 
 ```json
 {
   "query": "**/AndroidManifest.xml",
   "searchType": "GLOB"
 }
-// Reasoning: Using GLOB search to find resource files by pattern across the dependency graph.
+// Reasoning: Using GLOB search to find a specific file by name across the dependency graph.
 ```
 
 ### Read a specific dependency source file

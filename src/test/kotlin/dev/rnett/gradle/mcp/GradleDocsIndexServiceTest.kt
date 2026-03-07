@@ -26,26 +26,32 @@ class GradleDocsIndexServiceTest {
         convertedDir.resolve("release-notes.md").writeText("# Release Notes\nNew features in this version.")
 
         val extractor = mockk<ContentExtractorService>()
-        coEvery { extractor.ensureProcessed(version) } returns Unit
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                extractor.ensureProcessed(version)
+            }
+        } returns Unit
 
         val service = DefaultGradleDocsIndexService(extractor, environment, LuceneReaderCache())
 
-        // Search for 'dependencies'
-        val results = service.search("dependencies", version).results
-        assertEquals(1, results.size)
-        assertEquals("Userguide Test", results[0].title)
-        assertEquals("userguide/test.md", results[0].path)
-        assertEquals("userguide", results[0].tag)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            // Search for 'dependencies'
+            val results = service.search("dependencies", version).results
+            assertEquals(1, results.size)
+            assertEquals("Userguide Test", results[0].title)
+            assertEquals("userguide/test.md", results[0].path)
+            assertEquals("userguide", results[0].tag)
 
-        // Search by tag
-        val dslResults = service.search("tag:dsl", version).results
-        assertEquals(1, dslResults.size)
-        assertEquals("Project DSL", dslResults[0].title)
+            // Search by tag
+            val dslResults = service.search("tag:dsl", version).results
+            assertEquals(1, dslResults.size)
+            assertEquals("Project DSL", dslResults[0].title)
 
-        // Search release notes
-        val rnResults = service.search("tag:release-notes", version).results
-        assertEquals(1, rnResults.size)
-        assertEquals("Release Notes", rnResults[0].title)
+            // Search release notes
+            val rnResults = service.search("tag:release-notes", version).results
+            assertEquals(1, rnResults.size)
+            assertEquals("Release Notes", rnResults[0].title)
+        }
 
         tempDir.toFile().deleteRecursively()
     }
@@ -66,23 +72,29 @@ class GradleDocsIndexServiceTest {
         convertedDir.resolve("userguide/intro.md").writeText("# Introduction\nWelcome to Gradle.")
 
         val extractor = mockk<ContentExtractorService>()
-        coEvery { extractor.ensureProcessed(version) } returns Unit
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                extractor.ensureProcessed(version)
+            }
+        } returns Unit
 
         val service = DefaultGradleDocsIndexService(extractor, environment, LuceneReaderCache())
 
-        // Search by 'userguide' tag - should find both
-        val userguideResults = service.search("tag:userguide", version).results
-        assertEquals(2, userguideResults.size)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            // Search by 'userguide' tag - should find both
+            val userguideResults = service.search("tag:userguide", version).results
+            assertEquals(2, userguideResults.size)
 
-        // Search by 'best-practices' tag - should find only one
-        val bpResults = service.search("tag:best-practices", version).results
-        assertEquals(1, bpResults.size)
-        assertEquals("Performance Best Practices", bpResults[0].title)
+            // Search by 'best-practices' tag - should find only one
+            val bpResults = service.search("tag:best-practices", version).results
+            assertEquals(1, bpResults.size)
+            assertEquals("Performance Best Practices", bpResults[0].title)
 
-        // Ensure it's also reachable by keyword
-        val cacheResults = service.search("cache", version).results
-        assertEquals(1, cacheResults.size)
-        assertEquals("Performance Best Practices", cacheResults[0].title)
+            // Ensure it's also reachable by keyword
+            val cacheResults = service.search("cache", version).results
+            assertEquals(1, cacheResults.size)
+            assertEquals("Performance Best Practices", cacheResults[0].title)
+        }
 
         tempDir.toFile().deleteRecursively()
     }

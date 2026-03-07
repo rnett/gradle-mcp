@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.mcp
 
+import dev.rnett.gradle.mcp.ProgressReporter
 import io.github.smiley4.schemakenerator.jsonschema.data.CompiledJsonSchemaData
 import io.github.smiley4.schemakenerator.jsonschema.jsonDsl.JsonArray
 import io.github.smiley4.schemakenerator.jsonschema.jsonDsl.JsonBooleanValue
@@ -22,10 +23,19 @@ import io.modelcontextprotocol.kotlin.sdk.shared.DEFAULT_REQUEST_TIMEOUT
 import io.modelcontextprotocol.kotlin.sdk.shared.RequestOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.sample
+import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -34,6 +44,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.serializer
 import org.slf4j.LoggerFactory
 import kotlin.time.Duration
@@ -99,7 +110,33 @@ open class McpContext(
         }
     }
 
-    private val progressToken = requestWithMeta._meta["progressToken"]?.jsonPrimitive?.contentOrNull?.let { RequestId.StringId(it) }
+    private val progressToken: RequestId? = requestWithMeta._meta["progressToken"]?.jsonPrimitive?.let {
+        it.longOrNull?.let { RequestId.NumberId(it) } ?: it.contentOrNull?.let { RequestId.StringId(it) }
+    }
+
+    @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
+    val progressReporter: ProgressReporter by lazy {
+        val flow = MutableSharedFlow<Triple<Double, Double?, String?>>(10, extraBufferCapacity = 50, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+        scope.launch(Dispatchers.Default) {
+            flow.distinctUntilChanged()
+                .transformLatest {
+                    val (p, t, msg) = it
+                    while (currentCoroutineContext().isActive) {
+                        repeat(4) {
+                            val suffix = if (it == 0) "" else ".".repeat(it)
+                            emit(Triple(p, t, msg + suffix))
+                            delay(250)
+                        }
+                    }
+                }.sample(100).collectLatest {
+                    emitProgressNotification(it.first, it.second, it.third)
+                }
+        }
+
+        ProgressReporter { a, b, c ->
+            flow.tryEmit(Triple(a, b, c))
+        }
+    }
 
     fun emitProgressNotification(progress: Double, total: Double? = null, message: String? = null) {
         if (progressToken != null) {

@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp
 
 import io.ktor.client.*
+import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.utils.io.jvm.javaio.*
@@ -14,6 +15,7 @@ import java.nio.file.StandardCopyOption
 import kotlin.io.path.exists
 
 interface DistributionDownloaderService {
+    context(progress: ProgressReporter)
     suspend fun downloadDocs(version: String): Path
 }
 
@@ -25,6 +27,7 @@ class DefaultDistributionDownloaderService(
 
     private val mutex = Mutex()
 
+    context(progress: ProgressReporter)
     override suspend fun downloadDocs(version: String): Path {
         val fileName = "gradle-$version-docs.zip"
         val destination = environment.cacheDir.resolve("reading_gradle_docs").resolve(version).resolve(fileName)
@@ -32,6 +35,8 @@ class DefaultDistributionDownloaderService(
         if (destination.exists()) {
             return destination
         }
+
+        val downloadProgress = progress.withPhase("DOWNLOADING")
 
         mutex.withLock {
             if (destination.exists()) {
@@ -44,7 +49,16 @@ class DefaultDistributionDownloaderService(
                 val url = "$baseUrl$fileName"
 
                 try {
-                    val response = httpClient.get(url)
+                    var lastUpdate = 0L
+                    val response = httpClient.get(url) {
+                        onDownload { bytesSentTotal: Long, contentLength: Long? ->
+                            val now = System.currentTimeMillis()
+                            if (now - lastUpdate >= 200 || bytesSentTotal == contentLength) {
+                                lastUpdate = now
+                                downloadProgress(bytesSentTotal.toDouble(), contentLength?.toDouble(), "Downloading Gradle $version documentation")
+                            }
+                        }
+                    }
                     if (response.status.value !in 200..299) {
                         throw RuntimeException("Failed to download docs from $url: ${response.status}")
                     }

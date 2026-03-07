@@ -75,12 +75,14 @@ class DependencySourceTools(
         """.trimMargin()
     ) { args ->
         val root = with(server) { args.projectRoot.resolveRoot() }
-        val sources = when {
-            args.gradleSource -> gradleSourceService.getGradleSources(root, forceDownload = args.forceDownload)
-            args.sourceSetPath != null -> sourcesService.downloadSourceSetSources(root, args.sourceSetPath, forceDownload = args.forceDownload, fresh = args.fresh)
-            args.configurationPath != null -> sourcesService.downloadConfigurationSources(root, args.configurationPath, forceDownload = args.forceDownload, fresh = args.fresh)
-            args.projectPath != null -> sourcesService.downloadProjectSources(root, args.projectPath, forceDownload = args.forceDownload, fresh = args.fresh)
-            else -> sourcesService.downloadAllSources(root, forceDownload = args.forceDownload, fresh = args.fresh)
+        val sources = with(progressReporter) {
+            when {
+                args.gradleSource -> gradleSourceService.getGradleSources(root, forceDownload = args.forceDownload)
+                args.sourceSetPath != null -> sourcesService.downloadSourceSetSources(root, args.sourceSetPath, forceDownload = args.forceDownload, fresh = args.fresh)
+                args.configurationPath != null -> sourcesService.downloadConfigurationSources(root, args.configurationPath, forceDownload = args.forceDownload, fresh = args.fresh)
+                args.projectPath != null -> sourcesService.downloadProjectSources(root, args.projectPath, forceDownload = args.forceDownload, fresh = args.fresh)
+                else -> sourcesService.downloadAllSources(root, forceDownload = args.forceDownload, fresh = args.fresh)
+            }
         }
 
         val baseDir = sources.sources.normalize()
@@ -122,8 +124,8 @@ class DependencySourceTools(
         val gradleSource: Boolean = false,
         @Description("Performing an authoritative search with a regex (SYMBOLS), Lucene query (FULL_TEXT), or glob (GLOB, e.g., '**/Job.kt').")
         val query: String,
-        @Description("Selecting the search mode: SYMBOLS (default), FULL_TEXT (exhaustive strings), or GLOB (file paths).")
-        val searchType: SearchType = SearchType.SYMBOLS,
+        @Description("Selecting the search mode: FULL_TEXT (default, exhaustive strings), SYMBOLS (full string regex match on symbol name), or GLOB (file paths).")
+        val searchType: SearchType = SearchType.FULL_TEXT,
         @Description("Setting to true forces authoritative re-download and re-indexing of targeted sources.")
         val forceDownload: Boolean = false,
         @Description("Setting to true retrieves a fresh dependency list from Gradle before searching.")
@@ -139,18 +141,19 @@ class DependencySourceTools(
             |This tool provides high-performance, indexed search capabilities that far exceed basic grep-based exploration, offering surgical precision across the entire dependency graph.
             |
             |### Authoritative Features
-            |- **Locating Symbols Precisely**: Using authoritative regex patterns to find classes, methods, or interfaces across the entire dependency graph.
-            |- **Performing Exhaustive Full-Text Searches**: Utilizing high-performance Lucene indexing for surgical text searches.
+            |- **Locating Symbols Precisely**: Using authoritative regex patterns to find classes, methods, or interfaces across the entire dependency graph (use `searchType="SYMBOLS"`, matches full symbol name, use `.*` for partial).
+            |- **Performing Exhaustive Full-Text Searches (Default)**: Utilizing high-performance Lucene indexing for surgical text searches.
             |  This mode supports standard Lucene query syntax. Characters like `:`, `=`, `+`, `-`, `*`, `/` are special operators and MUST be escaped with a backslash (e.g., `\:`) or enclosed in quotes for literal searches.
             |- **Managing Search Scopes**: Narrowing searches to specific projects, configurations (including `buildscript:` configurations for plugins), or source sets to maintain token efficiency.
-            |- **Searching Files by Path (GLOB)**: Locating specific files using standard Java glob syntax (e.g., `**/*.java`).
+            |- **Searching Files by Name or Path (GLOB)**: Locating specific files using standard Java glob syntax. To find a specific file name regardless of its directory, use `**/filename.ext`.
             |- **Accessing Gradle Engine Internals**: Searching the authoritative source code of the Gradle Build Tool itself to understand core system behavior.
             |
             |### Common Usage Patterns
             |- **Finding a Class**: `searching_dependency_sources(query="Assert", projectPath=":")`
-            |- **Searching for Constants**: `searching_dependency_sources(query="THREAD_POOL_SIZE", searchType="FULL_TEXT")`
-            |- **Literal Search with special characters**: `searching_dependency_sources(query="\"LANGUAGE:\"", searchType="FULL_TEXT")` or `searching_dependency_sources(query="LANGUAGE\\:", searchType="FULL_TEXT")`
+            |- **Searching for Constants**: `searching_dependency_sources(query="THREAD_POOL_SIZE")`
+            |- **Literal Search with special characters**: `searching_dependency_sources(query="\"LANGUAGE:\"")` or `searching_dependency_sources(query="LANGUAGE\\:")`
             |- **Locating XML Files**: `searching_dependency_sources(query="**/AndroidManifest.xml", searchType="GLOB")`
+            |- **Finding a specific file by name**: `searching_dependency_sources(query="**/MySpecificClass.kt", searchType="GLOB")`
             |- **Finding Gradle Interfaces**: `searching_dependency_sources(query="interface Project", gradleSource=true)`
             |- **Searching a Plugin**: `searching_dependency_sources(query="MyPlugin", configurationPath=":buildscript:classpath")`
             |
@@ -160,12 +163,14 @@ class DependencySourceTools(
         """.trimMargin()
     ) { args ->
         val root = with(server) { args.projectRoot.resolveRoot() }
-        val sources = when {
-            args.gradleSource -> gradleSourceService.getGradleSources(root, forceDownload = args.forceDownload)
-            args.sourceSetPath != null -> sourcesService.downloadSourceSetSources(root, args.sourceSetPath, forceDownload = args.forceDownload, fresh = args.fresh)
-            args.configurationPath != null -> sourcesService.downloadConfigurationSources(root, args.configurationPath, forceDownload = args.forceDownload, fresh = args.fresh)
-            args.projectPath != null -> sourcesService.downloadProjectSources(root, args.projectPath, forceDownload = args.forceDownload, fresh = args.fresh)
-            else -> sourcesService.downloadAllSources(root, forceDownload = args.forceDownload, fresh = args.fresh)
+        val sources = with(progressReporter) {
+            when {
+                args.gradleSource -> gradleSourceService.getGradleSources(root, forceDownload = args.forceDownload)
+                args.sourceSetPath != null -> sourcesService.downloadSourceSetSources(root, args.sourceSetPath, forceDownload = args.forceDownload, fresh = args.fresh)
+                args.configurationPath != null -> sourcesService.downloadConfigurationSources(root, args.configurationPath, forceDownload = args.forceDownload, fresh = args.fresh)
+                args.projectPath != null -> sourcesService.downloadProjectSources(root, args.projectPath, forceDownload = args.forceDownload, fresh = args.fresh)
+                else -> sourcesService.downloadAllSources(root, forceDownload = args.forceDownload, fresh = args.fresh)
+            }
         }
 
         val provider = when (args.searchType) {
@@ -173,11 +178,13 @@ class DependencySourceTools(
             SearchType.FULL_TEXT -> FullTextSearch
             SearchType.GLOB -> GlobSearch
         }
-        val response = sourcesService.search(sources, provider, args.query, args.pagination)
+        val response = with(progressReporter) {
+            sourcesService.search(sources, provider, args.query, args.pagination)
+        }
         val refreshMessage = formatRefreshMessage(sources.lastRefresh())
         if (response.error != null) {
             isError = true
-            return@tool response.error!!
+            return@tool response.error
         }
         refreshMessage + "\n\n" + formatSearchResults(response, args.query, args.pagination)
     }

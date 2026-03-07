@@ -41,7 +41,11 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
         // Set as MCP root
         server.setServerRoots(Root(projectRoot.toUri().toString(), "test-project"))
 
-        coEvery { mockDocsService.summarizeSections("8.5") } returns listOf(
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                mockDocsService.summarizeSections("8.5")
+            }
+        } returns listOf(
             DocsSectionSummary("userguide", "User Guide", 42)
         )
 
@@ -56,7 +60,11 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
 
     @Test
     fun `test fallback to current when no project root or detection fails`() = runTest {
-        coEvery { mockDocsService.summarizeSections("resolved-current") } returns listOf(
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                mockDocsService.summarizeSections("resolved-current")
+            }
+        } returns listOf(
             DocsSectionSummary("userguide", "User Guide", 10)
         )
 
@@ -82,7 +90,11 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
         // Set as MCP root so it's valid
         server.setServerRoots(Root(projectRoot.toUri().toString(), "explicit-project"))
 
-        coEvery { mockDocsService.summarizeSections("7.6.3") } returns listOf(
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                mockDocsService.summarizeSections("7.6.3")
+            }
+        } returns listOf(
             DocsSectionSummary("userguide", "User Guide", 5)
         )
 

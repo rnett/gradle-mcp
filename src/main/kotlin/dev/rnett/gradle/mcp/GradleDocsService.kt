@@ -37,9 +37,16 @@ data class DocsSearchResponse(
 )
 
 interface GradleDocsService : AutoCloseable {
+    context(progress: ProgressReporter)
     suspend fun getDocsPageContent(path: String, version: String? = null): DocsPageContent
+
+    context(progress: ProgressReporter)
     suspend fun getReleaseNotes(version: String? = null): String
+
+    context(progress: ProgressReporter)
     suspend fun searchDocs(query: String, version: String? = null): DocsSearchResponse
+
+    context(progress: ProgressReporter)
     suspend fun summarizeSections(version: String? = null): List<DocsSectionSummary>
 }
 
@@ -54,6 +61,7 @@ class DefaultGradleDocsService(
         return versionService.resolveVersion(version)
     }
 
+    context(progress: ProgressReporter)
     private suspend fun ensurePrepared(version: String): String {
         val resolvedVersion = resolveVersion(version)
 
@@ -72,6 +80,7 @@ class DefaultGradleDocsService(
         return resolvedVersion
     }
 
+    context(progress: ProgressReporter)
     override suspend fun getDocsPageContent(path: String, version: String?): DocsPageContent {
         val resolvedVersion = ensurePrepared(version ?: "current")
         val convertedDir = environment.cacheDir.resolve("reading_gradle_docs").resolve(resolvedVersion).resolve("converted")
@@ -129,16 +138,19 @@ class DefaultGradleDocsService(
         }
     }
 
+    context(progress: ProgressReporter)
     override suspend fun getReleaseNotes(version: String?): String {
         val content = getDocsPageContent("release-notes.md", version)
         return (content as? DocsPageContent.Markdown)?.content ?: throw RuntimeException("Release notes not found as markdown")
     }
 
+    context(progress: ProgressReporter)
     override suspend fun searchDocs(query: String, version: String?): DocsSearchResponse {
         val resolvedVersion = ensurePrepared(version ?: "current")
         return indexer.search(query, resolvedVersion)
     }
 
+    context(progress: ProgressReporter)
     override suspend fun summarizeSections(version: String?): List<DocsSectionSummary> {
         val resolvedVersion = ensurePrepared(version ?: "current")
         val convertedDir = environment.cacheDir.resolve("reading_gradle_docs").resolve(resolvedVersion).resolve("converted")

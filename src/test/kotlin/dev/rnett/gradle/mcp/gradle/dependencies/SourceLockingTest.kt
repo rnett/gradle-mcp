@@ -87,13 +87,23 @@ class SourceLockingTest {
             )
         }
 
-        coEvery { indexService.index(any(), any()) } returns null
-        coEvery { indexService.mergeIndices(any(), any()) } returns Unit
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                indexService.index(any(), any())
+            }
+        } returns null
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                indexService.mergeIndices(any(), any())
+            }
+        } returns Unit
 
         // Start multiple concurrent requests
         val jobs = List(3) {
             async(Dispatchers.IO) {
-                sourcesService.downloadAllSources(projectRoot, fresh = false)
+                with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+                    sourcesService.downloadAllSources(projectRoot, fresh = false)
+                }
             }
         }
 
@@ -139,18 +149,30 @@ class SourceLockingTest {
         )
 
         coEvery { depService.downloadAllSources(any()) } returns report
-        coEvery { indexService.index(any(), any()) } returns null
-        coEvery { indexService.mergeIndices(any(), any()) } returns Unit
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                indexService.index(any(), any())
+            }
+        } returns null
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                indexService.mergeIndices(any(), any())
+            }
+        } returns Unit
 
         // 1. Initial download to populate cache
-        sourcesService.downloadAllSources(projectRoot, fresh = true)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            sourcesService.downloadAllSources(projectRoot, fresh = true)
+        }
         coVerify(exactly = 1) { depService.downloadAllSources(projectRoot) }
 
         // 2. Start multiple parallel readers (fresh = false)
         // They should all acquire shared lock and return immediately without blocking each other
         val jobs = List(5) {
             async(Dispatchers.IO) {
-                sourcesService.downloadAllSources(projectRoot, fresh = false)
+                with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+                    sourcesService.downloadAllSources(projectRoot, fresh = false)
+                }
             }
         }
 

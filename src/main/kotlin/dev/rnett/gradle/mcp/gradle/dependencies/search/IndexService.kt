@@ -1,10 +1,12 @@
 package dev.rnett.gradle.mcp.gradle.dependencies.search
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.gradle.dependencies.SourcesDir
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.utils.FileLockManager
+import dev.rnett.gradle.mcp.withPhase
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import kotlin.io.path.ExperimentalPathApi
@@ -22,11 +24,13 @@ import kotlin.time.measureTimedValue
 value class Index(val dir: Path)
 
 interface IndexService {
+    context(progress: ProgressReporter)
     suspend fun index(dependency: GradleDependency, sourceDir: Path): Index?
 
     /**
      * [includedDeps] is map of relative path in merged to the index
      */
+    context(progress: ProgressReporter)
     suspend fun mergeIndices(sourcesDir: SourcesDir, includedDeps: Map<Path, Index>)
 
     suspend fun search(sourcesDir: SourcesDir, provider: SearchProvider, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): SearchResponse<RelativeSearchResult>
@@ -42,6 +46,7 @@ class DefaultIndexService(
     private val indexDir = environment.cacheDir.resolve("source-indices")
 
     @OptIn(ExperimentalPathApi::class)
+    context(progress: ProgressReporter)
     override suspend fun index(dependency: GradleDependency, sourceDir: Path): Index? {
         if (dependency.group == null) return null
 
@@ -61,14 +66,23 @@ class DefaultIndexService(
             }
 
             try {
+                val indexingProgress = progress.withPhase("INDEXING")
+                val total = providers.size.toDouble()
+                var current = 0.0
+
                 providers.forEach { provider ->
+                    current++
+                    indexingProgress(current, total, "Indexing $dependency using ${provider.name}")
+
                     val providerDir = dir.resolve(provider.name)
                     if (providerDir.exists()) {
                         providerDir.deleteRecursively()
                     }
 
                     providerDir.createDirectories()
-                    provider.index(sourceDir, providerDir)
+                    with(progress) {
+                        provider.index(sourceDir, providerDir)
+                    }
                 }
                 markerFile.createFile()
                 Index(dir)
@@ -81,6 +95,7 @@ class DefaultIndexService(
     }
 
     @OptIn(ExperimentalPathApi::class)
+    context(progress: ProgressReporter)
     override suspend fun mergeIndices(
         sourcesDir: SourcesDir,
         includedDeps: Map<Path, Index>
@@ -103,16 +118,25 @@ class DefaultIndexService(
                     return@measureTimedValue
                 }
 
+                val indexingProgress = progress.withPhase("INDEXING")
+                val total = providers.size.toDouble()
+                var current = 0.0
+
                 val includedIndices = includedDeps.mapValues { it.value.dir }
                 try {
                     providers.forEach { provider ->
+                        current++
+                        indexingProgress(current, total, "Merging ${provider.name} indices for ${sourcesDir.path}")
+
                         val providerDir = dir.resolve(provider.name)
                         if (providerDir.exists()) {
                             providerDir.deleteRecursively()
                         }
 
                         providerDir.createDirectories()
-                        provider.mergeIndices(includedIndices.entries.associate { it.value.resolve(provider.name) to it.key }, providerDir)
+                        with(progress) {
+                            provider.mergeIndices(includedIndices.entries.associate { it.value.resolve(provider.name) to it.key }, providerDir)
+                        }
                     }
                     hashFile.createParentDirectories()
                     hashFile.writeText(currentHash)

@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.gradle.dependencies.search
 
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import java.nio.file.Path
 import kotlin.io.path.exists
@@ -10,11 +11,14 @@ interface SearchProvider {
     val indexVersion: Int
 
     suspend fun search(indexDir: Path, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): SearchResponse<RelativeSearchResult>
+
+    context(progress: ProgressReporter)
     suspend fun index(dependencyDir: Path, outputDir: Path)
 
     /**
      * [indexDirs] a map of index dirs to the relative path of that origin in the combined set
      */
+    context(progress: ProgressReporter)
     suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path)
 
     companion object {

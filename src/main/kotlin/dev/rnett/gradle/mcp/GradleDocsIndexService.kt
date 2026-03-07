@@ -24,7 +24,10 @@ import kotlin.io.path.walk
 import kotlin.io.path.writeText
 
 interface GradleDocsIndexService : AutoCloseable {
+    context(progress: ProgressReporter)
     suspend fun ensureIndexed(version: String)
+
+    context(progress: ProgressReporter)
     suspend fun search(query: String, version: String, maxResults: Int = 20): DocsSearchResponse
 }
 
@@ -36,6 +39,7 @@ class DefaultGradleDocsIndexService(
 
     private val analyzer: Analyzer = LuceneUtils.createBoostedAnalyzer(setOf("title_exact", "body_exact"))
 
+    context(progress: ProgressReporter)
     override suspend fun ensureIndexed(version: String) {
         val versionDir = environment.cacheDir.resolve("reading_gradle_docs").resolve(version)
         val indexDir = versionDir.resolve("index")
@@ -50,8 +54,18 @@ class DefaultGradleDocsIndexService(
 
         withContext(Dispatchers.IO) {
             Files.createDirectories(indexDir)
+            val filesToIndex = convertedDir.walk().filter { it.isRegularFile() && it.extension == "md" }.toList()
+            val totalFiles = filesToIndex.size.toDouble()
+            var processedFiles = 0.0
+
+            val indexingProgress = progress.withPhase("INDEXING")
+
             LuceneUtils.writeIndex(indexDir, analyzer) { writer ->
-                convertedDir.walk().filter { it.isRegularFile() && it.extension == "md" }.forEach { file ->
+                filesToIndex.forEach { file ->
+                    processedFiles++
+                    if (processedFiles % 20 == 0.0 || processedFiles == totalFiles) {
+                        indexingProgress(processedFiles, totalFiles, "Indexing documentation")
+                    }
                     val relativePath = convertedDir.relativize(file).toString().replace("\\", "/")
                     val tags = detectTags(relativePath)
                     val content = file.readText()
@@ -73,6 +87,7 @@ class DefaultGradleDocsIndexService(
         }
     }
 
+    context(progress: ProgressReporter)
     override suspend fun search(query: String, version: String, maxResults: Int): DocsSearchResponse {
         ensureIndexed(version)
         val indexDir = environment.cacheDir.resolve("reading_gradle_docs").resolve(version).resolve("index")

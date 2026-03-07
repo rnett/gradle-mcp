@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.gradle.dependencies.search
 
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -72,7 +73,7 @@ object GlobSearch : SearchProvider {
                             skipBoilerplate = true
                         )
                     }.toList(),
-                interpretedQuery = matcher?.toString() ?: "substring:$query"
+                interpretedQuery = if (matcher != null) "glob:$query" else "substring:$query"
             )
         }
         val response = results
@@ -80,6 +81,7 @@ object GlobSearch : SearchProvider {
         return@withContext response
     }
 
+    context(progress: ProgressReporter)
     override suspend fun index(dependencyDir: Path, outputDir: Path) = withContext(Dispatchers.IO) {
         LOGGER.info("Starting glob indexing for $dependencyDir")
         val (fileCount, duration) = measureTimedValue {
@@ -97,6 +99,7 @@ object GlobSearch : SearchProvider {
         LOGGER.info("Glob indexing for $dependencyDir took $duration ($fileCount files)")
     }
 
+    context(progress: ProgressReporter)
     override suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path) = withContext(Dispatchers.IO) {
         val (fileCount, duration) = measureTimedValue {
             val file = outputDir.resolve(v1FileName)

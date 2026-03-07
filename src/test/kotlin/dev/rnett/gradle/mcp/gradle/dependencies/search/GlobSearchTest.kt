@@ -24,7 +24,9 @@ class GlobSearchTest {
         dependencyDir.resolve("LICENSE").apply { createFile(); writeText("Apache 2.0") }
 
         val outputDir = tempDir.resolve("index")
-        GlobSearch.index(dependencyDir, outputDir)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            GlobSearch.index(dependencyDir, outputDir)
+        }
 
         val results = GlobSearch.search(outputDir, "**/MyClass.kt").results
         assertEquals(1, results.size)
@@ -52,33 +54,35 @@ class GlobSearchTest {
         dep1Dir.createDirectories()
         dep1Dir.resolve("File1.kt").createFile()
         val index1Dir = tempDir.resolve("index1")
-        GlobSearch.index(dep1Dir, index1Dir)
+        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            GlobSearch.index(dep1Dir, index1Dir)
 
-        val dep2Dir = tempDir.resolve("dep2")
-        dep2Dir.createDirectories()
-        dep2Dir.resolve("File2.kt").createFile()
-        val index2Dir = tempDir.resolve("index2")
-        GlobSearch.index(dep2Dir, index2Dir)
+            val dep2Dir = tempDir.resolve("dep2")
+            dep2Dir.createDirectories()
+            dep2Dir.resolve("File2.kt").createFile()
+            val index2Dir = tempDir.resolve("index2")
+            GlobSearch.index(dep2Dir, index2Dir)
 
-        val mergedDir = tempDir.resolve("merged")
-        GlobSearch.mergeIndices(
-            mapOf(
-                index1Dir to Path.of("lib1"),
-                index2Dir to Path.of("lib2")
-            ),
-            mergedDir
-        )
+            val mergedDir = tempDir.resolve("merged")
+            GlobSearch.mergeIndices(
+                mapOf(
+                    index1Dir to Path.of("lib1"),
+                    index2Dir to Path.of("lib2")
+                ),
+                mergedDir
+            )
 
-        val results1 = GlobSearch.search(mergedDir, "lib1/File1.kt").results
-        assertEquals(1, results1.size)
-        assertEquals("lib1/File1.kt", results1[0].relativePath)
+            val results1 = GlobSearch.search(mergedDir, "lib1/File1.kt").results
+            assertEquals(1, results1.size)
+            assertEquals("lib1/File1.kt", results1[0].relativePath)
 
-        val results2 = GlobSearch.search(mergedDir, "lib2/File2.kt").results
-        assertEquals(1, results2.size)
-        assertEquals("lib2/File2.kt", results2[0].relativePath)
+            val results2 = GlobSearch.search(mergedDir, "lib2/File2.kt").results
+            assertEquals(1, results2.size)
+            assertEquals("lib2/File2.kt", results2[0].relativePath)
 
-        val allResults = GlobSearch.search(mergedDir, "**/*.kt").results
-        assertEquals(2, allResults.size)
+            val allResults = GlobSearch.search(mergedDir, "**/*.kt").results
+            assertEquals(2, allResults.size)
+        }
     }
 
     @Test

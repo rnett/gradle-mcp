@@ -1,6 +1,8 @@
 package dev.rnett.gradle.mcp.gradle.dependencies.search
 
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.tools.PaginationInput
+import dev.rnett.gradle.mcp.withPhase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -8,6 +10,9 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
+import kotlin.concurrent.atomics.AtomicInt
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.concurrent.atomics.incrementAndFetch
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -47,6 +52,8 @@ object SymbolSearch : SearchProvider {
     private const val v1FileName = "symbols-v1.txt"
     val indexDispatcher = Dispatchers.Default.limitedParallelism(maxOf(1, Runtime.getRuntime().availableProcessors() / 2), "indexing")
 
+    @OptIn(ExperimentalAtomicApi::class)
+    context(progress: ProgressReporter)
     override suspend fun index(dependencyDir: Path, outputDir: Path) {
         LOGGER.info("Starting symbol indexing for $dependencyDir")
         val (allSymbols, duration) = measureTimedValue {
@@ -59,10 +66,18 @@ object SymbolSearch : SearchProvider {
                 val targetParallelism = maxOf(1, cores / 2)
                 val chunkSize = maxOf(1, fileCount / targetParallelism)
 
+                val indexingProgress = progress.withPhase("INDEXING")
+                val total = sourceFiles.size.toDouble()
+                val done = AtomicInt(0)
+
                 sourceFiles.chunked(chunkSize)
                     .map { chunk ->
                         async(indexDispatcher) {
-                            chunk.flatMap { findSymbols(it, dependencyDir) }
+                            chunk.flatMap {
+                                val current = done.incrementAndFetch()
+                                indexingProgress(current.toDouble(), total, "Indexing symbols for $dependencyDir")
+                                findSymbols(it, dependencyDir)
+                            }
                         }
                     }.awaitAll().flatten()
             }
@@ -144,10 +159,17 @@ object SymbolSearch : SearchProvider {
         file.writeText(symbols.joinToString("\n") { "${it.name}||${it.path}||${it.line}||${it.offset}" })
     }
 
+    context(progress: ProgressReporter)
     override suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path) = withContext(Dispatchers.IO) {
         val duration = measureTime {
             val symbols = mutableSetOf<Symbol>()
+            val mergingProgress = progress.withPhase("INDEXING")
+            val total = indexDirs.size.toDouble()
+            var current = 0.0
+
             indexDirs.forEach { (idxDir, relativePath) ->
+                current++
+                mergingProgress(current, total, "Merging symbol index for $relativePath")
                 readIndices(idxDir.resolve(v1FileName)) { symbols.addAll(it.map { it.copy(path = relativePath.resolve(it.path).toString().replace('\\', '/')) }) }
             }
             writeIndices(outputDir.resolve(v1FileName), symbols)
@@ -164,8 +186,9 @@ object SymbolSearch : SearchProvider {
 
             val allSymbols = readIndices(indexFile) { it.toList() }
 
+            val cleanedQuery = query.replace(Regex("^(?:class|interface|object|enum|fun|val|var|def|typealias|@interface|record)\\s+"), "")
             val queryRegex = try {
-                Regex(query, RegexOption.IGNORE_CASE)
+                Regex(cleanedQuery, RegexOption.IGNORE_CASE)
             } catch (e: Exception) {
                 return@measureTimedValue SearchResponse(emptyList(), error = "Invalid regex: ${e.message}")
             }

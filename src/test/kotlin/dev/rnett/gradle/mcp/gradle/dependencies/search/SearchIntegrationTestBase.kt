@@ -96,7 +96,9 @@ abstract class SearchIntegrationTestBase {
             )
         )
 
-        val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
+        val sourcesDir = with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            sourcesService.downloadAllSources(projectRoot, index = true)
+        }
 
         // MyClass should be found (it's .kt)
         val resultsKt = sourcesService.search(sourcesDir, searchProvider, "MyClass")

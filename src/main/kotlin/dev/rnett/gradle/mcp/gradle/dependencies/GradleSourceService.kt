@@ -2,16 +2,21 @@ package dev.rnett.gradle.mcp.gradle.dependencies
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.GradleVersionService
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.gradle.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.tools.GradlePathUtils
 import dev.rnett.gradle.mcp.utils.FileLockManager
+import dev.rnett.gradle.mcp.withPhase
 import io.ktor.client.*
+import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.utils.io.jvm.javaio.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import java.nio.file.FileSystems
 import java.nio.file.FileVisitResult
@@ -19,20 +24,18 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
-import java.util.zip.ZipInputStream
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createFile
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
-import kotlin.io.path.inputStream
 import kotlin.io.path.name
 import kotlin.io.path.outputStream
 import kotlin.time.measureTime
-import kotlin.time.measureTimedValue
 
 interface GradleSourceService {
+    context(progress: ProgressReporter)
     suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean = false): SourcesDir
 }
 
@@ -54,6 +57,7 @@ class DefaultGradleSourceService(
     }
 
     @OptIn(ExperimentalPathApi::class)
+    context(progress: ProgressReporter)
     override suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean): SourcesDir {
         val rootPath = GradlePathUtils.getRootProjectPath(projectRoot)
         val inputVersion = GradlePathUtils.getGradleVersion(rootPath)
@@ -102,13 +106,27 @@ class DefaultGradleSourceService(
         }
     }
 
+    context(progress: ProgressReporter)
     private suspend fun downloadGradleSources(version: String): Path {
         val url = GRADLE_DIST_URL_TEMPLATE.format(version)
-        val tempZip = Files.createTempFile("gradle-$version-src", ".zip")
+        val tempZip = withContext(Dispatchers.IO) {
+            Files.createTempFile("gradle-$version-src", ".zip")
+        }
 
-        val (unit, duration) = measureTimedValue {
+        val downloadProgress = progress.withPhase("DOWNLOADING")
+
+        val duration = measureTime {
             LOGGER.info("Downloading Gradle sources from $url to $tempZip")
-            val response = httpClient.get(url)
+            var lastUpdate = 0L
+            val response = httpClient.get(url) {
+                onDownload { bytesSentTotal, contentLength ->
+                    val now = System.currentTimeMillis()
+                    if (now - lastUpdate >= 200 || bytesSentTotal == contentLength) {
+                        lastUpdate = now
+                        downloadProgress(bytesSentTotal.toDouble(), contentLength?.toDouble(), "Downloading Gradle $version source distribution")
+                    }
+                }
+            }
             if (!response.status.isSuccess()) {
                 tempZip.deleteIfExists()
                 throw IllegalStateException("Failed to download Gradle sources from $url: ${response.status}")
@@ -125,6 +143,7 @@ class DefaultGradleSourceService(
         return tempZip
     }
 
+    context(progress: ProgressReporter)
     private suspend fun indexInternal(version: String, sourceZip: Path?, targetDir: SourcesDir) {
         val dummyDependency = GradleDependency(
             id = "org.gradle:gradle:$version",
@@ -146,15 +165,21 @@ class DefaultGradleSourceService(
         LOGGER.info("Indexed Gradle sources in $duration for version $version")
     }
 
+    context(progress: ProgressReporter)
     private suspend fun extractAndIndex(version: String, sourceZip: Path, targetDir: SourcesDir) {
         targetDir.sources.createDirectories()
 
+        val extractionProgress = progress.withPhase("EXTRACTING")
+        extractionProgress(0.0, 1.0, "Extracting Gradle $version sources")
+
         LOGGER.info("Extracting Gradle sources from $sourceZip to ${targetDir.sources}")
-        sourceZip.inputStream().buffered().use {
-            ArchiveExtractor.extractInto(targetDir.sources, ZipInputStream(it), skipSingleFirstDir = true)
+        with(extractionProgress) {
+            ArchiveExtractor.extractInto(targetDir.sources, sourceZip, skipSingleFirstDir = true)
         }
 
         cleanupGradleSources(targetDir.sources)
+
+        extractionProgress(1.0, 1.0, "Extracted Gradle $version sources")
 
         indexInternal(version, sourceZip, targetDir)
     }
