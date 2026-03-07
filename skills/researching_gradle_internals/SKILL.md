@@ -35,6 +35,10 @@ Researches official documentation and probes Gradle's internal source code with 
 - **Read implementation details**: ALWAYS use `read_dependency_sources` with `gradleSource: true` to examine the actual code of any Gradle interface or class once identified.
 - **Escape Lucene special characters**: When searching documentation via `gradle_docs` or source code via `search_dependency_sources` (with `searchType: "FULL_TEXT"`), ALWAYS escape special characters like `:`, `=`, `+`, `-`, `*`, `/` with
   a backslash (e.g., `\:`) or enclose them in double quotes (e.g., `"val x = 10"`) for literal searches to avoid Lucene syntax errors.
+- **Identify Search Mode for Internals**:
+  - Use `SYMBOLS` to find the exact declaration of a Gradle interface or class (e.g., `org.gradle.api.Project`).
+  - Use `FULL_TEXT` to find internal usage patterns, constants, or behavior described in the source.
+  - Use `GLOB` to locate Gradle's internal resource files or build scripts.
 - **Use `envSource: SHELL` if environment variables are missing**: If Gradle fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
   fully loaded. Set `invocationArguments: { envSource: "SHELL" }` to force a new shell process to query the environment.
 - **Verify against the local version**: The tools automatically target the Gradle version used by the current project. ALWAYS use the `version` argument for `gradle_docs` when researching other releases.

@@ -32,10 +32,11 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 
 ## Directives
 
-- **Identify Search Mode**:
-    - Use `FULL_TEXT` (default) for searching literal strings, constants, or specific code patterns within files.
-    - Use `SYMBOLS` for finding class, interface, or method declarations precisely (regex matches the full symbol name, use `.*` for partial matches).
-    - Use `GLOB` for locating files by name or extension (e.g., `**/*.xml` or `**/MyFile.kt`).
+- **Identify Search Mode Authoritatively**:
+    - **SYMBOLS**: Best for classes, methods, or interfaces. Regex matches full symbol name.
+    - **FULL_TEXT**: Best for literal strings, constants, and complex code patterns using Lucene.
+    - **GLOB**: Best for finding specific files (XML, properties, etc.) by name or extension.
+- **Invoke Precisely**: ALWAYS set `searchType` explicitly if the intent is not a general full-text search. This improves result accuracy and reduces noise.
 - **Scope Surgically**: Use `projectPath`, `configurationPath`, or `sourceSetPath` to narrow the search and improve performance if the target library's context is known. To search a plugin, use `configurationPath=":buildscript:classpath"`.
 - **Refresh Indices**: Use `fresh: true` if project dependencies have recently changed to ensure the index is up-to-date.
 - **Analyze Implementation**: Use `read_dependency_sources` to retrieve the implementation logic. If the file is large, use `pagination` to read specific sections. You can target plugins by passing

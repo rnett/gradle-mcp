@@ -7,8 +7,14 @@ Tools for querying maven repositories for dependency information.
 ## search_maven_central
 
 ALWAYS use this tool to search Maven Central for library coordinates and version histories instead of relying on hallucinated versions or web searches.
-It provides direct, paginated access to the authoritative artifact repository. Set `versions=true` and provide a `group:artifact` query to list all released versions.
-Once identified, use `inspect_dependencies` to check if the project already uses the library.
+It provides direct, paginated access to the authoritative artifact repository.
+
+### Discovery Best Practices
+
+1.  **Coordinate Discovery**: Search by name, group, or a snippet of the artifact ID.
+2.  **Version Research**: Set `versions=true` and provide a `group:artifact` query to list ALL released versions. This is the professionally recommended way to find stable versions.
+3.  **Auditing Project Usage**: Once identified, use `inspect_dependencies` to check if the project already uses the library.
+4.  **Pagination**: Use `offset` and `limit` to browse numerous matches for large queries.
 
 <details>
 

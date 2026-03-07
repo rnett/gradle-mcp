@@ -6,11 +6,30 @@ Tools for looking up detailed information about past Gradle builds ran by this M
 
 ## inspect_build
 
-ALWAYS use this tool to inspect detailed build information, monitor progress, and perform surgical failure diagnostics instead of reading raw console logs.
-To inspect test failures or outputs, ALWAYS use `testName` with `mode="details"`. DO NOT use `taskPath` or `captureTaskOutput` for tests, as they lack per-test isolation and truncate output.
-This is the most token-efficient and reliable way to get specific test stdout/stderr, full task outputs, and deep-dive failure trees which are often obscured or interleaved in raw console output.
-Provides a managed interface to wait for specific log patterns, check active builds (omit `buildId`), or get detailed outputs (use `mode="details"` with `testName`, `taskPath`, etc).
-For deep guidance on diagnostics, refer to the `managing_gradle_builds` and `executing_gradle_tests` skills if installed.
+Surgically inspects detailed build information, monitors progress, and performs post-mortem diagnostics.
+ALWAYS use this tool to investigate test failures, task outputs, and build-level errors instead of reading raw console logs.
+
+### Surgical Lookup Modes
+
+1.  **Summary Mode (`mode="summary"`)**
+    -   **Best for**: Finding BuildIds, TaskPaths, TestNames, and FailureIds.
+    -   **Default behaviour**: Shows a high-level dashboard of recent builds if `buildId` is omitted.
+
+2.  **Details Mode (`mode="details"`)**
+    -   **Best for**: Exhaustive analysis of a specific item (requires `testName`, `taskPath`, `failureId`, or `problemId`).
+    -   **Crucial for Tests**: ALWAYS use `mode="details"` with `testName` to see the individual test case's full output, metadata, and stack trace.
+
+### How to Inspect Details
+
+- **Individual Tests**:  `testName="FullTestName"`, `mode="details"` (REQUIRED for full output/stack trace).
+- **Task Outputs**:      `taskPath=":path:to:task"`, `mode="details"`.
+- **Build Failures**:    `failureId="ID"`, `mode="details"` (use summary mode first to find IDs).
+- **Problems/Errors**:   `problemId="ID"`, `mode="details"` (use summary mode first to find IDs).
+- **Full Console**:      `consoleTail=true` (tail) or `consoleTail=false` (head).
+
+### Wait & Progress Monitoring
+- Use `wait` (seconds) with `waitFor` (regex) or `waitForTask` (path) to monitor active builds.
+- Set `afterCall=true` to only look for events emitted after the tool is called.
 
 <details>
 

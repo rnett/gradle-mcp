@@ -24,9 +24,31 @@ Executes tests with absolute precision and leverage deep diagnostic tools to iso
 - **ALWAYS** provide absolute paths for `projectRoot`.
 - **ALWAYS** prefer foreground execution (default) unless the test suite is extremely long-running (>2 minutes) or you explicitly intend to perform independent research while it proceeds.
 - **ONLY** use `background: true` for managed background orchestration when context isolation and non-blocking exploration are required.
+- **STRONGLY PREFERRED**: Use `inspect_build` for all test diagnostics. It provides isolated output and full stack traces that are often truncated in the main console.
 - **ALWAYS** use `inspect_build` with `mode: "details"` and `testName="..."` to access full test output and stack traces.
 - **NEVER** use `taskPath` or `captureTaskOutput` to investigate specific test failures; these provide the overall task log which is often truncated and lacks per-test isolation.
-- **NEVER** assume a test pass without verifying the results via `inspect_build` if failures occurred.
+
+## Surgical Test Inspection with `inspect_build`
+
+When tests fail, `inspect_build` is your most powerful diagnostic tool. It provides isolated output and full stack traces that are often truncated in the main console.
+
+### 1. List All Failed Tests (Summary)
+
+Use `testOutcome="FAILED"` to quickly see which tests failed without being overwhelmed by logs.
+
+- **Example**: `inspect_build(buildId="ID", testOutcome="FAILED")`
+
+### 2. Get Full Test Details (Details)
+
+**CRITICAL**: ALWAYS use `mode="details"` and `testName` to see the complete stdout, stderr, and stack trace for a specific test.
+
+- **Example**: `inspect_build(buildId="ID", mode="details", testName="com.example.MyTest.myMethod")`
+
+### 3. Filter by Name (Summary)
+
+Use `testName` with the default `mode="summary"` to see all executions of a test (e.g., across different projects or iterations).
+
+- **Example**: `inspect_build(buildId="ID", testName="MyTest")`
 
 ## Directives
 

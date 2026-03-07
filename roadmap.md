@@ -1,4 +1,3 @@
-- Progress notifications for search, download, indexing, etc.
 - See if we can make it start with `--add-modules jdk.incubator.vector`.
 - Make symbol indexing and archive extraction more performant, especially for the Gradle sources. Look at using lucene, or doing the full text search first and then searching for symbols.
 - A tool to read/search the source of one particular library, with the version used in our project. Should hopefully be faster than everything.

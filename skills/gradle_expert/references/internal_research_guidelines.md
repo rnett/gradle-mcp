@@ -58,24 +58,32 @@ To understand the "Why" and "How" behind a specific Gradle feature, you MUST res
 
 ### Searching the Gradle Engine
 
-Use `gradleSource = true` to search directly within the Gradle Build Tool's own source code.
+Use `gradleSource = true` and select the appropriate `searchType`.
+
+- Use `SYMBOLS` for exact declarations.
+- Use `FULL_TEXT` (default) for patterns, constants, or behavior discovery.
+- Use `GLOB` for specific internal file lookup.
+
 Tool: `search_dependency_sources`
 
 ```json
 {
-  "query": "class Property",
+  "query": "Property",
+  "searchType": "SYMBOLS",
   "gradleSource": true
 }
 ```
 
 ### Exploring Internal APIs
 
-Internal APIs are often located in packages containing `.internal.`.
+Internal APIs are often located in packages containing `.internal.`. Use `SYMBOLS` with a suffix regex for effective discovery.
+
 Tool: `search_dependency_sources`
 
 ```json
 {
-  "query": "org.gradle.api.internal.artifacts",
+  "query": "org.gradle.api.internal.artifacts.*",
+  "searchType": "SYMBOLS",
   "gradleSource": true
 }
 ```

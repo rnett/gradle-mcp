@@ -24,7 +24,40 @@ Executes Gradle commands with absolute precision and leverage managed background
 - **ALWAYS** prefer foreground execution (default) unless the task is persistent (e.g., servers) or extremely long-running (>2 minutes).
 - **ALWAYS** use `captureTaskOutput` when you need the isolated output of a specific task (e.g., `help`, `dependencies`).
 - **ALWAYS** check the build dashboard (`inspect_build()`) to manage active processes and historical results.
+- **STRONGLY PREFERRED**: Use `inspect_build` for all diagnostics. It is more token-efficient than reading raw console logs and provides structured access to failures.
 - **NEVER** leave background builds running; use `stopBuildId` to release resources when finished.
+
+## Surgical Inspection with `inspect_build`
+
+The `inspect_build` tool is your primary window into build results. Use it to move from high-level summaries to deep-dive diagnostics.
+
+### 1. Build Dashboard (No Arguments)
+
+Call `inspect_build()` without arguments to see the **Build Dashboard**. This shows active background builds and recently completed builds with their `BuildId`, status, and failure counts.
+
+- **Example**: `inspect_build()`
+
+### 2. Build Summary
+
+Provide a `buildId` to get a summary of that specific build, including failures, problems, and test results. This summary also contains a guide on how to inspect specific details.
+
+- **Example**: `inspect_build(buildId="ID")`
+
+### 3. Detailed Inspection (`mode="details"`)
+
+To get exhaustive information, ALWAYS use `mode="details"` combined with a specific target:
+
+- **Individual Tests**: `testName="FullTestName"`, `mode="details"` (REQUIRED for full output/stack trace).
+- **Task Outputs**: `taskPath=":path:to:task"`, `mode="details"`.
+- **Build Failures**: `failureId="ID"`, `mode="details"` (find IDs in the build summary).
+- **Problems/Errors**: `problemId="ID"`, `mode="details"` (find IDs in the build summary).
+- **Console Logs**: `consoleTail=true` (last N lines) or `consoleTail=false` (first N lines).
+
+### 4. Progress Monitoring
+
+Use `wait`, `waitFor`, or `waitForTask` to block until a condition is met in a background build.
+
+- **Example**: `inspect_build(buildId="ID", wait=60, waitFor="Started Application")`
 
 ## Directives
 

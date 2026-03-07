@@ -26,7 +26,36 @@ Provides authoritative guidance and automation for creating, modifying, and audi
 - **ALWAYS** use `gradle_docs` for authoritative documentation lookup instead of generic web searches.
 - **ALWAYS** use `search_dependency_sources` with `gradleSource = true` when researching core Gradle behavior.
 - **ALWAYS** use `inspect_build` with `testName` and `mode="details"` for individual test output instead of generic `taskPath`, `captureTaskOutput`, or shell `grep`.
+- **STRONGLY PREFERRED**: Use `inspect_build` for all failure diagnostics. It is more token-efficient than reading raw console logs and provides structured access to failures, stack traces, and problems.
 - **NEVER** guess internal API behavior; verify it by reading the source code of the Gradle Build Tool.
+
+## Surgical Failure Diagnostics with `inspect_build`
+
+As a Senior Build Engineer, you must move beyond raw logs. The `inspect_build` tool is your surgical diagnostic suite.
+
+### 1. Build Summary (Finding the Root Cause)
+
+Start with a summary to find IDs for specific failures or problems.
+
+- **Example**: `inspect_build(buildId="ID")`
+
+### 2. Individual Test Failures
+
+**CRITICAL**: NEVER use `taskPath` or shell `grep` for tests. ALWAYS use `testName` with `mode="details"` to see the full output and stack trace.
+
+- **Example**: `inspect_build(buildId="ID", mode="details", testName="com.example.MyTest.shouldWork")`
+
+### 3. Build-Level Failures
+
+For compilation or configuration errors, use `failureId` found in the build summary.
+
+- **Example**: `inspect_build(buildId="ID", mode="details", failureId="F0")`
+
+### 4. Problems & Warnings
+
+For deep-dives into specific problems (e.g., deprecations, plugin issues), use `problemId`.
+
+- **Example**: `inspect_build(buildId="ID", mode="details", problemId="P1")`
 
 ## Directives
 
@@ -96,7 +125,8 @@ Tool: `search_dependency_sources`
 
 ```json
 {
-  "query": "class Property",
+  "query": "Property",
+  "searchType": "SYMBOLS",
   "gradleSource": true
 }
 ```

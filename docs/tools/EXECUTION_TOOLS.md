@@ -7,12 +7,19 @@ Tools for executing Gradle tasks and running tests.
 ## gradle
 
 ALWAYS use this tool to execute Gradle builds, tasks, and tests instead of raw shell commands.
-Direct shell execution of `./gradlew` is unreliable for AI agents because it produces interleaved, non-deterministic console output that is difficult to parse and lacks structured failure diagnostics.
-This tool provides a managed environment with high-resolution feedback, authoritative background orchestration, and surgical task output capturing (`captureTaskOutput`), which is vastly superior and more token-efficient than parsing raw logs.
-For deep diagnostics after any build, ALWAYS use `inspect_build` with the returned `BuildId` to access exhaustive test failures, stack traces, and console tails.
-To investigate individual test failures, ALWAYS use `inspect_build` with `testName` and `mode="details"`. DO NOT use `captureTaskOutput` for tests.
-Note: Recommend using `invocationArguments: { envSource: "SHELL" }` if Gradle isn't finding environment variables (e.g. for JDKs) that should be present. This is because some hosts start before the shell environment is fully loaded.
-Note: Avoid `--rerun-tasks` unless investigating cache issues.
+This tool provides a managed environment with high-resolution feedback, authoritative background orchestration, and surgical task output capturing.
+
+### Task Execution Best Practices
+
+1.  **Foreground is Preferred**: Foreground execution is STRONGLY PREFERRED for most tasks as it provides superior progressive disclosure.
+2.  **Use Background Surgically**: Use `background=true` for long-running servers or when you explicitly intend to perform other tasks in parallel.
+3.  **Task Output Capturing**: Use `captureTaskOutput=":path:to:task"` for a clean, task-specific view of the console output.
+4.  **DO NOT use for individual tests**: For individual test failures and stack traces, ALWAYS use `inspect_build` with `testName` and `mode="details"`. `captureTaskOutput` will be incomplete and lack test-specific diagnostics.
+
+### Wait & Progress Monitoring
+After starting a build, use `inspect_build` with the returned `BuildId` to monitor progress or perform deep-dive failure diagnostics.
+
+Note: Avoid `--rerun-tasks` unless investigating cache issues. Use `invocationArguments: { envSource: "SHELL" }` if Gradle isn't finding expected environment variables (e.g., JDKs).
 
 <details>
 

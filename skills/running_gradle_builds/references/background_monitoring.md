@@ -33,28 +33,29 @@ If you want to wait for a specific task to finish in a background build.
 
 - **`waitForTask`**: The path of the task to wait for.
 
-### 3. Monitoring Progress
+### 3. Monitoring Progress Without Waiting
 
-To check the current status of a background build without waiting.
+To check the current status of a background build without waiting for a specific event.
 
 ```json
 {
-  "buildId": "BUILD_ID",
-  "include": ["summary"]
+  "buildId": "BUILD_ID"
 }
 ```
 
-- This returns the current state (e.g., `RUNNING`, `SUCCESS`, `FAILED`), start time, and duration.
+- This returns a summary of the current build state (e.g., `RUNNING`, `SUCCESS`, `FAILED`), failures, and problems.
+- **Example**: `inspect_build(buildId="ID")`
 
-### 4. Inspecting Active Builds
+### 4. Inspecting Active Builds (Build Dashboard)
 
-To see all currently running background builds.
+To see all currently running background builds and recent history.
 
 ```json
-{} // Call inspect_build with no arguments
+{} 
 ```
 
-- This returns the dashboard, which lists all active builds and their `buildId`s.
+- Call `inspect_build()` with **no arguments** to see the dashboard.
+- This is the easiest way to find `BuildId`s for active or recently finished builds.
 
 ## Advanced Management
 

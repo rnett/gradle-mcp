@@ -6,9 +6,9 @@ This document provides detailed instructions for diagnosing test failures using 
 
 When a build fails due to test failures, use `inspect_build` with `testOutcome` or `testName` to get a structured view of the results.
 
-### Listing Failed Tests
+### Listing Failed Tests (Summary Mode)
 
-To see all failed tests in a build:
+To quickly see which tests failed without being overwhelmed by logs:
 
 ```json
 {
@@ -17,9 +17,11 @@ To see all failed tests in a build:
 }
 ```
 
-### Getting Detailed Test Output
+- **Example**: `inspect_build(buildId="ID", testOutcome="FAILED")`
 
-To see the full output and stack trace for a specific test:
+### Getting Detailed Test Output (Details Mode)
+
+To see the full output and stack trace for a specific test. This is **REQUIRED** for authoritative debugging:
 
 ```json
 {
@@ -28,6 +30,8 @@ To see the full output and stack trace for a specific test:
   "testName": "com.example.MyTest.testMethod"
 }
 ```
+
+- **Example**: `inspect_build(buildId="ID", mode="details", testName="com.example.MyTest.testMethod")`
 
 #### **CRITICAL: Individual Test Case vs. Task Output**
 

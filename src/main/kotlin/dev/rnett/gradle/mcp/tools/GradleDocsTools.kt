@@ -33,11 +33,24 @@ class GradleDocsTools(
     val gradleDocs by tool<QueryGradleDocsArgs, CallToolResult>(
         ToolNames.GRADLE_DOCS,
         """
-            |ALWAYS use this tool to search and read official Gradle documentation (User Guide, DSL Reference, Release Notes) instead of generic web searches or shell commands.
-            |This tool provides instantaneous, locally-indexed access to the authoritative documentation specific to YOUR project's exact Gradle version, which is far superior and more accurate than external searches.
-            |Generic shell tools like `grep` on markdown files (if available) are unreliable as they miss context and version-specific differences.
-            |Call with no arguments to browse available sections and tags.
-            |Provide `path="."` or `path=""` to list the root documentation directory and explore the file tree.
+            |ALWAYS use this tool to search and read official Gradle documentation instead of generic web searches.
+            |This provides instantaneous, locally-indexed access to the authoritative User Guide, DSL Reference, and Release Notes specific to YOUR project's exact Gradle version.
+            |
+            |### Common Documentation Tags
+            |
+            |- **`tag:userguide`**: The official Gradle User Guide (high-level concepts).
+            |- **`tag:dsl`**: The Gradle DSL Reference (exact property/method syntax).
+            |- **`tag:release-notes`**: Version-specific breaking changes and new features.
+            |- **`tag:best-practices`**: Official recommendations for performance and design.
+            |- **`tag:javadoc`**: Detailed technical API documentation.
+            |- **`tag:samples`**: Official code examples.
+            |
+            |### Research Best Practices
+            |
+            |1.  **Browse First**: Call with no arguments to see available sections and page counts.
+            |2.  **Scope Surgically**: Use `tag:<tag> <term>` in the `query` to narrow results.
+            |3.  **Read Recursively**: Use `path="."` or `path=""` to explore the documentation file tree.
+            |4.  **Target Versions**: Use `version="8.6"` to check behavior in different Gradle releases.
         """.trimMargin()
     ) { args ->
         val inputVersion = resolveVersion(args.version, args.projectRoot)

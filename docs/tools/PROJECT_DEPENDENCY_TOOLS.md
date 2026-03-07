@@ -6,11 +6,22 @@ Tools for querying Gradle dependencies and checking for updates.
 
 ## inspect_dependencies
 
-ALWAYS use this tool to inspect project dependencies, build script dependencies (plugins), and check for updates instead of manually parsing build files or running shell commands like `grep`.
+ALWAYS use this tool to inspect project dependencies, plugins (via `buildscript:` configurations), and check for updates instead of manually parsing build files.
 Manual parsing is HIGHLY UNRELIABLE as it misses transitive dependencies, version resolution, and dynamic version updates.
-This tool provides the ONLY authoritative, searchable view of the project's exact resolved dependency graph, automatically detects available version updates, and resolves configurations natively.
-It automatically includes build classpath dependencies (plugins) under `buildscript:` prefixed configurations (e.g. `buildscript:classpath`).
-To discover new external libraries, use `search_maven_central`. For built-in Gradle tasks like `dependencyInsight`, use `gradle`.
+This tool provides the ONLY authoritative, searchable view of the project's exact resolved dependency graph.
+
+### Dependency Intelligence Features
+
+1.  **Auditing the Graph**: Get a searchable, paginated view of direct and transitive dependencies.
+2.  **Checking Updates**: Use `checkUpdates=true` (default) to detect newer versions in all repositories.
+3.  **Update Summaries**: Use `updatesOnly=true` to return only a summary of dependencies that have available updates.
+4.  **Plugin Auditing**: Use `configuration="buildscript:classpath"` to audit build script dependencies (plugins).
+
+### Discovery Best Practices
+- **Searching Maven Central**: Use `search_maven_central` to find coordinates or version histories.
+- **Dependency Insight**: Use `gradle` for built-in Gradle tasks like `dependencyInsight`.
+- **Stability Filtering**: Use `stableOnly=true` to ignore pre-release versions (alpha, beta, rc) in update checks.
+- **Precision Slicing**: Use `versionFilter` (regex) for surgical control over considered update versions.
 
 <details>
 

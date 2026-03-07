@@ -351,9 +351,30 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
     val inspectBuild by tool<InspectBuildArgs, String>(
         ToolNames.INSPECT_BUILD,
         """
-            |Surgically inspects build information (test failures, task outputs, console logs, etc.), monitors progress, and manages active/recent builds.
-            |STRONGLY PREFERRED over reading raw console logs for diagnostics.
-            |Use `mode="details"` with `testName`, `taskPath`, `failureId`, or `problemId` for exhaustive information.
+            |Surgically inspects detailed build information, monitors progress, and performs post-mortem diagnostics.
+            |ALWAYS use this tool to investigate test failures, task outputs, and build-level errors instead of reading raw console logs.
+            |
+            |### Surgical Lookup Modes
+            |
+            |1.  **Summary Mode (`mode="summary"`)**
+            |    -   **Best for**: Finding BuildIds, TaskPaths, TestNames, and FailureIds.
+            |    -   **Default behaviour**: Shows a high-level dashboard of recent builds if `buildId` is omitted.
+            |
+            |2.  **Details Mode (`mode="details"`)**
+            |    -   **Best for**: Exhaustive analysis of a specific item (requires `testName`, `taskPath`, `failureId`, or `problemId`).
+            |    -   **Crucial for Tests**: ALWAYS use `mode="details"` with `testName` to see the individual test case's full output, metadata, and stack trace.
+            |
+            |### How to Inspect Details
+            |
+            |- **Individual Tests**:  `testName="FullTestName"`, `mode="details"` (REQUIRED for full output/stack trace).
+            |- **Task Outputs**:      `taskPath=":path:to:task"`, `mode="details"`.
+            |- **Build Failures**:    `failureId="ID"`, `mode="details"` (use summary mode first to find IDs).
+            |- **Problems/Errors**:   `problemId="ID"`, `mode="details"` (use summary mode first to find IDs).
+            |- **Full Console**:      `consoleTail=true` (tail) or `consoleTail=false` (head).
+            |
+            |### Wait & Progress Monitoring
+            |- Use `wait` (seconds) with `waitFor` (regex) or `waitForTask` (path) to monitor active builds.
+            |- Set `afterCall=true` to only look for events emitted after the tool is called.
         """.trimMargin()
     ) {
         if (it.buildId == null) {

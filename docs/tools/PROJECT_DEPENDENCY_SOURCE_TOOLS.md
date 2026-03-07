@@ -10,7 +10,7 @@ ALWAYS use this tool to read source files and explore directory structures of ex
 External dependency sources are NOT stored in your local project directory; generic shell tools like `cat`, `grep`, or `find` WILL FAIL to locate them.
 This tool provides high-performance, cached access to the exact source code your project compiles against, which is vastly superior and more reliable than generic web searches or external repository browsing.
 To read sources for a plugin, pass `configurationPath=":buildscript:classpath"`.
-To find specific classes or methods across all dependencies first, use the `search_dependency_sources` tool.
+To find specific classes or methods across all dependencies first, use the `search_dependency_sources` tool (supports SYMBOLS, FULL_TEXT, and GLOB search modes).
 
 <details>
 
@@ -97,22 +97,29 @@ ALWAYS use this tool to search for symbols or text within the combined source co
 Generic shell tools like `grep` or `find` on the local directory WILL NOT find these external sources as they reside in remote Gradle caches.
 This tool provides high-performance, indexed search capabilities that far exceed basic grep-based exploration, offering surgical precision across the entire dependency graph.
 
-### Authoritative Features
-- **Locating Symbols Precisely**: Using authoritative regex patterns to find classes, methods, or interfaces across the entire dependency graph (use `searchType="SYMBOLS"`, matches full symbol name, use `.*` for partial).
-- **Performing Exhaustive Full-Text Searches (Default)**: Utilizing high-performance Lucene indexing for surgical text searches.
-  This mode supports standard Lucene query syntax. Characters like `:`, `=`, `+`, `-`, `*`, `/` are special operators and MUST be escaped with a backslash (e.g., `\:`) or enclosed in quotes for literal searches.
-- **Managing Search Scopes**: Narrowing searches to specific projects, configurations (including `buildscript:` configurations for plugins), or source sets to maintain token efficiency.
-- **Searching Files by Name or Path (GLOB)**: Locating specific files using standard Java glob syntax. To find a specific file name regardless of its directory, use `**/filename.ext`.
-- **Accessing Gradle Engine Internals**: Searching the authoritative source code of the Gradle Build Tool itself to understand core system behavior.
+### Supported Search Modes
 
-### Common Usage Patterns
-- **Finding a Class**: `searching_dependency_sources(query="Assert", projectPath=":")`
-- **Searching for Constants**: `searching_dependency_sources(query="THREAD_POOL_SIZE")`
-- **Literal Search with special characters**: `searching_dependency_sources(query="\"LANGUAGE:\"")` or `searching_dependency_sources(query="LANGUAGE\\:")`
-- **Locating XML Files**: `searching_dependency_sources(query="**/AndroidManifest.xml", searchType="GLOB")`
-- **Finding a specific file by name**: `searching_dependency_sources(query="**/MySpecificClass.kt", searchType="GLOB")`
-- **Finding Gradle Interfaces**: `searching_dependency_sources(query="interface Project", gradleSource=true)`
-- **Searching a Plugin**: `searching_dependency_sources(query="MyPlugin", configurationPath=":buildscript:classpath")`
+1.  **`SYMBOLS` (Symbol Search)**
+    -   **Best for**: Finding precise declarations of classes, interfaces, or methods.
+    -   **How to invoke**: Set `searchType="SYMBOLS"`. The `query` is a regex matched against the full symbol name.
+    -   **Examples**: `query="JsonConfiguration"` (exact match), `query=".*Configuration"` (suffix match).
+
+2.  **`FULL_TEXT` (Default Mode)**
+    -   **Best for**: Exhaustive searching of literal strings, constants, or code patterns.
+    -   **How to invoke**: Set `searchType="FULL_TEXT"`. The `query` uses high-performance Lucene syntax.
+    -   **Special Characters**: Characters like `:`, `=`, `+`, `-`, `*`, `/` are special operators and MUST be escaped with a backslash (e.g., `\:`) or enclosed in quotes for literal searches.
+    -   **Examples**: `query="\"val x =\""`, `query="TIMEOUT_MS"`, `query="org.gradle.api.internal.artifacts"` (requires escaping or quotes for dots if you want exact literal matches, but generally works fine).
+
+3.  **`GLOB` (File Path Search)**
+    -   **Best for**: Locating specific files by name or extension.
+    -   **How to invoke**: Set `searchType="GLOB"`. The `query` uses standard Java glob syntax.
+    -   **Examples**: `query="**/AndroidManifest.xml"` (find any file by name), `query="**/*.proto"` (find all files by extension).
+
+### Authoritative Features
+- **Locating Symbols Precisely**: Use `SYMBOLS` to jump directly to a symbol's definition across the entire dependency graph.
+- **Performing Exhaustive Full-Text Searches**: Use `FULL_TEXT` for broad discovery of constants or usage patterns.
+- **Managing Search Scopes**: Narrow searches to specific projects, configurations (including `buildscript:` configurations for plugins), or source sets to maintain token efficiency.
+- **Accessing Gradle Engine Internals**: Set `gradleSource=true` to search the authoritative source code of the Gradle Build Tool itself.
 
 Once identified, use the `read_dependency_sources` tool to read the full content.
 Note: All returned paths are relative to the combined source root.

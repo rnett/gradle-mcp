@@ -6,65 +6,90 @@ This guide provides advanced workflows for diagnosing complex Gradle build failu
 
 When a build fails, follow these steps to identify the root cause:
 
-### 1. Get the Failure Summary
+### 1. Get the Build Summary
 
 Start by getting a high-level overview of what went wrong.
 
 ```json
 {
-  "buildId": "BUILD_ID",
-  "failures": {}
+  "buildId": "BUILD_ID"
 }
 ```
 
-- **`failures`**: Provides a structured report of the main build failure(s).
-- **`problems`**: Shows detailed problem reports, including file locations and suggestions.
+- **Example**: `inspect_build(buildId="ID")`
+- This provides a structured summary of failures, problems, and failed tests. Use this to find specific IDs for deeper inspection.
 
-### 2. Inspect Failed Tasks
+### 2. Inspect a Specific Failure
 
-If the failure is task-related, check which tasks failed and their outcomes.
+Use `failureId` with `mode="details"` to see the full failure message and stack trace.
 
 ```json
 {
   "buildId": "BUILD_ID",
   "mode": "details",
-  "tasks": {
-    "path": ":app:compileJava"
-  }
+  "failureId": "F0"
 }
 ```
 
-- Use `tasks.path` in `mode: "details"` to get specific information about a failed task.
+- **Example**: `inspect_build(buildId="ID", mode="details", failureId="F0")`
 
-### 3. Deep Dive into Console Logs
+### 3. Inspect a Specific Problem
 
-If the structured reports aren't enough, examine the console output.
+Use `problemId` with `mode="details"` for detailed problem reports, including file locations and suggestions.
 
 ```json
 {
   "buildId": "BUILD_ID",
-  "console": {
-    "tail": true
-  },
-  "limit": 100
+  "mode": "details",
+  "problemId": "P1"
 }
 ```
 
-- Use `tail` to see the last few lines of the log.
-- Use `offset` and `limit` to paginate through large logs.
+- **Example**: `inspect_build(buildId="ID", mode="details", problemId="P1")`
 
-### 4. Check for Test Failures
+### 4. Inspect Failed Tasks
+
+If the failure is task-related, check the output of specific tasks.
+
+```json
+{
+  "buildId": "BUILD_ID",
+  "mode": "details",
+  "taskPath": ":app:compileJava"
+}
+```
+
+- **Example**: `inspect_build(buildId="ID", mode="details", taskPath=":app:compileJava")`
+
+### 5. Deep Dive into Console Logs
+
+If structured reports aren't enough, examine the console output.
+
+```json
+{
+  "buildId": "BUILD_ID",
+  "consoleTail": true,
+  "pagination": {
+    "limit": 100
+  }
+}
+```
+
+- **Tail (last N lines)**: `inspect_build(buildId="ID", consoleTail=true)`
+- **Head (first N lines)**: `inspect_build(buildId="ID", consoleTail=false)`
+
+### 6. Check for Test Failures
 
 If the build failed during testing, use the test-specific inspection.
 
 ```json
 {
   "buildId": "BUILD_ID",
-  "tests": {}
+  "testOutcome": "FAILED"
 }
 ```
 
-- This will list failed tests. For more details on test diagnostics, use the `running_gradle_tests` skill.
+- This will list failed tests. For more details on test diagnostics (including how to get full stack traces for individual tests), use the `running_gradle_tests` skill.
 
 ## Common Failure Scenarios
 
