@@ -154,8 +154,11 @@ class Application(val args: Array<String>, val transport: Transport) {
 
         @JvmStatic
         fun main(args: Array<String>) {
-            if (args.getOrNull(0) == "stdio") {
-                stdio(args.drop(1).toTypedArray())
+            val mode = args.getOrNull(0)
+            if (mode == "stdio" || args.isEmpty()) {
+                stdio(if (mode == "stdio") args.drop(1).toTypedArray() else args)
+            } else if (mode == "server") {
+                server(args.drop(1).toTypedArray())
             } else {
                 server(args)
             }

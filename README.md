@@ -33,7 +33,33 @@ The `GRADLE_MCP_PROJECT_ROOT` environment variable can be set to provide a defau
 Use [jbang](https://www.jbang.dev/documentation/jbang/latest/installation.html):
 
 ```shell
-jbang run --fresh dev.rnett.gradle-mcp:gradle-mcp:+ stdio
+# For releases
+jbang run --quiet --fresh gradle-mcp@rnett
+
+# For snapshots
+jbang run --quiet --fresh gradle-mcp-snapshot@rnett
+```
+
+```json
+{
+  "mcpServers": {
+    "gradle": {
+      "command": "jbang",
+      "args": [
+        "run",
+        "--quiet",
+        "--fresh",
+        "gradle-mcp@rnett"
+      ]
+    }
+  }
+}
+```
+
+Alternatively, run the GAV directly:
+
+```shell
+jbang run --fresh dev.rnett.gradle-mcp:gradle-mcp:+
 ```
 
 ```json
@@ -44,8 +70,7 @@ jbang run --fresh dev.rnett.gradle-mcp:gradle-mcp:+ stdio
       "args": [
         "run",
         "--fresh",
-        "dev.rnett.gradle-mcp:gradle-mcp:+",
-        "stdio"
+        "dev.rnett.gradle-mcp:gradle-mcp:+"
       ]
     }
   }
@@ -60,10 +85,15 @@ AI agents can use Agent Skills to better understand how to use these tools for c
 
 Included skills:
 
-- `managing_gradle_builds`: Running Gradle Commands, Background Jobs, and Investigating Failures.
-- `executing_gradle_tests`: Running and Investigating Tests.
-- `prototyping_gradle_logic`: Running Code in the Project's Environment (REPL).
-- `reading_gradle_docs`: Searching and reading the Gradle User Guide.
+- `running_gradle_builds`: Running Gradle Commands, Background Jobs, and Investigating Failures.
+- `running_gradle_tests`: Running and Investigating Tests.
+- `managing_gradle_dependencies`: Auditing and updating dependencies.
+- `introspecting_gradle_projects`: Mapping project structure, modules, and tasks.
+- `searching_dependency_sources`: Searching and reading dependency source code.
+- `interacting_with_project_runtime`: Running Code in the Project's Environment (REPL).
+- `researching_gradle_internals`: Searching and reading the Gradle User Guide and source code.
+- `verifying_compose_ui`: Visually verifying Compose UI components.
+- `gradle_expert`: Senior Build Engineer guidance for build scripts and failures.
 
 For instructions on how to use these skills, see the [Agent Skills](https://gradle-mcp.rnett.dev/latest/skills/) documentation.
 

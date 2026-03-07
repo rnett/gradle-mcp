@@ -32,15 +32,23 @@ Tools include introspecting projects, running tasks, and running tests.
 Use [jbang](https://www.jbang.dev/documentation/jbang/latest/installation.html):
 
 ```shell
-jbang run --fresh dev.rnett.gradle-mcp:gradle-mcp:+ stdio
+# For releases
+jbang run --quiet --fresh gradle-mcp@rnett
+
+# For snapshots
+jbang run --quiet --fresh gradle-mcp-snapshot@rnett
 ```
 
-For snapshots:
+Alternatively, run the GAV directly:
 
 ```shell
+# For releases
+jbang run --fresh dev.rnett.gradle-mcp:gradle-mcp:+
+
+# For snapshots
 jbang run --fresh \
   --repos snapshots=https://central.sonatype.com/repository/maven-snapshots/ \
-  dev.rnett.gradle-mcp:gradle-mcp:+ stdio
+  dev.rnett.gradle-mcp:gradle-mcp:+
 ```
 
 You can add an alias to make invoking it easier:
@@ -49,7 +57,7 @@ You can add an alias to make invoking it easier:
 jbang alias add dev.rnett.gradle-mcp:gradle-mcp:+
 ```
 
-Then run it with `jbang --fresh gradle-mcp stdio`.
+Then run it with `jbang --fresh gradle-mcp`.
 
 Or even install it as a command (`gradle-mcp`):
 
@@ -69,9 +77,9 @@ See [jbang documentation](https://www.jbang.dev/documentation/jbang/latest/insta
       "command": "jbang",
       "args": [
         "run",
+        "--quiet",
         "--fresh",
-        "dev.rnett.gradle-mcp:gradle-mcp:+",
-        "stdio"
+        "gradle-mcp@rnett"
       ]
     }
   }
@@ -84,7 +92,7 @@ See [jbang documentation](https://www.jbang.dev/documentation/jbang/latest/insta
     "gradle": {
       "command": "bash -c",
       "args": [
-        "jbang run --fresh dev.rnett.gradle-mcp:gradle-mcp:+ stdio"
+        "jbang run --quiet --fresh gradle-mcp@rnett"
       ]
     }
   }
@@ -99,8 +107,8 @@ This is used if no project root is specified in a tool call and there isn't exac
 ## Usage
 
 Run the server.
-It accepts a single argument, `stdio`, to run in STDIO mode.
-By default it runs as a server on port 47813.
+By default it runs in STDIO mode.
+You can use the `server` argument to run it as a server on port 47813.
 
 ## Agent Skills
 
@@ -108,10 +116,15 @@ AI agents can use Agent Skills to better understand how to use these tools for c
 
 Included skills:
 
-- `managing_gradle_builds`: Running Gradle Commands, Background Jobs, and Investigating Failures.
-- `executing_gradle_tests`: Running and Investigating Tests.
-- `prototyping_gradle_logic`: Running Code in the Project's Environment (REPL).
-- `reading_gradle_docs`: Searching and reading the Gradle User Guide.
+- `running_gradle_builds`: Running Gradle Commands, Background Jobs, and Investigating Failures.
+- `running_gradle_tests`: Running and Investigating Tests.
+- `managing_gradle_dependencies`: Auditing and updating dependencies.
+- `introspecting_gradle_projects`: Mapping project structure, modules, and tasks.
+- `searching_dependency_sources`: Searching and reading dependency source code.
+- `interacting_with_project_runtime`: Running Code in the Project's Environment (REPL).
+- `researching_gradle_internals`: Searching and reading the Gradle User Guide and source code.
+- `verifying_compose_ui`: Visually verifying Compose UI components.
+- `gradle_expert`: Senior Build Engineer guidance for build scripts and failures.
 
 For instructions on how to use these skills, see the [Agent Skills](skills.md) documentation.
 

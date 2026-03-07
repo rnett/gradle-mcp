@@ -173,10 +173,16 @@ tasks.shadowJar {
     archiveClassifier = ""
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
     mergeServiceFiles()
+    manifest {
+        attributes("Add-Modules" to "jdk.incubator.vector")
+    }
 }
 
 tasks.jar {
     archiveClassifier = "single"
+    manifest {
+        attributes("Add-Modules" to "jdk.incubator.vector")
+    }
 }
 
 mavenPublishing {
