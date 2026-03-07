@@ -31,6 +31,19 @@ Tool: `gradle_docs`
 }
 ```
 
+### Example: Searching for Best Practices
+
+Tool: `gradle_docs`
+
+```json
+{
+  "query": "tag:best-practices dependency management",
+  "projectRoot": "/absolute/path/to/project"
+}
+```
+
+**Reasoning**: Using the authoritative `best-practices` tag ensures the returned content is filtered for high-signal architectural recommendations.
+
 ### Example: Searching for Specific Guidance
 
 Tool: `gradle_docs`

@@ -17,7 +17,7 @@ class GradleDocsTools(
 
     @Serializable
     data class QueryGradleDocsArgs(
-        @Description("Searching the documentation. Use `tag:<section>` to scope (e.g., `tag:userguide working with files`).")
+        @Description("Searching the documentation. Use `tag:<section>` to scope (e.g., `tag:userguide`, `tag:best-practices` for official recommendations).")
         val query: String? = null,
         @Description("Reading a specific documentation page or asset path (e.g., 'userguide/command_line_interface.md'). Takes precedence over query.")
         val path: String? = null,

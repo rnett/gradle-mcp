@@ -53,12 +53,14 @@ class DefaultGradleDocsIndexService(
             LuceneUtils.writeIndex(indexDir, analyzer) { writer ->
                 convertedDir.walk().filter { it.isRegularFile() && it.extension == "md" }.forEach { file ->
                     val relativePath = convertedDir.relativize(file).toString().replace("\\", "/")
-                    val tag = detectTag(relativePath)
+                    val tags = detectTags(relativePath)
                     val content = file.readText()
                     val title = extractTitle(file, content)
 
                     val doc = Document().apply {
-                        add(TextField("tag", tag, Field.Store.YES))
+                        tags.forEach { tag ->
+                            add(TextField("tag", tag, Field.Store.YES))
+                        }
                         add(StringField("path", relativePath, Field.Store.YES))
                         addTextAndExact("title", title)
                         addTextAndExact("body", content)
@@ -117,8 +119,9 @@ class DefaultGradleDocsIndexService(
         analyzer.close()
     }
 
-    private fun detectTag(relativePath: String): String {
-        return when {
+    private fun detectTags(relativePath: String): List<String> {
+        val tags = mutableListOf<String>()
+        val baseTag = when {
             relativePath.startsWith("userguide/") -> "userguide"
             relativePath.startsWith("dsl/") -> "dsl"
             relativePath.startsWith("kotlin-dsl/") -> "dsl"
@@ -127,6 +130,13 @@ class DefaultGradleDocsIndexService(
             relativePath == "release-notes.md" -> "release-notes"
             else -> "other"
         }
+        tags.add(baseTag)
+
+        if (relativePath.contains("best_practices")) {
+            tags.add("best-practices")
+        }
+
+        return tags
     }
 
     private fun extractTitle(file: Path, content: String): String {

@@ -42,13 +42,14 @@ Researches official documentation and probes Gradle's internal source code with 
 
 ## Available Documentation Tags
 
-| Tag             | Section                                           |
-|-----------------|---------------------------------------------------|
-| `userguide`     | The official Gradle User Guide.                   |
-| `dsl`           | The Gradle DSL Reference (Groovy and Kotlin DSL). |
-| `javadoc`       | The Gradle Java API Reference.                    |
-| `samples`       | Official Gradle samples and examples.             |
-| `release-notes` | Version-specific release insights.                |
+| Tag              | Section                                                    |
+|------------------|------------------------------------------------------------|
+| `userguide`      | The official Gradle User Guide.                            |
+| `dsl`            | The Gradle DSL Reference (Groovy and Kotlin DSL).          |
+| `javadoc`        | The Gradle Java API Reference.                             |
+| `samples`        | Official Gradle samples and examples.                      |
+| `release-notes`  | Version-specific release insights.                         |
+| `best-practices` | Official Gradle best practices and performance guidelines. |
 
 ## When to Use
 

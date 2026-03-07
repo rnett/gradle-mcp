@@ -182,15 +182,20 @@ class DefaultGradleDocsService(
             summaries.add(DocsSectionSummary("release-notes", "Release Notes", 1))
         }
 
+        var bestPracticesCount = 0
+
         // Section directories
         convertedDir.listDirectoryEntries().filter { it.isDirectory() }.forEach { dir ->
             val tag = if (dir.name == "kotlin-dsl") "dsl" else dir.name
-            val count = dir.walk().count { it.isRegularFile() && it.extension == "md" }
+            val files = dir.walk().filter { it.isRegularFile() && it.extension == "md" }.toList()
+            val count = files.size
+
+            bestPracticesCount += files.count { it.toString().replace("\\", "/").contains("best_practices") }
 
             val existing = summaries.find { it.tag == tag }
             if (existing != null) {
                 summaries.remove(existing)
-                summaries.add(existing.copy(count = existing.count + count.toInt()))
+                summaries.add(existing.copy(count = existing.count + count))
             } else {
                 val displayName = when (tag) {
                     "userguide" -> "User Guide"
@@ -199,8 +204,12 @@ class DefaultGradleDocsService(
                     "samples" -> "Samples"
                     else -> tag.replaceFirstChar { it.uppercase() }
                 }
-                summaries.add(DocsSectionSummary(tag, displayName, count.toInt()))
+                summaries.add(DocsSectionSummary(tag, displayName, count))
             }
+        }
+
+        if (bestPracticesCount > 0) {
+            summaries.add(DocsSectionSummary("best-practices", "Best Practices", bestPracticesCount))
         }
 
         return summaries.sortedBy { it.displayName }

@@ -49,4 +49,41 @@ class GradleDocsIndexServiceTest {
 
         tempDir.toFile().deleteRecursively()
     }
+
+    @Test
+    fun `verify multi-tagging for best practices`() = runTest {
+        val tempDir = Files.createTempDirectory("gradle-mcp-test-multi-tag")
+        val environment = GradleMcpEnvironment(tempDir)
+
+        val version = "9.4.0"
+        val convertedDir = tempDir.resolve("cache/reading_gradle_docs/$version/converted")
+        Files.createDirectories(convertedDir.resolve("userguide"))
+
+        // This file should have both 'userguide' and 'best-practices' tags
+        convertedDir.resolve("userguide/best_practices_performance.md").writeText("# Performance Best Practices\nUse build cache.")
+
+        // This file should only have 'userguide' tag
+        convertedDir.resolve("userguide/intro.md").writeText("# Introduction\nWelcome to Gradle.")
+
+        val extractor = mockk<ContentExtractorService>()
+        coEvery { extractor.ensureProcessed(version) } returns Unit
+
+        val service = DefaultGradleDocsIndexService(extractor, environment, LuceneReaderCache())
+
+        // Search by 'userguide' tag - should find both
+        val userguideResults = service.search("tag:userguide", version).results
+        assertEquals(2, userguideResults.size)
+
+        // Search by 'best-practices' tag - should find only one
+        val bpResults = service.search("tag:best-practices", version).results
+        assertEquals(1, bpResults.size)
+        assertEquals("Performance Best Practices", bpResults[0].title)
+
+        // Ensure it's also reachable by keyword
+        val cacheResults = service.search("cache", version).results
+        assertEquals(1, cacheResults.size)
+        assertEquals("Performance Best Practices", cacheResults[0].title)
+
+        tempDir.toFile().deleteRecursively()
+    }
 }

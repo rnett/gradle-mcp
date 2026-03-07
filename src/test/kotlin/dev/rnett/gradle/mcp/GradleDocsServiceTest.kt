@@ -126,4 +126,36 @@ class GradleDocsServiceTest {
 
         tempDir.toFile().deleteRecursively()
     }
+
+    @Test
+    fun `summarizeSections includes best-practices tag if files exist`() = runTest {
+        val tempDir = Files.createTempDirectory("gradle-mcp-test-docs-bp-summary")
+        val environment = GradleMcpEnvironment(tempDir)
+
+        val version = "9.4.0"
+        val convertedDir = tempDir.resolve("cache/reading_gradle_docs/$version/converted")
+        Files.createDirectories(convertedDir.resolve("userguide"))
+
+        convertedDir.resolve("userguide/best_practices_perf.md").writeText("content")
+        convertedDir.resolve("userguide/best_practices_config.md").writeText("content")
+        convertedDir.resolve("userguide/intro.md").writeText("content")
+
+        val indexer = mockk<GradleDocsIndexService>()
+        val httpClient = mockk<io.ktor.client.HttpClient>()
+        coEvery { indexer.ensureIndexed(version) } returns Unit
+
+        val service = DefaultGradleDocsService(httpClient, indexer, environment)
+        val summaries = service.summarizeSections(version)
+
+        // userguide (3), best-practices (2)
+        assertEquals(2, summaries.size)
+
+        val userguide = summaries.find { it.tag == "userguide" }
+        assertEquals(3, userguide?.count)
+
+        val bp = summaries.find { it.tag == "best-practices" }
+        assertEquals(2, bp?.count)
+
+        tempDir.toFile().deleteRecursively()
+    }
 }

@@ -25,7 +25,7 @@ Provide `path="."` or `path=""` to list the root documentation directory and exp
         "string",
         "null"
       ],
-      "description": "Searching the documentation. Use `tag:<section>` to scope (e.g., `tag:userguide working with files`)."
+      "description": "Searching the documentation. Use `tag:<section>` to scope (e.g., `tag:userguide`, `tag:best-practices` for official recommendations)."
     },
     "path": {
       "type": [

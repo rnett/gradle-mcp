@@ -66,3 +66,12 @@ Included skills:
 - `reading_gradle_docs`: Searching and reading the Gradle User Guide.
 
 For instructions on how to use these skills, see the [Agent Skills](https://gradle-mcp.rnett.dev/latest/skills/) documentation.
+
+---
+
+### Troubleshooting & Notes
+
+- **Documentation Indexing**: If you previously used the `gradle_docs` tool and want to see the new `best-practices` tag for existing Gradle versions, you must clear the documentation cache directory:
+  - Windows: `%USERPROFILE%\.gradle-mcp\cache\reading_gradle_docs`
+  - macOS/Linux: `~/.gradle-mcp/cache/reading_gradle_docs`
+    The server will automatically re-index the documentation on the next call.
