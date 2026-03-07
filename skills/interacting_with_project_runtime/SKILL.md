@@ -34,6 +34,8 @@ Probes project logic, tests utility functions, and interacts with the JVM runtim
 - **Pick up source changes**: The REPL uses a static snapshot of the classpath. If you change project code, you MUST `stop` and then `start` the session again to pick up the updated classes.
 - **Utilize the `responder`**: ALWAYS use `responder.render(value)` or specialized methods (`markdown`, `image`, `html`) to return rich content.
 - **Import necessary classes**: ALWAYS provide explicit imports for project-specific and library classes.
+- **Use `envSource: SHELL` if environment variables are missing**: If the REPL fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
+  fully loaded. Set `env: { envSource: "SHELL" }` when calling `start` to force a new shell process to query the environment.
 - **Resolve `{baseDir}` manually**: If your environment does not automatically resolve the `{baseDir}` placeholder in reference links, treat it as the absolute path to the directory containing this `SKILL.md` file.
 
 ## When to Use

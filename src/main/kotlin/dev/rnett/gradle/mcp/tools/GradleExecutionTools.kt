@@ -40,6 +40,7 @@ class GradleExecutionTools(
             |Direct shell execution of `./gradlew` is unreliable for AI agents because it produces interleaved, non-deterministic console output that is difficult to parse and lacks structured failure diagnostics.
             |This tool provides a managed environment with high-resolution feedback, authoritative background orchestration, and surgical task output capturing (`captureTaskOutput`), which is vastly superior and more token-efficient than parsing raw logs.
             |For deep diagnostics after any build, ALWAYS use `${ToolNames.INSPECT_BUILD}` with the returned `BuildId` to access exhaustive test failures, stack traces, and console tails.
+            |Note: Recommend using `invocationArguments: { envSource: "SHELL" }` if Gradle isn't finding environment variables (e.g. for JDKs) that should be present. This is because some hosts start before the shell environment is fully loaded.
             |Note: Avoid `--rerun-tasks` unless investigating cache issues.
         """.trimMargin()
     ) {

@@ -32,6 +32,8 @@ Executes Gradle commands with absolute precision and leverage managed background
   immediately call `inspect_build(wait=...)`.
 - **Background ONLY for persistent tasks**: Use `background: true` ONLY for tasks that must remain active (e.g., `bootRun`, `continuous` builds) or when you explicitly intend to perform independent research while the build proceeds.
 - **Monitor with `inspect_build`**: Use `inspect_build` to check the status of background builds or to perform deep-dives into any historical build started by the server.
+- **Use `envSource: SHELL` if environment variables are missing**: If Gradle fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
+  fully loaded. Set `invocationArguments: { envSource: "SHELL" }` to force a new shell process to query the environment.
 - **Provide absolute `projectRoot`**: Provide `projectRoot` as an **absolute file system path** to all Gradle MCP tools. Relative paths are not supported.
 - **Manage resources via dashboard**: Frequently call `inspect_build` without arguments to view the build dashboard and ensure no orphaned background builds are consuming system resources.
 - **Resolve `{baseDir}` manually**: If your environment does not automatically resolve the `{baseDir}` placeholder in reference links, treat it as the absolute path to the directory containing this `SKILL.md` file.

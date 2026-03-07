@@ -41,6 +41,8 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 - **Analyze Implementation**: Use `read_dependency_sources` to retrieve the implementation logic. If the file is large, use `pagination` to read specific sections.
 - **Trace Symbols Authoritatively**: When encountering an unknown symbol in your project code, use `SYMBOLS` search to jump directly to its definition in the library. This is the only reliable way to understand its exact behavior and
   available methods.
+- **Use `envSource: SHELL` if environment variables are missing**: If the tool fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
+  fully loaded. Use `fresh: true` and ensure the project root has a valid `gradle-daemon-jvm.properties` or set environment variables directly if needed. Note that these tools implicitly use Gradle to resolve dependencies.
 - **Resolve `{baseDir}` manually**: If the environment does not automatically resolve the `{baseDir}` placeholder in reference links, treat it as the absolute path to the directory containing this `SKILL.md` file.
 
 ## When to Use

@@ -36,6 +36,8 @@ Executes tests with absolute precision and leverage deep diagnostic tools to iso
 - **Foreground tests are safe**: Do not fear running high-output test suites in the foreground. The `gradle` tool uses progressive disclosure to provide concise summaries and structured results, ensuring your session history remains clean
   and efficient.
 - **Monitor with `inspect_build`**: Use `inspect_build` to check the status of background test runs or to retrieve structured output and stack traces for failed tests.
+- **Use `envSource: SHELL` if environment variables are missing**: If Gradle fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
+  fully loaded. Set `invocationArguments: { envSource: "SHELL" }` to force a new shell process to query the environment.
 - **Check for environment failures**: If a test run fails with a general error, use `inspect_build(failures={})` to check for compilation or configuration issues.
 - **Investigate specifically**: Use the `tests: {}` option in `inspect_build` to isolate specific failure details. For detailed diagnostic workflows, see the `test_diagnostics.md` reference.
 - **Resolve `{baseDir}` manually**: If your environment does not automatically resolve the `{baseDir}` placeholder in reference links, treat it as the absolute path to the directory containing this `SKILL.md` file.

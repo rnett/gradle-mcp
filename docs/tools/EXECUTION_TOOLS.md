@@ -10,6 +10,7 @@ ALWAYS use this tool to execute Gradle builds, tasks, and tests instead of raw s
 Direct shell execution of `./gradlew` is unreliable for AI agents because it produces interleaved, non-deterministic console output that is difficult to parse and lacks structured failure diagnostics.
 This tool provides a managed environment with high-resolution feedback, authoritative background orchestration, and surgical task output capturing (`captureTaskOutput`), which is vastly superior and more token-efficient than parsing raw logs.
 For deep diagnostics after any build, ALWAYS use `inspect_build` with the returned `BuildId` to access exhaustive test failures, stack traces, and console tails.
+Note: Recommend using `invocationArguments: { envSource: "SHELL" }` if Gradle isn't finding environment variables (e.g. for JDKs) that should be present. This is because some hosts start before the shell environment is fully loaded.
 Note: Avoid `--rerun-tasks` unless investigating cache issues.
 
 <details>
@@ -94,7 +95,7 @@ Note: Avoid `--rerun-tasks` unless investigating cache issues.
             "INHERIT",
             "SHELL"
           ],
-          "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars."
+          "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars. Recommended if Gradle isn't finding environment variables (e.g. for JDKs) that should be present, which can happen if the host process starts before the shell environment is fully loaded."
         }
       },
       "description": "Applying additional advanced invocation arguments for the Gradle process."

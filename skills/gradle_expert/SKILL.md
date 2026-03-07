@@ -35,6 +35,8 @@ Provides authoritative guidance and automation for creating, modifying, and audi
 - **Resolve dependencies precisely**: Use `inspect_dependencies` and `managing_gradle_dependencies` for auditing and updates.
 - **Consult best practices**: Refer to the [Best Practices Snapshot]({baseDir}/references/best_practices.md) for a high-level overview. **ALWAYS** use `gradle_docs` to retrieve the latest and most comprehensive guidelines from the official
   documentation.
+- **Use `envSource: SHELL` if environment variables are missing**: If Gradle fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
+  fully loaded. Set `invocationArguments: { envSource: "SHELL" }` to force a new shell process to query the environment.
 
 ## Workflows
 

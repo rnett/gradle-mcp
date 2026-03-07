@@ -39,7 +39,7 @@ class BuildManager : AutoCloseable {
         val now = Clock.System.now()
         val expired = lastAccess.filter { (id, access) ->
             val build = builds[id]
-            (build == null || build.hasBuildFinished) && (now - access) > 30.minutes
+            (build == null || build.hasBuildFinished) && (now - access) > 60.minutes
         }.keys
 
         expired.forEach { stopAndRemove(it) }
@@ -85,6 +85,9 @@ class BuildManager : AutoCloseable {
     fun stopAndRemove(id: BuildId) {
         val build = builds.remove(id)
         lastAccess.remove(id)
+        if (latestFinished.load()?.id == id) {
+            latestFinished.store(null)
+        }
         if (build is RunningBuild && build.isRunning) {
             build.stop()
         }
@@ -93,20 +96,20 @@ class BuildManager : AutoCloseable {
     fun require(buildId: BuildId?): Build {
         if (buildId == null)
             return latestFinished.load()
-                ?: error("No latest result - this MCP server has not ran any builds that completed in the last 30m or that have been evicted")
+                ?: latestFinished(1).firstOrNull()
+                ?: error("No latest result - this MCP server has not ran any builds that completed in the last 60m or that have been evicted")
         return getBuild(buildId) ?: throw IllegalArgumentException("Unknown or expired build ID: $buildId")
     }
 
     fun latestFinished(limit: Int = 1): List<FinishedBuild> {
-        if (limit == 1) {
-            return listOfNotNull(latestFinished.load())
-        }
-
         if (limit < 1) return emptyList()
 
-        return builds.values.filterIsInstance<FinishedBuild>()
+        val results = builds.values.filterIsInstance<FinishedBuild>()
             .sortedByDescending { it.id.timestamp }
             .take(limit)
+
+        results.forEach { updateAccess(it.id) }
+        return results
     }
 
     override fun close() {

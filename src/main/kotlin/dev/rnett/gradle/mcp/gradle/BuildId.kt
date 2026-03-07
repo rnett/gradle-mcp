@@ -15,7 +15,7 @@ import kotlin.uuid.Uuid
 
 @Serializable(with = BuildId.Serializer::class)
 @OptIn(ExperimentalUuidApi::class, ExperimentalTime::class)
-@Description("An ID uniquely identifying a build. Used to look up more information about it later using this MCP server. The build ID does not exist outside of this server. Builds expire 10m after they are last accessed.")
+@Description("An ID uniquely identifying a build. Used to look up more information about it later using this MCP server. The build ID does not exist outside of this server. Builds expire 60m after they are last accessed.")
 class BuildId(val id: Uuid, val timestamp: Instant) {
 
     companion object {

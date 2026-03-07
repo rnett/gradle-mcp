@@ -26,7 +26,7 @@ data class GradleInvocationArguments(
     val additionalArguments: List<String> = emptyList(),
     @Description("Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation.")
     val publishScan: Boolean = false,
-    @Description("Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars.")
+    @Description("Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars. Recommended if Gradle isn't finding environment variables (e.g. for JDKs) that should be present, which can happen if the host process starts before the shell environment is fully loaded.")
     val envSource: EnvSource = EnvSource.INHERIT,
     @Description("The names of the init scripts to load. Defaults to empty list.")
     @Transient

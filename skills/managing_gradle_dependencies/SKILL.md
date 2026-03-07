@@ -34,6 +34,8 @@ Audits project dependencies, performs high-resolution update checks, and discove
 - **Discover libraries surgically**: ALWAYS use `search_maven_central` to find new libraries or check the version history of an existing artifact.
 - **Use `gradle` for diagnostics**: For built-in tasks like `dependencyInsight`, ALWAYS use the `gradle` tool with `captureTaskOutput`.
 - **Audit full trees**: ALWAYS use `onlyDirect: false` in `inspect_dependencies` when you need to visualize the complete transitive dependency graph.
+- **Use `envSource: SHELL` if environment variables are missing**: If Gradle fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
+  fully loaded. Set `invocationArguments: { envSource: "SHELL" }` to force a new shell process to query the environment.
 - **Resolve `{baseDir}` manually**: If your environment does not automatically resolve the `{baseDir}` placeholder in reference links, treat it as the absolute path to the directory containing this `SKILL.md` file.
 
 ## When to Use

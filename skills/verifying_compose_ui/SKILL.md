@@ -32,6 +32,8 @@ Visually verifies and renders any @Composable or @Preview directly to high-quali
 - **Note on versions**: ALWAYS check your project's version catalog and existing tests for the correct imports for `runComposeUiTest`.
 - **Render as image**: ALWAYS use `node.captureToImage()` and `responder.render(bitmap)` to return the visual output.
 - **Kotlin Multiplatform (KMP) Note**: The `kotlin_repl` currently only supports **JVM-based** source sets. ALWAYS select a JVM or Desktop target source set for visual checks.
+- **Use `envSource: SHELL` if environment variables are missing**: If Gradle or the REPL fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell
+  environment was fully loaded. Set `env: { envSource: "SHELL" }` (for REPL start) or `invocationArguments: { envSource: "SHELL" }` (for Gradle tasks) to force a new shell process to query the environment.
 - **Resolve `{baseDir}` manually**: If your environment does not automatically resolve the `{baseDir}` placeholder in reference links, treat it as the absolute path to the directory containing this `SKILL.md` file.
 
 ## When to Use

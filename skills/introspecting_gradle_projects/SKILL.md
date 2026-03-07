@@ -34,6 +34,8 @@ Uncovers project modules, discovers runnable tasks, and gain total visibility in
 - **Query task metadata**: ALWAYS use `help --task <name>` to retrieve descriptions, types, and available command-line options for any task.
 - **Extract properties precisely**: ALWAYS use the `properties` task with the `--property` flag to isolate a single value and avoid massive console output.
 - **Audit dependencies**: Use `inspect_dependencies` for a searchable tree and update check. For low-level variant or transformation analysis, use the built-in diagnostic tasks.
+- **Use `envSource: SHELL` if environment variables are missing**: If Gradle fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
+  fully loaded. Set `invocationArguments: { envSource: "SHELL" }` to force a new shell process to query the environment.
 - **Refer to diagnostic guides**: For a complete list of introspection commands, see the [Diagnostic Tasks]({baseDir}/references/diagnostic_tasks.md) reference.
 - **Resolve `{baseDir}` manually**: If your environment does not automatically resolve the `{baseDir}` placeholder in reference links, treat it as the absolute path to the directory containing this `SKILL.md` file.
 

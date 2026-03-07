@@ -35,6 +35,8 @@ Researches official documentation and probes Gradle's internal source code with 
 - **Read implementation details**: ALWAYS use `read_dependency_sources` with `gradleSource: true` to examine the actual code of any Gradle interface or class once identified.
 - **Escape Lucene special characters**: When searching documentation via `gradle_docs` or source code via `search_dependency_sources` (with `searchType: "FULL_TEXT"`), ALWAYS escape special characters like `:`, `=`, `+`, `-`, `*`, `/` with
   a backslash (e.g., `\:`) or enclose them in double quotes (e.g., `"val x = 10"`) for literal searches to avoid Lucene syntax errors.
+- **Use `envSource: SHELL` if environment variables are missing**: If Gradle fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
+  fully loaded. Set `invocationArguments: { envSource: "SHELL" }` to force a new shell process to query the environment.
 - **Verify against the local version**: The tools automatically target the Gradle version used by the current project. ALWAYS use the `version` argument for `gradle_docs` when researching other releases.
 - **Resolve `{baseDir}` manually**: If your environment does not automatically resolve the `{baseDir}` placeholder in reference links, treat it as the absolute path to the directory containing this `SKILL.md` file.
 
