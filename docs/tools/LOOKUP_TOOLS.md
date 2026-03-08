@@ -128,7 +128,9 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
       "enum": [
         "PASSED",
         "FAILED",
-        "SKIPPED"
+        "SKIPPED",
+        "CANCELLED",
+        "IN_PROGRESS"
       ],
       "description": "Filter test results by outcome (summary mode only).",
       "type": "string"

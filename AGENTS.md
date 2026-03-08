@@ -10,6 +10,8 @@ workflows.
 3. **Tool Preference**: ALWAYS prefer using the Gradle MCP tools (`gradle`, `inspect_build`, etc.) over raw shell execution of `./gradlew` or generic shell commands.
 4. **Verification**: NO change is complete without passing relevant tests and the final `check` task.
 5. **Tool Metadata**: After modifying any tool descriptions or metadata, you MUST run `./gradlew :updateToolsList` to ensure consistency.
+6. **Agent Documentation**: This is an MCP server and set of tools for agents to use. If behavior or features aren't documented in the tool descriptions AND skills, they might as well not exist. Ensure they are documented well enough in
+   both places for agents to use them.
 
 ---
 

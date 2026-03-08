@@ -51,13 +51,19 @@ data class RunningBuild(
     override val problems: List<ProblemAggregation> get() = problemsAccumulator.aggregate()
     override val problemAggregations: Map<ProblemSeverity, List<ProblemAggregation>> get() = problemsAccumulator.aggregateBySeverity()
     private val indexer = FailureIndexer()
-    val testResultsInternal = DefaultGradleProvider.TestCollector(true, true)
+    val testResultsInternal = DefaultGradleProvider.TestCollector(true, true, cancellationTokenSource.token())
     override val testResults: TestResults
-        get() = TestResults(
-            testResultsInternal.results().passed.map { it.toModel(indexer, TestOutcome.PASSED) }.toSet(),
-            testResultsInternal.results().skipped.map { it.toModel(indexer, TestOutcome.SKIPPED) }.toSet(),
-            testResultsInternal.results().failed.map { it.toModel(indexer, TestOutcome.FAILED) }.toSet()
-        )
+        get() {
+            val results = testResultsInternal.results(Clock.System.now().toEpochMilliseconds())
+            val inProgressOutcome = if (status == BuildStatus.Running) TestOutcome.IN_PROGRESS else TestOutcome.CANCELLED
+            return TestResults(
+                results.passed.map { it.toModel(indexer, TestOutcome.PASSED) }.toSet(),
+                results.skipped.map { it.toModel(indexer, TestOutcome.SKIPPED) }.toSet(),
+                results.failed.map { it.toModel(indexer, TestOutcome.FAILED) }.toSet(),
+                results.cancelled.map { it.toModel(indexer, TestOutcome.CANCELLED) }.toSet() +
+                        results.inProgress.map { it.toModel(indexer, inProgressOutcome) }.toSet()
+            )
+        }
     val publishedScansInternal = ConcurrentLinkedQueue<GradleBuildScan>()
     override val publishedScans: List<GradleBuildScan> get() = publishedScansInternal.toList()
     override val taskResults = ConcurrentHashMap<String, TaskResult>()
@@ -106,6 +112,7 @@ data class RunningBuild(
 
     fun stop() {
         if (hasBuildFinished) return
+        testResultsInternal.isCancelled = true
         cancellationTokenSource.cancel()
     }
 

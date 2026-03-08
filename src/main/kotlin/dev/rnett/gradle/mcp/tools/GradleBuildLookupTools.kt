@@ -114,7 +114,13 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                     val br = build as FinishedBuild
                     append(if (br.outcome is BuildOutcome.Success) "SUCCESS" else "FAILURE").append(" | ")
                     append(br.outcome.failuresIfFailed?.size ?: 0).append(" | ")
-                    appendLine(br.testResults.failed.size)
+                    val failedTests = br.testResults.failed.size
+                    val cancelledTests = br.testResults.cancelled.size
+                    append(failedTests)
+                    if (cancelledTests > 0) {
+                        append(" (+$cancelledTests cancelled)")
+                    }
+                    appendLine()
                 }
             }
             appendLine()

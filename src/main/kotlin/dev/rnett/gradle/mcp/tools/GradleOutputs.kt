@@ -99,9 +99,21 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
         appendLine("  Passed:   ${testResults.passed.size}")
         appendLine("  Skipped:  ${testResults.skipped.size}")
         appendLine("  Failed:   ${testResults.failed.size}")
+        if (testResults.cancelled.isNotEmpty()) {
+            if (this@toOutputString is FinishedBuild) {
+                appendLine("  Cancelled: ${testResults.cancelled.size}")
+            } else {
+                appendLine("  In Progress: ${testResults.cancelled.size}")
+            }
+        }
         appendLine(OutputFormatter.listResults(testResults.failed, 20, "  ") {
             it.testName
         })
+        if (this@toOutputString is FinishedBuild) {
+            appendLine(OutputFormatter.listResults(testResults.cancelled, 20, "  ") {
+                it.testName
+            })
+        }
 
         val consoleLines = consoleOutput.lines()
         val lineLimit = if (this@toOutputString.status == BuildOutcome.Success) 10 else 50

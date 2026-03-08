@@ -17,15 +17,17 @@ data class TaskResult(
 data class TestResults(
     val passed: Set<TestResult>,
     val skipped: Set<TestResult>,
-    val failed: Set<TestResult>
+    val failed: Set<TestResult>,
+    val cancelled: Set<TestResult> = emptySet()
 ) {
-    val totalCount = passed.size + skipped.size + failed.size
+    val totalCount = passed.size + skipped.size + failed.size + cancelled.size
     val isEmpty = totalCount == 0
     val all by lazy {
         sequence {
             yieldAll(passed)
             yieldAll(skipped)
             yieldAll(failed)
+            yieldAll(cancelled)
         }
     }
 }
@@ -94,5 +96,5 @@ enum class TaskOutcome {
 }
 
 enum class TestOutcome {
-    PASSED, FAILED, SKIPPED
+    PASSED, FAILED, SKIPPED, CANCELLED, IN_PROGRESS
 }

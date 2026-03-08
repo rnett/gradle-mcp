@@ -139,20 +139,30 @@ class DefaultGradleProvider(
     suspend fun getConnection(projectRoot: Path): ProjectConnection = connect(projectRoot)
 
     @Suppress("UnstableApiUsage")
-    class TestCollector(val captureFailedTestOutput: Boolean, val captureAllTestOutput: Boolean) : ProgressListener {
-        private val output = mutableMapOf<String, StringBuilder>()
-        private val passed = mutableListOf<Result>()
-        private val skipped = mutableListOf<Result>()
-        private val failed = mutableListOf<Result>()
-        private val metadata = mutableMapOf<String, MutableMap<String, String>>()
-        private val attachments = mutableMapOf<String, MutableList<FileAttachment>>()
+    class TestCollector(
+        val captureFailedTestOutput: Boolean,
+        val captureAllTestOutput: Boolean,
+        private val cancellationToken: org.gradle.tooling.CancellationToken? = null
+    ) : ProgressListener {
+        @Volatile
+        var isCancelled: Boolean = false
+        private val output = java.util.concurrent.ConcurrentHashMap<String, StringBuffer>()
+        private val passed = java.util.Collections.synchronizedList(mutableListOf<Result>())
+        private val skipped = java.util.Collections.synchronizedList(mutableListOf<Result>())
+        private val failed = java.util.Collections.synchronizedList(mutableListOf<Result>())
+        private val cancelled = java.util.Collections.synchronizedList(mutableListOf<Result>())
+        private val inProgress = java.util.concurrent.ConcurrentHashMap<String, Long>() // Map of test name to start time
+        private val metadata = java.util.concurrent.ConcurrentHashMap<String, MutableMap<String, String>>()
+        private val attachments = java.util.concurrent.ConcurrentHashMap<String, MutableList<FileAttachment>>()
 
         data class FileAttachment(val file: Path, val mediaType: String?)
 
         data class Results(
             val passed: Set<Result>,
             val skipped: Set<Result>,
-            val failed: Set<Result>
+            val failed: Set<Result>,
+            val cancelled: Set<Result>,
+            val inProgress: Set<Result>
         )
 
         data class Result(
@@ -173,9 +183,14 @@ class DefaultGradleProvider(
 
         override fun statusChanged(event: ProgressEvent) {
             when (event) {
-                is TestStartEvent -> {}
+                is TestStartEvent -> {
+                    val testName = event.descriptor.testName() ?: return
+                    inProgress[testName] = event.eventTime
+                }
+
                 is TestFinishEvent -> {
                     val testName = event.descriptor.testName() ?: return
+                    val wasInProgress = inProgress.remove(testName) != null
                     val testResult = Result(
                         testName,
                         null,
@@ -191,7 +206,12 @@ class DefaultGradleProvider(
                         }
 
                         is TestSkippedResult -> {
-                            skipped += testResult.copy(output = output.takeIf { captureAllTestOutput })
+                            val r = testResult.copy(output = output.takeIf { captureAllTestOutput })
+                            if (wasInProgress && (isCancelled || cancellationToken?.isCancellationRequested == true)) {
+                                cancelled += r
+                            } else {
+                                skipped += r
+                            }
                         }
 
                         is TestFailureResult -> {
@@ -203,26 +223,41 @@ class DefaultGradleProvider(
                 is TestOutputEvent -> {
                     val testName = (event.descriptor.parent as? TestOperationDescriptor)?.testName() ?: return
                     val prefix = if (event.descriptor.destination == Destination.StdErr) "STDERR: " else ""
-                    output.getOrPut(testName) { StringBuilder() }.append(prefix + event.descriptor.message)
+                    output.computeIfAbsent(testName) { StringBuffer() }.append(prefix + event.descriptor.message)
                 }
 
                 is TestKeyValueMetadataEvent -> {
                     val testName = (event.descriptor.parent as? TestOperationDescriptor)?.testName() ?: return
-                    metadata.getOrPut(testName) { mutableMapOf() }.putAll(event.values)
+                    metadata.computeIfAbsent(testName) { java.util.concurrent.ConcurrentHashMap() }.putAll(event.values)
                 }
 
                 is TestFileAttachmentMetadataEvent -> {
                     val testName = (event.descriptor.parent as? TestOperationDescriptor)?.testName() ?: return
-                    attachments.getOrPut(testName) { mutableListOf() }.add(FileAttachment(event.file.toPath(), event.mediaType))
+                    attachments.computeIfAbsent(testName) { java.util.Collections.synchronizedList(mutableListOf()) }.add(FileAttachment(event.file.toPath(), event.mediaType))
                 }
             }
         }
 
-        fun results() = Results(
-            passed = passed.toList().toSet(),
-            skipped = skipped.toList().toSet(),
-            failed = failed.toList().toSet()
-        )
+        fun results(endTime: Long): Results {
+            val inProgressResults = inProgress.map { (name, startTime) ->
+                Result(
+                    name,
+                    output[name]?.toString(),
+                    (endTime - startTime).milliseconds,
+                    null,
+                    metadata[name] ?: emptyMap(),
+                    attachments[name] ?: emptyList()
+                )
+            }.toSet()
+
+            return Results(
+                passed = passed.toList().toSet(),
+                skipped = skipped.toList().toSet(),
+                failed = failed.toList().toSet(),
+                cancelled = cancelled.toList().toSet(),
+                inProgress = inProgressResults
+            )
+        }
 
         val operations = buildSet {
             add(OperationType.TEST)
