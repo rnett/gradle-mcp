@@ -126,7 +126,7 @@ Tool: `search_dependency_sources`
 ```json
 {
   "query": "Property",
-  "searchType": "SYMBOLS",
+  "searchType": "DECLARATION",
   "gradleSource": true
 }
 ```

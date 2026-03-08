@@ -8,13 +8,13 @@ import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-class TreeSitterSymbolExtractorTest {
+class TreeSitterDeclarationExtractorTest {
 
     @TempDir
     lateinit var tempDir: Path
 
     @Test
-    fun `test comprehensive kotlin symbols`() = runTest {
+    fun `test comprehensive kotlin declarations`() = runTest {
         val ktFile = tempDir.resolve("Test.kt")
         ktFile.writeText(
             """
@@ -56,7 +56,7 @@ class TreeSitterSymbolExtractorTest {
         """.trimIndent()
         )
 
-        val extractor = TreeSitterSymbolExtractor()
+        val extractor = TreeSitterDeclarationExtractor()
         val symbols = extractor.extractSymbols(ktFile)
         val symbolInfo = symbols.map { "${it.fqn} (${it.line})" }.toSet()
 
@@ -89,7 +89,7 @@ class TreeSitterSymbolExtractorTest {
     }
 
     @Test
-    fun `test comprehensive java symbols`() = runTest {
+    fun `test comprehensive java declarations`() = runTest {
         val javaFile = tempDir.resolve("MyClass.java")
         javaFile.writeText(
             """
@@ -123,7 +123,7 @@ class TreeSitterSymbolExtractorTest {
         """.trimIndent()
         )
 
-        val extractor = TreeSitterSymbolExtractor()
+        val extractor = TreeSitterDeclarationExtractor()
         val symbols = extractor.extractSymbols(javaFile)
         val symbolInfo = symbols.map { "${it.fqn} (${it.line})" }.toSet()
 

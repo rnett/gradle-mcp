@@ -201,6 +201,10 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
             }
         } returns SourcesDir(sourcesDir)
 
+        coEvery {
+            sourcesService.listPackageContents(any(), any())
+        } returns null
+
         val response = server.client.callTool(
             ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
                 put("path", "missing.kt")

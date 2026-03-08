@@ -60,7 +60,7 @@ To understand the "Why" and "How" behind a specific Gradle feature, you MUST res
 
 Use `gradleSource = true` and select the appropriate `searchType`.
 
-- Use `SYMBOLS` for exact declarations.
+- Use `DECLARATION` for exact declarations. Do NOT include keywords like `class` or `interface`.
 - Use `FULL_TEXT` (default) for patterns, constants, or behavior discovery.
 - Use `GLOB` for specific internal file lookup.
 
@@ -69,21 +69,21 @@ Tool: `search_dependency_sources`
 ```json
 {
   "query": "Property",
-  "searchType": "SYMBOLS",
+  "searchType": "DECLARATION",
   "gradleSource": true
 }
 ```
 
 ### Exploring Internal APIs
 
-Internal APIs are often located in packages containing `.internal.`. Use `SYMBOLS` with a suffix regex for effective discovery.
+Internal APIs are often located in packages containing `.internal.`. Use `DECLARATION` with a suffix regex for effective discovery.
 
 Tool: `search_dependency_sources`
 
 ```json
 {
   "query": "org.gradle.api.internal.artifacts.*",
-  "searchType": "SYMBOLS",
+  "searchType": "DECLARATION",
   "gradleSource": true
 }
 ```

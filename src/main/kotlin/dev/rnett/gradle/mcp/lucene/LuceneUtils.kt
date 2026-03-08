@@ -25,6 +25,20 @@ object LuceneUtils {
 
     const val SYNTAX_ERROR_HELP = "Special characters like ':', '=', '+', '-', '*', '/' must be escaped with a backslash (e.g., '\\:') or enclosed in quotes for literal searches."
 
+    fun createCaseSensitiveAnalyzer() = object : Analyzer() {
+        override fun createComponents(fieldName: String): TokenStreamComponents {
+            val source = StandardTokenizer()
+            val filter = org.apache.lucene.analysis.miscellaneous.WordDelimiterGraphFilter(
+                source,
+                org.apache.lucene.analysis.miscellaneous.WordDelimiterGraphFilter.GENERATE_WORD_PARTS or
+                        org.apache.lucene.analysis.miscellaneous.WordDelimiterGraphFilter.GENERATE_NUMBER_PARTS or
+                        org.apache.lucene.analysis.miscellaneous.WordDelimiterGraphFilter.PRESERVE_ORIGINAL,
+                null
+            )
+            return TokenStreamComponents(source, filter)
+        }
+    }
+
     fun formatSyntaxError(message: String?) = "Invalid Lucene query syntax: $message. $SYNTAX_ERROR_HELP"
 
     val exactAnalyzer = object : Analyzer() {

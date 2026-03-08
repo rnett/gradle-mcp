@@ -36,15 +36,18 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 ## Directives
 
 - **Identify Search Mode Authoritatively**:
-    - **SYMBOLS**: Best for classes, methods, or interfaces. Regex matches full symbol name.
-    - **FULL_TEXT**: Best for literal strings, constants, and complex code patterns using Lucene.
-    - **GLOB**: Best for finding specific files (XML, properties, etc.) by name or extension.
+    - **DECLARATION**: Best for classes, methods, or interfaces. Regex matches full declaration name. All declaration searches are **case-sensitive**. Do NOT include keywords like `class`, `interface`, or `fun` (e.g., use `MyClass`, not
+      `class MyClass`). Supports simple names, FQNs, partial package paths, glob wildcards (e.g., `*`, `**`), and Lucene query syntax.
+    - **FULL_TEXT**: Best for literal strings, constants, and complex code patterns using Lucene. **Case-insensitive**.
+    - **GLOB**: Best for finding specific files (XML, properties, etc.) by name or extension. **Case-insensitive**.
 - **Invoke Precisely**: ALWAYS set `searchType` explicitly if the intent is not a general full-text search. This improves result accuracy and reduces noise.
 - **Scope Surgically**: Use `projectPath`, `configurationPath`, or `sourceSetPath` to narrow the search and improve performance if the target library's context is known. To search a plugin, use `configurationPath=":buildscript:classpath"`.
 - **Refresh Indices**: Use `fresh: true` if project dependencies have recently changed to ensure the index is up-to-date.
+- **Explore Packages Authoritatively**: Use `read_dependency_sources` with a dot-separated package path (e.g., `org.gradle.api`) to list its direct symbols and sub-packages. This is backed by the symbol index and is more reliable than
+  directory-based exploration for Kotlin projects.
 - **Analyze Implementation**: Use `read_dependency_sources` to retrieve the implementation logic. If the file is large, use `pagination` to read specific sections. You can target plugins by passing
   `configurationPath=":buildscript:classpath"`.
-- **Trace Symbols Authoritatively**: When encountering an unknown symbol in your project code, use `SYMBOLS` search to jump directly to its definition in the library. This is the only reliable way to understand its exact behavior and
+- **Trace Symbols Authoritatively**: When encountering an unknown symbol in your project code, use `DECLARATION` search to jump directly to its definition in the library. This is the only reliable way to understand its exact behavior and
   available methods.
 - **Use `envSource: SHELL` if environment variables are missing**: If the tool fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
   fully loaded. Use `fresh: true` and ensure the project root has a valid `gradle-daemon-jvm.properties` or set environment variables directly if needed. Note that these tools implicitly use Gradle to resolve dependencies.
@@ -63,13 +66,13 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 ### 1. Tracing a Symbol from Project Code
 
 1. Identify the symbol name (e.g., `JsonConfiguration`) or fully qualified name from an import.
-2. Call `search_dependency_sources(query="<SymbolName>", searchType="SYMBOLS")`.
+2. Call `search_dependency_sources(query="<SymbolName>", searchType="DECLARATION")`.
 3. Identify the correct file path from the results.
 4. Call `read_dependency_sources(path="<path>")` to analyze the implementation.
 
 ### 2. Discovering API Usage through Source
 
-1. Search for a known entry point (e.g., a constructor or main class) using `SYMBOLS` or `FULL_TEXT`.
+1. Search for a known entry point (e.g., a constructor or main class) using `DECLARATION` or `FULL_TEXT`.
 2. Once the file is found, use `read_dependency_sources` to read its source.
 3. Look for internal calls, helper methods, or factory patterns to understand the library's preferred usage.
 
@@ -86,9 +89,9 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 ```json
 {
   "query": "JsonConfiguration",
-  "searchType": "SYMBOLS"
+  "searchType": "DECLARATION"
 }
-// Reasoning: Using SYMBOLS search to find the declaration of a specific class across all project dependencies.
+// Reasoning: Using DECLARATION search to find the declaration of a specific class across all project dependencies.
 ```
 
 ### Trace a method signature from a symbol name
@@ -96,7 +99,7 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 ```json
 {
   "query": "encodeToString",
-  "searchType": "SYMBOLS"
+  "searchType": "DECLARATION"
 }
 // Reasoning: Finding all definitions of 'encodeToString' across dependencies to identify the correct implementation.
 ```
@@ -127,6 +130,15 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
   "path": "kotlinx/serialization/json/Json.kt"
 }
 // Reasoning: Reading the implementation of a known class path identified from previous search results.
+```
+
+### Explore a package via its FQN
+
+```json
+{
+  "path": "org.gradle.api"
+}
+// Reasoning: Listing the direct symbols and sub-packages of 'org.gradle.api' using index-backed exploration.
 ```
 
 ## Resources

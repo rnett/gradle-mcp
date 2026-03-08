@@ -36,9 +36,12 @@ Researches official documentation and probes Gradle's internal source code with 
 - **Escape Lucene special characters**: When searching documentation via `gradle_docs` or source code via `search_dependency_sources` (with `searchType: "FULL_TEXT"`), ALWAYS escape special characters like `:`, `=`, `+`, `-`, `*`, `/` with
   a backslash (e.g., `\:`) or enclose them in double quotes (e.g., `"val x = 10"`) for literal searches to avoid Lucene syntax errors.
 - **Identify Search Mode for Internals**:
-  - Use `SYMBOLS` to find the exact declaration of a Gradle interface or class (e.g., `org.gradle.api.Project`).
-  - Use `FULL_TEXT` to find internal usage patterns, constants, or behavior described in the source.
-  - Use `GLOB` to locate Gradle's internal resource files or build scripts.
+    - Use `DECLARATION` to find the exact declaration of a Gradle interface or class. All declaration searches are **case-sensitive**. Do NOT include keywords like `class` or `interface` (e.g., use `Project`, not `interface Project`).
+    - You can search by simple name (e.g., `Project`), full name (e.g., `org.gradle.api.Project`), or partial package paths (e.g., `api.Project`).
+    - Supports **glob wildcards** for FQNs: `*` matches one segment, `**` matches multiple (e.g., `fqn:org.gradle.*.Project`, `fqn:org.**.Project`).
+    - Supports full **Lucene query syntax** (e.g., `name:Project AND fqn:org.gradle.api.*`).
+    - Use `FULL_TEXT` to find internal usage patterns, constants, or behavior described in the source. `FULL_TEXT` searches are **case-insensitive**.
+    - Use `GLOB` to locate Gradle's internal resource files or build scripts. `GLOB` searches are **case-insensitive**.
 - **Use `envSource: SHELL` if environment variables are missing**: If Gradle fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
   fully loaded. Set `invocationArguments: { envSource: "SHELL" }` to force a new shell process to query the environment.
 - **Verify against the local version**: The tools automatically target the Gradle version used by the current project. ALWAYS use the `version` argument for `gradle_docs` when researching other releases.
@@ -96,10 +99,21 @@ Researches official documentation and probes Gradle's internal source code with 
 ```json
 {
   "query": "Project",
-  "searchType": "SYMBOLS",
+  "searchType": "DECLARATION",
   "gradleSource": true
 }
-// Reasoning: Using gradleSource and SYMBOLS search to find the ground-truth implementation of the core Project API.
+// Reasoning: Using gradleSource and DECLARATION search to find the ground-truth implementation of the core Project API.
+```
+
+### Search for a symbol with glob wildcards
+
+```json
+{
+  "query": "fqn:org.gradle.*.Project",
+  "searchType": "DECLARATION",
+  "gradleSource": true
+}
+// Reasoning: Using a glob wildcard to find Project declarations in any direct sub-package of org.gradle.
 ```
 
 ### Search release notes for a specific version

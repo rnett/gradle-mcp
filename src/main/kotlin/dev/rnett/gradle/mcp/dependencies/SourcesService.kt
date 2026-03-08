@@ -5,6 +5,7 @@ import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.search.IndexEntry
 import dev.rnett.gradle.mcp.dependencies.search.IndexService
+import dev.rnett.gradle.mcp.dependencies.search.PackageContents
 import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
 import dev.rnett.gradle.mcp.dependencies.search.SearchResponse
 import dev.rnett.gradle.mcp.dependencies.search.SearchResult
@@ -80,6 +81,8 @@ interface SourcesService {
     suspend fun downloadSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, index: Boolean = true, forceDownload: Boolean = false, fresh: Boolean = false): SourcesDir
 
     suspend fun search(sources: SourcesDir, provider: SearchProvider, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): SearchResponse<SearchResult>
+
+    suspend fun listPackageContents(sources: SourcesDir, packageName: String): PackageContents?
 }
 
 class DefaultSourcesService(private val depService: GradleDependencyService, environment: GradleMcpEnvironment, private val indexService: IndexService) : SourcesService {
@@ -260,6 +263,10 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
             interpretedQuery = response.interpretedQuery,
             error = response.error
         )
+    }
+
+    override suspend fun listPackageContents(sources: SourcesDir, packageName: String): PackageContents? {
+        return indexService.listPackageContents(sources, packageName)
     }
 
     @OptIn(ExperimentalPathApi::class)

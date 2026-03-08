@@ -5,11 +5,11 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import kotlin.test.assertTrue
 
-class SymbolSearchIntegrationTest : SearchIntegrationTestBase() {
-    override val searchProvider = SymbolSearch
+class DeclarationSearchIntegrationTest : SearchIntegrationTestBase() {
+    override val searchProvider = DeclarationSearch
 
     @Test
-    fun `test symbol search across mocked dependencies`() = runTest {
+    fun `test declaration search across mocked dependencies`() = runTest {
         val zip1 = createSourceZip(
             "dep1-sources", mapOf(
                 "com/example/MyClass.kt" to """
@@ -55,7 +55,7 @@ class SymbolSearchIntegrationTest : SearchIntegrationTestBase() {
             sourcesService.downloadAllSources(projectRoot, index = true)
         }
 
-        // Search for Kotlin symbol
+        // Search for Kotlin declaration
         val results1 = sourcesService.search(sourcesDir, searchProvider, "MyClass").results
         assertTrue(results1.isNotEmpty(), "MyClass not found")
         assertTrue(results1.any { it.relativePath == "com.example/dep1-sources/example/MyClass.kt" && it.line == 3 }, "MyClass missing at line 3: ${results1}")
@@ -64,7 +64,7 @@ class SymbolSearchIntegrationTest : SearchIntegrationTestBase() {
         assertTrue(resultsField.isNotEmpty(), "myField not found")
         assertTrue(resultsField.any { it.relativePath == "com.example/dep1-sources/example/MyClass.kt" && it.line == 4 }, "myField missing at line 4: ${resultsField}")
 
-        // Search for Java symbol
+        // Search for Java declaration
         val results2 = sourcesService.search(sourcesDir, searchProvider, "OtherClass").results
         assertTrue(results2.isNotEmpty(), "OtherClass not found")
         assertTrue(results2.any { it.relativePath == "com.other/dep2-sources/other/OtherClass.java" && it.line == 3 }, "OtherClass missing at line 3: ${results2}")

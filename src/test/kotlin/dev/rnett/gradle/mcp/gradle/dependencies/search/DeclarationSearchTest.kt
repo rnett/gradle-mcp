@@ -22,9 +22,10 @@ import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-class SymbolSearchTest {
+class DeclarationSearchTest {
 
     @TempDir
     lateinit var tempDir: Path
@@ -74,16 +75,16 @@ class SymbolSearchTest {
 
         val indexDir = tempDir.resolve("index")
         with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
-            SymbolSearch.index(depDir, indexDir)
+            DeclarationSearch.index(depDir, indexDir)
         }
 
         suspend fun assertFound(query: String, expectedPath: String, expectedLine: Int) {
-            val response = SymbolSearch.search(indexDir, query)
+            val response = DeclarationSearch.search(indexDir, query)
             val results = response.results
-            println("Searched for: $query. Results: $results")
+            println("Searched for: $query. Interpreted: ${response.interpretedQuery}. Error: ${response.error}. Results: $results")
             assertTrue(
                 results.any { it.relativePath == expectedPath && it.line == expectedLine },
-                "Symbol $query not found at $expectedPath:$expectedLine. Found: $results"
+                "Declaration $query not found at $expectedPath:$expectedLine. Found: $results"
             )
         }
 
@@ -101,5 +102,47 @@ class SymbolSearchTest {
         assertFound("MyJavaEnum", "MyJavaClass.java", 9)
         assertFound("MyJavaAnnotation", "MyJavaClass.java", 13)
         assertFound("MyJavaRecord", "MyJavaClass.java", 17)
+
+        // Case-sensitive search
+        assertTrue(DeclarationSearch.search(indexDir, "mykotlinclass").results.isEmpty(), "Should not find lowercase MyKotlinClass")
+        assertFound("MyKotlinClass", "MyKotlinClass.kt", 3)
+
+        // FQN search
+        assertFound("com.example.MyKotlinClass", "MyKotlinClass.kt", 3)
+        assertFound("com.example.MyKotlinClass.myVal", "MyKotlinClass.kt", 4)
+
+        // Partial FQN (analyzed)
+        assertFound("example.MyKotlinClass", "MyKotlinClass.kt", 3)
+
+        // Glob wildcards
+        assertFound("com.example.*.myVal", "MyKotlinClass.kt", 4)
+        assertFound("com.**.myVal", "MyKotlinClass.kt", 4)
+        assertFound("com.**.MyKotlinClass.myVal", "MyKotlinClass.kt", 4)
+        assertFound("*.example.MyKotlinClass", "MyKotlinClass.kt", 3)
+        assertFound("**.MyKotlinClass", "MyKotlinClass.kt", 3)
+        assertFound("com.example.**", "MyKotlinClass.kt", 3)
+
+        // Lucene syntax
+        assertFound("name:MyKotlinClass", "MyKotlinClass.kt", 3)
+        assertFound("fqn:com.example.MyKotlinClass", "MyKotlinClass.kt", 3)
+        assertFound("fqn:com.*.MyKotlinClass", "MyKotlinClass.kt", 3)
+
+        // FQN search (MyJavaEnum is top-level in com.example)
+        assertFound("com.example.MyJavaEnum", "MyJavaClass.java", 9)
+        assertFound("**.MyJavaEnum", "MyJavaClass.java", 9)
+
+        // Package exploration
+        val packageContents = DeclarationSearch.listPackageContents(indexDir, "com.example")
+        assertNotNull(packageContents)
+        assertTrue(packageContents.symbols.contains("MyKotlinClass"), "Package should contain MyKotlinClass")
+        assertTrue(packageContents.symbols.contains("MyJavaClass"), "Package should contain MyJavaClass")
+
+        val rootPackageContents = DeclarationSearch.listPackageContents(indexDir, "")
+        assertNotNull(rootPackageContents)
+        assertTrue(rootPackageContents.subPackages.contains("com"), "Root should contain 'com' subpackage")
+
+        val comPackageContents = DeclarationSearch.listPackageContents(indexDir, "com")
+        assertNotNull(comPackageContents)
+        assertTrue(comPackageContents.subPackages.contains("example"), "com should contain 'example' subpackage")
     }
 }

@@ -19,7 +19,7 @@ data class ExtractedSymbol(
     val offset: Int
 )
 
-class TreeSitterSymbolExtractor : AutoCloseable {
+class TreeSitterDeclarationExtractor : AutoCloseable {
     private val javaLang = TreeSitterJava()
     private val kotlinLang = TreeSitterKotlin()
 
@@ -159,4 +159,3 @@ class TreeSitterSymbolExtractor : AutoCloseable {
         kotlinLang.close()
     }
 }
-

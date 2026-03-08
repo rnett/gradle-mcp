@@ -49,13 +49,15 @@ interface IndexService {
     suspend fun mergeIndices(sourcesDir: SourcesDir, includedDeps: Map<Path, Index>)
 
     suspend fun search(sourcesDir: SourcesDir, provider: SearchProvider, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): SearchResponse<RelativeSearchResult>
+
+    suspend fun listPackageContents(sourcesDir: SourcesDir, packageName: String): PackageContents?
 }
 
 class DefaultIndexService(
     val environment: GradleMcpEnvironment
 ) : IndexService {
     private val LOGGER = LoggerFactory.getLogger(DefaultIndexService::class.java)
-    private val providers = listOf(SymbolSearch, FullTextSearch, GlobSearch)
+    private val providers = listOf(DeclarationSearch, FullTextSearch, GlobSearch)
     private val combinedIndexVersion = providers.joinToString("-") { "${it.name}:${it.indexVersion}" }
     private val markerFileName = ".indexed-${combinedIndexVersion.hashCode()}"
     private val indexDir = environment.cacheDir.resolve("source-indices")
@@ -180,5 +182,11 @@ class DefaultIndexService(
         val res = response
         LOGGER.info("Search using ${provider.name} for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) in ${sourcesDir.path} took $duration (${res.results.size} results)")
         return res
+    }
+
+    override suspend fun listPackageContents(sourcesDir: SourcesDir, packageName: String): PackageContents? {
+        val providerIndexDir = sourcesDir.index.resolve(DeclarationSearch.name)
+        if (!providerIndexDir.exists()) return null
+        return DeclarationSearch.listPackageContents(providerIndexDir, packageName)
     }
 }

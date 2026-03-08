@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.dependencies.search
 
 import dev.rnett.gradle.mcp.tools.PaginationInput
+import kotlinx.serialization.Serializable
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.readText
@@ -16,6 +17,8 @@ interface SearchProvider {
 
     suspend fun search(indexDir: Path, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): SearchResponse<RelativeSearchResult>
 
+    suspend fun listPackageContents(indexDir: Path, packageName: String): PackageContents? = null
+
     suspend fun newIndexer(outputDir: Path): Indexer
 
     /**
@@ -29,6 +32,18 @@ interface SearchProvider {
 }
 
 data class IndexEntry(val relativePath: String, val content: String)
+
+@Serializable
+/**
+ * Represents the contents of a dot-separated package path.
+ *
+ * @property symbols Direct symbols declared in this package (e.g., classes, top-level functions).
+ * @property subPackages Immediate sub-package segments (e.g., for package 'org.gradle', 'api' if 'org.gradle.api' exists).
+ */
+data class PackageContents(
+    val symbols: List<String>,
+    val subPackages: List<String>
+)
 
 data class SearchResponse<T>(
     val results: List<T>,

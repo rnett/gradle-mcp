@@ -210,6 +210,10 @@ object UpdateTools {
         override suspend fun search(sources: dev.rnett.gradle.mcp.dependencies.SourcesDir, provider: dev.rnett.gradle.mcp.dependencies.search.SearchProvider, query: String, pagination: PaginationInput): dev.rnett.gradle.mcp.dependencies.search.SearchResponse<dev.rnett.gradle.mcp.dependencies.search.SearchResult> {
             throw UnsupportedOperationException("Not used for tool listing")
         }
+
+        override suspend fun listPackageContents(sources: dev.rnett.gradle.mcp.dependencies.SourcesDir, packageName: String): dev.rnett.gradle.mcp.dependencies.search.PackageContents? {
+            throw UnsupportedOperationException("Not used for tool listing")
+        }
     }
 
     val throwingGradleProvider = object : GradleProvider {
