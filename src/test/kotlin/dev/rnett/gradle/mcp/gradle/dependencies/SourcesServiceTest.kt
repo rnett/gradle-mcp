@@ -1,9 +1,9 @@
-package dev.rnett.gradle.mcp.gradle.dependencies
+package dev.rnett.gradle.mcp.dependencies
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
+import dev.rnett.gradle.mcp.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependencyReport
-import dev.rnett.gradle.mcp.gradle.dependencies.search.IndexService
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk

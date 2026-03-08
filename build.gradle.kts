@@ -101,6 +101,10 @@ dependencies {
     implementation(libs.lucene.queryparser)
     implementation(libs.lucene.highlighter)
 
+    implementation(libs.treesitter)
+    implementation(libs.treesitter.java)
+    implementation(libs.treesitter.kotlin)
+
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.junit.jupiter)

@@ -1,6 +1,5 @@
-package dev.rnett.gradle.mcp.gradle.dependencies.search
+package dev.rnett.gradle.mcp.dependencies.search
 
-import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -9,10 +8,7 @@ import java.nio.file.FileSystems
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
-import kotlin.io.path.isRegularFile
 import kotlin.io.path.readLines
-import kotlin.io.path.relativeTo
-import kotlin.io.path.walk
 import kotlin.io.path.writeLines
 import kotlin.time.measureTimedValue
 
@@ -81,25 +77,29 @@ object GlobSearch : SearchProvider {
         return@withContext response
     }
 
-    context(progress: ProgressReporter)
-    override suspend fun index(dependencyDir: Path, outputDir: Path) = withContext(Dispatchers.IO) {
-        LOGGER.info("Starting glob indexing for $dependencyDir")
-        val (fileCount, duration) = measureTimedValue {
-            val file = outputDir.resolve(v1FileName)
+    override suspend fun newIndexer(outputDir: Path): Indexer = GlobIndexer(outputDir)
+
+    class GlobIndexer(outputDir: Path) : Indexer {
+        private val file = outputDir.resolve(v1FileName)
+        private val paths = mutableListOf<String>()
+
+        init {
             outputDir.createDirectories()
-
-            val paths = dependencyDir.walk()
-                .filter { it.isRegularFile() }
-                .map { it.relativeTo(dependencyDir).toString().replace('\\', '/') }
-                .toList()
-
-            file.writeLines(paths)
-            paths.size
         }
-        LOGGER.info("Glob indexing for $dependencyDir took $duration ($fileCount files)")
+
+        override suspend fun indexFile(path: String, content: String) {
+            paths.add(path)
+        }
+
+        override suspend fun finish() {
+            withContext(Dispatchers.IO) {
+                file.writeLines(paths)
+            }
+        }
+
+        override fun close() {}
     }
 
-    context(progress: ProgressReporter)
     override suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path) = withContext(Dispatchers.IO) {
         val (fileCount, duration) = measureTimedValue {
             val file = outputDir.resolve(v1FileName)

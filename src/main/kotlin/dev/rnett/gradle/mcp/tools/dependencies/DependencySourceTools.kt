@@ -1,12 +1,12 @@
 package dev.rnett.gradle.mcp.tools.dependencies
 
-import dev.rnett.gradle.mcp.gradle.dependencies.GradleSourceService
-import dev.rnett.gradle.mcp.gradle.dependencies.SourcesService
-import dev.rnett.gradle.mcp.gradle.dependencies.search.FullTextSearch
-import dev.rnett.gradle.mcp.gradle.dependencies.search.GlobSearch
-import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResponse
-import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResult
-import dev.rnett.gradle.mcp.gradle.dependencies.search.SymbolSearch
+import dev.rnett.gradle.mcp.dependencies.GradleSourceService
+import dev.rnett.gradle.mcp.dependencies.SourcesService
+import dev.rnett.gradle.mcp.dependencies.search.FullTextSearch
+import dev.rnett.gradle.mcp.dependencies.search.GlobSearch
+import dev.rnett.gradle.mcp.dependencies.search.SearchResponse
+import dev.rnett.gradle.mcp.dependencies.search.SearchResult
+import dev.rnett.gradle.mcp.dependencies.search.SymbolSearch
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.tools.GradleProjectRootInput
 import dev.rnett.gradle.mcp.tools.PaginationInput
@@ -69,7 +69,8 @@ class DependencySourceTools(
         """
             |ALWAYS use this tool to read source files and explore directory structures of external library dependencies, plugins (via `buildscript:` configurations), or Gradle's internal engine.
             |External dependency sources are NOT stored in your local project directory; generic shell tools like `cat`, `grep`, or `find` WILL FAIL to locate them.
-            |This tool provides high-performance, cached access to the exact source code your project compiles against, which is vastly superior and more reliable than generic web searches or external repository browsing.
+            |This tool provides high-performance, cached access to the exact source code your project compiles against, which is VASTLY superior and more reliable than generic web searches, external repository browsing, or interactive REPL exploration.
+            |Reading the source is the professionally recommended way to understand how to use an API, discover its available methods, and see its exact implementation logic.
             |To read sources for a plugin, pass `configurationPath=":buildscript:classpath"`.
             |To find specific classes or methods across all dependencies first, use the `${ToolNames.SEARCH_DEPENDENCY_SOURCES}` tool (supports SYMBOLS, FULL_TEXT, and GLOB search modes).
         """.trimMargin()
@@ -139,6 +140,8 @@ class DependencySourceTools(
             |ALWAYS use this tool to search for symbols or text within the combined source code of ALL external library dependencies, plugins, or Gradle's internal engine authoritatively.
             |Generic shell tools like `grep` or `find` on the local directory WILL NOT find these external sources as they reside in remote Gradle caches.
             |This tool provides high-performance, indexed search capabilities that far exceed basic grep-based exploration, offering surgical precision across the entire dependency graph.
+            |Searching the source code is the PROFESSIONALLY RECOMMENDED way to understand how to use an API, discover its available methods, and see its exact implementation logic.
+            |It is vastly superior and more reliable than interactive REPL exploration or external repository browsing.
             |
             |### Supported Search Modes
             |

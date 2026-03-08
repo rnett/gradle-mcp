@@ -26,6 +26,9 @@ androidxCompose = "1.10.4"
 androidxActivityCompose = "1.12.4"
 lucene = "10.4.0"
 shadow = "9.3.2"
+treesitter = "0.26.6"
+treesitter-java = "0.23.5"
+treesitter-kotlin = "0.3.8.1"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -73,6 +76,10 @@ kotlin-compiler-embeddable = { module = "org.jetbrains.kotlin:kotlin-compiler-em
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+
+treesitter = { module = "io.github.bonede:tree-sitter", version.ref = "treesitter" }
+treesitter-java = { module = "io.github.bonede:tree-sitter-java", version.ref = "treesitter-java" }
+treesitter-kotlin = { module = "io.github.bonede:tree-sitter-kotlin", version.ref = "treesitter-kotlin" }
 
 lucene-core = { group = "org.apache.lucene", name = "lucene-core", version.ref = "lucene" }
 lucene-codecs = { group = "org.apache.lucene", name = "lucene-codecs", version.ref = "lucene" }

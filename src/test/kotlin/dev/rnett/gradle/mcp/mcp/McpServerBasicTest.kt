@@ -1,7 +1,7 @@
 package dev.rnett.gradle.mcp.mcp
 
-import dev.rnett.gradle.mcp.DocsPageContent
-import dev.rnett.gradle.mcp.GradleDocsService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsPageContent
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.mockk.coEvery

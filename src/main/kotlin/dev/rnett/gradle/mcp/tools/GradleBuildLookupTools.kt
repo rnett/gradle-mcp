@@ -363,15 +363,15 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             |
             |2.  **Details Mode (`mode="details"`)**
             |    -   **Best for**: Exhaustive analysis of a specific item (requires `testName`, `taskPath`, `failureId`, or `problemId`).
-            |    -   **Crucial for Tests**: ALWAYS use `mode="details"` with `testName` to see the individual test case's full output, metadata, and stack trace.
+            |    -   **Crucial for Tests**: ALWAYS use `mode="details"` with `testName` to see the individual test case's console output, metadata, and stack trace. THIS IS THE ONLY WAY TO SEE THE TEST'S CONSOLE OUTPUT.
             |
             |### How to Inspect Details
             |
-            |- **Individual Tests**:  `testName="FullTestName"`, `mode="details"` (REQUIRED for full output/stack trace).
+            |- **Individual Tests (INCLUDING TEST CONSOLE OUTPUT)**:  `testName="FullTestName"`, `mode="details"` (REQUIRED for full output/stack trace).
             |- **Task Outputs**:      `taskPath=":path:to:task"`, `mode="details"`.
             |- **Build Failures**:    `failureId="ID"`, `mode="details"` (use summary mode first to find IDs).
             |- **Problems/Errors**:   `problemId="ID"`, `mode="details"` (use summary mode first to find IDs).
-            |- **Full Console**:      `consoleTail=true` (tail) or `consoleTail=false` (head).
+            |- **Full Console (EXCEPT TESTS)**:      `consoleTail=true` (tail) or `consoleTail=false` (head).
             |
             |### Wait & Progress Monitoring
             |- Use `wait` (seconds) with `waitFor` (regex) or `waitForTask` (path) to monitor active builds.

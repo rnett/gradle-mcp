@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package dev.rnett.gradle.mcp.gradle.dependencies.search
+package dev.rnett.gradle.mcp.dependencies.search
 
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
@@ -29,109 +29,6 @@ class SymbolSearchTest {
     @TempDir
     lateinit var tempDir: Path
 
-    private fun testKotlinType(code: String, expectedSymbol: String) {
-        val matches = SymbolSearch.kotlinTypeRegex.findAll(code).toList()
-        assertTrue(matches.any { it.groupValues[1] == expectedSymbol }, "Expected symbol $expectedSymbol not found in: $code")
-    }
-
-    private fun testKotlinMember(code: String, expectedSymbol: String) {
-        val matches = SymbolSearch.kotlinMemberRegex.findAll(code).toList()
-        assertTrue(matches.any { it.groupValues[1] == expectedSymbol }, "Expected symbol $expectedSymbol not found in: $code")
-    }
-
-    private fun testJavaType(code: String, expectedSymbol: String) {
-        val matches = SymbolSearch.javaTypeRegex.findAll(code).toList()
-        assertTrue(matches.any { it.groupValues[1] == expectedSymbol }, "Expected symbol $expectedSymbol not found in: $code")
-    }
-
-    private fun testJavaMember(code: String, expectedSymbol: String) {
-        val matches = SymbolSearch.javaMemberRegex.findAll(code).toList()
-        assertTrue(matches.any { it.groupValues[1] == expectedSymbol }, "Expected symbol $expectedSymbol not found in: $code")
-    }
-
-    private fun testGroovyType(code: String, expectedSymbol: String) {
-        val matches = SymbolSearch.groovyTypeRegex.findAll(code).toList()
-        assertTrue(matches.any { it.groupValues[1] == expectedSymbol }, "Expected symbol $expectedSymbol not found in: $code")
-    }
-
-    private fun testGroovyMember(code: String, expectedSymbol: String) {
-        val matches = SymbolSearch.groovyMemberRegex.findAll(code).toList()
-        assertTrue(matches.any { it.groupValues[1] == expectedSymbol }, "Expected symbol $expectedSymbol not found in: $code")
-    }
-
-    @Test
-    fun `test kotlin types`() {
-        testKotlinType("class MyClass", "MyClass")
-        testKotlinType("enum class MyEnum", "MyEnum")
-        testKotlinType("interface MyInterface", "MyInterface")
-        testKotlinType("object MyObject", "MyObject")
-        testKotlinType("sealed class MySealed", "MySealed")
-        testKotlinType("annotation class MyAnnotation", "MyAnnotation")
-        testKotlinType("typealias MyAlias = String", "MyAlias")
-    }
-
-    @Test
-    fun `test java types`() {
-        testJavaType("class MyClass", "MyClass")
-        testJavaType("enum MyEnum", "MyEnum")
-        testJavaType("interface MyInterface", "MyInterface")
-        testJavaType("@interface MyAnnotation", "MyAnnotation")
-        testJavaType("record MyRecord(int x)", "MyRecord")
-        testJavaType("non-sealed class MyNonSealed", "MyNonSealed")
-    }
-
-    @Test
-    fun `test kotlin members`() {
-        testKotlinMember("val myVal: Int", "myVal")
-        testKotlinMember("var myVar: String", "myVar")
-        testKotlinMember("private val myPrivateVal: Int", "myPrivateVal")
-        testKotlinMember("internal var myInternalVar: String", "myInternalVar")
-        testKotlinMember("fun myFun()", "myFun")
-        testKotlinMember("protected fun myProtectedFun()", "myProtectedFun")
-        testKotlinMember("fun <T> myGenericFun()", "myGenericFun")
-        testKotlinMember("val myBy: String by lazy { \"\" }", "myBy")
-        testKotlinMember("val String.myExtension: Int", "myExtension")
-        testKotlinMember("fun String.myExtensionFun()", "myExtensionFun")
-    }
-
-    @Test
-    fun `test java members`() {
-        testJavaMember("void myMethod()", "myMethod")
-        testJavaMember("int myInt;", "myInt")
-        testJavaMember("String myString;", "myString")
-        testJavaMember("List<String> myList;", "myList")
-        testJavaMember("public static void main(String[] args)", "main")
-        testJavaMember("private int myInt2 = 1;", "myInt2")
-        testJavaMember("public void myJavaMethod()", "myJavaMethod")
-        testJavaMember("int x,", "x") // record field
-        testJavaMember("String y)", "y") // record field
-        testJavaMember("final List<String> myList2 = new ArrayList<>();", "myList2")
-    }
-
-    @Test
-    fun `test groovy types`() {
-        testGroovyType("class MyClass", "MyClass")
-        testGroovyType("enum MyEnum", "MyEnum")
-        testGroovyType("interface MyInterface", "MyInterface")
-        testGroovyType("trait MyTrait", "MyTrait")
-    }
-
-    @Test
-    fun `test groovy members`() {
-        testGroovyMember("def myDef", "myDef")
-        testGroovyMember("def myDefMethod()", "myDefMethod")
-        testGroovyMember("String myString", "myString")
-        testGroovyMember("int myInt", "myInt")
-        testGroovyMember("public void myGroovyMethod()", "myGroovyMethod")
-        testGroovyMember("private static String myStaticGroovyField", "myStaticGroovyField")
-    }
-
-    @Test
-    fun `test bare name should not match`() {
-        assertTrue(SymbolSearch.kotlinMemberRegex.findAll("myBareName").toList().isEmpty(), "Should not match bare name in Kotlin: myBareName")
-        assertTrue(SymbolSearch.javaMemberRegex.findAll("myBareName").toList().isEmpty(), "Should not match bare name in Java: myBareName")
-        assertTrue(SymbolSearch.groovyMemberRegex.findAll("myBareName").toList().isEmpty(), "Should not match bare name in Groovy: myBareName")
-    }
 
     @Test
     fun `test integration`() = runTest {
@@ -183,6 +80,7 @@ class SymbolSearchTest {
         suspend fun assertFound(query: String, expectedPath: String, expectedLine: Int) {
             val response = SymbolSearch.search(indexDir, query)
             val results = response.results
+            println("Searched for: $query. Results: $results")
             assertTrue(
                 results.any { it.relativePath == expectedPath && it.line == expectedLine },
                 "Symbol $query not found at $expectedPath:$expectedLine. Found: $results"

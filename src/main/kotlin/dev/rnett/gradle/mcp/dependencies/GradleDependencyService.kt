@@ -1,16 +1,16 @@
-package dev.rnett.gradle.mcp.gradle.dependencies
+package dev.rnett.gradle.mcp.dependencies
 
+import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
+import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
+import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
+import dev.rnett.gradle.mcp.dependencies.model.GradleProjectDependencies
+import dev.rnett.gradle.mcp.dependencies.model.GradleRepository
+import dev.rnett.gradle.mcp.dependencies.model.GradleSourceSetDependencies
+import dev.rnett.gradle.mcp.dependencies.model.GradleSourceSetDependencyReport
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleConfigurationDependencies
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependencyReport
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleProjectDependencies
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleRepository
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleSourceSetDependencies
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleSourceSetDependencyReport
 import dev.rnett.gradle.mcp.tools.InitScriptNames
 import kotlin.io.path.Path
 

@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp
 
+import dev.rnett.gradle.mcp.dependencies.gradle.DefaultDistributionDownloaderService
 import io.ktor.client.*
 import io.ktor.client.engine.mock.*
 import io.ktor.http.*

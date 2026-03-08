@@ -1,5 +1,6 @@
-package dev.rnett.gradle.mcp
+package dev.rnett.gradle.mcp.dependencies.gradle.docs
 
+import dev.rnett.gradle.mcp.DocsKind
 import org.jsoup.Jsoup
 
 class HtmlConverter(private val markdownService: MarkdownService) {

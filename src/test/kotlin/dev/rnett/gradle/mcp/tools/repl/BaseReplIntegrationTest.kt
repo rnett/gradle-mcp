@@ -1,17 +1,22 @@
 package dev.rnett.gradle.mcp.tools.repl
 
-import dev.rnett.gradle.mcp.ContentExtractorService
 import dev.rnett.gradle.mcp.DI
-import dev.rnett.gradle.mcp.DefaultContentExtractorService
-import dev.rnett.gradle.mcp.DefaultDistributionDownloaderService
-import dev.rnett.gradle.mcp.DefaultGradleDocsIndexService
-import dev.rnett.gradle.mcp.DefaultMarkdownService
-import dev.rnett.gradle.mcp.DistributionDownloaderService
-import dev.rnett.gradle.mcp.GradleDocsIndexService
-import dev.rnett.gradle.mcp.GradleDocsService
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
-import dev.rnett.gradle.mcp.HtmlConverter
-import dev.rnett.gradle.mcp.MarkdownService
+import dev.rnett.gradle.mcp.dependencies.DefaultGradleDependencyService
+import dev.rnett.gradle.mcp.dependencies.DefaultGradleSourceService
+import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
+import dev.rnett.gradle.mcp.dependencies.GradleSourceService
+import dev.rnett.gradle.mcp.dependencies.gradle.DefaultDistributionDownloaderService
+import dev.rnett.gradle.mcp.dependencies.gradle.DistributionDownloaderService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.ContentExtractorService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultContentExtractorService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultGradleDocsIndexService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultGradleDocsService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultMarkdownService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsIndexService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.HtmlConverter
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.MarkdownService
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.BundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultBundledJarProvider
@@ -20,10 +25,6 @@ import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
 import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
-import dev.rnett.gradle.mcp.gradle.dependencies.DefaultGradleDependencyService
-import dev.rnett.gradle.mcp.gradle.dependencies.DefaultGradleSourceService
-import dev.rnett.gradle.mcp.gradle.dependencies.GradleDependencyService
-import dev.rnett.gradle.mcp.gradle.dependencies.GradleSourceService
 import dev.rnett.gradle.mcp.gradle.fixtures.GradleProjectFixture
 import dev.rnett.gradle.mcp.lucene.LuceneReaderCache
 import dev.rnett.gradle.mcp.maven.DefaultMavenCentralService
@@ -129,14 +130,14 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single { LuceneReaderCache() }
         single<DistributionDownloaderService> { DefaultDistributionDownloaderService(get(), get()) }
         single<ContentExtractorService> { DefaultContentExtractorService(get(), get(), get()) }
-        single<GradleDocsIndexService> { DefaultGradleDocsIndexService(get(), get(), get()) }
+        single<GradleDocsIndexService> { DefaultGradleDocsIndexService(get(), get(), get(), get()) }
         single<dev.rnett.gradle.mcp.GradleVersionService> { dev.rnett.gradle.mcp.DefaultGradleVersionService(get()) }
-        single<GradleDocsService> { dev.rnett.gradle.mcp.DefaultGradleDocsService(get(), get(), get(), get()) }
+        single<GradleDocsService> { DefaultGradleDocsService(get(), get(), get(), get()) }
         single<GradleDependencyService> { DefaultGradleDependencyService(get()) }
         single<MavenRepoService> { DefaultMavenRepoService(get()) }
         single<MavenCentralService> { DefaultMavenCentralService(get()) }
-        single<dev.rnett.gradle.mcp.gradle.dependencies.search.IndexService> { dev.rnett.gradle.mcp.gradle.dependencies.search.DefaultIndexService(get()) }
-        single<dev.rnett.gradle.mcp.gradle.dependencies.SourcesService> { dev.rnett.gradle.mcp.gradle.dependencies.DefaultSourcesService(get(), get(), get()) }
+        single<dev.rnett.gradle.mcp.dependencies.search.IndexService> { dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(get()) }
+        single<dev.rnett.gradle.mcp.dependencies.SourcesService> { dev.rnett.gradle.mcp.dependencies.DefaultSourcesService(get(), get(), get()) }
         single<GradleSourceService> { DefaultGradleSourceService(get(), get(), get(), get()) }
         single<GradleProvider> {
             DefaultGradleProvider(

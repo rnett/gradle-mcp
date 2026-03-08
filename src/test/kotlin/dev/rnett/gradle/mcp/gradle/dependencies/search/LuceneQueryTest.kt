@@ -1,6 +1,6 @@
-package dev.rnett.gradle.mcp.gradle.dependencies.search
+package dev.rnett.gradle.mcp.dependencies.search
 
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
+import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

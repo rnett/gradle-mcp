@@ -1,12 +1,12 @@
 package dev.rnett.gradle.mcp.tools.dependencies
 
-import dev.rnett.gradle.mcp.gradle.dependencies.GradleSourceService
-import dev.rnett.gradle.mcp.gradle.dependencies.SourcesDir
-import dev.rnett.gradle.mcp.gradle.dependencies.SourcesService
-import dev.rnett.gradle.mcp.gradle.dependencies.search.FullTextSearch
-import dev.rnett.gradle.mcp.gradle.dependencies.search.GlobSearch
-import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResponse
-import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResult
+import dev.rnett.gradle.mcp.dependencies.GradleSourceService
+import dev.rnett.gradle.mcp.dependencies.SourcesDir
+import dev.rnett.gradle.mcp.dependencies.SourcesService
+import dev.rnett.gradle.mcp.dependencies.search.FullTextSearch
+import dev.rnett.gradle.mcp.dependencies.search.GlobSearch
+import dev.rnett.gradle.mcp.dependencies.search.SearchResponse
+import dev.rnett.gradle.mcp.dependencies.search.SearchResult
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.mockk.coEvery
@@ -50,13 +50,13 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
             sourcesService.search(any(), GlobSearch, "**/Test.kt", any())
         } returns SearchResponse(
             listOf(
-            SearchResult(
-                relativePath = "com/example/Test.kt",
-                file = sources.resolve("com/example/Test.kt"),
-                line = 1,
-                snippet = "class Test { }",
-                score = 1.0f
-            )
+                SearchResult(
+                    relativePath = "com/example/Test.kt",
+                    file = sources.resolve("com/example/Test.kt"),
+                    line = 1,
+                    snippet = "class Test { }",
+                    score = 1.0f
+                )
             )
         )
 
@@ -88,13 +88,13 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
             sourcesService.search(any(), FullTextSearch, "test-query", any())
         } returns SearchResponse(
             listOf(
-            SearchResult(
-                relativePath = "com/example/Test.kt",
-                file = sources.resolve("com/example/Test.kt"),
-                line = 10,
-                snippet = "class Test { }",
-                score = 1.0f
-            )
+                SearchResult(
+                    relativePath = "com/example/Test.kt",
+                    file = sources.resolve("com/example/Test.kt"),
+                    line = 10,
+                    snippet = "class Test { }",
+                    score = 1.0f
+                )
             )
         )
 

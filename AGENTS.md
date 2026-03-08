@@ -72,6 +72,7 @@ workflows.
 - **Test Naming**: Always name tests using descriptive names in English, wrapped in backticks (e.g., `` `verify build status wait` ``).
 - **Concurrency**: ALWAYS use `runTest` for suspending tests, NEVER `runBlocking`.
 - **Dependency Catalog**: ALWAYS put dependencies in `gradle/libs.versions.toml`. Every version ref MUST have a corresponding entry for automated updates.
+- **Progress Reporting**: ALWAYS send progress commands/notifications (`ProgressReporter`) when implementing long-running operations or tool handlers. Do not omit them to reduce noise; they will be filtered later by the client.
 
 ### Skill Development Workflow
 

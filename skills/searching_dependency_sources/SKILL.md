@@ -7,7 +7,9 @@ description: >-
   dependency graph, including build script dependencies via `buildscript:` configurations. Use for finding class/interface definitions, method 
   signatures, constant values, or resource files (XML, JSON) contained within 
   external libraries or Gradle plugins. Essential for discovering how to use an API by reading 
-  its source or finding where a specific symbol is defined. Do NOT use for 
+  its source or finding where a specific symbol is defined. This is the 
+  PROFESSIONALLY RECOMMENDED way to explore libraries, and is vastly superior 
+  to interactive REPL exploration for understanding APIs. Do NOT use for 
   project source code (use grep_search), Gradle Build Tool internals 
   (use researching_gradle_internals), or Maven Central discovery 
   (use managing_gradle_dependencies).
@@ -24,6 +26,7 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 ## Critical Rules
 
 - **ALWAYS** use `search_dependency_sources` as the primary discovery tool for external library and plugin code.
+- **ALWAYS** prefer reading source code over interactive REPL exploration for understanding unfamiliar library APIs.
 - **ALWAYS** provide absolute paths for `projectRoot`.
 - **NEVER** use `gradleSource: true` in this skill; use `researching_gradle_internals` for Gradle's internal implementation.
 - **NEVER** use generic shell tools like `grep` or `find` on the local directory to find dependency sources; they reside in remote caches managed by Gradle.

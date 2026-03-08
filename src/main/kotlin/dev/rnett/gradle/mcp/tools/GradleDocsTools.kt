@@ -1,8 +1,8 @@
 package dev.rnett.gradle.mcp.tools
 
-import dev.rnett.gradle.mcp.DocsPageContent
-import dev.rnett.gradle.mcp.GradleDocsService
 import dev.rnett.gradle.mcp.GradleVersionService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsPageContent
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
 import dev.rnett.gradle.mcp.mcp.McpContext
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description

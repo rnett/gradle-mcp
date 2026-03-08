@@ -1,12 +1,13 @@
-package dev.rnett.gradle.mcp.gradle.dependencies.search
+package dev.rnett.gradle.mcp.dependencies.search
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.ProgressReporter
-import dev.rnett.gradle.mcp.gradle.dependencies.SourcesDir
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
+import dev.rnett.gradle.mcp.dependencies.SourcesDir
+import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.utils.FileLockManager
-import dev.rnett.gradle.mcp.withPhase
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import kotlin.io.path.ExperimentalPathApi
@@ -15,17 +16,31 @@ import kotlin.io.path.createFile
 import kotlin.io.path.createParentDirectories
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
+import kotlin.io.path.isRegularFile
 import kotlin.io.path.nameWithoutExtension
 import kotlin.io.path.readText
+import kotlin.io.path.relativeTo
+import kotlin.io.path.walk
 import kotlin.io.path.writeText
+import kotlin.time.measureTime
 import kotlin.time.measureTimedValue
 
 @JvmInline
 value class Index(val dir: Path)
 
 interface IndexService {
-    context(progress: ProgressReporter)
-    suspend fun index(dependency: GradleDependency, sourceDir: Path): Index?
+    @OptIn(ExperimentalPathApi::class)
+    suspend fun index(dependency: GradleDependency, sourceDir: Path): Index? {
+        val filesFlow = flow {
+            sourceDir.walk().filter { it.isRegularFile() }.forEach { file ->
+                val relativePath = file.relativeTo(sourceDir).toString().replace('\\', '/')
+                emit(IndexEntry(relativePath, file.readText()))
+            }
+        }
+        return index(dependency, filesFlow)
+    }
+
+    suspend fun index(dependency: GradleDependency, fileFlow: Flow<IndexEntry>): Index?
 
     /**
      * [includedDeps] is map of relative path in merged to the index
@@ -46,11 +61,10 @@ class DefaultIndexService(
     private val indexDir = environment.cacheDir.resolve("source-indices")
 
     @OptIn(ExperimentalPathApi::class)
-    context(progress: ProgressReporter)
-    override suspend fun index(dependency: GradleDependency, sourceDir: Path): Index? {
+    override suspend fun index(dependency: GradleDependency, fileFlow: Flow<IndexEntry>): Index? {
         if (dependency.group == null) return null
 
-        val dirName = dependency.sourcesFile?.nameWithoutExtension ?: "direct-${sourceDir.hashCode()}"
+        val dirName = dependency.sourcesFile?.nameWithoutExtension ?: "direct-${dependency.hashCode()}"
         val dir = indexDir.resolve(dependency.group).resolve(dirName)
         val lockFile = dir.resolve(".lock")
         val markerFile = dir.resolve(markerFileName)
@@ -61,29 +75,34 @@ class DefaultIndexService(
         if (cached != null) return cached
 
         return FileLockManager.withLock(lockFile, shared = false) {
-            if (markerFile.exists()) {
-                return@withLock Index(dir)
-            }
+            if (markerFile.exists()) return@withLock Index(dir)
 
             try {
-                val indexingProgress = progress.withPhase("INDEXING")
-                val total = providers.size.toDouble()
-                var current = 0.0
-
-                providers.forEach { provider ->
-                    current++
-                    indexingProgress(current, total, "Indexing $dependency using ${provider.name}")
-
+                val indexers = providers.map { provider ->
                     val providerDir = dir.resolve(provider.name)
-                    if (providerDir.exists()) {
-                        providerDir.deleteRecursively()
-                    }
-
+                    if (providerDir.exists()) providerDir.deleteRecursively()
                     providerDir.createDirectories()
-                    with(progress) {
-                        provider.index(sourceDir, providerDir)
+                    provider to provider.newIndexer(providerDir)
+                }
+
+                var count = 0
+                try {
+                    fileFlow.collect { entry ->
+                        count++
+                        indexers.forEach { (_, indexer) ->
+                            indexer.indexFile(entry.relativePath, entry.content)
+                        }
+                    }
+                    indexers.forEach { (_, indexer) ->
+                        indexer.finish()
+                    }
+                } finally {
+                    indexers.forEach { (_, indexer) ->
+                        indexer.close()
                     }
                 }
+
+                markerFile.createParentDirectories()
                 markerFile.createFile()
                 Index(dir)
             } catch (e: Exception) {
@@ -110,23 +129,17 @@ class DefaultIndexService(
         if (upToDate) return
 
         FileLockManager.withLock(lockFile, shared = false) {
-            val (unit, duration) = measureTimedValue {
+            val duration = measureTime {
                 val dir = sourcesDir.index
                 val hashFile = dir.resolve(".merged.hash")
 
                 if (hashFile.exists() && hashFile.readText() == currentHash) {
-                    return@measureTimedValue
+                    return@measureTime
                 }
-
-                val indexingProgress = progress.withPhase("INDEXING")
-                val total = providers.size.toDouble()
-                var current = 0.0
 
                 val includedIndices = includedDeps.mapValues { it.value.dir }
                 try {
                     providers.forEach { provider ->
-                        current++
-                        indexingProgress(current, total, "Merging ${provider.name} indices for ${sourcesDir.path}")
 
                         val providerDir = dir.resolve(provider.name)
                         if (providerDir.exists()) {
@@ -134,9 +147,7 @@ class DefaultIndexService(
                         }
 
                         providerDir.createDirectories()
-                        with(progress) {
-                            provider.mergeIndices(includedIndices.entries.associate { it.value.resolve(provider.name) to it.key }, providerDir)
-                        }
+                        provider.mergeIndices(includedIndices.entries.associate { it.value.resolve(provider.name) to it.key }, providerDir)
                     }
                     hashFile.createParentDirectories()
                     hashFile.writeText(currentHash)

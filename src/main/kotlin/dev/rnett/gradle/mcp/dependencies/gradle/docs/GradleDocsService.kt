@@ -1,11 +1,15 @@
-package dev.rnett.gradle.mcp
+package dev.rnett.gradle.mcp.dependencies.gradle.docs
 
+import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.GradleVersionService
+import dev.rnett.gradle.mcp.ProgressReporter
 import io.ktor.client.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import java.nio.channels.FileChannel
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.util.*
 import kotlin.io.path.exists
@@ -122,12 +126,12 @@ class DefaultGradleDocsService(
         return path.endsWith(".html") || path.endsWith(".md")
     }
 
-    private fun isImage(path: java.nio.file.Path): Boolean {
+    private fun isImage(path: Path): Boolean {
         val ext = path.extension.lowercase()
         return ext in setOf("png", "jpg", "jpeg", "gif", "svg", "ico")
     }
 
-    private fun getMimeType(path: java.nio.file.Path): String {
+    private fun getMimeType(path: Path): String {
         return when (path.extension.lowercase()) {
             "png" -> "image/png"
             "jpg", "jpeg" -> "image/jpeg"

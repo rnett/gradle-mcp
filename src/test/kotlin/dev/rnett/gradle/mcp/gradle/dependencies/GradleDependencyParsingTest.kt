@@ -1,4 +1,4 @@
-package dev.rnett.gradle.mcp.gradle.dependencies
+package dev.rnett.gradle.mcp.dependencies
 
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments

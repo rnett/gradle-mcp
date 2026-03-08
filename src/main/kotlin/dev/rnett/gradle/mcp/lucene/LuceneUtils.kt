@@ -42,7 +42,18 @@ object LuceneUtils {
         return PerFieldAnalyzerWrapper(standard, map)
     }
 
-    fun writeIndex(
+    fun createIndexWriter(
+        indexDir: Path,
+        analyzer: Analyzer,
+        openMode: IndexWriterConfig.OpenMode = IndexWriterConfig.OpenMode.CREATE
+    ): IndexWriter {
+        val dir = FSDirectory.open(indexDir)
+        val iwc = IndexWriterConfig(analyzer)
+        iwc.openMode = openMode
+        return IndexWriter(dir, iwc)
+    }
+
+    inline fun writeIndex(
         indexDir: Path,
         analyzer: Analyzer,
         openMode: IndexWriterConfig.OpenMode = IndexWriterConfig.OpenMode.CREATE,

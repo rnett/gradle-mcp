@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp
 
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultMarkdownService
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.engine.mock.*

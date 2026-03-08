@@ -1,10 +1,14 @@
-package dev.rnett.gradle.mcp.gradle.dependencies.search
+package dev.rnett.gradle.mcp.dependencies.search
 
-import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.readText
+
+interface Indexer : AutoCloseable {
+    suspend fun indexFile(path: String, content: String)
+    suspend fun finish()
+}
 
 interface SearchProvider {
     val name: String
@@ -12,19 +16,19 @@ interface SearchProvider {
 
     suspend fun search(indexDir: Path, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): SearchResponse<RelativeSearchResult>
 
-    context(progress: ProgressReporter)
-    suspend fun index(dependencyDir: Path, outputDir: Path)
+    suspend fun newIndexer(outputDir: Path): Indexer
 
     /**
      * [indexDirs] a map of index dirs to the relative path of that origin in the combined set
      */
-    context(progress: ProgressReporter)
     suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path)
 
     companion object {
         val SOURCE_EXTENSIONS = setOf("kt", "kts", "java", "groovy")
     }
 }
+
+data class IndexEntry(val relativePath: String, val content: String)
 
 data class SearchResponse<T>(
     val results: List<T>,
@@ -39,12 +43,7 @@ data class RelativeSearchResult(
     val score: Float?,
     val snippet: String? = null,
     val skipBoilerplate: Boolean = false
-) {
-    fun toSearchResult(sourcesRoot: Path): SearchResult {
-        return snippet?.let { SearchResult(relativePath, sourcesRoot.resolve(relativePath), line ?: 1, it, score) }
-            ?: SearchResult.fromFile(relativePath, sourcesRoot.resolve(relativePath), offset, line, score)
-    }
-}
+)
 
 fun Collection<RelativeSearchResult>.toSearchResults(sourcesRoot: Path): List<SearchResult> {
     return this.groupBy { it.relativePath }.flatMap { (relativePath, results) ->
@@ -63,9 +62,7 @@ fun Collection<RelativeSearchResult>.toSearchResults(sourcesRoot: Path): List<Se
                 val (actualLine, snippet) = findHighSignalSnippet(content)
                 return@map SearchResult(relativePath, file, actualLine, snippet, res.score)
             }
-            val actualLine = if (res.line != null) res.line else {
-                content.substring(0, res.offset).count { it == '\n' } + 1
-            }
+            val actualLine = res.line ?: (content.substring(0, res.offset).count { it == '\n' } + 1)
             val startLine = (actualLine - 1 - SearchResult.DEFAULT_SNIPPET_RANGE).coerceAtLeast(0)
             val endLine = (actualLine - 1 + SearchResult.DEFAULT_SNIPPET_RANGE).coerceAtMost(lines.size - 1)
             val snippet = lines.subList(startLine, endLine + 1).joinToString("\n")
@@ -133,18 +130,5 @@ data class SearchResult(
 ) {
     companion object {
         const val DEFAULT_SNIPPET_RANGE = 1
-        fun fromFile(relativePath: String, file: Path, offset: Int, line: Int? = null, score: Float?, snippetRange: Int = DEFAULT_SNIPPET_RANGE): SearchResult {
-            val content = file.readText()
-            val actualLine = if (line != null) line else {
-                content.substring(0, offset).count { it == '\n' } + 1
-            }
-
-            val lines = content.lines()
-            val startLine = (actualLine - 1 - snippetRange).coerceAtLeast(0)
-            val endLine = (actualLine - 1 + snippetRange).coerceAtMost(lines.size - 1)
-            val snippet = lines.subList(startLine, endLine + 1).joinToString("\n")
-
-            return SearchResult(relativePath, file, actualLine, snippet, score)
-        }
     }
 }

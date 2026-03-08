@@ -1,12 +1,13 @@
-package dev.rnett.gradle.mcp.gradle.dependencies
+package dev.rnett.gradle.mcp.dependencies
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
+import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
+import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
+import dev.rnett.gradle.mcp.dependencies.model.GradleProjectDependencies
+import dev.rnett.gradle.mcp.dependencies.search.IndexEntry
+import dev.rnett.gradle.mcp.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleConfigurationDependencies
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependencyReport
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleProjectDependencies
-import dev.rnett.gradle.mcp.gradle.dependencies.search.IndexService
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -88,9 +89,10 @@ class SourceLockingTest {
         }
 
         coEvery {
-            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                indexService.index(any(), any())
-            }
+            indexService.index(any<GradleDependency>(), any<kotlinx.coroutines.flow.Flow<IndexEntry>>())
+        } returns null
+        coEvery {
+            indexService.index(any<GradleDependency>(), any<Path>())
         } returns null
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
@@ -150,9 +152,10 @@ class SourceLockingTest {
 
         coEvery { depService.downloadAllSources(any()) } returns report
         coEvery {
-            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                indexService.index(any(), any())
-            }
+            indexService.index(any<GradleDependency>(), any<kotlinx.coroutines.flow.Flow<IndexEntry>>())
+        } returns null
+        coEvery {
+            indexService.index(any<GradleDependency>(), any<Path>())
         } returns null
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {

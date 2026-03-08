@@ -1,9 +1,14 @@
-package dev.rnett.gradle.mcp
+package dev.rnett.gradle.mcp.dependencies.gradle.docs
 
+import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.lucene.LuceneReaderCache
 import dev.rnett.gradle.mcp.lucene.LuceneUtils
 import dev.rnett.gradle.mcp.lucene.addTextAndExact
+import dev.rnett.gradle.mcp.withPhase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.document.Document
@@ -16,11 +21,6 @@ import org.apache.lucene.search.uhighlight.UnifiedHighlighter
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.exists
-import kotlin.io.path.extension
-import kotlin.io.path.isRegularFile
-import kotlin.io.path.nameWithoutExtension
-import kotlin.io.path.readText
-import kotlin.io.path.walk
 import kotlin.io.path.writeText
 
 interface GradleDocsIndexService : AutoCloseable {
@@ -33,6 +33,7 @@ interface GradleDocsIndexService : AutoCloseable {
 
 class DefaultGradleDocsIndexService(
     private val extractor: ContentExtractorService,
+    private val htmlConverter: HtmlConverter,
     private val environment: GradleMcpEnvironment,
     private val readerCache: LuceneReaderCache
 ) : GradleDocsIndexService {
@@ -49,41 +50,82 @@ class DefaultGradleDocsIndexService(
             return
         }
 
-        extractor.ensureProcessed(version)
         val convertedDir = versionDir.resolve("converted")
 
         withContext(Dispatchers.IO) {
             Files.createDirectories(indexDir)
-            val filesToIndex = convertedDir.walk().filter { it.isRegularFile() && it.extension == "md" }.toList()
-            val totalFiles = filesToIndex.size.toDouble()
+            Files.createDirectories(convertedDir)
+
+            val filesChannel = kotlinx.coroutines.channels.Channel<Pair<String, ByteArray>>(capacity = 10)
+
+            val indexingProgress = progress.withPhase("PROCESSING")
             var processedFiles = 0.0
 
-            val indexingProgress = progress.withPhase("INDEXING")
-
-            LuceneUtils.writeIndex(indexDir, analyzer) { writer ->
-                filesToIndex.forEach { file ->
-                    processedFiles++
-                    if (processedFiles % 20 == 0.0 || processedFiles == totalFiles) {
-                        indexingProgress(processedFiles, totalFiles, "Indexing documentation")
-                    }
-                    val relativePath = convertedDir.relativize(file).toString().replace("\\", "/")
-                    val tags = detectTags(relativePath)
-                    val content = file.readText()
-                    val title = extractTitle(file, content)
-
-                    val doc = Document().apply {
-                        tags.forEach { tag ->
-                            add(TextField("tag", tag, Field.Store.YES))
+            coroutineScope {
+                val indexer = DocsIndexer(indexDir, convertedDir)
+                val indexJob = launch(Dispatchers.IO) {
+                    indexer.use {
+                        for (entry in filesChannel) {
+                            processedFiles++
+                            indexingProgress(processedFiles, null, "Indexing documentation")
+                            it.indexFile(entry.first, entry.second)
                         }
-                        add(StringField("path", relativePath, Field.Store.YES))
-                        addTextAndExact("title", title)
-                        addTextAndExact("body", content)
+                        it.finish()
                     }
-                    writer.addDocument(doc)
                 }
+
+                try {
+                    extractor.extractEntries(version) { path, bytes ->
+                        filesChannel.send(path to bytes)
+                    }
+                } finally {
+                    filesChannel.close()
+                }
+                indexJob.join()
             }
+
             readerCache.invalidate(indexDir)
             doneMarker.writeText(System.currentTimeMillis().toString())
+        }
+    }
+
+    inner class DocsIndexer(indexDir: Path, val convertedDir: Path) : AutoCloseable {
+        private val directory = org.apache.lucene.store.FSDirectory.open(indexDir)
+        private val config = org.apache.lucene.index.IndexWriterConfig(analyzer).apply { openMode = org.apache.lucene.index.IndexWriterConfig.OpenMode.CREATE }
+        private val writer = org.apache.lucene.index.IndexWriter(directory, config)
+
+        suspend fun indexFile(path: String, bytes: ByteArray) {
+            val isHtml = path.endsWith(".html")
+            val targetPath = if (isHtml) path.replace(".html", ".md") else path
+            val processedBytes = if (isHtml) htmlConverter.convert(String(bytes), detectKind(path)).toByteArray() else bytes
+
+            val content = String(processedBytes)
+            val relativePath = targetPath.replace("\\", "/")
+            val tags = detectTags(relativePath)
+            val title = extractTitle(targetPath, content)
+
+            val doc = Document().apply {
+                tags.forEach { tag ->
+                    add(TextField("tag", tag, Field.Store.YES))
+                }
+                add(StringField("path", relativePath, Field.Store.YES))
+                addTextAndExact("title", title)
+                addTextAndExact("body", content)
+            }
+            writer.addDocument(doc)
+
+            val outFile = convertedDir.resolve(targetPath)
+            Files.createDirectories(outFile.parent)
+            outFile.writeText(content)
+        }
+
+        fun finish() {
+            writer.commit()
+        }
+
+        override fun close() {
+            writer.close()
+            directory.close()
         }
     }
 
@@ -154,8 +196,20 @@ class DefaultGradleDocsIndexService(
         return tags
     }
 
-    private fun extractTitle(file: Path, content: String): String {
+    private fun detectKind(targetPath: String): dev.rnett.gradle.mcp.DocsKind {
+        return when {
+            targetPath.startsWith("userguide/") -> dev.rnett.gradle.mcp.DocsKind.USERGUIDE
+            targetPath.startsWith("dsl/") -> dev.rnett.gradle.mcp.DocsKind.DSL
+            targetPath.startsWith("kotlin-dsl/") -> dev.rnett.gradle.mcp.DocsKind.KOTLIN_DSL
+            targetPath.startsWith("javadoc/") -> dev.rnett.gradle.mcp.DocsKind.JAVADOC
+            targetPath.startsWith("samples/") -> dev.rnett.gradle.mcp.DocsKind.SAMPLES
+            targetPath.startsWith("release-notes.") -> dev.rnett.gradle.mcp.DocsKind.RELEASE_NOTES
+            else -> dev.rnett.gradle.mcp.DocsKind.USERGUIDE
+        }
+    }
+
+    private fun extractTitle(path: String, content: String): String {
         val firstLine = content.lineSequence().firstOrNull { it.startsWith("# ") }
-        return firstLine?.removePrefix("# ")?.trim() ?: file.nameWithoutExtension
+        return firstLine?.removePrefix("# ")?.trim() ?: path.substringAfterLast('/').substringBeforeLast('.')
     }
 }

@@ -1,21 +1,28 @@
-package dev.rnett.gradle.mcp.gradle.dependencies
+package dev.rnett.gradle.mcp.dependencies
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.ProgressReporter
+import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
+import dev.rnett.gradle.mcp.dependencies.search.IndexEntry
+import dev.rnett.gradle.mcp.dependencies.search.IndexService
+import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
+import dev.rnett.gradle.mcp.dependencies.search.SearchResponse
+import dev.rnett.gradle.mcp.dependencies.search.SearchResult
+import dev.rnett.gradle.mcp.dependencies.search.toSearchResults
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
-import dev.rnett.gradle.mcp.gradle.dependencies.search.IndexService
-import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchProvider
-import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResponse
-import dev.rnett.gradle.mcp.gradle.dependencies.search.SearchResult
-import dev.rnett.gradle.mcp.gradle.dependencies.search.toSearchResults
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.utils.FileLockManager
-import dev.rnett.gradle.mcp.withMessage
 import dev.rnett.gradle.mcp.withPhase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
@@ -146,7 +153,7 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
 
             if (checkCached(dir, currentHash, forceDownload)) return@withLock dir
 
-            extractSources(allDeps, dir, index)
+            processDependencies(allDeps, dir, index)
             saveCache(dir, currentHash)
             dir
         }
@@ -174,7 +181,7 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
 
             if (checkCached(dir, currentHash, forceDownload)) return@withLock dir
 
-            extractSources(allDeps, dir, index)
+            processDependencies(allDeps, dir, index)
             saveCache(dir, currentHash)
             dir
         }
@@ -202,7 +209,7 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
 
             if (checkCached(dir, currentHash, forceDownload)) return@withLock dir
 
-            extractSources(allDeps, dir, index)
+            processDependencies(allDeps, dir, index)
             saveCache(dir, currentHash)
             dir
         }
@@ -230,7 +237,7 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
 
             if (checkCached(dir, currentHash, forceDownload)) return@withLock dir
 
-            extractSources(allDeps, dir, index)
+            processDependencies(allDeps, dir, index)
             saveCache(dir, currentHash)
             dir
         }
@@ -257,7 +264,7 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
 
     @OptIn(ExperimentalPathApi::class)
     context(progress: ProgressReporter)
-    private suspend fun extractSources(deps: Sequence<GradleDependency>, target: SourcesDir, index: Boolean) {
+    private suspend fun processDependencies(deps: Sequence<GradleDependency>, target: SourcesDir, index: Boolean) {
         val validDeps = deps.filter { it.sourcesFile != null && it.group != null && it.version != null }.toSet()
         if (validDeps.isEmpty()) {
             LOGGER.info("No dependencies with sources to extract")
@@ -271,56 +278,82 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
         }
         targetSources.createDirectories()
 
-        val extractionProgress = progress.withPhase("EXTRACTING")
+        val processingProgress = progress.withPhase("PROCESSING")
         val total = validDeps.size.toDouble()
-        var current = 0.0
+        val current = AtomicInteger(0)
 
-        val indices = validDeps.mapNotNull { dep ->
-            current++
-            extractionProgress(current, total, "Extracting sources for $dep")
+        val chunkSize = maxOf(1, Runtime.getRuntime().availableProcessors() / 2)
+        val indices = coroutineScope {
+            validDeps.chunked(chunkSize).flatMap { chunk ->
+                chunk.map { dep ->
+                    async(Dispatchers.IO) {
+                        val count = current.incrementAndGet().toDouble()
+                        processingProgress(count, total, "Processing sources for ${dep.id}")
 
-            val ext = dep.sourcesFile!!.extension
-            val relativePath = Path(dep.group!!).resolve(dep.sourcesFile.nameWithoutExtension)
-            val dir = globalSourcesDir.resolve(relativePath)
-            val lockFile = dir.resolve(".lock")
-            val extractionMarker = dir.resolve(".extracted")
+                        val ext = dep.sourcesFile!!.extension
+                        val relativePath = Path(dep.group!!).resolve(dep.sourcesFile.nameWithoutExtension)
+                        val dir = globalSourcesDir.resolve(relativePath)
+                        val lockFile = dir.resolve(".lock")
+                        val extractionMarker = dir.resolve(".extracted")
 
-            val success = FileLockManager.withLock(lockFile) {
-                if (!extractionMarker.exists()) {
-                    dir.deleteRecursively()
-                    dir.createDirectories()
-                    try {
-                        with(extractionProgress.withMessage { "Extracting $dep: $it" }) {
-                            ArchiveExtractor.extractInto(dir, dep.sourcesFile!!)
+                        val success = FileLockManager.withLock(lockFile) {
+                            if (!extractionMarker.exists()) {
+                                dir.deleteRecursively()
+                                dir.createDirectories()
+                                try {
+                                    if (index) {
+                                        val filesChannel = kotlinx.coroutines.channels.Channel<IndexEntry>(capacity = 10)
+                                        coroutineScope {
+                                            launch(Dispatchers.IO) {
+                                                val flow = filesChannel.receiveAsFlow()
+                                                indexService.index(dep, flow)
+                                            }
+                                            try {
+                                                with(ProgressReporter.NONE) {
+                                                    ArchiveExtractor.extractInto(dir, dep.sourcesFile, skipSingleFirstDir = true, writeFiles = true) { path, contentBytes ->
+                                                        filesChannel.send(IndexEntry(path, String(contentBytes, Charsets.UTF_8)))
+                                                    }
+                                                }
+                                            } finally {
+                                                filesChannel.close()
+                                            }
+                                        }
+                                    } else {
+                                        with(ProgressReporter.NONE) {
+                                            ArchiveExtractor.extractInto(dir, dep.sourcesFile, skipSingleFirstDir = true, writeFiles = true)
+                                        }
+                                    }
+                                    extractionMarker.createFile()
+                                    true
+                                } catch (e: Exception) {
+                                    LOGGER.error("Failed to extract sources for $dep", e)
+                                    dir.deleteRecursively()
+                                    false
+                                }
+                            } else true
                         }
-                        extractionMarker.createFile()
-                        true
-                    } catch (e: Exception) {
-                        LOGGER.error("Failed to extract sources for $dep", e)
-                        dir.deleteRecursively()
-                        false
+
+                        if (!success) return@async null
+
+                        // Sync to target.sources
+                        val scopeLink = targetSources.resolve(relativePath)
+                        scopeLink.createParentDirectories()
+                        try {
+                            // Try to create a symbolic link (incremental sync)
+                            // Note: On Windows this might require developer mode or admin rights
+                            Files.createSymbolicLink(scopeLink, dir)
+                        } catch (e: Exception) {
+                            // Fallback to copy or just ignore (search will still work via globalSourcesDir)
+                            LOGGER.warn("Failed to create symbolic link for $dep in $targetSources. Falling back to recursive copy.", e)
+                            dir.toFile().copyRecursively(scopeLink.toFile(), overwrite = true)
+                        }
+
+                        if (index) {
+                            indexService.index(dep, dir)?.let { relativePath to it }
+                        } else null
                     }
-                } else true
+                }.awaitAll().filterNotNull()
             }
-
-            if (!success) return@mapNotNull null
-
-            // Sync to target.sources
-            val scopeLink = targetSources.resolve(relativePath)
-            scopeLink.createParentDirectories()
-            try {
-                // Try to create a symbolic link (incremental sync)
-                // Note: On Windows this might require developer mode or admin rights
-                Files.createSymbolicLink(scopeLink, dir)
-            } catch (e: Exception) {
-                // Fallback to copy or just ignore (search will still work via globalSourcesDir)
-                LOGGER.warn("Failed to create symbolic link for $dep in $targetSources. Falling back to simple directory creation.", e)
-                scopeLink.createDirectories()
-            }
-
-            if (index) {
-                indexService.index(dep, dir)?.let { relativePath to it }
-            } else null
         }
         if (indices.isNotEmpty()) {
             indexService.mergeIndices(

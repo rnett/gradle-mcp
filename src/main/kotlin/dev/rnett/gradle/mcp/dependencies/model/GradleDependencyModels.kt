@@ -1,4 +1,4 @@
-package dev.rnett.gradle.mcp.gradle.dependencies.model
+package dev.rnett.gradle.mcp.dependencies.model
 
 import java.nio.file.Path
 

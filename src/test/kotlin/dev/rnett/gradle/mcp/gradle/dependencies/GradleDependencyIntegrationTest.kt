@@ -1,12 +1,12 @@
-package dev.rnett.gradle.mcp.gradle.dependencies
+package dev.rnett.gradle.mcp.dependencies
 
 import dev.rnett.gradle.mcp.BuildConfig
+import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
 import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.gradle.fixtures.GradleProjectFixture
 import dev.rnett.gradle.mcp.gradle.fixtures.testGradleProject
 import dev.rnett.gradle.mcp.mcp.fixtures.SharedTestInfrastructure

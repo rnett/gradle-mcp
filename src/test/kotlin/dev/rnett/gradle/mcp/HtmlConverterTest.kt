@@ -1,5 +1,7 @@
 package dev.rnett.gradle.mcp
 
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultMarkdownService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.HtmlConverter
 import java.io.File
 import kotlin.test.Test
 

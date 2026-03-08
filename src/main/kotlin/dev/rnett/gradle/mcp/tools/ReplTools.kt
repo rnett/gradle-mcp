@@ -63,19 +63,23 @@ class ReplTools(
             |ALWAYS use this tool to interactively prototype Kotlin code, explore APIs, or verify UI components directly within the project's runtime context.
             |It provides a persistent session with full access to project classes and dependencies, saving you the overhead of writing and running temporary test files.
             |
+            |### Prototyping & Exploration Best Practices
+            |
+            |1.  **Prefer Reading Sources**: For exploring unfamiliar library APIs or internal project utilities, ALWAYS prefer reading the source code first using `${ToolNames.SEARCH_DEPENDENCY_SOURCES}` and `${ToolNames.READ_DEPENDENCY_SOURCES}`. Reading the source provides complete context, implementation details, and documentation that a REPL cannot easily expose.
+            |2.  **Use REPL for Prototyping**: Only use the REPL when you need to verify dynamic behavior, test small snippets of logic, or prototype a new feature before implementing it.
+            |3.  **Iterative Development**: Use `run` for rapid experimentation. If you modify project source code, you MUST `stop` and `start` the REPL again to pick up the new classes.
+            |4.  **UI Verification**: The REPL can render and return UI components (e.g., Compose previews) as images.
+            |
             |### Authoritative Commands
             |
             |1.  **`start`**: Initializes (or replaces) a persistent REPL session. Requires `projectPath` and `sourceSet`.
             |2.  **`run`**: Executes a Kotlin code snippet within the active session. The session state (variables, imports) persists between calls.
             |3.  **`stop`**: Terminates the session and releases JVM resources.
             |
-            |### Prototyping Best Practices
+            |### Advanced Configuration
             |
-            |1.  **Iterative Development**: Use `run` for rapid experimentation. If you modify project source code, you MUST `stop` and `start` the REPL again to pick up the new classes.
-            |2.  **API Exploration**: Use the REPL to probe unfamiliar library APIs or internal project utilities without side effects.
-            |3.  **UI Verification**: The REPL can render and return UI components (e.g., Compose previews) as images.
-            |4.  **Dependencies**: Use `additionalDependencies` (group:artifact:version) to pull in external libraries not already in the project.
-            |5.  **Environment**: Use `env` to set specific system properties or environment variables for the REPL worker.
+            |1.  **Dependencies**: Use `additionalDependencies` (group:artifact:version) to pull in external libraries not already in the project.
+            |2.  **Environment**: Use `env` to set specific system properties or environment variables for the REPL worker.
         """.trimMargin()
     ) {
         when (it.command) {

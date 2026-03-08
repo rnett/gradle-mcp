@@ -1,10 +1,10 @@
 package dev.rnett.gradle.mcp.tools
 
-import dev.rnett.gradle.mcp.DocsPageContent
-import dev.rnett.gradle.mcp.DocsSearchResponse
-import dev.rnett.gradle.mcp.DocsSearchResult
-import dev.rnett.gradle.mcp.DocsSectionSummary
-import dev.rnett.gradle.mcp.GradleDocsService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsPageContent
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsSearchResponse
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsSearchResult
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsSectionSummary
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import io.mockk.coEvery
 import io.modelcontextprotocol.kotlin.sdk.CallToolResult

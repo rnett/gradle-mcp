@@ -1,4 +1,4 @@
-package dev.rnett.gradle.mcp.gradle.dependencies.search
+package dev.rnett.gradle.mcp.dependencies.search
 
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test

@@ -6,8 +6,10 @@ description: >
   with full access to your classpath, dependencies, and source sets. Generic 
   shell tools or standalone Kotlin REPLs are UNRELIABLE and DISCOURAGED 
   as they lack project context, and cannot access internal logic or 
-  dependencies. Use it for rapid logic verification, interactive 
-  library exploration, and visual UI auditing.
+  dependencies. Use it for rapid logic verification, prototyping, and visual 
+  UI auditing. For exploring unfamiliar library APIs or internal project 
+  utilities, ALWAYS prefer reading the source code first using the 
+  searching_dependency_sources and read_dependency_sources tools.
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
@@ -20,6 +22,7 @@ Probes project logic, tests utility functions, and interacts with the JVM runtim
 
 ## Constitution
 
+- **ALWAYS** prefer reading source code via `search_dependency_sources` and `read_dependency_sources` for exploring unfamiliar library APIs.
 - **ALWAYS** use `kotlin_repl` instead of a standalone Kotlin REPL for project-aware interaction.
 - **ALWAYS** provide absolute paths for `projectRoot`.
 - **ALWAYS** start a REPL session with the correct `projectPath` and `sourceSet` (e.g., `main`, `test`).
@@ -29,6 +32,8 @@ Probes project logic, tests utility functions, and interacts with the JVM runtim
 
 ## Directives
 
+- **Read the source first**: For exploring unfamiliar library APIs or internal project utilities, ALWAYS prefer reading the source code first. It provides complete context, implementation details, and documentation that a REPL cannot easily
+  expose. Use `search_dependency_sources` to find definitions and `read_dependency_sources` to analyze them.
 - **ALWAYS use project-aware REPL**: Only the `kotlin_repl` tool provides full access to your project's exact classpath, dependencies, and source sets. NEVER attempt to use standalone runners for project-internal logic.
 - **Identify the environment**: When starting a session, ALWAYS ensure you select the appropriate `projectPath` (e.g., `:app`) and `sourceSet` (e.g., `main` for application code, `test` for test utility access).
 - **Pick up source changes**: The REPL uses a static snapshot of the classpath. If you change project code, you MUST `stop` and then `start` the session again to pick up the updated classes.
@@ -41,7 +46,7 @@ Probes project logic, tests utility functions, and interacts with the JVM runtim
 ## When to Use
 
 - **Rapid Logic Verification**: When you need to quickly test a function, algorithm, or class behavior without the overhead of writing a full test suite.
-- **Interactive API & Library Exploration**: When you want to experiment with a library's behavior within the exact context of your project's dependencies and JVM configuration.
+- **Interactive Prototyping**: When you want to experiment with a snippet of logic within the exact context of your project's dependencies and JVM configuration before implementing it.
 - **Visual Component Auditing**: When iterating on UI components (e.g., Compose) and you need to see the result instantly by rendering them to images.
 - **Dynamic State & Data Probing**: When you need to perform one-off data transformations or queries using your project's existing utility classes.
 

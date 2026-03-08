@@ -1,4 +1,4 @@
-package dev.rnett.gradle.mcp
+package dev.rnett.gradle.mcp.dependencies.gradle.docs
 
 import com.vladsch.flexmark.html2md.converter.FlexmarkHtmlConverter
 import com.vladsch.flexmark.util.data.MutableDataSet
@@ -40,7 +40,7 @@ class DefaultMarkdownService(private val client: HttpClient = HttpClient()) : Ma
         val options = MutableDataSet()
         options.set(FlexmarkHtmlConverter.OUTPUT_ATTRIBUTES_ID, false)
         options.set(FlexmarkHtmlConverter.SETEXT_HEADINGS, false)
-        
+
         val converter = FlexmarkHtmlConverter.builder(options).build()
         return converter.convert(html)
     }

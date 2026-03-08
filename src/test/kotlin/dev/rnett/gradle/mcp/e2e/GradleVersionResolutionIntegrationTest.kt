@@ -1,27 +1,27 @@
 package dev.rnett.gradle.mcp.e2e
 
-import dev.rnett.gradle.mcp.ContentExtractorService
 import dev.rnett.gradle.mcp.DI
-import dev.rnett.gradle.mcp.DefaultContentExtractorService
-import dev.rnett.gradle.mcp.DefaultDistributionDownloaderService
-import dev.rnett.gradle.mcp.DefaultGradleDocsIndexService
-import dev.rnett.gradle.mcp.DefaultGradleDocsService
 import dev.rnett.gradle.mcp.DefaultGradleVersionService
-import dev.rnett.gradle.mcp.DefaultMarkdownService
-import dev.rnett.gradle.mcp.DistributionDownloaderService
-import dev.rnett.gradle.mcp.GradleDocsIndexService
-import dev.rnett.gradle.mcp.GradleDocsService
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
-import dev.rnett.gradle.mcp.HtmlConverter
-import dev.rnett.gradle.mcp.MarkdownService
+import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
+import dev.rnett.gradle.mcp.dependencies.GradleSourceService
+import dev.rnett.gradle.mcp.dependencies.gradle.DefaultDistributionDownloaderService
+import dev.rnett.gradle.mcp.dependencies.gradle.DistributionDownloaderService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.ContentExtractorService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultContentExtractorService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultGradleDocsIndexService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultGradleDocsService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultMarkdownService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsIndexService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.HtmlConverter
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.MarkdownService
 import dev.rnett.gradle.mcp.gradle.BundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultBundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
 import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
-import dev.rnett.gradle.mcp.gradle.dependencies.GradleDependencyService
-import dev.rnett.gradle.mcp.gradle.dependencies.GradleSourceService
 import dev.rnett.gradle.mcp.lucene.LuceneReaderCache
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
@@ -98,14 +98,14 @@ class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
         single { LuceneReaderCache() }
         single<DistributionDownloaderService> { DefaultDistributionDownloaderService(get(), get()) }
         single<ContentExtractorService> { DefaultContentExtractorService(get(), get(), get()) }
-        single<GradleDocsIndexService> { DefaultGradleDocsIndexService(get(), get(), get()) }
+        single<GradleDocsIndexService> { DefaultGradleDocsIndexService(get(), get(), get(), get()) }
 
         single<GradleDocsService> { DefaultGradleDocsService(get(), get(), get(), get()) }
 
         single<GradleDependencyService> { mockk<GradleDependencyService>(relaxed = true) }
         single<dev.rnett.gradle.mcp.maven.MavenRepoService> { mockk<dev.rnett.gradle.mcp.maven.MavenRepoService>(relaxed = true) }
         single<dev.rnett.gradle.mcp.maven.MavenCentralService> { mockk<dev.rnett.gradle.mcp.maven.MavenCentralService>(relaxed = true) }
-        single<dev.rnett.gradle.mcp.gradle.dependencies.SourcesService> { mockk<dev.rnett.gradle.mcp.gradle.dependencies.SourcesService>(relaxed = true) }
+        single<dev.rnett.gradle.mcp.dependencies.SourcesService> { mockk<dev.rnett.gradle.mcp.dependencies.SourcesService>(relaxed = true) }
         single<GradleSourceService> { mockk<GradleSourceService>(relaxed = true) }
 
         single<GradleProvider> {
@@ -121,7 +121,7 @@ class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
             val gradleDependencyService: GradleDependencyService = get()
             val mavenRepoService: dev.rnett.gradle.mcp.maven.MavenRepoService = get()
             val mavenCentralService: dev.rnett.gradle.mcp.maven.MavenCentralService = get()
-            val sourcesService: dev.rnett.gradle.mcp.gradle.dependencies.SourcesService = get()
+            val sourcesService: dev.rnett.gradle.mcp.dependencies.SourcesService = get()
             val gradleSourceService: GradleSourceService = get()
             DI.components(provider, replManager, replEnvironmentService, gradleDocsService, gradleVersionService, gradleDependencyService, mavenRepoService, mavenCentralService, sourcesService, gradleSourceService)
         }

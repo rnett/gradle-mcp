@@ -1,5 +1,10 @@
 package dev.rnett.gradle.mcp
 
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultGradleDocsService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsPageContent
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsSearchResponse
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsSearchResult
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsIndexService
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest

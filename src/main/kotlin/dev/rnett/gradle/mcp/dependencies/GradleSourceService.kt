@@ -1,11 +1,11 @@
-package dev.rnett.gradle.mcp.gradle.dependencies
+package dev.rnett.gradle.mcp.dependencies
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.GradleVersionService
 import dev.rnett.gradle.mcp.ProgressReporter
+import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
+import dev.rnett.gradle.mcp.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
-import dev.rnett.gradle.mcp.gradle.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.tools.GradlePathUtils
 import dev.rnett.gradle.mcp.utils.FileLockManager
 import dev.rnett.gradle.mcp.withPhase
@@ -169,7 +169,7 @@ class DefaultGradleSourceService(
     private suspend fun extractAndIndex(version: String, sourceZip: Path, targetDir: SourcesDir) {
         targetDir.sources.createDirectories()
 
-        val extractionProgress = progress.withPhase("EXTRACTING")
+        val extractionProgress = progress.withPhase("PROCESSING")
         extractionProgress(0.0, 1.0, "Extracting Gradle $version sources")
 
         LOGGER.info("Extracting Gradle sources from $sourceZip to ${targetDir.sources}")

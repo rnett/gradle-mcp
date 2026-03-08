@@ -1,11 +1,11 @@
 package dev.rnett.gradle.mcp.tools.dependencies
 
-import dev.rnett.gradle.mcp.gradle.dependencies.GradleDependencyService
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleConfigurationDependencies
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependencyReport
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleProjectDependencies
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleSourceSetDependencies
+import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
+import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
+import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
+import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
+import dev.rnett.gradle.mcp.dependencies.model.GradleProjectDependencies
+import dev.rnett.gradle.mcp.dependencies.model.GradleSourceSetDependencies
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.tools.ToolNames

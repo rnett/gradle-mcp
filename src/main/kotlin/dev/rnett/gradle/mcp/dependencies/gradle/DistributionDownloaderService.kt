@@ -1,5 +1,8 @@
-package dev.rnett.gradle.mcp
+package dev.rnett.gradle.mcp.dependencies.gradle
 
+import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.ProgressReporter
+import dev.rnett.gradle.mcp.withPhase
 import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*

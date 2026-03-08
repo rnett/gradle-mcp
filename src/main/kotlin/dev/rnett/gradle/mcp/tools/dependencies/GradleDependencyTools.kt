@@ -1,10 +1,11 @@
 package dev.rnett.gradle.mcp.tools.dependencies
 
+import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
+import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
+import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
+import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
+import dev.rnett.gradle.mcp.dependencies.model.GradleProjectDependencies
 import dev.rnett.gradle.mcp.gradle.GradleProjectPath
-import dev.rnett.gradle.mcp.gradle.dependencies.GradleDependencyService
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleConfigurationDependencies
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependency
-import dev.rnett.gradle.mcp.gradle.dependencies.model.GradleDependencyReport
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.tools.GradleProjectRootInput
 import dev.rnett.gradle.mcp.tools.PaginationInput
@@ -100,7 +101,7 @@ class GradleDependencyTools(
         }.trim()
     }
 
-    private fun StringBuilder.formatProject(project: dev.rnett.gradle.mcp.gradle.dependencies.model.GradleProjectDependencies) {
+    private fun StringBuilder.formatProject(project: GradleProjectDependencies) {
         appendLine("Project: ${project.path}")
         if (project.repositories.isNotEmpty()) {
             appendLine("  Repositories:")

@@ -1,4 +1,4 @@
-package dev.rnett.gradle.mcp.gradle.dependencies
+package dev.rnett.gradle.mcp.dependencies
 
 import java.io.ByteArrayOutputStream
 import java.util.zip.ZipEntry

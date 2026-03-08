@@ -1,8 +1,8 @@
 package dev.rnett.gradle.mcp.tools
 
-import dev.rnett.gradle.mcp.DocsSectionSummary
-import dev.rnett.gradle.mcp.GradleDocsService
 import dev.rnett.gradle.mcp.GradleVersionService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsSectionSummary
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
 import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import io.mockk.coEvery
 import io.modelcontextprotocol.kotlin.sdk.Root

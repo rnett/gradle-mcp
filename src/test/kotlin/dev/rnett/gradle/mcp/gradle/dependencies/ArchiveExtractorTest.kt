@@ -1,5 +1,6 @@
-package dev.rnett.gradle.mcp.gradle.dependencies
+package dev.rnett.gradle.mcp.dependencies
 
+import kotlinx.coroutines.test.runTest
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -18,7 +19,7 @@ import kotlin.test.assertTrue
 class ArchiveExtractorTest {
 
     @Test
-    fun `test extraction with progress`() {
+    fun `test extraction with progress`() = runTest {
         val tempDir = createTempDirectory("archive-extractor-test")
         try {
             val target = tempDir.resolve("target")
@@ -64,7 +65,7 @@ class ArchiveExtractorTest {
     }
 
     @Test
-    fun `test extraction skipping single first dir`() {
+    fun `test extraction skipping single first dir`() = runTest {
         val tempDir = createTempDirectory("archive-extractor-test-skip")
         try {
             val target = tempDir.resolve("target")

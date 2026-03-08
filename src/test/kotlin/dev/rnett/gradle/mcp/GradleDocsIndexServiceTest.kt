@@ -1,11 +1,13 @@
 package dev.rnett.gradle.mcp
 
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.ContentExtractorService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultGradleDocsIndexService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.HtmlConverter
 import dev.rnett.gradle.mcp.lucene.LuceneReaderCache
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import java.nio.file.Files
-import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -17,24 +19,27 @@ class GradleDocsIndexServiceTest {
         val environment = GradleMcpEnvironment(tempDir)
 
         val version = "9.4.0"
-        val convertedDir = tempDir.resolve("cache/reading_gradle_docs/$version/converted")
-        Files.createDirectories(convertedDir.resolve("userguide"))
-        Files.createDirectories(convertedDir.resolve("dsl"))
-
-        convertedDir.resolve("userguide/test.md").writeText("# Userguide Test\nThis is some content about dependencies.")
-        convertedDir.resolve("dsl/Project.md").writeText("# Project DSL\nProject is the main interface.")
-        convertedDir.resolve("release-notes.md").writeText("# Release Notes\nNew features in this version.")
 
         val extractor = mockk<ContentExtractorService>()
+        val callbackSlot1 = io.mockk.slot<suspend (String, ByteArray) -> Unit>()
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                extractor.ensureProcessed(version)
+                extractor.extractEntries(version, capture(callbackSlot1))
             }
-        } returns Unit
+        } coAnswers {
+            val callback = callbackSlot1.captured
+            callback("userguide/test.html", "<html><body><h1>Userguide Test</h1><p>This is some content about dependencies.</p></body></html>".toByteArray())
+            callback("dsl/Project.html", "<html><body><h1>Project DSL</h1><p>Project is the main interface.</p></body></html>".toByteArray())
+            callback("release-notes.html", "<html><body><h1>Release Notes</h1><p>New features in this version.</p></body></html>".toByteArray())
+        }
 
-        val service = DefaultGradleDocsIndexService(extractor, environment, LuceneReaderCache())
+        val markdownService = dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultMarkdownService()
+        val service = DefaultGradleDocsIndexService(extractor, HtmlConverter(markdownService), environment, LuceneReaderCache())
 
         with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            // First run ensureIndexed so it populates the index using the mock callback
+            service.ensureIndexed(version)
+
             // Search for 'dependencies'
             val results = service.search("dependencies", version).results
             assertEquals(1, results.size)
@@ -62,25 +67,26 @@ class GradleDocsIndexServiceTest {
         val environment = GradleMcpEnvironment(tempDir)
 
         val version = "9.4.0"
-        val convertedDir = tempDir.resolve("cache/reading_gradle_docs/$version/converted")
-        Files.createDirectories(convertedDir.resolve("userguide"))
-
-        // This file should have both 'userguide' and 'best-practices' tags
-        convertedDir.resolve("userguide/best_practices_performance.md").writeText("# Performance Best Practices\nUse build cache.")
-
-        // This file should only have 'userguide' tag
-        convertedDir.resolve("userguide/intro.md").writeText("# Introduction\nWelcome to Gradle.")
 
         val extractor = mockk<ContentExtractorService>()
+        val callbackSlot2 = io.mockk.slot<suspend (String, ByteArray) -> Unit>()
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                extractor.ensureProcessed(version)
+                extractor.extractEntries(version, capture(callbackSlot2))
             }
-        } returns Unit
+        } coAnswers {
+            val callback = callbackSlot2.captured
+            callback("userguide/best_practices_performance.html", "<html><body><h1>Performance Best Practices</h1><p>Use build cache.</p></body></html>".toByteArray())
+            callback("userguide/intro.html", "<html><body><h1>Introduction</h1><p>Welcome to Gradle.</p></body></html>".toByteArray())
+        }
 
-        val service = DefaultGradleDocsIndexService(extractor, environment, LuceneReaderCache())
+        val markdownService = dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultMarkdownService()
+        val service = DefaultGradleDocsIndexService(extractor, HtmlConverter(markdownService), environment, LuceneReaderCache())
 
         with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            // Index the mocked files
+            service.ensureIndexed(version)
+
             // Search by 'userguide' tag - should find both
             val userguideResults = service.search("tag:userguide", version).results
             assertEquals(2, userguideResults.size)

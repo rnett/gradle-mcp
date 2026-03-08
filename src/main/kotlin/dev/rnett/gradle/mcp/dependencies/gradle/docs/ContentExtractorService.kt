@@ -1,19 +1,25 @@
-package dev.rnett.gradle.mcp
+package dev.rnett.gradle.mcp.dependencies.gradle.docs
 
-import dev.rnett.gradle.mcp.gradle.dependencies.ArchiveExtractor
+import dev.rnett.gradle.mcp.DocsKind
+import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.ProgressReporter
+import dev.rnett.gradle.mcp.dependencies.ArchiveExtractor
+import dev.rnett.gradle.mcp.dependencies.gradle.DistributionDownloaderService
+import dev.rnett.gradle.mcp.withMessage
+import dev.rnett.gradle.mcp.withPhase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.nio.file.Files
 import java.nio.file.Path
-import kotlin.io.path.exists
-import kotlin.io.path.outputStream
-import kotlin.io.path.writeText
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+import java.util.zip.ZipInputStream
+import kotlin.io.path.Path
 
 interface ContentExtractorService {
     fun convertedDirs(version: String, kind: DocsKind): List<Path>
 
     context(progress: ProgressReporter)
-    suspend fun ensureProcessed(version: String)
+    suspend fun extractEntries(version: String, onFileExtracted: suspend (String, ByteArray) -> Unit)
 }
 
 class DefaultContentExtractorService(
@@ -32,22 +38,12 @@ class DefaultContentExtractorService(
     }
 
     context(progress: ProgressReporter)
-    override suspend fun ensureProcessed(version: String) {
-        val versionDir = environment.cacheDir.resolve("reading_gradle_docs").resolve(version)
-        val convertedDir = versionDir.resolve("converted")
-        val doneMarker = convertedDir.resolve(".done")
-
-        if (doneMarker.exists()) {
-            return
-        }
-
+    override suspend fun extractEntries(version: String, onFileExtracted: suspend (String, ByteArray) -> Unit) {
         val zipPath = downloader.downloadDocs(version)
 
         withContext(Dispatchers.IO) {
-            Files.createDirectories(convertedDir)
-
-            val extractionProgress = progress.withPhase("EXTRACTING")
-            val zipFile = java.util.zip.ZipFile(zipPath.toFile())
+            val extractionProgress = progress.withPhase("PROCESSING")
+            val zipFile = ZipFile(zipPath.toFile())
             val totalEntries = zipFile.size().toDouble()
             var processedEntries = 0.0
 
@@ -57,7 +53,7 @@ class DefaultContentExtractorService(
                     val entry = entries.nextElement()
                     processedEntries++
                     if (processedEntries % 50 == 0.0 || processedEntries == totalEntries) {
-                        extractionProgress(processedEntries, totalEntries, "Extracting and converting documentation")
+                        extractionProgress(processedEntries, totalEntries, "Extracting documentation")
                     }
 
                     if (entry.isDirectory) continue
@@ -73,54 +69,35 @@ class DefaultContentExtractorService(
                     val kind = detectKind(path) ?: continue
                     val relativePath = getRelativePath(path, kind)
 
-                    // Zip-slip guard
-                    val normalizedConverted = convertedDir.normalize().toAbsolutePath()
-                    val targetPath = if (kind == DocsKind.RELEASE_NOTES) {
-                        normalizedConverted.resolve(relativePath)
+                    val targetPathString = if (kind == DocsKind.RELEASE_NOTES) {
+                        relativePath
                     } else {
-                        normalizedConverted.resolve(kind.dirName).resolve(relativePath)
-                    }
-                    if (!targetPath.normalize().toAbsolutePath().startsWith(normalizedConverted)) {
-                        throw RuntimeException("Zip slip detected in entry: ${entry.name}")
+                        "${kind.dirName}/$relativePath"
                     }
 
-                    Files.createDirectories(targetPath.parent)
-
-                    if (path.endsWith(".html")) {
-                        val html = zip.getInputStream(entry).use { it.bufferedReader().readText() }
-                        val markdown = htmlConverter.convert(html, kind)
-                        val mdPath = targetPath.parent.resolve(targetPath.fileName.toString().replace(".html", ".md"))
-                        mdPath.writeText(markdown)
-                    } else {
-                        zip.getInputStream(entry).use { input ->
-                            targetPath.outputStream().buffered().use { output ->
-                                input.copyTo(output)
-                            }
-                        }
-                    }
+                    val bytes = zip.getInputStream(entry).use { it.readAllBytes() }
+                    onFileExtracted(targetPathString, bytes)
                 }
             }
 
             // Second pass: nested sample ZIPs
-            val sampleZips = java.util.zip.ZipFile(zipPath.toFile()).use { zip ->
+            val sampleZips = ZipFile(zipPath.toFile()).use { zip ->
                 zip.entries().asSequence().filter { it.name.contains("docs/samples/zips/") && it.name.endsWith(".zip") }.map { it.name }.toList()
             }
             if (sampleZips.isNotEmpty()) {
                 val totalSamples = sampleZips.size.toDouble()
                 var processedSamples = 0.0
-                java.util.zip.ZipFile(zipPath.toFile()).use { zip ->
+                ZipFile(zipPath.toFile()).use { zip ->
                     for (entryName in sampleZips) {
                         processedSamples++
                         extractionProgress(processedSamples, totalSamples, "Extracting sample source: ${entryName.substringAfterLast('/')}")
                         val entry = zip.getEntry(entryName)
                         with<ProgressReporter, Unit>(extractionProgress.withMessage { "Extracting sample source: ${entryName.substringAfterLast('/')} - $it" }) {
-                            processSampleZip(zip, entry, convertedDir.resolve("samples"))
+                            processSampleZip(zip, entry, onFileExtracted)
                         }
                     }
                 }
             }
-
-            doneMarker.writeText(System.currentTimeMillis().toString())
         }
     }
 
@@ -160,7 +137,7 @@ class DefaultContentExtractorService(
     }
 
     context(progress: ProgressReporter)
-    private fun processSampleZip(outerZip: java.util.zip.ZipFile, entry: java.util.zip.ZipEntry, samplesDest: Path) {
+    private suspend fun processSampleZip(outerZip: ZipFile, entry: ZipEntry, onFileExtracted: suspend (String, ByteArray) -> Unit) {
         val fullFileName = entry.name.substringAfterLast('/')
         val fileName = fullFileName.removeSuffix(".zip")
 
@@ -171,11 +148,10 @@ class DefaultContentExtractorService(
         }
         val baseName = fileName.removeSuffix("-$variant")
 
-        val destDir = samplesDest.resolve(baseName).resolve(variant)
-        Files.createDirectories(destDir)
-
-        java.util.zip.ZipInputStream(outerZip.getInputStream(entry).buffered()).use { zis ->
-            ArchiveExtractor.extractInto(destDir, zis, skipSingleFirstDir = false)
+        ZipInputStream(outerZip.getInputStream(entry).buffered()).use { zis ->
+            ArchiveExtractor.extractInto(Path("dummy"), zis, skipSingleFirstDir = false, writeFiles = false) { path, bytes ->
+                onFileExtracted("samples/$baseName/$variant/$path", bytes)
+            }
         }
     }
 

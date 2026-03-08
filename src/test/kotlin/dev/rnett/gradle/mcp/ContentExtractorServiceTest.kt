@@ -1,5 +1,9 @@
 package dev.rnett.gradle.mcp
 
+import dev.rnett.gradle.mcp.dependencies.gradle.DistributionDownloaderService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultContentExtractorService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultMarkdownService
+import dev.rnett.gradle.mcp.dependencies.gradle.docs.HtmlConverter
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -9,6 +13,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.io.path.exists
 import kotlin.io.path.readText
+import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -46,11 +51,17 @@ class ContentExtractorServiceTest {
             val htmlConverter = HtmlConverter(markdownService)
             val service = DefaultContentExtractorService(downloader, htmlConverter, environment)
 
-            with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
-                service.ensureProcessed("9.4.0")
-            }
-
             val convertedDir = tempDir.resolve("cache/reading_gradle_docs/9.4.0/converted")
+            with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+                service.extractEntries("9.4.0") { path, bytes ->
+                    val isHtml = path.endsWith(".html")
+                    val targetPath = if (isHtml) path.replace(".html", ".md") else path
+                    val processedBytes = if (isHtml) htmlConverter.convert(String(bytes), dev.rnett.gradle.mcp.DocsKind.USERGUIDE).toByteArray() else bytes
+                    val outFile = convertedDir.resolve(targetPath)
+                    java.nio.file.Files.createDirectories(outFile.parent)
+                    outFile.writeText(String(processedBytes))
+                }
+            }
             assertTrue(convertedDir.resolve("userguide/index.md").exists(), "userguide/index.md should exist")
             assertEquals("# Userguide", convertedDir.resolve("userguide/index.md").readText().trim())
             assertTrue(convertedDir.resolve("release-notes.md").exists(), "release-notes.md should exist")
@@ -124,13 +135,17 @@ class ContentExtractorServiceTest {
             val htmlConverter = HtmlConverter(markdownService)
             val service = DefaultContentExtractorService(downloader, htmlConverter, environment)
 
-            with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
-                service.ensureProcessed("9.4.0")
-            }
-
             val convertedDir = tempDir.resolve("cache/reading_gradle_docs/9.4.0/converted")
-            assertTrue(convertedDir.resolve(".done").exists(), "Done marker should exist")
-
+            with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+                service.extractEntries("9.4.0") { path, bytes ->
+                    val isHtml = path.endsWith(".html")
+                    val targetPath = if (isHtml) path.replace(".html", ".md") else path
+                    val processedBytes = if (isHtml) htmlConverter.convert(String(bytes), dev.rnett.gradle.mcp.DocsKind.USERGUIDE).toByteArray() else bytes
+                    val outFile = convertedDir.resolve(targetPath)
+                    java.nio.file.Files.createDirectories(outFile.parent)
+                    outFile.writeText(String(processedBytes))
+                }
+            }
             // Check extractions
             assertEquals("# Userguide", convertedDir.resolve("userguide/index.md").readText().trim())
             assertEquals("# Project", convertedDir.resolve("dsl/Project.md").readText().trim())

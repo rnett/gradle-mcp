@@ -1,9 +1,9 @@
-package dev.rnett.gradle.mcp.gradle.dependencies
+package dev.rnett.gradle.mcp.dependencies
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.GradleVersionService
+import dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
-import dev.rnett.gradle.mcp.gradle.dependencies.search.DefaultIndexService
 import io.ktor.client.*
 import io.ktor.client.engine.mock.*
 import io.ktor.http.*
