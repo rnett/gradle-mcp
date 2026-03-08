@@ -31,6 +31,11 @@ import kotlin.time.Duration.Companion.seconds
 
 class GradleProgressIntegrationTest : BaseMcpServerTest() {
 
+    companion object {
+        private const val PHASE_CONFIGURING = "[CONFIGURING]"
+        private const val PHASE_EXECUTING = "[EXECUTING]"
+    }
+
     private lateinit var _project: GradleProjectFixture
 
     override fun Scope.createProvider(): GradleProvider {
@@ -93,9 +98,9 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
         assertTrue(notifications.isNotEmpty(), "Should have received progress notifications")
 
         // Verify phase prefixes
-        val hasConfiguring = notifications.any { it.message?.contains("[CONFIGURING]") == true }
+        val hasConfiguring = notifications.any { it.message?.contains(PHASE_CONFIGURING) == true }
 
-        assertTrue(hasConfiguring, "Should have seen [CONFIGURING] phase")
+        assertTrue(hasConfiguring, "Should have seen $PHASE_CONFIGURING phase")
 
         // Verify percentage values (0.0 to 1.0)
         notifications.forEach { params ->
@@ -103,5 +108,74 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
                 assertTrue(params.progress >= 0.0 && params.progress <= params.total!!, "Progress ${params.progress} should be between 0 and ${params.total} (message: ${params.message})")
             }
         }
+    }
+
+    @Test
+    fun `gradle build with multiple tasks shows descriptive progress`() = runTest(timeout = 120.seconds) {
+        val progressNotifications = ConcurrentLinkedQueue<ProgressNotification.Params>()
+
+        server.client.setNotificationHandler<ProgressNotification>(Method.Defined.NotificationsProgress) { notification: ProgressNotification ->
+            progressNotifications.add(notification.params)
+            CompletableDeferred(Unit)
+        }
+
+        // Run build with two tasks
+        server.client.request<CallToolResult>(
+            CallToolRequest(
+                name = ToolNames.GRADLE,
+                arguments = buildJsonObject {
+                    put("commandLine", JsonArray(listOf(JsonPrimitive("help"), JsonPrimitive("tasks"))))
+                    put("projectRoot", _project.path().absolutePathString())
+                },
+                _meta = buildJsonObject {
+                    put("progressToken", "test-token")
+                }
+            )
+        )
+
+        val notifications = progressNotifications.toList()
+
+        // Verify we got some progress notifications
+        assertTrue(notifications.isNotEmpty(), "Should have received progress notifications")
+
+        // Verify enhanced progress message format - "Finished :help"
+        val hasFinishedMessage = notifications.any { it.message?.contains("Finished :help") == true }
+        assertTrue(hasFinishedMessage, "Should have seen 'Finished :help' in progress (messages: ${notifications.map { it.message }})")
+
+        val hasExecuting = notifications.any { it.message?.contains(PHASE_EXECUTING) == true }
+        assertTrue(hasExecuting, "Should have seen $PHASE_EXECUTING phase")
+    }
+
+    @Test
+    fun `gradle configuration phase shows detailed progress`() = runTest(timeout = 120.seconds) {
+        val progressNotifications = ConcurrentLinkedQueue<ProgressNotification.Params>()
+
+        server.client.setNotificationHandler<ProgressNotification>(Method.Defined.NotificationsProgress) { notification: ProgressNotification ->
+            progressNotifications.add(notification.params)
+            CompletableDeferred(Unit)
+        }
+
+        // Run build
+        server.client.request<CallToolResult>(
+            CallToolRequest(
+                name = ToolNames.GRADLE,
+                arguments = buildJsonObject {
+                    put("commandLine", JsonArray(listOf(JsonPrimitive("help"))))
+                    put("projectRoot", _project.path().absolutePathString())
+                },
+                _meta = buildJsonObject {
+                    put("progressToken", "test-token")
+                }
+            )
+        )
+
+        val notifications = progressNotifications.toList()
+
+        // Check for specific configuration messages
+        // The display name for the root project configuration is usually "Configure project :"
+        val hasConfiguringDetail = notifications.any {
+            it.message?.startsWith(PHASE_CONFIGURING) == true && it.message?.contains("Configure project :") == true
+        }
+        assertTrue(hasConfiguringDetail, "Should have seen detailed configuration message (messages: ${notifications.map { it.message }})")
     }
 }

@@ -47,6 +47,17 @@ data class RunningBuild(
     var currentPhase: String? = null
         private set
 
+    private val _activeOperations: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    val activeOperations: Set<String> get() = Collections.unmodifiableSet(_activeOperations)
+
+    @Volatile
+    var lastFinishedOperation: String? = null
+        private set
+
+    @Volatile
+    var currentSubStatus: String? = null
+        private set
+
     internal val problemsAccumulator = ProblemsAccumulator()
     override val problems: List<ProblemAggregation> get() = problemsAccumulator.aggregate()
     override val problemAggregations: Map<ProblemSeverity, List<ProblemAggregation>> get() = problemsAccumulator.aggregateBySeverity()
@@ -156,6 +167,49 @@ data class RunningBuild(
 
     internal fun onItemFinish() {
         completedItems.incrementAndGet()
+    }
+
+    internal fun addActiveOperation(operation: String) {
+        _activeOperations.add(operation)
+    }
+
+    internal fun removeActiveOperation(operation: String) {
+        _activeOperations.remove(operation)
+        lastFinishedOperation = operation
+    }
+
+    internal fun setSubStatus(status: String?) {
+        currentSubStatus = status
+    }
+
+    fun getProgressMessage(fallbackMessage: String?): String {
+        val active = _activeOperations.toList()
+        val phasePrefix = when (currentPhase) {
+            "CONFIGURE_ROOT_BUILD", "CONFIGURE_BUILD" -> "[CONFIGURING] "
+            "RUN_MAIN_TASKS", "RUN_WORK" -> "[EXECUTING] "
+            else -> ""
+        }
+        val baseMessage = when {
+            active.isNotEmpty() -> {
+                val lead = active.first()
+                if (active.size > 1) {
+                    "$lead and ${active.size - 1} others"
+                } else {
+                    lead
+                }
+            }
+
+            lastFinishedOperation != null -> "Finished $lastFinishedOperation"
+            else -> fallbackMessage ?: currentPhase ?: "Running build"
+        }
+
+        val fullMessage = if (currentSubStatus != null) {
+            "$baseMessage ($currentSubStatus)"
+        } else {
+            baseMessage
+        }
+
+        return phasePrefix + fullMessage
     }
 }
 

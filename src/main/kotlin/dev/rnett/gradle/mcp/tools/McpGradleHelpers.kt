@@ -49,12 +49,7 @@ suspend inline fun GradleProvider.doBuild(
         stdoutLineHandler = { /* captured via RunningBuild.consoleOutput */ },
         stderrLineHandler = { /* captured via RunningBuild.consoleOutput */ },
         progressHandler = { p, total, msg ->
-            val phasePrefix = when (running.currentPhase) {
-                "CONFIGURE_ROOT_BUILD", "CONFIGURE_BUILD" -> "[CONFIGURING] "
-                "RUN_MAIN_TASKS", "RUN_WORK" -> "[EXECUTING] "
-                else -> ""
-            }
-            progress(p, total, phasePrefix + (msg ?: ""))
+            progress(p, total, msg)
         }
     )
     val finished = running.awaitFinished()

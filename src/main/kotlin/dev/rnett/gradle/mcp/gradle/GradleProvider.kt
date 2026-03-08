@@ -491,12 +491,14 @@ class DefaultGradleProvider(
                     val descriptor = event.descriptor
                     if (descriptor is BuildPhaseOperationDescriptor) {
                         runningBuild.onPhaseStart(descriptor.buildPhase, descriptor.buildItemsCount)
-                        progressHandler?.invoke(0.0, 1.0, "Starting phase: ${descriptor.buildPhase}")
+                        val message = runningBuild.getProgressMessage("Starting phase: ${descriptor.buildPhase}")
+                        progressHandler?.invoke(0.0, 1.0, message)
                     }
                 } else if (event is BuildPhaseFinishEvent) {
                     val descriptor = event.descriptor
                     if (descriptor is BuildPhaseOperationDescriptor) {
-                        progressHandler?.invoke(1.0, 1.0, "Finished phase: ${descriptor.buildPhase}")
+                        val message = runningBuild.getProgressMessage("Finished phase: ${descriptor.buildPhase}")
+                        progressHandler?.invoke(1.0, 1.0, message)
                     }
                 }
             }, OperationType.BUILD_PHASE)
@@ -506,22 +508,32 @@ class DefaultGradleProvider(
                     val descriptor = event.descriptor
                     if (descriptor is TaskOperationDescriptor) {
                         val taskPath = descriptor.taskPath
+                        runningBuild.addActiveOperation(taskPath)
                         val total = runningBuild.totalItems.get()
+                        val message = runningBuild.getProgressMessage("Executing task: $taskPath")
                         if (total > 0) {
                             val completed = runningBuild.completedItems.get()
-                            progressHandler?.invoke(completed.toDouble() / total, 1.0, "Executing task: $taskPath")
+                            progressHandler?.invoke(completed.toDouble() / total, 1.0, message)
+                        } else {
+                            progressHandler?.invoke(0.0, null, message)
                         }
                     }
                 } else if (event is ProjectConfigurationStartEvent) {
+                    val operation = event.descriptor.displayName
+                    runningBuild.addActiveOperation(operation)
                     val total = runningBuild.totalItems.get()
+                    val message = runningBuild.getProgressMessage(operation)
                     if (total > 0) {
                         val completed = runningBuild.completedItems.get()
-                        progressHandler?.invoke(completed.toDouble() / total, 1.0, "Configuring project: ${event.descriptor.displayName}")
+                        progressHandler?.invoke(completed.toDouble() / total, 1.0, message)
+                    } else {
+                        progressHandler?.invoke(0.0, null, message)
                     }
                 } else if (event is TaskFinishEvent) {
                     val descriptor = event.descriptor
                     if (descriptor is TaskOperationDescriptor) {
                         val taskPath = descriptor.taskPath
+                        runningBuild.removeActiveOperation(taskPath)
                         val result = event.result
                         val outcome = when (result) {
                             is TaskSuccessResult -> {
@@ -547,34 +559,44 @@ class DefaultGradleProvider(
                         runningBuild.onItemFinish()
 
                         val total = runningBuild.totalItems.get()
+                        val message = runningBuild.getProgressMessage("Finished $taskPath")
                         if (total > 0) {
                             val completed = runningBuild.completedItems.get()
-                            progressHandler?.invoke(completed.toDouble() / total, 1.0, "Finished task: $taskPath")
+                            progressHandler?.invoke(completed.toDouble() / total, 1.0, message)
+                        } else {
+                            progressHandler?.invoke(1.0, null, message)
                         }
                     } else {
                         runningBuild.addTaskCompleted(event.descriptor.displayName)
                     }
                 } else if (event is ProjectConfigurationFinishEvent) {
+                    val operation = event.descriptor.displayName
+                    runningBuild.removeActiveOperation(operation)
                     runningBuild.onItemFinish()
 
                     val total = runningBuild.totalItems.get()
+                    val message = runningBuild.getProgressMessage("Finished $operation")
                     if (total > 0) {
                         val completed = runningBuild.completedItems.get()
-                        progressHandler?.invoke(completed.toDouble() / total, 1.0, "Finished configuration: ${event.descriptor.displayName}")
+                        progressHandler?.invoke(completed.toDouble() / total, 1.0, message)
+                    } else {
+                        progressHandler?.invoke(1.0, null, message)
                     }
                 }
             }, OperationType.TASK, OperationType.PROJECT_CONFIGURATION)
 
             addProgressListener({ event ->
                 if (event is StatusEvent) {
+                    runningBuild.setSubStatus(event.descriptor.displayName)
                     val total = runningBuild.totalItems.get()
+                    val message = runningBuild.getProgressMessage(event.descriptor.displayName)
                     if (total > 0) {
                         val completed = runningBuild.completedItems.get()
                         val currentProgress = if (event.total > 0) event.progress.toDouble() / event.total else 0.0
                         val phaseProgress = (completed + currentProgress) / total
-                        progressHandler?.invoke(phaseProgress, 1.0, event.descriptor.displayName)
+                        progressHandler?.invoke(phaseProgress, 1.0, message)
                     } else {
-                        progressHandler?.invoke(0.0, null, event.descriptor.displayName)
+                        progressHandler?.invoke(0.0, null, message)
                     }
                 }
             }, OperationType.GENERIC)
