@@ -31,6 +31,7 @@ application {
 
 val updateToolsList by tasks.registering(JavaExec::class) {
     inputs.files(sourceSets.main.get().runtimeClasspath).withPathSensitivity(PathSensitivity.NONE)
+    inputs.files(sourceSets.main.get().kotlin).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.dir(project.rootDir.resolve("docs/tools")).withPathSensitivity(PathSensitivity.RELATIVE)
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("dev.rnett.gradle.mcp.UpdateTools")
@@ -39,6 +40,7 @@ val updateToolsList by tasks.registering(JavaExec::class) {
 
 val verifyToolsList by tasks.registering(JavaExec::class) {
     inputs.files(sourceSets.main.get().runtimeClasspath).withPathSensitivity(PathSensitivity.NONE)
+    inputs.files(sourceSets.main.get().kotlin).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.dir(project.rootDir.resolve("docs/tools")).withPathSensitivity(PathSensitivity.RELATIVE)
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("dev.rnett.gradle.mcp.UpdateTools")
