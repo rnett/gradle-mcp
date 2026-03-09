@@ -125,4 +125,25 @@ class RunningBuildProgressTest {
 
         assertEquals("[EXECUTING] :test (2 passed, 1 failed, 1 skipped)", build.getProgressMessage())
     }
+
+    @Test
+    fun `verifies progress message with sub-task progress`() {
+        val build = createRunningBuild()
+        build.onPhaseStart("RUN_MAIN_TASKS", 1)
+        build.handleProgressLine("SOURCE_RESOLUTION", "TOTAL: 10")
+        build.handleProgressLine("SOURCE_RESOLUTION", "1/10: com.example:lib")
+
+        assertEquals("[EXECUTING] SOURCE_RESOLUTION: com.example:lib (1/10)", build.getProgressMessage())
+    }
+
+    @Test
+    fun `verifies progress message with percentage and sub-task`() {
+        val build = createRunningBuild()
+        build.onPhaseStart("RUN_MAIN_TASKS", 1)
+        build.handleProgressLine("SOURCE_RESOLUTION", "TOTAL: 10")
+        build.handleProgressLine("SOURCE_RESOLUTION", "1/10: com.example:lib")
+        build.setSubStatus("Downloading lib.jar", 0.45)
+
+        assertEquals("[EXECUTING] SOURCE_RESOLUTION: com.example:lib (1/10) (Downloading lib.jar - 45%)", build.getProgressMessage())
+    }
 }

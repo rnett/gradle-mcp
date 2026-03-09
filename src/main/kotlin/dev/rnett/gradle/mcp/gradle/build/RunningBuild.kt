@@ -59,6 +59,10 @@ class RunningBuild(
     var currentSubStatus: String? = null
         private set
 
+    @Volatile
+    var subStatusProgress: Double? = null
+        private set
+
     internal val problemsAccumulator = ProblemsAccumulator()
     override val problems: List<ProblemAggregation> get() = problemsAccumulator.aggregate()
     override val problemAggregations: Map<ProblemSeverity, List<ProblemAggregation>> get() = problemsAccumulator.aggregateBySeverity()
@@ -163,6 +167,30 @@ class RunningBuild(
         addLogLine(newLine)
     }
 
+    val subTaskTotal = AtomicLong(0)
+    val subTaskCompleted = AtomicLong(0)
+
+    @Volatile
+    var subTaskMessage: String? = null
+        private set
+
+    internal fun handleProgressLine(category: String, text: String) {
+        val totalMatch = Regex("TOTAL: (\\d+)").matchEntire(text)
+        if (totalMatch != null) {
+            subTaskTotal.set(totalMatch.groupValues[1].toLong())
+            subTaskCompleted.set(0)
+            subTaskMessage = "Starting $category"
+        } else {
+            val progressMatch = Regex("(\\d+)/(\\d+): (.*)").matchEntire(text)
+            if (progressMatch != null) {
+                subTaskCompleted.set(progressMatch.groupValues[1].toLong())
+                subTaskTotal.set(progressMatch.groupValues[2].toLong())
+                val detail = progressMatch.groupValues[3]
+                subTaskMessage = "$category: $detail"
+            }
+        }
+    }
+
     internal fun addTaskResult(taskPath: String, outcome: TaskOutcome, duration: Duration, consoleOutput: String?) {
         taskResults[taskPath] = TaskResult(taskPath, outcome, duration, consoleOutput)
         _taskPaths.add(taskPath)
@@ -199,8 +227,9 @@ class RunningBuild(
         lastFinishedOperation = operation
     }
 
-    internal fun setSubStatus(status: String?) {
+    internal fun setSubStatus(status: String?, progress: Double? = null) {
         currentSubStatus = status
+        subStatusProgress = progress
     }
 
     fun getProgressMessage(): String {
@@ -210,7 +239,15 @@ class RunningBuild(
             currentPhase?.contains("EXECUT") == true || currentPhase?.contains("RUN") == true -> "[EXECUTING] "
             else -> ""
         }
+
+        val subTaskMsg = if (subTaskMessage != null && subTaskTotal.get() > 0) {
+            val completed = subTaskCompleted.get()
+            val total = subTaskTotal.get()
+            "$subTaskMessage ($completed/$total)"
+        } else null
+
         val baseMessage = when {
+            subTaskMsg != null -> subTaskMsg
             active.isNotEmpty() -> {
                 val lead = active.first()
                 if (active.size > 1) {
@@ -224,8 +261,18 @@ class RunningBuild(
             else -> currentPhase ?: "Running build"
         }
 
-        val fullMessage = if (currentSubStatus != null) {
-            "$baseMessage ($currentSubStatus)"
+        val statusSuffix = buildString {
+            if (currentSubStatus != null) {
+                append(currentSubStatus)
+                if (subStatusProgress != null) {
+                    val percent = (subStatusProgress!! * 100).toInt()
+                    append(" - $percent%")
+                }
+            }
+        }.takeIf { it.isNotEmpty() }
+
+        val fullMessage = if (statusSuffix != null) {
+            "$baseMessage ($statusSuffix)"
         } else {
             baseMessage
         }

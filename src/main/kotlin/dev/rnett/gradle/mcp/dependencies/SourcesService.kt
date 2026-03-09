@@ -295,7 +295,6 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
                 chunk.map { dep ->
                     async(Dispatchers.IO) {
                         val count = current.incrementAndGet().toDouble()
-                        processingProgress.report(count, total, "Processing sources for ${dep.id}")
 
                         val ext = dep.sourcesFile!!.extension
                         val relativePath = Path(dep.group!!).resolve(dep.sourcesFile.nameWithoutExtension)
@@ -305,6 +304,7 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
 
                         val success = FileLockManager.withLock(lockFile) {
                             if (!extractionMarker.exists()) {
+                                processingProgress.report(count, total, "Extracting sources for ${dep.id}")
                                 dir.deleteRecursively()
                                 dir.createDirectories()
                                 try {
@@ -337,7 +337,10 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
                                     dir.deleteRecursively()
                                     false
                                 }
-                            } else true
+                            } else {
+                                processingProgress.report(count, total, "Processing sources for ${dep.id}")
+                                true
+                            }
                         }
 
                         if (!success) return@async null
@@ -356,6 +359,7 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
                         }
 
                         if (index) {
+                            processingProgress.report(count, total, "Indexing sources for ${dep.id}")
                             indexService.index(dep, dir)?.let { relativePath to it }
                         } else null
                     }

@@ -126,6 +126,11 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
 
         if (allUniqueModuleComponents.isEmpty()) return emptyMap()
 
+        val targetComponents = allUniqueModuleComponents.filter { !onlyDirect || "${it.group}:${it.module}" in directDependencies }
+        if (targetComponents.isEmpty()) return emptyMap()
+
+        println("[gradle-mcp] [PROGRESS] [VERSION_CHECK]: TOTAL: ${targetComponents.size}")
+
         val updatesConfig = realProject.configurations.detachedConfiguration()
 
         if (versionFilter != null) {
@@ -142,22 +147,23 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
             }
         }
 
-        allUniqueModuleComponents.forEach { id ->
-            if (!onlyDirect || "${id.group}:${id.module}" in directDependencies) {
-                val dep = realProject.dependencies.create("${id.group}:${id.module}:+") {
-                    (this as org.gradle.api.artifacts.ExternalModuleDependency).isTransitive = false
-                }
-                updatesConfig.dependencies.add(dep)
+        targetComponents.forEach { id ->
+            val dep = realProject.dependencies.create("${id.group}:${id.module}:+") {
+                (this as org.gradle.api.artifacts.ExternalModuleDependency).isTransitive = false
             }
+            updatesConfig.dependencies.add(dep)
         }
         updatesConfig.resolutionStrategy.cacheDynamicVersionsFor(0, "seconds")
 
         val latestVersions = mutableMapOf<String, String>()
         try {
+            var checkedCount = 0
             updatesConfig.incoming.resolutionResult.allComponents.forEach {
                 val id = it.id
                 if (id is ModuleComponentIdentifier) {
                     latestVersions["${id.group}:${id.module}"] = id.version
+                    checkedCount++
+                    println("[gradle-mcp] [PROGRESS] [VERSION_CHECK]: $checkedCount/${targetComponents.size}: ${id.group}:${id.module}")
                 }
             }
         } catch (e: Exception) {
@@ -183,6 +189,8 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
 
         if (components.isEmpty()) return emptyMap()
 
+        println("[gradle-mcp] [PROGRESS] [SOURCE_RESOLUTION]: TOTAL: ${components.size}")
+
         val sourcesFiles = mutableMapOf<String, String>()
         try {
             val sourcesConfig = realProject.configurations.detachedConfiguration()
@@ -193,9 +201,12 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
                 sourcesConfig.dependencies.add(dep)
             }
 
+            var resolvedCount = 0
             sourcesConfig.resolvedConfiguration.lenientConfiguration.artifacts.forEach { artifact ->
                 val id = artifact.moduleVersion.id
                 sourcesFiles["${id.group}:${id.name}:${id.version}"] = artifact.file.absolutePath
+                resolvedCount++
+                println("[gradle-mcp] [PROGRESS] [SOURCE_RESOLUTION]: $resolvedCount/${components.size}: ${id.group}:${id.name}:${id.version}")
             }
         } catch (e: Throwable) {
             println("ERROR_GATHERING_SOURCES: ${e.message}")

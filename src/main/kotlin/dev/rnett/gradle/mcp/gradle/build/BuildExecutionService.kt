@@ -195,14 +195,14 @@ class DefaultBuildExecutionService(
 
             launcher.addProgressListener({ event ->
                 if (event is StatusEvent) {
-                    runningBuild.setSubStatus(event.descriptor.displayName)
+                    val currentProgress = if (event.total > 0) event.progress.toDouble() / event.total else null
+                    runningBuild.setSubStatus(event.descriptor.displayName, currentProgress)
                     val total = runningBuild.totalItems.get()
                     val message = runningBuild.getProgressMessage()
                     if (total > 0) {
                         val completed = runningBuild.completedItems.get()
-                        val currentProgress = if (event.total > 0) event.progress.toDouble() / event.total else 0.0
-                        val phaseProgress = (completed + currentProgress) / total
-                        progress.report(phaseProgress, 1.0, message)
+                        val progressValue = (completed + (currentProgress ?: 0.0)) / total
+                        progress.report(progressValue, 1.0, message)
                     } else {
                         progress.report(0.0, null, message)
                     }
@@ -263,11 +263,16 @@ class DefaultBuildExecutionService(
             val taskPath = taskMatch.groupValues[1]
             val category = taskMatch.groupValues[2]
             val text = taskMatch.groupValues[3]
-            val type = if (category == "system.err") "ERR" else "OUT"
-            val formattedLine = "$taskPath $type $text"
 
-            runningBuild.addTaskOutput(taskPath, text)
-            runningBuild.replaceLastLogLine(text, formattedLine)
+            if (taskPath == "PROGRESS") {
+                runningBuild.handleProgressLine(category, text)
+            } else {
+                val type = if (category == "system.err") "ERR" else "OUT"
+                val formattedLine = "$taskPath $type $text"
+
+                runningBuild.addTaskOutput(taskPath, text)
+                runningBuild.replaceLastLogLine(text, formattedLine)
+            }
         } else {
             val logLine = if (isError) "STDERR: $line" else line
             runningBuild.addLogLine(logLine)

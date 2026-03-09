@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.dependencies
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
 import dev.rnett.gradle.mcp.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
@@ -8,17 +9,18 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import java.nio.file.Path
+import java.util.*
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.exists
 import kotlin.io.path.readText
-import kotlin.test.BeforeTest
-import kotlin.test.Test
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 
 class SourcesServiceTest {
 
@@ -29,18 +31,68 @@ class SourcesServiceTest {
     private lateinit var tempDir: Path
 
     @OptIn(ExperimentalPathApi::class)
-    @BeforeTest
+    @BeforeEach
     fun setup() {
         tempDir = createTempDirectory("sources-service-test")
         environment = GradleMcpEnvironment(tempDir)
-        depService = mockk()
-        indexService = mockk()
+        depService = mockk(relaxed = true)
+        indexService = mockk(relaxed = true)
         sourcesService = DefaultSourcesService(depService, environment, indexService)
     }
 
     @Test
+    fun `downloadAllSources reports granular progress during processing`() = runTest {
+        val projectRootPath = tempDir.resolve("project-granular")
+        projectRootPath.createDirectories()
+        val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
+
+        val sourcesFile = tempDir.resolve("lib-sources.jar")
+        java.util.zip.ZipOutputStream(sourcesFile.toFile().outputStream()).use {
+            it.putNextEntry(java.util.zip.ZipEntry("foo.txt"))
+            it.write("bar".toByteArray())
+            it.closeEntry()
+        }
+
+        val mockDep = dev.rnett.gradle.mcp.dependencies.model.GradleDependency(
+            id = "com.example:lib:1.0.0",
+            group = "com.example",
+            name = "lib",
+            version = "1.0.0",
+            sourcesFile = sourcesFile
+        )
+
+        coEvery { depService.downloadAllSources(any()) } returns GradleDependencyReport(
+            listOf(
+                dev.rnett.gradle.mcp.dependencies.model.GradleProjectDependencies(
+                    path = ":",
+                    sourceSets = emptyList(),
+                    repositories = emptyList(),
+                    configurations = listOf(
+                        dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies(
+                            name = "main",
+                            description = null,
+                            isResolvable = true,
+                            dependencies = listOf(mockDep)
+                        )
+                    )
+                )
+            )
+        )
+
+        val progressMessages = Collections.synchronizedList(mutableListOf<String?>())
+        val reporter = ProgressReporter { _, _, msg -> progressMessages.add(msg) }
+
+        with(reporter) {
+            sourcesService.downloadAllSources(projectRoot, fresh = true)
+        }
+
+        assertTrue(progressMessages.any { it?.contains("Extracting sources for com.example:lib:1.0.0") == true }, "Should report extraction")
+        assertTrue(progressMessages.any { it?.contains("Indexing sources for com.example:lib:1.0.0") == true }, "Should report indexing")
+    }
+
+    @Test
     fun `downloadAllSources skips resolution when fresh is false and cache exists`() = runTest {
-        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+        with(ProgressReporter.NONE) {
             val projectRootPath = tempDir.resolve("project")
             projectRootPath.createDirectories()
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
@@ -59,7 +111,7 @@ class SourcesServiceTest {
 
     @Test
     fun `downloadAllSources performs resolution when fresh is true even if cache exists`() = runTest {
-        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+        with(ProgressReporter.NONE) {
             val projectRootPath = tempDir.resolve("project")
             projectRootPath.createDirectories()
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
@@ -78,7 +130,7 @@ class SourcesServiceTest {
 
     @Test
     fun `downloadAllSources performs resolution when cache does not exist even if fresh is false`() = runTest {
-        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+        with(ProgressReporter.NONE) {
             val projectRootPath = tempDir.resolve("project")
             projectRootPath.createDirectories()
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
@@ -93,7 +145,7 @@ class SourcesServiceTest {
 
     @Test
     fun `downloadAllSources writes last refresh timestamp`() = runTest {
-        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+        with(ProgressReporter.NONE) {
             val projectRootPath = tempDir.resolve("project")
             projectRootPath.createDirectories()
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
@@ -110,7 +162,7 @@ class SourcesServiceTest {
 
     @Test
     fun `downloadProjectSources respects fresh parameter`() = runTest {
-        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+        with(ProgressReporter.NONE) {
             val projectRootPath = tempDir.resolve("project-p")
             projectRootPath.createDirectories()
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
@@ -129,7 +181,7 @@ class SourcesServiceTest {
 
     @Test
     fun `downloadConfigurationSources respects fresh parameter`() = runTest {
-        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+        with(ProgressReporter.NONE) {
             val projectRootPath = tempDir.resolve("project-c")
             projectRootPath.createDirectories()
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
@@ -148,7 +200,7 @@ class SourcesServiceTest {
 
     @Test
     fun `downloadSourceSetSources respects fresh parameter`() = runTest {
-        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+        with(ProgressReporter.NONE) {
             val projectRootPath = tempDir.resolve("project-s")
             projectRootPath.createDirectories()
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
