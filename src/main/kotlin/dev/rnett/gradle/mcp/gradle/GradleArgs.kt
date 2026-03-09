@@ -1,7 +1,6 @@
 package dev.rnett.gradle.mcp.gradle
 
 import dev.rnett.gradle.mcp.tools.GradlePathUtils
-import dev.rnett.gradle.mcp.utils.EnvHelper
 import dev.rnett.gradle.mcp.utils.EnvProvider
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import io.github.smiley4.schemakenerator.core.annotations.Example
@@ -63,7 +62,7 @@ data class GradleInvocationArguments(
         }
     }.trim()
 
-    fun actualEnvVars(envProvider: EnvProvider = EnvHelper): Map<String, String> {
+    fun actualEnvVars(envProvider: EnvProvider): Map<String, String> {
         val base = when (envSource) {
             EnvSource.NONE -> emptyMap()
             EnvSource.INHERIT -> envProvider.getInheritedEnvironment()

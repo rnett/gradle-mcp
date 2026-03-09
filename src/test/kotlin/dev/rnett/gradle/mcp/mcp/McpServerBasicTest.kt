@@ -38,7 +38,7 @@ class McpServerBasicTest : BaseMcpServerTest() {
             }
         } coAnswers {
             val progress = arg<dev.rnett.gradle.mcp.ProgressReporter>(0)
-            progress(0.5, 1.0, "Preparing docs")
+            progress.report(0.5, 1.0, "Preparing docs")
             // you 100% need this await, DO NOT REMOVE IT.  Looking at you Gemini. If the tool call finishes before the notification has time to send and propagate, it will not send.  This is WAI.
             progressReceived.await()
             DocsPageContent.Markdown("# Test")

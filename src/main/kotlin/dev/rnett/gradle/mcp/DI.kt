@@ -22,11 +22,15 @@ import dev.rnett.gradle.mcp.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.BundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultBundledJarProvider
+import dev.rnett.gradle.mcp.gradle.DefaultGradleConnectionService
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
 import dev.rnett.gradle.mcp.gradle.GradleConfiguration
+import dev.rnett.gradle.mcp.gradle.GradleConnectionService
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
+import dev.rnett.gradle.mcp.gradle.build.BuildExecutionService
+import dev.rnett.gradle.mcp.gradle.build.DefaultBuildExecutionService
 import dev.rnett.gradle.mcp.lucene.LuceneReaderCache
 import dev.rnett.gradle.mcp.maven.DefaultMavenCentralService
 import dev.rnett.gradle.mcp.maven.DefaultMavenRepoService
@@ -47,6 +51,8 @@ import dev.rnett.gradle.mcp.tools.dependencies.DependencySearchTools
 import dev.rnett.gradle.mcp.tools.dependencies.DependencySourceTools
 import dev.rnett.gradle.mcp.tools.dependencies.GradleDependencyTools
 import dev.rnett.gradle.mcp.tools.skills.SkillTools
+import dev.rnett.gradle.mcp.utils.DefaultEnvProvider
+import dev.rnett.gradle.mcp.utils.EnvProvider
 import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -100,6 +106,7 @@ object DI {
         single { DefaultBundledJarProvider() } bind BundledJarProvider::class
         single { createHttpClient(get(), get()) }
         single { GradleMcpEnvironment.fromEnv() }
+        single<EnvProvider> { DefaultEnvProvider }
         single<ReplManager> { DefaultReplManager(get()) }
         single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
         single<MarkdownService> { DefaultMarkdownService(get()) }
@@ -117,10 +124,13 @@ object DI {
         single<SourcesService> { DefaultSourcesService(get(), get(), get()) }
         single<GradleSourceService> { DefaultGradleSourceService(get(), get(), get(), get()) }
         single { BuildManager() }
+        single<GradleConnectionService> { DefaultGradleConnectionService() }
+        single<BuildExecutionService> { DefaultBuildExecutionService(envProvider = get()) }
         single<GradleProvider> {
             DefaultGradleProvider(
                 get(),
-                initScriptProvider = get(),
+                connectionService = get(),
+                executionService = get(),
                 buildManager = get()
             )
         }

@@ -32,7 +32,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.isActive
@@ -74,6 +73,10 @@ open class McpContext(
     @PublishedApi
     internal val json = server.json
 
+    companion object {
+        private val LOGGER = LoggerFactory.getLogger(McpContext::class.java)
+    }
+
     suspend fun sendNotification(notification: Notification) {
         server.sendNotification(notification)
     }
@@ -114,27 +117,37 @@ open class McpContext(
         it.longOrNull?.let { RequestId.NumberId(it) } ?: it.contentOrNull?.let { RequestId.StringId(it) }
     }
 
+    protected open val disableSampling: Boolean
+        get() = System.getProperty("gradle.mcp.test.disableSampling") == "true"
+
     @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
     val progressReporter: ProgressReporter by lazy {
         val flow = MutableSharedFlow<Triple<Double, Double?, String?>>(10, extraBufferCapacity = 50, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         scope.launch(Dispatchers.Default) {
-            flow.distinctUntilChanged()
-                .transformLatest {
-                    val (p, t, msg) = it
-                    while (currentCoroutineContext().isActive) {
-                        repeat(4) {
-                            val suffix = if (it == 0) "" else ".".repeat(it)
-                            emit(Triple(p, t, msg + suffix))
-                            delay(250)
-                        }
+            val transformed = flow.transformLatest {
+                val (p, t, msg) = it
+                while (currentCoroutineContext().isActive) {
+                    repeat(4) {
+                        val suffix = if (it == 0) "" else ".".repeat(it)
+                        emit(Triple(p, t, msg + suffix))
+                        delay(250)
                     }
-                }.sample(100).collectLatest {
-                    emitProgressNotification(it.first, it.second, it.third)
                 }
+            }
+
+            val sampled = if (disableSampling) transformed else transformed.sample(100)
+
+            sampled.collectLatest {
+                try {
+                    emitProgressNotification(it.first, it.second, it.third)
+                } catch (e: Exception) {
+                    LOGGER.error("Failed to emit progress notification", e)
+                }
+            }
         }
 
-        ProgressReporter { a, b, c ->
-            flow.tryEmit(Triple(a, b, c))
+        ProgressReporter { progress, total, message ->
+            flow.tryEmit(Triple(progress, total, message))
         }
     }
 

@@ -271,12 +271,7 @@ class DefaultGradleDependencyService(
             projectRoot = projectRoot,
             args = args,
             stdoutLineHandler = { /* captured via RunningBuild.consoleOutput; handlers optional */ },
-            stderrLineHandler = { /* same */ },
-            progressHandler = { progress, total, message ->
-                // For dependency retrieval, we're inside a suspend function, 
-                // but we don't have direct access to McpContext to emit progress notifications.
-                // However, the RunningBuild state will be updated and observable by the tool caller.
-            }
+            stderrLineHandler = { /* same */ }
         )
 
         // Wait for build to complete so console output is finalized

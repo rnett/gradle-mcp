@@ -295,7 +295,7 @@ class DefaultSourcesService(private val depService: GradleDependencyService, env
                 chunk.map { dep ->
                     async(Dispatchers.IO) {
                         val count = current.incrementAndGet().toDouble()
-                        processingProgress(count, total, "Processing sources for ${dep.id}")
+                        processingProgress.report(count, total, "Processing sources for ${dep.id}")
 
                         val ext = dep.sourcesFile!!.extension
                         val relativePath = Path(dep.group!!).resolve(dep.sourcesFile.nameWithoutExtension)

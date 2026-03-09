@@ -3,56 +3,27 @@ package dev.rnett.gradle.mcp.tools
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleResult
-import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.mcp.McpContext
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.consumeAsFlow
-import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
+import org.slf4j.LoggerFactory
 
-@Serializable
-data class ProgressState(val progress: Double, val total: Double?, val message: String?)
-
-context(ctx: McpContext)
-@FlowPreview
-suspend inline fun <T> withProgressEmissions(
-    crossinline block: suspend (progress: (Double, Double?, String?) -> Unit) -> T
-): T = coroutineScope {
-    val channel = Channel<ProgressState>(4096)
-    val job = launch {
-        channel.consumeAsFlow().collect {
-            ctx.emitProgressNotification(it.progress, it.total, it.message)
-        }
-    }
-    try {
-        block { progress, total, message ->
-            channel.trySend(ProgressState(progress, total, message))
-        }
-    } finally {
-        job.cancel()
-    }
-}
+@PublishedApi
+internal val LOGGER = LoggerFactory.getLogger("dev.rnett.gradle.mcp.tools.McpGradleHelpers")
 
 @OptIn(FlowPreview::class)
 context(ctx: McpContext)
 suspend inline fun GradleProvider.doBuild(
     projectRoot: GradleProjectRootInput,
     invocationArgs: GradleInvocationArguments
-): GradleResult<Unit> = withProgressEmissions { progress ->
+): GradleResult<Unit> {
     val root = projectRoot.resolve()
-    lateinit var running: RunningBuild
-    running = runBuild(
+    val running = runBuild(
         root,
         invocationArgs.withInitScript(InitScriptNames.TASK_OUT),
         stdoutLineHandler = { /* captured via RunningBuild.consoleOutput */ },
         stderrLineHandler = { /* captured via RunningBuild.consoleOutput */ },
-        progressHandler = { p, total, msg ->
-            progress(p, total, msg)
-        }
+        progress = ctx.progressReporter
     )
     val finished = running.awaitFinished()
-    GradleResult(finished, Result.success(Unit))
+    return GradleResult(finished, Result.success(Unit))
 }
-

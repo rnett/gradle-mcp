@@ -49,7 +49,7 @@ class GradleExecutionTools(
             |### Wait & Progress Monitoring
             |After starting a build, use `${ToolNames.INSPECT_BUILD}` with the returned `BuildId` to monitor progress or perform deep-dive failure diagnostics.
             |
-            |Note: Avoid `--rerun-tasks` unless investigating cache issues. Use `invocationArguments: { envSource: "SHELL" }` if Gradle isn't finding expected environment variables (e.g., JDKs).
+            |Note: Avoid `--rerun-tasks` (which reruns ALL tasks) unless investigating broad cache issues. Prefer `--rerun` for individual tasks. Use `invocationArguments: { envSource: "SHELL" }` if Gradle isn't finding expected environment variables (e.g., JDKs).
         """.trimMargin()
     ) {
         if (it.stopBuildId != null) {
@@ -70,12 +70,7 @@ class GradleExecutionTools(
             @OptIn(kotlinx.coroutines.FlowPreview::class)
             val running = gradleProvider.runBuild(
                 root,
-                invocationArgs.withInitScript(InitScriptNames.TASK_OUT),
-                progressHandler = { p, total, msg ->
-                    // For background builds, we don't have an easy way to emit progress notifications 
-                    // via the current tool call result, but DefaultGradleProvider will still update 
-                    // the RunningBuild state which can be inspected via inspect_build.
-                }
+                invocationArgs.withInitScript(InitScriptNames.TASK_OUT)
             )
             return@tool running.id.toString()
         } else {

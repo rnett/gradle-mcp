@@ -58,8 +58,3 @@ object DefaultEnvProvider : EnvProvider {
         }
     }
 }
-
-object EnvHelper : EnvProvider {
-    override fun getShellEnvironment(): Map<String, String> = DefaultEnvProvider.getShellEnvironment()
-    override fun getInheritedEnvironment(): Map<String, String> = DefaultEnvProvider.getInheritedEnvironment()
-}

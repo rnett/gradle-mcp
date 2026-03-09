@@ -67,7 +67,7 @@ class DefaultGradleDocsIndexService(
                     indexer.use {
                         for (entry in filesChannel) {
                             processedFiles++
-                            indexingProgress(processedFiles, null, "Indexing documentation")
+                            indexingProgress.report(processedFiles, null, "Indexing documentation")
                             it.indexFile(entry.first, entry.second)
                         }
                         it.finish()

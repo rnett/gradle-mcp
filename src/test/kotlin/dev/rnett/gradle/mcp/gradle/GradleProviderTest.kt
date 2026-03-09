@@ -73,7 +73,6 @@ class GradleProviderTest {
                 ttl = 60.seconds,
                 allowPublicScansPublishing = false
             ),
-            initScriptProvider = DefaultInitScriptProvider(dev.rnett.gradle.mcp.mcp.fixtures.SharedTestInfrastructure.sharedWorkingDir.resolve("init-scripts")),
             buildManager = BuildManager()
         )
     }
@@ -270,7 +269,6 @@ class GradleProviderTest {
                     ttl = 60.seconds,
                     allowPublicScansPublishing = true
                 ),
-                initScriptProvider = DefaultInitScriptProvider(tempDir),
                 buildManager = BuildManager()
             ).use { provider ->
                 val projectRoot = GradleProjectRoot(project.pathString())

@@ -38,7 +38,7 @@ class ArchiveExtractorTest {
 
             val progressUpdates = mutableListOf<Pair<Double, String?>>()
             zipFile.inputStream().buffered().use {
-                with(dev.rnett.gradle.mcp.ProgressReporter { progress, total, message ->
+                with(dev.rnett.gradle.mcp.ProgressReporter { progress, _, message ->
                     progressUpdates.add(progress to message)
                 }) {
                     ArchiveExtractor.extractInto(target, ZipInputStream(it))

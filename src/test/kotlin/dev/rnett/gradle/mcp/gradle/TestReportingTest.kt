@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.gradle
 
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.gradle.fixtures.testJavaProject
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.TestInstance
@@ -17,7 +18,6 @@ class TestReportingTest {
                 ttl = 60.seconds,
                 allowPublicScansPublishing = false
             ),
-            initScriptProvider = DefaultInitScriptProvider(dev.rnett.gradle.mcp.mcp.fixtures.SharedTestInfrastructure.sharedWorkingDir.resolve("init-scripts")),
             buildManager = BuildManager()
         )
     }
@@ -118,6 +118,58 @@ class TestReportingTest {
             val cancelResult = cancellingBuild.awaitFinished()
 
             assertTrue(cancelResult.testResults.cancelled.any { it.testName.contains("testHang") }, "testHang should be cancelled")
+        }
+    }
+
+    @Test
+    fun `verifies real-time test progress reporting`() = runTest(timeout = 180.seconds) {
+        val provider = createTestProvider()
+        testJavaProject {
+            file(
+                "src/test/java/com/example/ReportingTest.java", """
+                package com.example;
+                
+                import org.junit.jupiter.api.Test;
+                import static org.junit.jupiter.api.Assertions.*;
+                
+                class ReportingTest {
+                    @Test
+                    void testPass() {
+                        assertTrue(true);
+                    }
+                    
+                    @Test
+                    void testFail() {
+                        fail("Expected failure");
+                    }
+                }
+            """.trimIndent()
+            )
+        }.use { project ->
+            val projectRoot = GradleProjectRoot(project.pathString())
+            val progressMessages = java.util.concurrent.ConcurrentLinkedQueue<String>()
+
+            val runningBuild = provider.runTests(
+                projectRoot = projectRoot,
+                testPatterns = mapOf(
+                    ":test" to setOf(
+                        "com.example.ReportingTest.testPass",
+                        "com.example.ReportingTest.testFail"
+                    )
+                ),
+                args = GradleInvocationArguments.DEFAULT,
+                progress = ProgressReporter { _, _, msg ->
+                    if (msg != null) progressMessages.add(msg)
+                }
+            )
+            runningBuild.awaitFinished()
+
+            val messages = progressMessages.toList()
+            val hasPass = messages.any { it.contains(Regex("1 passed")) }
+            val hasFail = messages.any { it.contains(Regex("1 failed")) }
+            val hasCombined = messages.any { it.contains(Regex("1 passed.*1 failed")) }
+
+            assertTrue(hasPass || hasFail || hasCombined, "Should have seen test progress in messages: $messages")
         }
     }
 }

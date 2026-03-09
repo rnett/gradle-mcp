@@ -53,7 +53,7 @@ class DefaultContentExtractorService(
                     val entry = entries.nextElement()
                     processedEntries++
                     if (processedEntries % 50 == 0.0 || processedEntries == totalEntries) {
-                        extractionProgress(processedEntries, totalEntries, "Extracting documentation")
+                        extractionProgress.report(processedEntries, totalEntries, "Extracting documentation")
                     }
 
                     if (entry.isDirectory) continue
@@ -90,7 +90,7 @@ class DefaultContentExtractorService(
                 ZipFile(zipPath.toFile()).use { zip ->
                     for (entryName in sampleZips) {
                         processedSamples++
-                        extractionProgress(processedSamples, totalSamples, "Extracting sample source: ${entryName.substringAfterLast('/')}")
+                        extractionProgress.report(processedSamples, totalSamples, "Extracting sample source: ${entryName.substringAfterLast('/')}")
                         val entry = zip.getEntry(entryName)
                         with<ProgressReporter, Unit>(extractionProgress.withMessage { "Extracting sample source: ${entryName.substringAfterLast('/')} - $it" }) {
                             processSampleZip(zip, entry, onFileExtracted)

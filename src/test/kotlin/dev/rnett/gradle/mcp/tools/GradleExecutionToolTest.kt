@@ -1,7 +1,6 @@
 package dev.rnett.gradle.mcp.tools
 
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
-import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.fixtures.GradleProjectFixture
 import dev.rnett.gradle.mcp.gradle.fixtures.testKotlinProject
@@ -12,7 +11,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import org.koin.core.scope.Scope
-import kotlin.io.path.createDirectories
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -26,7 +24,6 @@ class GradleExecutionToolTest : BaseMcpServerTest() {
     override fun Scope.createProvider(): GradleProvider {
         return DefaultGradleProvider(
             config = get(),
-            initScriptProvider = DefaultInitScriptProvider(tempDir.resolve("init-scripts").createDirectories()),
             buildManager = get()
         )
     }

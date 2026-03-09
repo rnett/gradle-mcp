@@ -3,14 +3,12 @@ package dev.rnett.gradle.mcp.repl
 import dev.rnett.gradle.mcp.BuildConfig
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
-import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
 import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.fixtures.GradleProjectFixture
 import dev.rnett.gradle.mcp.gradle.fixtures.testGradleProject
-import dev.rnett.gradle.mcp.mcp.fixtures.SharedTestInfrastructure
 import dev.rnett.gradle.mcp.tools.toOutputString
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -39,7 +37,6 @@ class ReplEnvironmentServiceTest {
                 ttl = 60.seconds,
                 allowPublicScansPublishing = false
             ),
-            initScriptProvider = DefaultInitScriptProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("init-scripts")),
             buildManager = buildManager
         )
         replEnvService = DefaultReplEnvironmentService(provider)

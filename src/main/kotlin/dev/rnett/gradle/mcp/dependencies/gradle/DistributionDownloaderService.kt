@@ -58,7 +58,7 @@ class DefaultDistributionDownloaderService(
                             val now = System.currentTimeMillis()
                             if (now - lastUpdate >= 200 || bytesSentTotal == contentLength) {
                                 lastUpdate = now
-                                downloadProgress(bytesSentTotal.toDouble(), contentLength?.toDouble(), "Downloading Gradle $version documentation")
+                                downloadProgress.report(bytesSentTotal.toDouble(), contentLength?.toDouble(), "Downloading Gradle $version documentation")
                             }
                         }
                     }

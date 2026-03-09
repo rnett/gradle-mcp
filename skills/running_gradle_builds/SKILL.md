@@ -20,7 +20,7 @@ Executes Gradle commands with absolute precision and leverage managed background
 
 - **ALWAYS** use the `gradle` tool instead of `./gradlew` via shell.
 - **ALWAYS** provide absolute paths for `projectRoot`.
-- **NEVER** use `--rerun-tasks` unless investigating cache-specific corruption; prioritize Gradle's native caching.
+- **NEVER** use `--rerun-tasks` unless investigating project-wide cache-specific corruption; prioritize Gradle's native caching. Prefer `--rerun` for individual tasks to ensure they are executed even if up-to-date.
 - **ALWAYS** prefer foreground execution (default) unless the task is persistent (e.g., servers) or extremely long-running (>2 minutes).
 - **ALWAYS** use `captureTaskOutput` when you need the isolated output of a specific task (e.g., `help`, `dependencies`).
 - **ALWAYS** check the build dashboard (`inspect_build()`) to manage active processes and historical results.
@@ -58,6 +58,12 @@ To get exhaustive information, ALWAYS use `mode="details"` combined with a speci
 Use `wait`, `waitFor`, or `waitForTask` to block until a condition is met in a background build.
 
 - **Example**: `inspect_build(buildId="ID", wait=60, waitFor="Started Application")`
+
+### 5. Monitoring Test Progress
+
+While a build is running, the progress notification (and the `inspect_build` summary) provides real-time counts of passed, failed, and skipped tests. This gives immediate feedback on the health of the test suite.
+
+- **Example**: Call `inspect_build(buildId="ID", mode="summary")` repeatedly to see updated test counts: `(5 passed, 1 failed)`.
 
 ## Directives
 

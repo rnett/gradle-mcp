@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.dependencies
 
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
@@ -168,7 +169,7 @@ class GradleDependencyParsingTest {
             additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
             stdoutLineHandler: ((String) -> Unit)?,
             stderrLineHandler: ((String) -> Unit)?,
-            progressHandler: ((Double, Double?, String?) -> Unit)?,
+            progress: ProgressReporter,
             requiresGradleProject: Boolean
         ): GradleResult<T> = throw UnsupportedOperationException()
 
@@ -178,7 +179,7 @@ class GradleDependencyParsingTest {
             additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
             stdoutLineHandler: ((String) -> Unit)?,
             stderrLineHandler: ((String) -> Unit)?,
-            progressHandler: ((Double, Double?, String?) -> Unit)?
+            progress: ProgressReporter
         ): RunningBuild = throw UnsupportedOperationException()
 
         override fun runTests(
@@ -188,7 +189,7 @@ class GradleDependencyParsingTest {
             additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
             stdoutLineHandler: ((String) -> Unit)?,
             stderrLineHandler: ((String) -> Unit)?,
-            progressHandler: ((Double, Double?, String?) -> Unit)?
+            progress: ProgressReporter
         ): RunningBuild = throw UnsupportedOperationException()
 
         override val buildManager: BuildManager

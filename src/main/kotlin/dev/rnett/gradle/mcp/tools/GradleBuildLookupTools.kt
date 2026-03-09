@@ -380,7 +380,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             |- **Full Console (EXCEPT TESTS)**:      `consoleTail=true` (tail) or `consoleTail=false` (head).
             |
             |### Wait & Progress Monitoring
-            |- Use `wait` (seconds) with `waitFor` (regex) or `waitForTask` (path) to monitor active builds.
+            |- Use `wait` (seconds) with `waitFor` (regex) or `waitForTask` (path) to monitor active builds and real-time test progress (e.g., pass/fail counts).
             |- Set `afterCall=true` to only look for events emitted after the tool is called.
         """.trimMargin()
     ) {

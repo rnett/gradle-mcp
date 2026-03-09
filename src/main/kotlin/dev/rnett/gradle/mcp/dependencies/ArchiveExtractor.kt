@@ -110,7 +110,7 @@ object ArchiveExtractor {
             var entryCount = 0
             entriesProcessor { entry, input ->
                 entryCount++
-                progress(entryCount.toDouble(), total, "Extracting ${entry.name}")
+                progress.report(entryCount.toDouble(), total, "Extracting ${entry.name}")
 
                 val finalPath = if (singleFirstDirPrefix != null && entry.name.startsWith(singleFirstDirPrefix)) {
                     entry.name.substring(singleFirstDirPrefix.length)

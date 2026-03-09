@@ -123,7 +123,7 @@ class DefaultGradleSourceService(
                     val now = System.currentTimeMillis()
                     if (now - lastUpdate >= 200 || bytesSentTotal == contentLength) {
                         lastUpdate = now
-                        downloadProgress(bytesSentTotal.toDouble(), contentLength?.toDouble(), "Downloading Gradle $version source distribution")
+                        downloadProgress.report(bytesSentTotal.toDouble(), contentLength?.toDouble(), "Downloading Gradle $version source distribution")
                     }
                 }
             }
@@ -170,7 +170,7 @@ class DefaultGradleSourceService(
         targetDir.sources.createDirectories()
 
         val extractionProgress = progress.withPhase("PROCESSING")
-        extractionProgress(0.0, 1.0, "Extracting Gradle $version sources")
+        extractionProgress.report(0.0, 1.0, "Extracting Gradle $version sources")
 
         LOGGER.info("Extracting Gradle sources from $sourceZip to ${targetDir.sources}")
         with(extractionProgress) {
@@ -179,7 +179,7 @@ class DefaultGradleSourceService(
 
         cleanupGradleSources(targetDir.sources)
 
-        extractionProgress(1.0, 1.0, "Extracted Gradle $version sources")
+        extractionProgress.report(1.0, 1.0, "Extracted Gradle $version sources")
 
         indexInternal(version, sourceZip, targetDir)
     }

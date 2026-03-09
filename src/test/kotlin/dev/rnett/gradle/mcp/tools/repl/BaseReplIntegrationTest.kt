@@ -142,7 +142,6 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single<GradleProvider> {
             DefaultGradleProvider(
                 get(),
-                initScriptProvider = get(),
                 buildManager = get()
             )
         }

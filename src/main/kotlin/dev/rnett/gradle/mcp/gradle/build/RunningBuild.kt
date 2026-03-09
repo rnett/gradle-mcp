@@ -1,7 +1,6 @@
 package dev.rnett.gradle.mcp.gradle.build
 
 import dev.rnett.gradle.mcp.gradle.BuildId
-import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.ProblemAggregation
 import dev.rnett.gradle.mcp.gradle.ProblemId
@@ -34,7 +33,10 @@ import kotlin.time.Instant
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-data class RunningBuild(
+/**
+ * Represents a running Gradle build.
+ */
+class RunningBuild(
     override val id: BuildId,
     override val args: GradleInvocationArguments,
     override val startTime: Instant,
@@ -48,7 +50,6 @@ data class RunningBuild(
         private set
 
     private val _activeOperations: MutableSet<String> = ConcurrentHashMap.newKeySet()
-    val activeOperations: Set<String> get() = Collections.unmodifiableSet(_activeOperations)
 
     @Volatile
     var lastFinishedOperation: String? = null
@@ -62,7 +63,7 @@ data class RunningBuild(
     override val problems: List<ProblemAggregation> get() = problemsAccumulator.aggregate()
     override val problemAggregations: Map<ProblemSeverity, List<ProblemAggregation>> get() = problemsAccumulator.aggregateBySeverity()
     private val indexer = FailureIndexer()
-    val testResultsInternal = DefaultGradleProvider.TestCollector(true, true, cancellationTokenSource.token())
+    internal val testResultsInternal = TestCollector(true, true, cancellationTokenSource.token())
     override val testResults: TestResults
         get() {
             val results = testResultsInternal.results(Clock.System.now().toEpochMilliseconds())
@@ -81,6 +82,26 @@ data class RunningBuild(
     val taskOutputsAccumulator = ConcurrentHashMap<String, StringBuffer>()
     override val taskOutputs: Map<String, String> get() = taskOutputsAccumulator.mapValues { it.value.toString() }
     override var taskOutputCapturingFailed: Boolean = false
+
+    /**
+     * The number of tests that have passed so far.
+     */
+    val passedTests: Int get() = testResultsInternal.passedCount
+
+    /**
+     * The number of tests that have failed so far.
+     */
+    val failedTests: Int get() = testResultsInternal.failedCount
+
+    /**
+     * The number of tests that have been skipped so far.
+     */
+    val skippedTests: Int get() = testResultsInternal.skippedCount
+
+    /**
+     * The total number of tests detected so far (passed + failed + skipped + cancelled + in progress).
+     */
+    val totalTests: Int get() = testResultsInternal.totalCount
 
     private val _logLines = MutableSharedFlow<String>(replay = 10, extraBufferCapacity = 500, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     val logLines: SharedFlow<String> = _logLines.asSharedFlow()
@@ -182,11 +203,11 @@ data class RunningBuild(
         currentSubStatus = status
     }
 
-    fun getProgressMessage(fallbackMessage: String?): String {
+    fun getProgressMessage(): String {
         val active = _activeOperations.toList()
-        val phasePrefix = when (currentPhase) {
-            "CONFIGURE_ROOT_BUILD", "CONFIGURE_BUILD" -> "[CONFIGURING] "
-            "RUN_MAIN_TASKS", "RUN_WORK" -> "[EXECUTING] "
+        val phasePrefix = when {
+            currentPhase?.contains("CONFIGUR") == true -> "[CONFIGURING] "
+            currentPhase?.contains("EXECUT") == true || currentPhase?.contains("RUN") == true -> "[EXECUTING] "
             else -> ""
         }
         val baseMessage = when {
@@ -200,7 +221,7 @@ data class RunningBuild(
             }
 
             lastFinishedOperation != null -> "Finished $lastFinishedOperation"
-            else -> fallbackMessage ?: currentPhase ?: "Running build"
+            else -> currentPhase ?: "Running build"
         }
 
         val fullMessage = if (currentSubStatus != null) {
@@ -209,7 +230,22 @@ data class RunningBuild(
             baseMessage
         }
 
-        return phasePrefix + fullMessage
+        return phasePrefix + fullMessage + getTestSummary()
+    }
+
+    private fun getTestSummary(): String {
+        if (totalTests == 0) return ""
+
+        val passed = passedTests
+        val failed = failedTests
+        val skipped = skippedTests
+
+        val parts = mutableListOf<String>()
+        if (passed > 0) parts += "$passed passed"
+        if (failed > 0) parts += "$failed failed"
+        if (skipped > 0) parts += "$skipped skipped"
+
+        return if (parts.isNotEmpty()) " (${parts.joinToString(", ")})" else ""
     }
 }
 
@@ -325,7 +361,7 @@ internal class ProblemsAccumulator {
     }
 }
 
-private fun DefaultGradleProvider.TestCollector.Result.toModel(indexer: FailureIndexer, status: TestOutcome): TestResult {
+private fun TestCollector.Result.toModel(indexer: FailureIndexer, status: TestOutcome): TestResult {
     return TestResult(
         testName,
         output,

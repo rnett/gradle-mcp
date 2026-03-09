@@ -19,7 +19,7 @@ This tool provides a managed environment with high-resolution feedback, authorit
 ### Wait & Progress Monitoring
 After starting a build, use `inspect_build` with the returned `BuildId` to monitor progress or perform deep-dive failure diagnostics.
 
-Note: Avoid `--rerun-tasks` unless investigating cache issues. Use `invocationArguments: { envSource: "SHELL" }` if Gradle isn't finding expected environment variables (e.g., JDKs).
+Note: Avoid `--rerun-tasks` (which reruns ALL tasks) unless investigating broad cache issues. Prefer `--rerun` for individual tasks. Use `invocationArguments: { envSource: "SHELL" }` if Gradle isn't finding expected environment variables (e.g., JDKs).
 
 <details>
 

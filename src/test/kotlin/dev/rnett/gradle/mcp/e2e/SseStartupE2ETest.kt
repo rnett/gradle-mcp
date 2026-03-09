@@ -2,21 +2,19 @@ package dev.rnett.gradle.mcp.e2e
 
 import dev.rnett.gradle.mcp.Application
 import dev.rnett.gradle.mcp.Transport
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.sse.SSE
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.sse.*
 import io.modelcontextprotocol.kotlin.sdk.Implementation
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.ClientOptions
 import io.modelcontextprotocol.kotlin.sdk.client.SseClientTransport
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.junit.jupiter.api.Test
+import kotlin.random.Random
 import kotlin.test.AfterTest
 import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.seconds
 
 class SseStartupE2ETest {
 
@@ -29,7 +27,7 @@ class SseStartupE2ETest {
     @Test
     suspend fun `application starts with sse transport and client can initialize`() {
         coroutineScope {
-            val port = 47814
+            val port = Random.nextInt(40000, 60000)
 
             System.setProperty("ktor.deployment.port", port.toString())
             System.setProperty("gradle.maxConnections", "4")
@@ -37,12 +35,7 @@ class SseStartupE2ETest {
             System.setProperty("gradle.allowPublicScansPublishing", "true")
 
             val application = Application(arrayOf("$$-test-nowait"), Transport.Sse())
-            launch {
-                application.start()
-            }
-
-            // Wait for server to start
-            delay(2.seconds)
+            application.start(false)
 
             val httpClient = HttpClient(CIO) {
                 install(SSE)
