@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.tools.dependencies
 
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
@@ -81,15 +82,17 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
         )
 
         coEvery {
-            dependencyService.getDependencies(
-                projectRoot = any(),
-                projectPath = any(),
-                configuration = any(),
-                sourceSet = any(),
-                checkUpdates = true,
-                versionFilter = any(),
-                onlyDirect = true
-            )
+            with(any<ProgressReporter>()) {
+                dependencyService.getDependencies(
+                    projectRoot = any(),
+                    projectPath = any(),
+                    configuration = any(),
+                    sourceSet = any(),
+                    checkUpdates = true,
+                    versionFilter = any(),
+                    onlyDirect = true
+                )
+            }
         } returns report
 
         val response = server.client.callTool(
@@ -147,7 +150,9 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
         )
 
         coEvery {
-            dependencyService.getDependencies(any(), any(), any(), any(), checkUpdates = true, versionFilter = any(), onlyDirect = true)
+            with(any<ProgressReporter>()) {
+                dependencyService.getDependencies(any(), any(), any(), any(), checkUpdates = true, versionFilter = any(), onlyDirect = true)
+            }
         } returns report
 
         val response = server.client.callTool(ToolNames.INSPECT_DEPENDENCIES, emptyMap()) as CallToolResult
@@ -323,7 +328,9 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
         )
 
         coEvery {
-            dependencyService.getDependencies(any(), any(), any(), any(), checkUpdates = true, any(), any())
+            with(any<ProgressReporter>()) {
+                dependencyService.getDependencies(any(), any(), any(), any(), checkUpdates = true, any(), any())
+            }
         } returns report
 
         val response = server.client.callTool(
@@ -350,7 +357,9 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
         )
 
         coEvery {
-            dependencyService.getDependencies(any(), any(), any(), any(), any(), any(), any())
+            with(any<ProgressReporter>()) {
+                dependencyService.getDependencies(any(), any(), any(), any(), any(), any(), any())
+            }
         } returns report
 
         val response = server.client.callTool(

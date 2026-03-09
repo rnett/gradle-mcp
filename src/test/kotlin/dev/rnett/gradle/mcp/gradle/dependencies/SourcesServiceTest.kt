@@ -61,7 +61,7 @@ class SourcesServiceTest {
             sourcesFile = sourcesFile
         )
 
-        coEvery { depService.downloadAllSources(any()) } returns GradleDependencyReport(
+        coEvery { with(any<ProgressReporter>()) { depService.downloadAllSources(any()) } } returns GradleDependencyReport(
             listOf(
                 dev.rnett.gradle.mcp.dependencies.model.GradleProjectDependencies(
                     path = ":",
@@ -105,7 +105,7 @@ class SourcesServiceTest {
             val result = sourcesService.downloadAllSources(projectRoot, fresh = false)
 
             assertNotNull(result)
-            coVerify(exactly = 0) { depService.downloadAllSources(any()) }
+            coVerify(exactly = 0) { with(any<ProgressReporter>()) { depService.downloadAllSources(any()) } }
         }
     }
 
@@ -120,11 +120,11 @@ class SourcesServiceTest {
             val dir = sourcesService.sourcesDir.resolve(projectRoot.projectRoot.hashCode().toString() + "".hashCode().toString() + "root".hashCode().toString())
             dir.resolve("sources").createDirectories()
 
-            coEvery { depService.downloadAllSources(any()) } returns GradleDependencyReport(emptyList())
+            coEvery { with(any<ProgressReporter>()) { depService.downloadAllSources(any()) } } returns GradleDependencyReport(emptyList())
 
             sourcesService.downloadAllSources(projectRoot, fresh = true)
 
-            coVerify(exactly = 1) { depService.downloadAllSources(projectRoot) }
+            coVerify(exactly = 1) { with(any<ProgressReporter>()) { depService.downloadAllSources(projectRoot) } }
         }
     }
 
@@ -135,11 +135,11 @@ class SourcesServiceTest {
             projectRootPath.createDirectories()
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
 
-            coEvery { depService.downloadAllSources(any()) } returns GradleDependencyReport(emptyList())
+            coEvery { with(any<ProgressReporter>()) { depService.downloadAllSources(any()) } } returns GradleDependencyReport(emptyList())
 
             sourcesService.downloadAllSources(projectRoot, fresh = false)
 
-            coVerify(exactly = 1) { depService.downloadAllSources(projectRoot) }
+            coVerify(exactly = 1) { with(any<ProgressReporter>()) { depService.downloadAllSources(projectRoot) } }
         }
     }
 
@@ -150,7 +150,7 @@ class SourcesServiceTest {
             projectRootPath.createDirectories()
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
 
-            coEvery { depService.downloadAllSources(any()) } returns GradleDependencyReport(emptyList())
+            coEvery { with(any<ProgressReporter>()) { depService.downloadAllSources(any()) } } returns GradleDependencyReport(emptyList())
 
             val result = sourcesService.downloadAllSources(projectRoot, fresh = true)
 
@@ -171,11 +171,11 @@ class SourcesServiceTest {
             dir.resolve("sources").createDirectories()
 
             sourcesService.downloadProjectSources(projectRoot, ":app", fresh = false)
-            coVerify(exactly = 0) { depService.downloadProjectSources(any(), any()) }
+            coVerify(exactly = 0) { with(any<ProgressReporter>()) { depService.downloadProjectSources(any(), any()) } }
 
-            coEvery { depService.downloadProjectSources(any(), any()) } returns mockk(relaxed = true)
+            coEvery { with(any<ProgressReporter>()) { depService.downloadProjectSources(any(), any()) } } returns mockk(relaxed = true)
             sourcesService.downloadProjectSources(projectRoot, ":app", fresh = true)
-            coVerify(exactly = 1) { depService.downloadProjectSources(projectRoot, ":app") }
+            coVerify(exactly = 1) { with(any<ProgressReporter>()) { depService.downloadProjectSources(projectRoot, ":app") } }
         }
     }
 
@@ -190,11 +190,11 @@ class SourcesServiceTest {
             dir.resolve("sources").createDirectories()
 
             sourcesService.downloadConfigurationSources(projectRoot, ":app:implementation", fresh = false)
-            coVerify(exactly = 0) { depService.downloadConfigurationSources(any(), any()) }
+            coVerify(exactly = 0) { with(any<ProgressReporter>()) { depService.downloadConfigurationSources(any(), any()) } }
 
-            coEvery { depService.downloadConfigurationSources(any(), any()) } returns mockk(relaxed = true)
+            coEvery { with(any<ProgressReporter>()) { depService.downloadConfigurationSources(any(), any()) } } returns mockk(relaxed = true)
             sourcesService.downloadConfigurationSources(projectRoot, ":app:implementation", fresh = true)
-            coVerify(exactly = 1) { depService.downloadConfigurationSources(projectRoot, ":app:implementation") }
+            coVerify(exactly = 1) { with(any<ProgressReporter>()) { depService.downloadConfigurationSources(projectRoot, ":app:implementation") } }
         }
     }
 
@@ -209,11 +209,11 @@ class SourcesServiceTest {
             dir.resolve("sources").createDirectories()
 
             sourcesService.downloadSourceSetSources(projectRoot, ":app:main", fresh = false)
-            coVerify(exactly = 0) { depService.downloadSourceSetSources(any(), any()) }
+            coVerify(exactly = 0) { with(any<ProgressReporter>()) { depService.downloadSourceSetSources(any(), any()) } }
 
-            coEvery { depService.downloadSourceSetSources(any(), any()) } returns mockk(relaxed = true)
+            coEvery { with(any<ProgressReporter>()) { depService.downloadSourceSetSources(any(), any()) } } returns mockk(relaxed = true)
             sourcesService.downloadSourceSetSources(projectRoot, ":app:main", fresh = true)
-            coVerify(exactly = 1) { depService.downloadSourceSetSources(projectRoot, ":app:main") }
+            coVerify(exactly = 1) { with(any<ProgressReporter>()) { depService.downloadSourceSetSources(projectRoot, ":app:main") } }
         }
     }
 }

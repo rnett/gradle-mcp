@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.dependencies
 
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
@@ -30,6 +31,7 @@ interface GradleDependencyService {
      * @param checkUpdates Whether to check for dependency updates.
      * @param onlyDirect Whether to only include direct dependencies.
      */
+    context(progress: ProgressReporter)
     suspend fun getDependencies(
         projectRoot: GradleProjectRoot,
         projectPath: String? = null,
@@ -47,6 +49,7 @@ interface GradleDependencyService {
      * @param projectRoot the Gradle project root
      * @param sourceSetPath the absolute Gradle path of the source set, e.g. :my:project:foo:main
      */
+    context(progress: ProgressReporter)
     suspend fun getSourceSetDependencies(
         projectRoot: GradleProjectRoot,
         sourceSetPath: String
@@ -58,6 +61,7 @@ interface GradleDependencyService {
      * @param projectRoot the Gradle project root
      * @param configurationPath the absolute Gradle path of the configuration, e.g. :my:project:foo:main
      */
+    context(progress: ProgressReporter)
     suspend fun getConfigurationDependencies(
         projectRoot: GradleProjectRoot,
         configurationPath: String
@@ -66,21 +70,25 @@ interface GradleDependencyService {
     /**
      * Download sources for all dependencies in the project.
      */
+    context(progress: ProgressReporter)
     suspend fun downloadAllSources(projectRoot: GradleProjectRoot): GradleDependencyReport
 
     /**
      * Download sources for all dependencies in a specific project.
      */
+    context(progress: ProgressReporter)
     suspend fun downloadProjectSources(projectRoot: GradleProjectRoot, projectPath: String): GradleProjectDependencies
 
     /**
      * Download sources for all dependencies in a specific configuration.
      */
+    context(progress: ProgressReporter)
     suspend fun downloadConfigurationSources(projectRoot: GradleProjectRoot, configurationPath: String): GradleConfigurationDependencies
 
     /**
      * Download sources for all dependencies in a specific source set.
      */
+    context(progress: ProgressReporter)
     suspend fun downloadSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String): GradleSourceSetDependencyReport
 }
 
@@ -217,6 +225,7 @@ class DefaultGradleDependencyService(
         }
     }
 
+    context(progress: ProgressReporter)
     override suspend fun getDependencies(
         projectRoot: GradleProjectRoot,
         projectPath: String?,
@@ -271,7 +280,8 @@ class DefaultGradleDependencyService(
             projectRoot = projectRoot,
             args = args,
             stdoutLineHandler = { /* captured via RunningBuild.consoleOutput; handlers optional */ },
-            stderrLineHandler = { /* same */ }
+            stderrLineHandler = { /* same */ },
+            progress = progress
         )
 
         // Wait for build to complete so console output is finalized
@@ -302,6 +312,7 @@ class DefaultGradleDependencyService(
         return filtered
     }
 
+    context(progress: ProgressReporter)
     override suspend fun getSourceSetDependencies(
         projectRoot: GradleProjectRoot,
         sourceSetPath: String
@@ -309,6 +320,7 @@ class DefaultGradleDependencyService(
         return getSourceSetDependencies(projectRoot, sourceSetPath, false)
     }
 
+    context(progress: ProgressReporter)
     private suspend fun getSourceSetDependencies(
         projectRoot: GradleProjectRoot,
         sourceSetPath: String,
@@ -344,6 +356,7 @@ class DefaultGradleDependencyService(
         )
     }
 
+    context(progress: ProgressReporter)
     override suspend fun getConfigurationDependencies(
         projectRoot: GradleProjectRoot,
         configurationPath: String
@@ -351,6 +364,7 @@ class DefaultGradleDependencyService(
         return getConfigurationDependencies(projectRoot, configurationPath, false)
     }
 
+    context(progress: ProgressReporter)
     private suspend fun getConfigurationDependencies(
         projectRoot: GradleProjectRoot,
         configurationPath: String,
@@ -382,6 +396,7 @@ class DefaultGradleDependencyService(
             ?: throw IllegalArgumentException("Configuration not found in project $projectPath: $configurationName")
     }
 
+    context(progress: ProgressReporter)
     override suspend fun downloadAllSources(projectRoot: GradleProjectRoot): GradleDependencyReport {
         return getDependencies(
             projectRoot = projectRoot,
@@ -389,6 +404,7 @@ class DefaultGradleDependencyService(
         )
     }
 
+    context(progress: ProgressReporter)
     override suspend fun downloadProjectSources(
         projectRoot: GradleProjectRoot,
         projectPath: String
@@ -403,6 +419,7 @@ class DefaultGradleDependencyService(
             ?: throw IllegalArgumentException("Project not found in report: $path")
     }
 
+    context(progress: ProgressReporter)
     override suspend fun downloadConfigurationSources(
         projectRoot: GradleProjectRoot,
         configurationPath: String
@@ -410,6 +427,7 @@ class DefaultGradleDependencyService(
         return getConfigurationDependencies(projectRoot, configurationPath, true)
     }
 
+    context(progress: ProgressReporter)
     override suspend fun downloadSourceSetSources(
         projectRoot: GradleProjectRoot,
         sourceSetPath: String

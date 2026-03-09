@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.repl
 
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.GradleProvider
@@ -9,6 +10,7 @@ import dev.rnett.gradle.mcp.tools.toOutputString
 import org.slf4j.LoggerFactory
 
 interface ReplEnvironmentService {
+    context(progress: ProgressReporter)
     suspend fun resolveReplEnvironment(
         projectRoot: GradleProjectRoot,
         projectPath: String,
@@ -29,6 +31,7 @@ class DefaultReplEnvironmentService(private val gradle: GradleProvider) : ReplEn
         private const val ENV_MARKER = "[gradle-mcp-repl-env]"
     }
 
+    context(progress: ProgressReporter)
     override suspend fun resolveReplEnvironment(
         projectRoot: GradleProjectRoot,
         projectPath: String,
@@ -47,7 +50,8 @@ class DefaultReplEnvironmentService(private val gradle: GradleProvider) : ReplEn
                     "-Pgradle-mcp.repl.additionalDependencies=${additionalDependencies.joinToString(";|;")}"
                 ),
                 requestedInitScripts = listOf(InitScriptNames.REPL_ENV)
-            )
+            ),
+            progress = progress
         )
 
         val finished = running.awaitFinished()

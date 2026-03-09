@@ -103,12 +103,14 @@ class ReplTools(
         val projectRoot = context.run { args.projectRoot.resolve() }
 
         val envResult = try {
-            replEnvironmentService.resolveReplEnvironment(
-                projectRoot,
-                projectPath,
-                sourceSet,
-                args.additionalDependencies
-            )
+            with(context.progressReporter) {
+                replEnvironmentService.resolveReplEnvironment(
+                    projectRoot,
+                    projectPath,
+                    sourceSet,
+                    args.additionalDependencies
+                )
+            }
         } catch (e: Exception) {
             return CallToolResult(listOf(TextContent(e.message ?: "Failed to resolve REPL environment")), isError = true)
         }

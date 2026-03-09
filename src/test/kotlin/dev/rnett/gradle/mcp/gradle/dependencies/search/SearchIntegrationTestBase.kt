@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.dependencies.search
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.DefaultSourcesService
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
@@ -72,7 +73,7 @@ abstract class SearchIntegrationTestBase {
                 )
             )
         )
-        coEvery { dependencyService.downloadAllSources(projectRoot) } returns report
+        coEvery { with(any<ProgressReporter>()) { dependencyService.downloadAllSources(projectRoot) } } returns report
     }
 
     @Test
@@ -96,7 +97,7 @@ abstract class SearchIntegrationTestBase {
             )
         )
 
-        val sourcesDir = with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+        val sourcesDir = with(ProgressReporter.NONE) {
             sourcesService.downloadAllSources(projectRoot, index = true)
         }
 

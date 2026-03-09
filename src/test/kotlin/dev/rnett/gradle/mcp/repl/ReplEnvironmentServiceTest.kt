@@ -291,12 +291,14 @@ class ReplEnvironmentServiceTest {
         additionalDependencies: List<String> = emptyList()
     ): ReplConfigWithJava {
         val projectRoot = GradleProjectRoot(project.pathString())
-        val env = replEnvService.resolveReplEnvironment(
-            projectRoot = projectRoot,
-            projectPath = projectPath,
-            sourceSet = sourceSet,
-            additionalDependencies = additionalDependencies
-        )
+        val env = with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            replEnvService.resolveReplEnvironment(
+                projectRoot = projectRoot,
+                projectPath = projectPath,
+                sourceSet = sourceSet,
+                additionalDependencies = additionalDependencies
+            )
+        }
         return env
     }
 }

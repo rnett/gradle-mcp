@@ -63,19 +63,21 @@ class GradleDependencyTools(
         """.trimMargin()
     ) {
         val root = with(server) { it.projectRoot.resolveRoot() }
-        val report = dependencyService.getDependencies(
-            projectRoot = root,
-            projectPath = it.projectPath.path,
-            configuration = it.configuration,
-            sourceSet = it.sourceSet,
-            checkUpdates = it.checkUpdates || it.updatesOnly,
-            versionFilter = when {
-                it.stableOnly -> "^(?i).+?(?<![.-](?:alpha|beta|rc|m|milestone|releasecandidate|dev|ea|preview|snapshot|canary)[0-9]*)$"
-                it.versionFilter != null -> it.versionFilter
-                else -> null
-            },
-            onlyDirect = it.onlyDirect
-        )
+        val report = with(progressReporter) {
+            dependencyService.getDependencies(
+                projectRoot = root,
+                projectPath = it.projectPath.path,
+                configuration = it.configuration,
+                sourceSet = it.sourceSet,
+                checkUpdates = it.checkUpdates || it.updatesOnly,
+                versionFilter = when {
+                    it.stableOnly -> "^(?i).+?(?<![.-](?:alpha|beta|rc|m|milestone|releasecandidate|dev|ea|preview|snapshot|canary)[0-9]*)$"
+                    it.versionFilter != null -> it.versionFilter
+                    else -> null
+                },
+                onlyDirect = it.onlyDirect
+            )
+        }
 
         if (it.updatesOnly) {
             formatUpdatesSummary(report, it.pagination)

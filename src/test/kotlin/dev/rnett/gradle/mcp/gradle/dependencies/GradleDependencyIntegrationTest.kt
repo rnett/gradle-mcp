@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.dependencies
 
 import dev.rnett.gradle.mcp.BuildConfig
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
@@ -148,7 +149,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `can get dependencies for java project`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val report = service.getDependencies(projectRoot, projectPath = ":sub-a")
+        val report = with(ProgressReporter.NONE) { service.getDependencies(projectRoot, projectPath = ":sub-a") }
 
         assertNotNull(report)
         val subA = report.projects.find { it.path == ":sub-a" }
@@ -166,7 +167,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `can get dependencies for kotlin project`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val report = service.getDependencies(projectRoot, projectPath = ":sub-b")
+        val report = with(ProgressReporter.NONE) { service.getDependencies(projectRoot, projectPath = ":sub-b") }
 
         assertNotNull(report)
         val subB = report.projects.find { it.path == ":sub-b" }
@@ -185,7 +186,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `can get transitive dependencies`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val report = service.getDependencies(projectRoot, projectPath = ":sub-a", configuration = "testCompileClasspath")
+        val report = with(ProgressReporter.NONE) { service.getDependencies(projectRoot, projectPath = ":sub-a", configuration = "testCompileClasspath") }
 
         val subA = report.projects.find { it.path == ":sub-a" }
         assertNotNull(subA)
@@ -209,7 +210,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `can filter dependencies by configuration`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val report = service.getDependencies(projectRoot, projectPath = ":sub-a", configuration = "runtimeClasspath")
+        val report = with(ProgressReporter.NONE) { service.getDependencies(projectRoot, projectPath = ":sub-a", configuration = "runtimeClasspath") }
 
         val subA = report.projects.find { it.path == ":sub-a" }
         assertNotNull(subA)
@@ -221,7 +222,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `can filter only direct dependencies`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val report = service.getDependencies(projectRoot, projectPath = ":sub-a", configuration = "testCompileClasspath", onlyDirect = true)
+        val report = with(ProgressReporter.NONE) { service.getDependencies(projectRoot, projectPath = ":sub-a", configuration = "testCompileClasspath", onlyDirect = true) }
 
         val subA = report.projects.find { it.path == ":sub-a" }
         assertNotNull(subA)
@@ -236,7 +237,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `can get dependencies for all projects`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val report = service.getDependencies(projectRoot)
+        val report = with(ProgressReporter.NONE) { service.getDependencies(projectRoot) }
 
         assertNotNull(report)
         assertEquals(5, report.projects.size, "Should have root, sub-a, sub-b, sub-lib, and sub-kmp")
@@ -245,7 +246,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `can get dependencies for kmp project`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val report = service.getDependencies(projectRoot, projectPath = ":sub-kmp")
+        val report = with(ProgressReporter.NONE) { service.getDependencies(projectRoot, projectPath = ":sub-kmp") }
 
         assertNotNull(report)
         val subKmp = report.projects.find { it.path == ":sub-kmp" }
@@ -279,7 +280,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `can get dependencies for particular configuration path`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val config = service.getConfigurationDependencies(projectRoot, ":sub-a:implementation")
+        val config = with(ProgressReporter.NONE) { service.getConfigurationDependencies(projectRoot, ":sub-a:implementation") }
 
         assertNotNull(config)
         assertEquals("implementation", config.name)
@@ -288,7 +289,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `can get dependencies for particular source set path`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val report = service.getSourceSetDependencies(projectRoot, ":sub-a:main")
+        val report = with(ProgressReporter.NONE) { service.getSourceSetDependencies(projectRoot, ":sub-a:main") }
 
         assertNotNull(report)
         assertEquals("main", report.name)
@@ -298,7 +299,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `can check for updates`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val report = service.getDependencies(projectRoot, projectPath = ":sub-a", checkUpdates = true)
+        val report = with(ProgressReporter.NONE) { service.getDependencies(projectRoot, projectPath = ":sub-a", checkUpdates = true) }
 
         val slf4j = report.projects.flatMap { it.configurations }
             .flatMap { it.dependencies }
@@ -315,12 +316,14 @@ class GradleDependencyIntegrationTest {
         // slf4j-api 1.7.30 is old, should have many stable updates.
         // We'll use a dummy dependency that has a beta update if possible, but for now we'll just check if it works with the regex.
         // Since we can't easily control the external repo, we'll just verify the call doesn't fail.
-        val report = service.getDependencies(
-            projectRoot,
-            projectPath = ":sub-a",
-            checkUpdates = true,
-            versionFilter = "^(?i).+?(?<![.-](?:alpha|beta|rc|m|preview|snapshot|canary)[0-9]*)$"
-        )
+        val report = with(ProgressReporter.NONE) {
+            service.getDependencies(
+                projectRoot,
+                projectPath = ":sub-a",
+                checkUpdates = true,
+                versionFilter = "^(?i).+?(?<![.-](?:alpha|beta|rc|m|preview|snapshot|canary)[0-9]*)$"
+            )
+        }
 
         val slf4j = report.projects.flatMap { it.configurations }
             .flatMap { it.dependencies }
@@ -338,7 +341,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `differentiates between different capabilities of the same project`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val report = service.getDependencies(projectRoot, projectPath = ":")
+        val report = with(ProgressReporter.NONE) { service.getDependencies(projectRoot, projectPath = ":") }
 
         val rootProject = report.projects.find { it.path == ":" }
         assertNotNull(rootProject)
@@ -353,7 +356,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `differentiates between different configurations of the same project`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val report = service.getDependencies(projectRoot, projectPath = ":")
+        val report = with(ProgressReporter.NONE) { service.getDependencies(projectRoot, projectPath = ":") }
 
         val rootProject = report.projects.find { it.path == ":" }
         assertNotNull(rootProject)
@@ -368,7 +371,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `reports extendsFrom correctly`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val report = service.getDependencies(projectRoot, projectPath = ":")
+        val report = with(ProgressReporter.NONE) { service.getDependencies(projectRoot, projectPath = ":") }
 
         val rootProject = report.projects.find { it.path == ":" }
         assertNotNull(rootProject)
@@ -385,7 +388,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `can get buildscript dependencies`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val report = service.getDependencies(projectRoot, projectPath = ":")
+        val report = with(ProgressReporter.NONE) { service.getDependencies(projectRoot, projectPath = ":") }
 
         val rootProject = report.projects.find { it.path == ":" }
         assertNotNull(rootProject)
@@ -400,7 +403,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `can get dependencies and sources for normally applied plugins`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val config = service.downloadConfigurationSources(projectRoot, ":sub-b:buildscript:classpath")
+        val config = with(ProgressReporter.NONE) { service.downloadConfigurationSources(projectRoot, ":sub-b:buildscript:classpath") }
 
         assertNotNull(config)
         assertEquals("buildscript:classpath", config.name)

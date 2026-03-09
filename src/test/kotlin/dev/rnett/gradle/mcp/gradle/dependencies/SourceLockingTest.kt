@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.dependencies
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
@@ -66,7 +67,7 @@ class SourceLockingTest {
             sourcesFile = sourceFile
         )
 
-        coEvery { depService.downloadAllSources(any()) } coAnswers {
+        coEvery { with(any<ProgressReporter>()) { depService.downloadAllSources(any()) } } coAnswers {
             delay(500)
             GradleDependencyReport(
                 listOf(
@@ -95,7 +96,7 @@ class SourceLockingTest {
             indexService.index(any<GradleDependency>(), any<Path>())
         } returns null
         coEvery {
-            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+            with(any<ProgressReporter>()) {
                 indexService.mergeIndices(any(), any())
             }
         } returns Unit
@@ -103,7 +104,7 @@ class SourceLockingTest {
         // Start multiple concurrent requests
         val jobs = List(3) {
             async(Dispatchers.IO) {
-                with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+                with(ProgressReporter.NONE) {
                     sourcesService.downloadAllSources(projectRoot, fresh = false)
                 }
             }
@@ -111,7 +112,7 @@ class SourceLockingTest {
 
         jobs.awaitAll()
 
-        coVerify(exactly = 1) { depService.downloadAllSources(projectRoot) }
+        coVerify(exactly = 1) { with(any<ProgressReporter>()) { depService.downloadAllSources(projectRoot) } }
     }
 
     @Test
@@ -150,7 +151,7 @@ class SourceLockingTest {
             )
         )
 
-        coEvery { depService.downloadAllSources(any()) } returns report
+        coEvery { with(any<ProgressReporter>()) { depService.downloadAllSources(any()) } } returns report
         coEvery {
             indexService.index(any<GradleDependency>(), any<kotlinx.coroutines.flow.Flow<IndexEntry>>())
         } returns null
@@ -158,22 +159,22 @@ class SourceLockingTest {
             indexService.index(any<GradleDependency>(), any<Path>())
         } returns null
         coEvery {
-            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+            with(any<ProgressReporter>()) {
                 indexService.mergeIndices(any(), any())
             }
         } returns Unit
 
         // 1. Initial download to populate cache
-        with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+        with(ProgressReporter.NONE) {
             sourcesService.downloadAllSources(projectRoot, fresh = true)
         }
-        coVerify(exactly = 1) { depService.downloadAllSources(projectRoot) }
+        coVerify(exactly = 1) { with(any<ProgressReporter>()) { depService.downloadAllSources(projectRoot) } }
 
         // 2. Start multiple parallel readers (fresh = false)
         // They should all acquire shared lock and return immediately without blocking each other
         val jobs = List(5) {
             async(Dispatchers.IO) {
-                with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+                with(ProgressReporter.NONE) {
                     sourcesService.downloadAllSources(projectRoot, fresh = false)
                 }
             }
@@ -182,6 +183,6 @@ class SourceLockingTest {
         jobs.awaitAll()
 
         // No additional calls to depService
-        coVerify(exactly = 1) { depService.downloadAllSources(projectRoot) }
+        coVerify(exactly = 1) { with(any<ProgressReporter>()) { depService.downloadAllSources(projectRoot) } }
     }
 }
