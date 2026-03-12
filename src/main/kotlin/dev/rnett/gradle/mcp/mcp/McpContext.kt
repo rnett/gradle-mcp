@@ -31,7 +31,6 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.isActive
@@ -68,6 +67,10 @@ open class McpContext(
     val requestWithMeta: WithMeta
 ) : AutoCloseable {
     private val notificationQueue = MutableSharedFlow<Notification>(0, 500, BufferOverflow.DROP_OLDEST)
+
+    protected open val disableSampling: Boolean
+        get() = System.getProperty("gradle.mcp.test.disableSampling") == "true"
+
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     @PublishedApi
@@ -117,13 +120,10 @@ open class McpContext(
         it.longOrNull?.let { RequestId.NumberId(it) } ?: it.contentOrNull?.let { RequestId.StringId(it) }
     }
 
-    protected open val disableSampling: Boolean
-        get() = System.getProperty("gradle.mcp.test.disableSampling") == "true"
-
     @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
     val progressReporter: ProgressReporter by lazy {
         val flow = MutableSharedFlow<Triple<Double, Double?, String?>>(10, extraBufferCapacity = 50, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-        scope.launch(Dispatchers.Default) {
+        scope.launch {
             val transformed = flow.transformLatest {
                 val (p, t, msg) = it
                 while (currentCoroutineContext().isActive) {
@@ -135,9 +135,9 @@ open class McpContext(
                 }
             }
 
-            val sampled = if (disableSampling) transformed else transformed.sample(100)
+            val sampled = if (disableSampling) flow else transformed.sample(100)
 
-            sampled.collectLatest {
+            sampled.collect {
                 try {
                     emitProgressNotification(it.first, it.second, it.third)
                 } catch (e: Exception) {
@@ -167,7 +167,7 @@ open class McpContext(
     }
 
     init {
-        scope.launch(Dispatchers.IO) {
+        scope.launch {
             notificationQueue.collect { notification ->
                 sendNotification(notification)
             }

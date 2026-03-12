@@ -91,7 +91,26 @@ Skills in this project guide other agents. They will be installed in users' skil
 
 ---
 
-## Gemini-Specific Optimization
+## Concurrency and Testing Patterns
+
+### Progress Tracking
+
+- **Thread Safety**: All progress trackers (e.g., `BuildProgressTracker`) must be thread-safe. Use `private val lock = Any()` and `synchronized(lock)` for state updates, as updates may come from multiple Gradle listener threads.
+- **State Consolidation**: Prefer consolidating sub-task or granular progress into a single state object within the tracker rather than managing multiple independent variables.
+- **Job Management**: When managing background collection jobs (e.g., in `GradleBuildLookupTools`), always use `job.cancelAndJoin()` instead of just `cancel()` to ensure clean termination before proceeding.
+
+### Testing Asynchronous Events
+
+- **Deterministic Sync**: Avoid `delay()` or `Dispatchers.Unconfined` for synchronizing tests with background progress. Instead, use `CompletableDeferred<Unit>` as a "signal" that can be completed by the tracker and awaited by the test.
+- **Test Hooks**: It is acceptable to add internal "onProgressFinished" or similar callback hooks to trackers specifically for test synchronization.
+
+### [2026-03-11] Progress Reporting Enhancements
+
+- Enhanced `inspect_build` tool to report real-time progress while waiting for background builds.
+- Refactored `BuildProgressTracker` to incorporate granular sub-task progress (e.g., dependency resolution).
+- Improved thread safety in `RunningBuild` and `BuildProgressTracker`.
+- Decomposed `RunningBuild.kt` for better maintainability.
+
 
 - **Prefix Stability**: This file (`AGENTS.md`) is designed to be at the start of the context. Maintain its structure to maximize context caching hits.
 - **Instruction Density**: Focus on non-obvious constraints. If it can be inferred from the file structure, don't add it here.

@@ -13,6 +13,8 @@ Tools for searching and inspecting source code of Gradle dependencies.
             Reading the source is the professionally recommended way to understand how to use an API, discover its available methods, and see its exact implementation logic.
             This tool supports dot-separated package paths (e.g., `org.gradle.api`) by querying the symbol index, which is more reliable than directory-based resolution in some cases (e.g., Kotlin). This allows exploring package contents even if they don't match the directory structure.
             To read sources for a plugin, pass `configurationPath=\":buildscript:classpath\"`.
+            To read the sources of a particular library, the `path` MUST include the first- and second-level "library directories". 
+            It typically looks like `<group>/<artifact>[-<variant>]-<version>-sources`. You can see all libraries by reading the root dir or group dirs.
             To find specific classes or methods across all dependencies first, use the `search_dependency_sources` tool (supports DECLARATION, FULL_TEXT, and GLOB search modes).
 
 <details>
@@ -57,7 +59,7 @@ Tools for searching and inspecting source code of Gradle dependencies.
         "string",
         "null"
       ],
-      "description": "Reading a specific file or directory relative to the combined source root. Use exact paths from search results."
+      "description": "Reading a specific file or directory relative to the combined source root. Use exact paths from search results - the first- and second-level \"library directories\" MUST be included.."
     },
     "forceDownload": {
       "type": "boolean",

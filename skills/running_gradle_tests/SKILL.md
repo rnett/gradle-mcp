@@ -50,6 +50,13 @@ Use `testName` with the default `mode="summary"` to see all executions of a test
 
 - **Example**: `inspect_build(buildId="ID", testName="MyTest")`
 
+### 4. Progress Monitoring
+
+Use `wait`, `waitFor`, or `waitForTask` to block until a condition is met in a background test run.
+
+- **Example**: `inspect_build(buildId="ID", wait=60, waitForTask=":app:test")`
+- **Wait for completion**: If `wait` is provided but `waitFor` and `waitForTask` are omitted, the tool will wait for the build to finish.
+
 ## Directives
 
 - **ALWAYS use foreground for authoritative tests**: If you intend to wait for results, ALWAYS use foreground execution. It provides superior progressive disclosure and simpler control flow than starting a background build only to
@@ -122,8 +129,9 @@ Providing a path **with a leading colon** targets a **single specific project**.
 1. Identify the `BuildId` from the result.
 2. Use `inspect_build(buildId=ID, testOutcome="FAILED")` to list all failed tests.
 3. **CRITICAL**: Use `inspect_build(buildId=ID, mode="details", testName=TNAME)` to see the full output and stack trace for a specific test.
-  - **DO NOT** use `taskPath` or `captureTaskOutput` for this.
-  - Per-test output is authoritative, isolated, and contains full stack traces that are often omitted from the task console.
+
+- **DO NOT** use `taskPath` or `captureTaskOutput` for this.
+- Per-test output is authoritative, isolated, and contains full stack traces that are often omitted from the task console.
 
 ## Examples
 
@@ -137,13 +145,16 @@ Providing a path **with a leading colon** targets a **single specific project**.
 ```
 
 ### List all failed tests in a build
+
 ```json
 {
   "buildId": "build_20240301_130000_def456",
   "testOutcome": "FAILED"
 }
 ```
+
 // Reasoning: Using inspect_build to isolate only the failures from a large test suite.
+
 ```
 
 ### Look up details for a specific failed test
@@ -154,7 +165,9 @@ Providing a path **with a leading colon** targets a **single specific project**.
   "testName": "com.example.a.MyTest.shouldFail"
 }
 ```
+
 // Reasoning: Retrieving the full stack trace and isolated stdout/stderr for a specific failure.
+
 ```
 
 ## Resources

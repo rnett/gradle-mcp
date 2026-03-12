@@ -58,6 +58,7 @@ To get exhaustive information, ALWAYS use `mode="details"` combined with a speci
 Use `wait`, `waitFor`, or `waitForTask` to block until a condition is met in a background build.
 
 - **Example**: `inspect_build(buildId="ID", wait=60, waitFor="Started Application")`
+- **Wait for completion**: If `wait` is provided but `waitFor` and `waitForTask` are omitted, the tool will wait for the build to finish.
 
 ### 5. Monitoring Test Progress
 

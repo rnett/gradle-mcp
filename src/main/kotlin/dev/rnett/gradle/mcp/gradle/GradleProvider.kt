@@ -121,7 +121,7 @@ class DefaultGradleProvider(
         projectRootInput: GradleProjectRoot
     ): Pair<RunningBuild, Deferred<Result<R>>> {
         val projectRoot = GradlePathUtils.getRootProjectPath(projectRootInput, requiresGradleProject)
-        val buildId = BuildId.newId()
+        val buildId = buildManager.newId()
         val cancellationTokenSource = GradleConnector.newCancellationTokenSource()
         val runningBuild = RunningBuild(
             id = buildId,

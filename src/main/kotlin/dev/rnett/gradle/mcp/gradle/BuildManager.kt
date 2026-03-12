@@ -12,6 +12,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.time.Clock
@@ -20,6 +21,9 @@ import kotlin.time.Instant
 
 @OptIn(ExperimentalAtomicApi::class)
 class BuildManager : AutoCloseable {
+    private val counter = AtomicInteger(1)
+    fun newId() = BuildId("b-${counter.getAndIncrement()}")
+
     private val builds = ConcurrentHashMap<BuildId, Build>()
     private val lastAccess = ConcurrentHashMap<BuildId, Instant>()
     private val latestFinished = AtomicReference<FinishedBuild?>(null)

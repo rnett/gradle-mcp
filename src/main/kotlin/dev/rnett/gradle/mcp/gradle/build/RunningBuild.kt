@@ -3,10 +3,7 @@ package dev.rnett.gradle.mcp.gradle.build
 import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.ProblemAggregation
-import dev.rnett.gradle.mcp.gradle.ProblemId
 import dev.rnett.gradle.mcp.gradle.ProblemSeverity
-import dev.rnett.gradle.mcp.gradle.toId
-import dev.rnett.gradle.mcp.mapToSet
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -14,24 +11,14 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import org.gradle.tooling.BuildCancelledException
 import org.gradle.tooling.CancellationTokenSource
-import org.gradle.tooling.Failure
 import org.gradle.tooling.GradleConnectionException
-import org.gradle.tooling.events.problems.FileLocation
-import org.gradle.tooling.events.problems.Location
-import org.gradle.tooling.events.problems.PluginIdLocation
-import org.gradle.tooling.events.problems.Problem
-import org.gradle.tooling.events.problems.TaskPathLocation
 import java.nio.file.Path
-import java.util.*
+import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.AtomicLong
-import kotlin.io.path.Path
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 /**
  * Represents a running Gradle build.
@@ -43,25 +30,26 @@ class RunningBuild(
     val projectRoot: Path,
     val logBuffer: StringBuffer = StringBuffer(),
     val cancellationTokenSource: CancellationTokenSource
-) : Build {
-    val totalItems = AtomicLong(0)
-    val completedItems = AtomicLong(0)
-    var currentPhase: String? = null
-        private set
+) : Build, BuildProgressInfoProvider {
+    /**
+     * The progress tracker for this running build.
+     */
+    val progressTracker = BuildProgressTracker(this)
 
-    private val _activeOperations: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    /**
+     * The total number of items (e.g., tasks) in the current phase.
+     */
+    val totalItems get() = progressTracker.totalItems
 
-    @Volatile
-    var lastFinishedOperation: String? = null
-        private set
+    /**
+     * The number of completed items in the current phase.
+     */
+    val completedItems get() = progressTracker.completedItems
 
-    @Volatile
-    var currentSubStatus: String? = null
-        private set
-
-    @Volatile
-    var subStatusProgress: Double? = null
-        private set
+    /**
+     * The name of the current active phase.
+     */
+    val currentPhase get() = progressTracker.currentPhase
 
     internal val problemsAccumulator = ProblemsAccumulator()
     override val problems: List<ProblemAggregation> get() = problemsAccumulator.aggregate()
@@ -90,22 +78,22 @@ class RunningBuild(
     /**
      * The number of tests that have passed so far.
      */
-    val passedTests: Int get() = testResultsInternal.passedCount
+    override val passedTests: Int get() = testResultsInternal.passedCount
 
     /**
      * The number of tests that have failed so far.
      */
-    val failedTests: Int get() = testResultsInternal.failedCount
+    override val failedTests: Int get() = testResultsInternal.failedCount
 
     /**
      * The number of tests that have been skipped so far.
      */
-    val skippedTests: Int get() = testResultsInternal.skippedCount
+    override val skippedTests: Int get() = testResultsInternal.skippedCount
 
     /**
      * The total number of tests detected so far (passed + failed + skipped + cancelled + in progress).
      */
-    val totalTests: Int get() = testResultsInternal.totalCount
+    override val totalTests: Int get() = testResultsInternal.totalCount
 
     private val _logLines = MutableSharedFlow<String>(replay = 10, extraBufferCapacity = 500, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     val logLines: SharedFlow<String> = _logLines.asSharedFlow()
@@ -116,10 +104,11 @@ class RunningBuild(
     private val _taskPaths: MutableSet<String> = Collections.newSetFromMap(ConcurrentHashMap())
     val completedTaskPaths: Set<String> get() = _taskPaths.toSet()
 
+    @Volatile
     override var status: BuildStatus = BuildStatus.Running
         private set
 
-    override val consoleOutput: CharSequence get() = logBuffer
+    override val consoleOutput: CharSequence get() = synchronized(logBuffer) { logBuffer.toString() }
 
     private val finishedBuildDeferred = CompletableDeferred<FinishedBuild>()
 
@@ -153,13 +142,13 @@ class RunningBuild(
     }
 
     private var lastLine: String? = null
-    internal fun addLogLine(line: String) {
+    internal fun addLogLine(line: String) = synchronized(logBuffer) {
         lastLine = line
         logBuffer.append(line).append(System.lineSeparator())
         _logLines.tryEmit(line)
     }
 
-    internal fun replaceLastLogLine(oldLine: String, newLine: String) {
+    internal fun replaceLastLogLine(oldLine: String, newLine: String) = synchronized(logBuffer) {
         if (lastLine == oldLine || lastLine == "STDERR: $oldLine") {
             val toRemove = (lastLine ?: "") + System.lineSeparator()
             logBuffer.setLength(logBuffer.length - toRemove.length)
@@ -167,40 +156,18 @@ class RunningBuild(
         addLogLine(newLine)
     }
 
-    val subTaskTotal = AtomicLong(0)
-    val subTaskCompleted = AtomicLong(0)
-
-    @Volatile
-    var subTaskMessage: String? = null
-        private set
-
-    internal fun handleProgressLine(category: String, text: String) {
-        val totalMatch = Regex("TOTAL: (\\d+)").matchEntire(text)
-        if (totalMatch != null) {
-            subTaskTotal.set(totalMatch.groupValues[1].toLong())
-            subTaskCompleted.set(0)
-            subTaskMessage = "Starting $category"
-        } else {
-            val progressMatch = Regex("(\\d+)/(\\d+): (.*)").matchEntire(text)
-            if (progressMatch != null) {
-                subTaskCompleted.set(progressMatch.groupValues[1].toLong())
-                subTaskTotal.set(progressMatch.groupValues[2].toLong())
-                val detail = progressMatch.groupValues[3]
-                subTaskMessage = "$category: $detail"
-            }
-        }
-    }
-
     internal fun addTaskResult(taskPath: String, outcome: TaskOutcome, duration: Duration, consoleOutput: String?) {
         taskResults[taskPath] = TaskResult(taskPath, outcome, duration, consoleOutput)
         _taskPaths.add(taskPath)
         _completingTasks.tryEmit(taskPath)
+        progressTracker.emitProgress()
     }
 
     internal fun addTaskCompleted(taskPath: String) {
         if (!taskResults.containsKey(taskPath)) {
             _taskPaths.add(taskPath)
             _completingTasks.tryEmit(taskPath)
+            progressTracker.emitProgress()
         }
     }
 
@@ -208,92 +175,6 @@ class RunningBuild(
         taskOutputsAccumulator.getOrPut(taskPath) { StringBuffer() }.appendLine(output)
     }
 
-    internal fun onPhaseStart(phase: String, total: Int) {
-        currentPhase = phase
-        totalItems.set(total.toLong())
-        completedItems.set(0)
-    }
-
-    internal fun onItemFinish() {
-        completedItems.incrementAndGet()
-    }
-
-    internal fun addActiveOperation(operation: String) {
-        _activeOperations.add(operation)
-    }
-
-    internal fun removeActiveOperation(operation: String) {
-        _activeOperations.remove(operation)
-        lastFinishedOperation = operation
-    }
-
-    internal fun setSubStatus(status: String?, progress: Double? = null) {
-        currentSubStatus = status
-        subStatusProgress = progress
-    }
-
-    fun getProgressMessage(): String {
-        val active = _activeOperations.toList()
-        val phasePrefix = when {
-            currentPhase?.contains("CONFIGUR") == true -> "[CONFIGURING] "
-            currentPhase?.contains("EXECUT") == true || currentPhase?.contains("RUN") == true -> "[EXECUTING] "
-            else -> ""
-        }
-
-        val subTaskMsg = if (subTaskMessage != null && subTaskTotal.get() > 0) {
-            val completed = subTaskCompleted.get()
-            val total = subTaskTotal.get()
-            "$subTaskMessage ($completed/$total)"
-        } else null
-
-        val baseMessage = when {
-            subTaskMsg != null -> subTaskMsg
-            active.isNotEmpty() -> {
-                val lead = active.first()
-                if (active.size > 1) {
-                    "$lead and ${active.size - 1} others"
-                } else {
-                    lead
-                }
-            }
-
-            lastFinishedOperation != null -> "Finished $lastFinishedOperation"
-            else -> currentPhase ?: "Running build"
-        }
-
-        val statusSuffix = buildString {
-            if (currentSubStatus != null) {
-                append(currentSubStatus)
-                if (subStatusProgress != null) {
-                    val percent = (subStatusProgress!! * 100).toInt()
-                    append(" - $percent%")
-                }
-            }
-        }.takeIf { it.isNotEmpty() }
-
-        val fullMessage = if (statusSuffix != null) {
-            "$baseMessage ($statusSuffix)"
-        } else {
-            baseMessage
-        }
-
-        return phasePrefix + fullMessage + getTestSummary()
-    }
-
-    private fun getTestSummary(): String {
-        if (totalTests == 0) return ""
-
-        val passed = passedTests
-        val failed = failedTests
-        val skipped = skippedTests
-
-        val parts = mutableListOf<String>()
-        if (passed > 0) parts += "$passed passed"
-        if (failed > 0) parts += "$failed failed"
-        if (skipped > 0) parts += "$skipped skipped"
-
-        return if (parts.isNotEmpty()) " (${parts.joinToString(", ")})" else ""
-    }
 }
 
 private class RefFinishedBuild(val runningBuild: RunningBuild, override val finishTime: Instant, override val outcome: BuildOutcome) : FinishedBuild, Build by runningBuild {
@@ -312,102 +193,6 @@ private class RefFinishedBuild(val runningBuild: RunningBuild, override val fini
         get() = runningBuild.status
 }
 
-data class FailureContent(
-    val message: String?,
-    val description: String?,
-    val causes: Set<FailureContent>,
-    val problemAggregations: Map<ProblemSeverity, List<ProblemAggregation>>
-)
-
-class FailureIndexer {
-    private val indexes = mutableMapOf<FailureContent, FailureId>()
-
-    @OptIn(ExperimentalUuidApi::class)
-    fun index(content: FailureContent): FailureId = indexes.getOrPut(content) { FailureId(Uuid.random().toString()) }
-
-    fun withIndex(content: FailureContent): dev.rnett.gradle.mcp.gradle.build.Failure = Failure(index(content), content.message, content.description, content.causes.map { withIndex(it) }, content.problemAggregations)
-}
-
-internal class ProblemsAccumulator {
-    private val definitions = mutableMapOf<ProblemId, ProblemAggregation.ProblemDefinition>()
-    private val problems = mutableMapOf<ProblemId, MutableSet<ProblemAggregation.ProblemOccurence>>()
-
-    fun add(problem: ProblemAggregation) {
-        definitions.putIfAbsent(problem.definition.id, problem.definition)
-        problems.getOrPut(problem.definition.id) { mutableSetOf() }.addAll(problem.occurences)
-    }
-
-    fun add(problem: org.gradle.tooling.events.problems.ProblemAggregation) {
-        add(problem.toModel())
-    }
-
-    fun add(problem: Problem) {
-        add(problem.toModel())
-    }
-
-    fun aggregate(): List<ProblemAggregation> = definitions.map { (id, definition) ->
-        ProblemAggregation(definition, problems[id].orEmpty().toList())
-    }
-
-    fun aggregateBySeverity(): Map<ProblemSeverity, List<ProblemAggregation>> = aggregate().groupBy { it.definition.severity }
-
-    @Suppress("UNNECESSARY_SAFE_CALL")
-    fun org.gradle.tooling.events.problems.ProblemAggregation.toModel(): ProblemAggregation {
-        val aggregation = this
-        return ProblemAggregation(
-            definition = ProblemAggregation.ProblemDefinition(
-                id = definition.id.toId(),
-                displayName = definition.id.displayName,
-                severity = when (definition.severity.severity) {
-                    0 -> ProblemSeverity.ADVICE
-                    1 -> ProblemSeverity.WARNING
-                    2 -> ProblemSeverity.ERROR
-                    else -> ProblemSeverity.OTHER
-                },
-                documentationLink = definition.documentationLink?.url
-            ),
-            occurences = aggregation.problemContext.map {
-                ProblemAggregation.ProblemOccurence(
-                    details = it.details?.details,
-                    originLocations = it.originLocations.mapNotNull { it.toDescriptorString() },
-                    contextualLocations = it.contextualLocations.mapNotNull { it.toDescriptorString() },
-                    potentialSolutions = it.solutions.map { it.solution }
-                )
-            }
-        )
-    }
-
-    @Suppress("UNNECESSARY_SAFE_CALL")
-    fun Problem.toModel(): ProblemAggregation = ProblemAggregation(
-        definition = ProblemAggregation.ProblemDefinition(
-            id = definition.id.toId(),
-            displayName = definition.id.displayName,
-            severity = when (definition.severity.severity) {
-                0 -> ProblemSeverity.ADVICE
-                1 -> ProblemSeverity.WARNING
-                2 -> ProblemSeverity.ERROR
-                else -> ProblemSeverity.OTHER
-            },
-            documentationLink = definition.documentationLink?.url
-        ),
-        occurences = listOf(
-            ProblemAggregation.ProblemOccurence(
-                details = details?.details,
-                originLocations = originLocations.mapNotNull { it.toDescriptorString() },
-                contextualLocations = contextualLocations.mapNotNull { it.toDescriptorString() },
-                potentialSolutions = solutions.map { it.solution }
-            )
-        )
-    )
-
-    fun Location.toDescriptorString(): String? = when (this) {
-        is FileLocation -> "File: ${Path(path)}"
-        is TaskPathLocation -> "Task: buildTreePath"
-        is PluginIdLocation -> "Plugin: $pluginId"
-        else -> null
-    }
-}
-
 private fun TestCollector.Result.toModel(indexer: FailureIndexer, status: TestOutcome): TestResult {
     return TestResult(
         testName,
@@ -420,14 +205,3 @@ private fun TestCollector.Result.toModel(indexer: FailureIndexer, status: TestOu
     )
 }
 
-@OptIn(ExperimentalUuidApi::class)
-private fun Failure.toContent(): FailureContent {
-    val problemsAccumulator = ProblemsAccumulator()
-    problems.forEach { problemsAccumulator.add(it) }
-    return FailureContent(
-        message,
-        description,
-        causes.mapToSet { it.toContent() },
-        problemsAccumulator.aggregateBySeverity()
-    )
-}

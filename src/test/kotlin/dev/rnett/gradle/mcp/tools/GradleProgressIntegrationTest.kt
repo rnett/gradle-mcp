@@ -141,7 +141,7 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
         // Verify descriptive progress - we should see either active tasks or finished tasks
         val hasTaskDetail = notifications.any {
             val msg = it.message ?: ""
-            msg.contains(":help") || msg.contains(":tasks") || msg.contains("others") || msg.contains("Finished")
+            msg.contains(":help") || msg.contains(":tasks") || msg.contains("other task") || msg.contains("Finished")
         }
         assertTrue(hasTaskDetail, "Should have seen task-related details in progress (messages: ${notifications.map { it.message }})")
 

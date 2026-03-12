@@ -2,7 +2,6 @@ package dev.rnett.gradle.mcp.gradle
 
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
-import java.util.concurrent.atomic.AtomicInteger
 
 @Serializable
 @JvmInline
@@ -10,10 +9,6 @@ import java.util.concurrent.atomic.AtomicInteger
 value class BuildId(val id: String) {
 
     companion object {
-        private val counter = AtomicInteger(1)
-
-        fun newId() = BuildId("b-${counter.getAndIncrement()}")
-
         fun parse(text: String): BuildId {
             return BuildId(text)
         }

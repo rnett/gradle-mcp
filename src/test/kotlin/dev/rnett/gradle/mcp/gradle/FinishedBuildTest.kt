@@ -64,7 +64,7 @@ class FinishedBuildTest {
         )
 
         val result = FinishedBuild(
-            id = BuildId.newId(),
+            id = BuildId("test-id"),
             startTime = Clock.System.now(),
             args = args,
             consoleOutput = "BUILD SUCCESSFUL",
@@ -97,7 +97,7 @@ class FinishedBuildTest {
         )
 
         val result = FinishedBuild(
-            id = BuildId.newId(),
+            id = BuildId("test-id"),
             startTime = Clock.System.now(),
             args = args,
             consoleOutput = "BUILD FAILED",
@@ -211,7 +211,7 @@ class FinishedBuildTest {
     @Test
     fun `consoleOutputLines lazily splits console output`() {
         val result = FinishedBuild(
-            id = BuildId.newId(),
+            id = BuildId("test-id"),
             startTime = Clock.System.now(),
             args = args,
             consoleOutput = "Line 1\nLine 2\nLine 3",
@@ -250,7 +250,7 @@ class FinishedBuildTest {
         )
 
         val result = FinishedBuild(
-            id = BuildId.newId(),
+            id = BuildId("test-id"),
             startTime = Clock.System.now(),
             args = args,
             consoleOutput = "",
@@ -298,7 +298,7 @@ class FinishedBuildTest {
         )
 
         val result = FinishedBuild(
-            id = BuildId.newId(),
+            id = BuildId("test-id"),
             startTime = Clock.System.now(),
             args = args,
             consoleOutput = "",
@@ -347,7 +347,7 @@ class FinishedBuildTest {
         )
 
         val result = FinishedBuild(
-            id = BuildId.newId(),
+            id = BuildId("test-id"),
             startTime = Clock.System.now(),
             args = args,
             consoleOutput = "",
@@ -416,7 +416,7 @@ class FinishedBuildTest {
         """.trimMargin()
 
         val result = FinishedBuild(
-            id = BuildId.newId(),
+            id = BuildId("test-id"),
             startTime = Clock.System.now(),
             args = args,
             consoleOutput = consoleOutput,
@@ -457,7 +457,7 @@ class FinishedBuildTest {
         """.trimMargin()
 
         val result = FinishedBuild(
-            id = BuildId.newId(),
+            id = BuildId("test-id"),
             startTime = Clock.System.now(),
             args = args,
             consoleOutput = consoleOutput,
@@ -475,7 +475,7 @@ class FinishedBuildTest {
     @Test
     fun `getTaskOutput returns null if task not found`() {
         val result = FinishedBuild(
-            id = BuildId.newId(),
+            id = BuildId("test-id"),
             startTime = Clock.System.now(),
             args = args,
             consoleOutput = "BUILD SUCCESSFUL",
@@ -517,7 +517,7 @@ class GradleResultTest {
     @Test
     fun `can create successful gradle result`() {
         val finishedBuild = FinishedBuild(
-            id = BuildId.newId(),
+            id = BuildId("test-id"),
             startTime = Clock.System.now(),
             args = args,
             consoleOutput = "BUILD SUCCESSFUL",
@@ -541,7 +541,7 @@ class GradleResultTest {
     @Test
     fun `can create failed gradle result`() {
         val finishedBuild = FinishedBuild(
-            id = BuildId.newId(),
+            id = BuildId("test-id"),
             startTime = Clock.System.now(),
             args = args,
             consoleOutput = "BUILD FAILED",
@@ -565,7 +565,7 @@ class GradleResultTest {
     @Test
     fun `throwFailure returns build id and value on success`() {
         val finishedBuild = FinishedBuild(
-            id = BuildId.newId(),
+            id = BuildId("test-id"),
             startTime = Clock.System.now(),
             args = args,
             consoleOutput = "",

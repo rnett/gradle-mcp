@@ -28,7 +28,10 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
 - **Full Console (EXCEPT TESTS)**:      `consoleTail=true` (tail) or `consoleTail=false` (head).
 
 ### Wait & Progress Monitoring
-- Use `wait` (seconds) with `waitFor` (regex) or `waitForTask` (path) to monitor active builds and real-time test progress (e.g., pass/fail counts).
+- Use `timeout` (seconds) with `waitFor` (regex), `waitForTask` (path), or `waitForFinished` (boolean) to monitor active builds and real-time test progress (e.g., pass/fail counts).
+- If `timeout` is omitted, the tool returns immediately with the current build status.
+- If `timeout` is provided but `waitFor` and `waitForTask` are omitted, the tool defaults to waiting for the build to finish (equivalent to `waitForFinished=true`).
+- If the build finishes before the requested regex or task is found, the tool returns an error.
 - Set `afterCall=true` to only look for events emitted after the tool is called.
 
 <details>
@@ -54,32 +57,36 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
       "description": "Applying a surgical lookup mode: 'summary' (default) or 'details'. Use 'details' for exhaustive, deep-dive information.",
       "type": "string"
     },
-    "wait": {
+    "timeout": {
       "type": [
         "number",
         "null"
       ],
       "minimum": -1.7976931348623157E308,
       "maximum": 1.7976931348623157E308,
-      "description": "Maximum seconds to wait for an active build to reach a state or finish authoritatively. Use this for managed progress monitoring."
+      "description": "The maximum number of seconds to wait for the requested condition(s). If omitted, the tool returns immediately with the current build status."
+    },
+    "waitForFinished": {
+      "type": "boolean",
+      "description": "If true, wait for the build to finish authoritatively. This is the default behavior if 'timeout' is provided but no other wait conditions are specified."
     },
     "waitFor": {
       "type": [
         "string",
         "null"
       ],
-      "description": "Regex pattern to wait for in the build logs authoritatively. Ideal for detecting when a server has started or a specific event has occurred."
+      "description": "Regex pattern to wait for in the build logs authoritatively. Ideal for detecting when a server has started or a specific event has occurred. Uses 'timeout' for the maximum wait duration."
     },
     "waitForTask": {
       "type": [
         "string",
         "null"
       ],
-      "description": "Task path to wait for completion authoritatively. The most surgical way to monitor specific task progress."
+      "description": "Task path to wait for completion authoritatively. The most surgical way to monitor specific task progress. Uses 'timeout' for the maximum wait duration."
     },
     "afterCall": {
       "type": "boolean",
-      "description": "Setting to true only looks for matches emitted after this call. Only applies if 'wait' and ('waitFor' or 'waitForTask') are provided."
+      "description": "Setting to true only looks for matches emitted after this call. Only applies if 'timeout' and a wait condition ('waitFor', 'waitForTask', or 'waitForFinished') are provided."
     },
     "pagination": {
       "type": "object",

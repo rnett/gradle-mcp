@@ -5,20 +5,20 @@
 
 # Gradle MCP server
 
-A MCP server for Gradle.
-Tools include introspecting projects, running tasks, and running tests.
+A Model Context Protocol (MCP) server for Gradle. It gives AI agents the tools they need to explore project structures, run tasks, audit dependencies, and interact with the JVM runtime.
 
 ##### Features
 
-* Agent Skills. Guidance for AI agents on how to use these tools effectively. See the [documentation](./skills.md) for more.
-* Token-efficient context use. Tools use token efficient formats (i.e. not JSON) and only include the minimum relevant information. Details are relegated to specialized lookup tools.
-* Access to full test output, which is not typically possible when running from a terminal.
-* Inspect dependencies, and read and search in dependency sources.
-* Supports publishing Develocity Build Scans, using elicitation to get permission to publish to [the public instance](https://scans.gradle.com).
-* Tools for running and managing Gradle builds in the background. Helpful for running dev servers, etc.
-* Customization of JVM args, environment variables, and system properties. Plus, the ability to source environment variables from the shell instead of inheriting them - useful on macOS where IntelliJ or Gradle may not start with the right
-  env vars.
-* A REPL that can run Kotlin code in your project's context.
+* **Agent Skills**: Built-in workflows that guide AI agents through complex Gradle tasks. See the [documentation](./skills.md) for more.
+* **Project Mapping**: Easily explore multi-project structures, modules, tasks, and properties.
+* **Smart Task Execution**: Run builds in the background, monitor progress, and capture specific task outputs without the noise. Supports advanced environment control and shell environment sourcing.
+* **Advanced Testing**: Run filtered test suites and get full access to logs and stack traces for every test case.
+* **Dependency & Source Search**: Search Maven Central and browse the source code of your dependencies or Gradle's internal engine.
+* **Interactive Kotlin REPL**: Test project utilities and explore APIs in a persistent REPL with access to all your classes.
+* **Compose UI Previews**: Render UI components directly to images from the project runtime for visual auditing.
+* **Gradle Documentation**: Instant access to searchable, indexed Gradle User Guides and DSL references.
+* **Develocity Build Scans**: One-click publishing of Build Scans for deep troubleshooting.
+* **Token Optimized**: Compact data formats designed to keep context usage low.
 
 ## Installation
 
@@ -112,7 +112,7 @@ You can use the `server` argument to run it as a server on port 47813.
 
 ## Agent Skills
 
-AI agents can use Agent Skills to better understand how to use these tools for common Gradle tasks.
+Agent Skills are specialized guides that help AI agents navigate common Gradle workflows reliably.
 
 Included skills:
 

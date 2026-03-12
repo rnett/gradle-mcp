@@ -1,6 +1,5 @@
 package dev.rnett.gradle.mcp.mcp
 
-import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
@@ -39,7 +38,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
 
     private fun syntheticBuildResult(): FinishedBuild {
         val args = GradleInvocationArguments.DEFAULT
-        val id = BuildId.newId()
+        val id = buildManager.newId()
         val console = buildString {
             appendLine("Starting build for ${id}")
             appendLine("> Task :help")
@@ -204,7 +203,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
 
     @Test
     fun `consolidated build workflows`() = runTest {
-        val buildId = BuildId.newId()
+        val buildId = buildManager.newId()
         val runningBuild = mockk<RunningBuild>(relaxed = true) {
             every { id } returns buildId
             every { status } returns BuildStatus.Running

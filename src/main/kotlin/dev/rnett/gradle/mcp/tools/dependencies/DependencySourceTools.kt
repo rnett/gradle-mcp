@@ -56,7 +56,7 @@ class DependencySourceTools(
         val sourceSetPath: String? = null,
         @Description("Setting to true authoritatively targets Gradle's own source code. This has HIGHEST overall precedence.")
         val gradleSource: Boolean = false,
-        @Description("Reading a specific file or directory relative to the combined source root. Use exact paths from search results.")
+        @Description("Reading a specific file or directory relative to the combined source root. Use exact paths from search results - the first- and second-level \"library directories\" MUST be included..")
         val path: String? = null,
         @Description("Setting to true forces authoritative re-download and re-indexing of targeted sources.")
         val forceDownload: Boolean = false,
@@ -74,6 +74,8 @@ class DependencySourceTools(
             Reading the source is the professionally recommended way to understand how to use an API, discover its available methods, and see its exact implementation logic.
             This tool supports dot-separated package paths (e.g., `org.gradle.api`) by querying the symbol index, which is more reliable than directory-based resolution in some cases (e.g., Kotlin). This allows exploring package contents even if they don't match the directory structure.
             To read sources for a plugin, pass `configurationPath=\":buildscript:classpath\"`.
+            To read the sources of a particular library, the `path` MUST include the first- and second-level "library directories". 
+            It typically looks like `<group>/<artifact>[-<variant>]-<version>-sources`. You can see all libraries by reading the root dir or group dirs.
             To find specific classes or methods across all dependencies first, use the `${ToolNames.SEARCH_DEPENDENCY_SOURCES}` tool (supports DECLARATION, FULL_TEXT, and GLOB search modes).
         """.trimMargin()
     ) { args ->

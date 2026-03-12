@@ -13,12 +13,14 @@ import dev.rnett.gradle.mcp.gradle.build.TestOutcome
 import dev.rnett.gradle.mcp.gradle.build.failuresIfFailed
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
-import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.selects.onTimeout
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
@@ -47,13 +49,15 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         @Description("Applying a surgical lookup mode: 'summary' (default) or 'details'. Use 'details' for exhaustive, deep-dive information.")
         val mode: LookupMode = LookupMode.summary,
 
-        @Description("Maximum seconds to wait for an active build to reach a state or finish authoritatively. Use this for managed progress monitoring.")
-        val wait: Double? = null,
-        @Description("Regex pattern to wait for in the build logs authoritatively. Ideal for detecting when a server has started or a specific event has occurred.")
+        @Description("The maximum number of seconds to wait for the requested condition(s). If omitted, the tool returns immediately with the current build status.")
+        val timeout: Double? = null,
+        @Description("If true, wait for the build to finish authoritatively. This is the default behavior if 'timeout' is provided but no other wait conditions are specified.")
+        val waitForFinished: Boolean = false,
+        @Description("Regex pattern to wait for in the build logs authoritatively. Ideal for detecting when a server has started or a specific event has occurred. Uses 'timeout' for the maximum wait duration.")
         val waitFor: String? = null,
-        @Description("Task path to wait for completion authoritatively. The most surgical way to monitor specific task progress.")
+        @Description("Task path to wait for completion authoritatively. The most surgical way to monitor specific task progress. Uses 'timeout' for the maximum wait duration.")
         val waitForTask: String? = null,
-        @Description("Setting to true only looks for matches emitted after this call. Only applies if 'wait' and ('waitFor' or 'waitForTask') are provided.")
+        @Description("Setting to true only looks for matches emitted after this call. Only applies if 'timeout' and a wait condition ('waitFor', 'waitForTask', or 'waitForFinished') are provided.")
         val afterCall: Boolean = false,
 
         val pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS,
@@ -380,62 +384,96 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             |- **Full Console (EXCEPT TESTS)**:      `consoleTail=true` (tail) or `consoleTail=false` (head).
             |
             |### Wait & Progress Monitoring
-            |- Use `wait` (seconds) with `waitFor` (regex) or `waitForTask` (path) to monitor active builds and real-time test progress (e.g., pass/fail counts).
+            |- Use `timeout` (seconds) with `waitFor` (regex), `waitForTask` (path), or `waitForFinished` (boolean) to monitor active builds and real-time test progress (e.g., pass/fail counts).
+            |- If `timeout` is omitted, the tool returns immediately with the current build status.
+            |- If `timeout` is provided but `waitFor` and `waitForTask` are omitted, the tool defaults to waiting for the build to finish (equivalent to `waitForFinished=true`).
+            |- If the build finishes before the requested regex or task is found, the tool returns an error.
             |- Set `afterCall=true` to only look for events emitted after the tool is called.
         """.trimMargin()
-    ) {
-        if (it.buildId == null) {
-            return@tool getLatestBuildsOutput(it, false)
+    ) { args ->
+        if (args.buildId == null) {
+            return@tool getLatestBuildsOutput(args, false)
         }
 
-        var build = buildResults.getBuild(it.buildId)
-            ?: throw IllegalArgumentException("Unknown or expired build ID: ${it.buildId}")
+        var build = buildResults.getBuild(args.buildId)
+            ?: throw IllegalArgumentException("Unknown or expired build ID: ${args.buildId}")
 
-        val startLines = if (it.afterCall && build is RunningBuild) build.consoleOutputLines.size else 0
+        val startLines = if (args.afterCall && build is RunningBuild) build.consoleOutputLines.size else 0
 
-        if (it.wait != null && build is RunningBuild) {
+        if (args.timeout != null && build is RunningBuild) {
             val runningBuild = build
-            val waitForRegex = it.waitFor?.toRegex()
-            val waitForTask = it.waitForTask
+            val waitForRegex = args.waitFor?.toRegex()
+            val waitForTask = args.waitForTask
+            val waitForFinished = args.waitForFinished || (waitForRegex == null && waitForTask == null)
 
-            withTimeoutOrNull(it.wait.seconds) {
+            val waitResult = withTimeoutOrNull(args.timeout.seconds) {
                 coroutineScope {
-                    select {
-                        onTimeout(it.wait.seconds) {}
-                        if (waitForRegex != null) {
-                            async {
-                                if (!it.afterCall && waitForRegex.containsMatchIn(runningBuild.logBuffer)) {
-                                    return@async
-                                }
-                                runningBuild.logLines.firstOrNull { line: String ->
-                                    waitForRegex.containsMatchIn(line)
-                                }
-                            }.onAwait { }
+                    val progressJob = launch(Dispatchers.Default) {
+                        runningBuild.progressTracker.progress.collectLatest { p ->
+                            progressReporter.report(p.progress, 1.0, p.message)
                         }
-                        if (waitForTask != null) {
-                            async {
-                                if (!it.afterCall && runningBuild.completedTaskPaths.contains(waitForTask)) {
-                                    return@async
-                                }
-                                runningBuild.completingTasks.firstOrNull { taskPath: String ->
-                                    taskPath == waitForTask
-                                }
-                            }.onAwait { }
-                        }
-                        async { runningBuild.awaitFinished() }.onAwait { }
                     }
-                    coroutineContext.cancelChildren()
+
+                    try {
+                        select {
+                            if (waitForRegex != null) {
+                                async {
+                                    if (!args.afterCall && waitForRegex.containsMatchIn(runningBuild.logBuffer.toString())) {
+                                        return@async true
+                                    }
+                                    runningBuild.logLines.firstOrNull { line: String ->
+                                        waitForRegex.containsMatchIn(line)
+                                    } != null
+                                }.onAwait { it }
+                            }
+                            if (waitForTask != null) {
+                                async {
+                                    if (!args.afterCall && runningBuild.completedTaskPaths.contains(waitForTask)) {
+                                        return@async true
+                                    }
+                                    runningBuild.completingTasks.firstOrNull { it == waitForTask } != null
+                                }.onAwait { it }
+                            }
+                            async { runningBuild.awaitFinished() }.onAwait {
+                                if (waitForRegex != null || waitForTask != null) {
+                                    // Check if the condition was met in the very last moment (e.g. in the final log lines)
+                                    val finalMatched = if (waitForRegex != null) {
+                                        waitForRegex.containsMatchIn(runningBuild.logBuffer.toString())
+                                    } else {
+                                        runningBuild.completedTaskPaths.contains(waitForTask)
+                                    }
+
+                                    if (!finalMatched) {
+                                        val condition = if (waitForRegex != null) "matching regex: ${args.waitFor}" else "completing task: ${args.waitForTask}"
+                                        throw RuntimeException("Build finished without $condition")
+                                    }
+                                    true
+                                } else {
+                                    waitForFinished
+                                }
+                            }
+                        }
+                    } finally {
+                        progressJob.cancelAndJoin()
+                    }
                 }
             }
+            if (waitResult == false) {
+                // This should only happen if waitForFinished was false but the build finished.
+                // But if waitForFinished was true and it finished, it returns true.
+                // If regex/task was set and it finished, it throws.
+                // So this branch should be unreachable or return immediately.
+            }
+
             // re-get build to pick up any changes (e.g. it might have finished)
-            build = buildResults.getBuild(it.buildId)!!
+            build = buildResults.getBuild(args.buildId)!!
         }
 
-        val hasTasks = it.taskPath != null || it.taskOutcome != null
-        val hasTests = it.testName != null || it.testOutcome != null || it.testIndex != null
-        val hasFailures = it.failureId != null
-        val hasProblems = it.problemId != null
-        val hasConsole = it.consoleTail != null
+        val hasTasks = args.taskPath != null || args.taskOutcome != null
+        val hasTests = args.testName != null || args.testOutcome != null || args.testIndex != null
+        val hasFailures = args.failureId != null
+        val hasProblems = args.problemId != null
+        val hasConsole = args.consoleTail != null
 
         val setOptionsCount = listOf(hasTasks, hasTests, hasFailures, hasProblems, hasConsole).count { it }
         require(setOptionsCount <= 1) { "Only one section (tasks, tests, failures, problems, or console) may be specified at a time." }
@@ -447,21 +485,21 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                 appendLine("--- BUILD FINISHED ---")
             }
 
-            val waitForRegex = it.waitFor?.toRegex()
+            val waitForRegex = args.waitFor?.toRegex()
             if (waitForRegex != null) {
                 val matchingLines = build.consoleOutputLines.drop(startLines).filter { line -> line.isNotBlank() && waitForRegex.containsMatchIn(line) }
                 if (matchingLines.isNotEmpty()) {
-                    appendLine("Matching lines for '${it.waitFor}':")
+                    appendLine("Matching lines for '${args.waitFor}':")
                     matchingLines.forEach { appendLine("    $it") }
                     appendLine()
-                } else if (it.wait != null) {
+                } else if (args.timeout != null) {
                     appendLine("No matched lines - build completed or wait timed out")
                     appendLine()
                 }
             }
 
             if (setOptionsCount == 0) {
-                if (it.mode == LookupMode.details) {
+                if (args.mode == LookupMode.details) {
                     appendLine("WARNING: Details mode requires a section (e.g. testName, taskPath) to be specified. Showing build summary instead.")
                 }
                 appendLine("--- Summary ---")
@@ -472,33 +510,33 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                 appendLine("- Task Outputs:      `taskPath=\":path:to:task\"`, `mode=\"details\"`")
                 appendLine("- Build Failures:    `failureId=\"ID\"`, `mode=\"details\"` (use summary mode first to find IDs)")
                 appendLine("- Problems/Errors:   `problemId=\"ID\"`, `mode=\"details\"` (use summary mode first to find IDs)")
-                appendLine("- Full Console:      `consoleTail=true` (tail) or `consoleTail=false` (head)")
+                appendLine("- Full Console:      `consoleTail=true`, `consoleTail=false` (head)")
                 appendLine("- Filtering:         Use `testOutcome`, `taskOutcome` with `mode=\"summary\"` to narrow down results.")
                 appendLine()
             } else {
                 if (hasTasks) {
                     appendLine("--- Tasks ---")
-                    appendLine(getTasksOutput(build, it))
+                    appendLine(getTasksOutput(build, args))
                     appendLine()
                 }
                 if (hasFailures) {
                     appendLine("--- Failures ---")
-                    appendLine(getFailuresOutput(build, it))
+                    appendLine(getFailuresOutput(build, args))
                     appendLine()
                 }
                 if (hasProblems) {
                     appendLine("--- Problems ---")
-                    appendLine(getProblemsOutput(build, it))
+                    appendLine(getProblemsOutput(build, args))
                     appendLine()
                 }
                 if (hasTests) {
                     appendLine("--- Tests ---")
-                    appendLine(getTestsOutput(build, it))
+                    appendLine(getTestsOutput(build, args))
                     appendLine()
                 }
                 if (hasConsole) {
                     appendLine("--- Console Output ---")
-                    appendLine(getConsoleOutput(build, it))
+                    appendLine(getConsoleOutput(build, args))
                     appendLine()
                 }
             }

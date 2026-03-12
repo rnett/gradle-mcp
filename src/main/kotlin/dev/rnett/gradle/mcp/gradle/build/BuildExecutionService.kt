@@ -14,6 +14,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import org.apache.commons.io.output.WriterOutputStream
 import org.gradle.tooling.ConfigurableLauncher
+import org.gradle.tooling.events.OperationDescriptor
 import org.gradle.tooling.events.OperationType
 import org.gradle.tooling.events.ProgressListener
 import org.gradle.tooling.events.StatusEvent
@@ -59,6 +60,18 @@ class DefaultBuildExecutionService(
 
     companion object {
         private val LOGGER = LoggerFactory.getLogger(DefaultBuildExecutionService::class.java)
+        private val TASK_OUTPUT_REGEX = Regex("""\[gradle-mcp] \[(.+)] \[(.+)]: (.*)""")
+
+        private fun findTaskPath(descriptor: OperationDescriptor?): String? {
+            var current = descriptor
+            while (current != null) {
+                if (current is TaskOperationDescriptor) {
+                    return current.taskPath
+                }
+                current = current.parent
+            }
+            return null
+        }
     }
 
     override suspend fun <I : ConfigurableLauncher<*>, R> invokeBuild(
@@ -77,171 +90,14 @@ class DefaultBuildExecutionService(
                 .addKeyValue("buildId", buildId)
                 .log("Error during job launched during build", it)
         }) { scope ->
-            val env = args.actualEnvVars(envProvider)
-            LOGGER.info("Setting environment variables for build: ${env.keys}")
-            launcher.setEnvironmentVariables(env)
-            @Suppress("UNCHECKED_CAST")
-            launcher.withSystemProperties(args.additionalSystemProps)
-            launcher.addJvmArguments(args.additionalJvmArgs + "-Dscan.tag.MCP")
-            launcher.withDetailedFailure()
-            val initScripts = initScriptProvider.extractInitScripts(
-                args.requestedInitScripts + if (args.publishScan || args.additionalArguments.contains("--scan")) listOf("scans") else emptyList()
-            )
-            val allArguments = initScripts.flatMap { listOf("-I", it.toString()) } + args.allAdditionalArguments
-            launcher.withArguments(allArguments)
-            launcher.setColorOutput(false)
+            configureLauncher(launcher, args, buildId, runningBuild)
 
-            val cancellationToken = runningBuild.cancellationTokenSource.token()
-            launcher.withCancellationToken(cancellationToken)
+            registerProgressListeners(launcher, runningBuild, progress, additionalProgressListeners)
 
-            currentCoroutineContext()[Job]?.invokeOnCompletion {
-                if (it is CancellationException)
-                    runningBuild.stop()
-            }
-
-            fun emitProgress(isFinish: Boolean) {
-                val total = runningBuild.totalItems.get()
-                val message = runningBuild.getProgressMessage()
-                if (total > 0) {
-                    val completed = runningBuild.completedItems.get()
-                    progress.report(completed.toDouble() / total, 1.0, message)
-                } else {
-                    progress.report(if (isFinish) 1.0 else 0.0, 1.0, message)
-                }
-            }
-
-            launcher.addProgressListener(runningBuild.testResultsInternal, runningBuild.testResultsInternal.operations)
-
-            launcher.addProgressListener({ event ->
-                if (event is TestStartEvent || event is TestFinishEvent) {
-                    emitProgress(false)
-                }
-            }, OperationType.TEST)
-
-            launcher.addProgressListener({ event ->
-                if (event is ProblemAggregationEvent)
-                    runningBuild.problemsAccumulator.add(event.problemAggregation)
-                if (event is SingleProblemEvent)
-                    runningBuild.problemsAccumulator.add(event.problem)
-            }, OperationType.PROBLEMS)
-
-            launcher.addProgressListener({ event ->
-                if (event is BuildPhaseStartEvent) {
-                    val descriptor = event.descriptor
-                    if (descriptor is BuildPhaseOperationDescriptor) {
-                        runningBuild.onPhaseStart(descriptor.buildPhase, descriptor.buildItemsCount)
-                        emitProgress(false)
-                    }
-                } else if (event is BuildPhaseFinishEvent) {
-                    val descriptor = event.descriptor
-                    if (descriptor is BuildPhaseOperationDescriptor) {
-                        emitProgress(true)
-                    }
-                }
-            }, OperationType.BUILD_PHASE)
-
-            launcher.addProgressListener({ event ->
-                if (event is TaskStartEvent) {
-                    val descriptor = event.descriptor
-                    if (descriptor is TaskOperationDescriptor) {
-                        val taskPath = descriptor.taskPath
-                        runningBuild.addActiveOperation(taskPath)
-                        emitProgress(false)
-                    }
-                } else if (event is ProjectConfigurationStartEvent) {
-                    runningBuild.onPhaseStart("CONFIGURATION", 0)
-                    val operation = event.descriptor.displayName
-                    runningBuild.addActiveOperation(operation)
-                    emitProgress(false)
-                } else if (event is TaskFinishEvent) {
-                    val descriptor = event.descriptor
-                    if (descriptor is TaskOperationDescriptor) {
-                        val taskPath = descriptor.taskPath
-                        runningBuild.removeActiveOperation(taskPath)
-                        val result = event.result
-                        val outcome = when (result) {
-                            is TaskSuccessResult -> {
-                                when {
-                                    result.isFromCache -> TaskOutcome.FROM_CACHE
-                                    result.isUpToDate -> TaskOutcome.UP_TO_DATE
-                                    else -> TaskOutcome.SUCCESS
-                                }
-                            }
-
-                            is TaskFailureResult -> TaskOutcome.FAILED
-                            is TaskSkippedResult -> {
-                                if (result.skipMessage == "NO-SOURCE") TaskOutcome.NO_SOURCE
-                                else TaskOutcome.SKIPPED
-                            }
-
-                            else -> TaskOutcome.SUCCESS
-                        }
-                        val startTime = result.startTime
-                        val endTime = event.eventTime
-                        val duration = if (startTime > 0) (endTime - startTime).milliseconds else 0.seconds
-                        runningBuild.addTaskResult(taskPath, outcome, duration, runningBuild.taskOutputs[taskPath])
-                        runningBuild.onItemFinish()
-                        emitProgress(true)
-                    } else {
-                        runningBuild.addTaskCompleted(event.descriptor.displayName)
-                    }
-                } else if (event is ProjectConfigurationFinishEvent) {
-                    val operation = event.descriptor.displayName
-                    runningBuild.removeActiveOperation(operation)
-                    runningBuild.onItemFinish()
-                    emitProgress(true)
-                }
-            }, OperationType.TASK, OperationType.PROJECT_CONFIGURATION)
-
-            launcher.addProgressListener({ event ->
-                if (event is StatusEvent) {
-                    val currentProgress = if (event.total > 0) event.progress.toDouble() / event.total else null
-                    runningBuild.setSubStatus(event.descriptor.displayName, currentProgress)
-                    val total = runningBuild.totalItems.get()
-                    val message = runningBuild.getProgressMessage()
-                    if (total > 0) {
-                        val completed = runningBuild.completedItems.get()
-                        val progressValue = (completed + (currentProgress ?: 0.0)) / total
-                        progress.report(progressValue, 1.0, message)
-                    } else {
-                        progress.report(0.0, null, message)
-                    }
-                }
-            }, OperationType.GENERIC)
-
-            additionalProgressListeners.forEach {
-                launcher.addProgressListener(it.key, it.value)
-            }
-
-            launcher.setStandardOutput(
-                WriterOutputStream.builder().apply {
-                    charset = StandardCharsets.UTF_8
-                    bufferSize = 8192
-                    writer = object : dev.rnett.gradle.mcp.gradle.GradleStdoutWriter({
-                        if (it.contains("Failed to set up gradle-mcp output capturing", ignoreCase = true)) {
-                            runningBuild.taskOutputCapturingFailed = true
-                        }
-                        processTaskOutput(it, runningBuild, false, buildId, stdoutLineHandler)
-                    }) {
-                        override fun onScanPublication(url: String) {
-                            runningBuild.publishedScansInternal += GradleBuildScan.fromUrl(url)
-                        }
-                    }
-                }.get().buffered()
-            )
-
-            launcher.setStandardError(
-                WriterOutputStream.builder().apply {
-                    charset = StandardCharsets.UTF_8
-                    bufferSize = 8192
-                    writer = dev.rnett.gradle.mcp.gradle.LineEmittingWriter {
-                        processTaskOutput(it, runningBuild, true, buildId, stderrLineHandler)
-                    }
-                }.get().buffered()
-            )
+            setupOutputRedirection(launcher, runningBuild, buildId, stdoutLineHandler, stderrLineHandler)
 
             val result = scope.async {
-                LOGGER.info("Starting Gradle build (buildId={}, args={})", buildId, allArguments)
+                LOGGER.info("Starting Gradle build (buildId={}, args={})", buildId, args.allAdditionalArguments)
                 invoker(launcher)
             }.await()
             LOGGER.info("Gradle build finished (buildId={})", buildId)
@@ -249,7 +105,186 @@ class DefaultBuildExecutionService(
         }
     }
 
-    private val taskOutputRegex = Regex("\\[gradle-mcp] \\[(.+)] \\[(.+)]: (.*)")
+    private suspend fun configureLauncher(
+        launcher: ConfigurableLauncher<*>,
+        args: GradleInvocationArguments,
+        buildId: BuildId,
+        runningBuild: RunningBuild
+    ) {
+        val env = args.actualEnvVars(envProvider)
+        LOGGER.info("Setting environment variables for build: ${env.keys}")
+        launcher.setEnvironmentVariables(env)
+
+        @Suppress("UNCHECKED_CAST")
+        launcher.withSystemProperties(args.additionalSystemProps)
+        launcher.addJvmArguments(args.additionalJvmArgs + "-Dscan.tag.MCP")
+        launcher.withDetailedFailure()
+
+        val initScripts = initScriptProvider.extractInitScripts(
+            args.requestedInitScripts + if (args.publishScan || args.additionalArguments.contains("--scan")) listOf("scans") else emptyList()
+        )
+        val allArguments = initScripts.flatMap { listOf("-I", it.toString()) } + args.allAdditionalArguments
+        launcher.withArguments(allArguments)
+        launcher.setColorOutput(false)
+
+        val cancellationToken = runningBuild.cancellationTokenSource.token()
+        launcher.withCancellationToken(cancellationToken)
+
+        currentCoroutineContext()[Job]?.invokeOnCompletion {
+            if (it is CancellationException)
+                runningBuild.stop()
+        }
+    }
+
+    private fun registerProgressListeners(
+        launcher: ConfigurableLauncher<*>,
+        runningBuild: RunningBuild,
+        progress: ProgressReporter,
+        additionalProgressListeners: Map<ProgressListener, Set<OperationType>>
+    ) {
+        fun emitProgress(isFinish: Boolean = false) {
+            val progressValue = runningBuild.progressTracker.getProgressValue(isFinish)
+            val message = runningBuild.progressTracker.getProgressMessage()
+            progress.report(progressValue, 1.0, message)
+        }
+
+        launcher.addProgressListener(runningBuild.testResultsInternal, runningBuild.testResultsInternal.operations)
+
+        // Test progress
+        launcher.addProgressListener({ event ->
+            if (event is TestStartEvent || event is TestFinishEvent) {
+                emitProgress()
+            }
+        }, OperationType.TEST)
+
+        // Problems aggregation
+        launcher.addProgressListener({ event ->
+            if (event is ProblemAggregationEvent)
+                runningBuild.problemsAccumulator.add(event.problemAggregation)
+            if (event is SingleProblemEvent)
+                runningBuild.problemsAccumulator.add(event.problem)
+        }, OperationType.PROBLEMS)
+
+        // Build phase tracking
+        launcher.addProgressListener({ event ->
+            if (event is BuildPhaseStartEvent) {
+                val descriptor = event.descriptor
+                if (descriptor is BuildPhaseOperationDescriptor) {
+                    runningBuild.progressTracker.onPhaseStart(descriptor.buildPhase, descriptor.buildItemsCount)
+                    emitProgress()
+                }
+            } else if (event is BuildPhaseFinishEvent) {
+                val descriptor = event.descriptor
+                if (descriptor is BuildPhaseOperationDescriptor) {
+                    runningBuild.progressTracker.onPhaseFinish(descriptor.buildPhase)
+                    emitProgress(true)
+                }
+            }
+        }, OperationType.BUILD_PHASE)
+
+        // Task and Configuration tracking
+        launcher.addProgressListener({ event ->
+            when (event) {
+                is TaskStartEvent -> {
+                    val descriptor = event.descriptor
+                    if (descriptor is TaskOperationDescriptor) {
+                        runningBuild.progressTracker.addActiveOperation(descriptor.taskPath)
+                        emitProgress()
+                    }
+                }
+
+                is ProjectConfigurationStartEvent -> {
+                    runningBuild.progressTracker.onPhaseStart("CONFIGURATION", 0)
+                    runningBuild.progressTracker.addActiveOperation(event.descriptor.displayName)
+                    emitProgress()
+                }
+
+                is TaskFinishEvent -> handleTaskFinish(event, runningBuild, ::emitProgress)
+                is ProjectConfigurationFinishEvent -> {
+                    runningBuild.progressTracker.removeActiveOperation(event.descriptor.displayName)
+                    runningBuild.progressTracker.onItemFinish()
+                    emitProgress()
+                }
+            }
+        }, OperationType.TASK, OperationType.PROJECT_CONFIGURATION)
+
+        // Generic status events
+        launcher.addProgressListener({ event ->
+            if (event is StatusEvent) {
+                val currentProgress = if (event.total > 0) event.progress.toDouble() / event.total else null
+                val taskPath = findTaskPath(event.descriptor)
+                runningBuild.progressTracker.setSubStatus(event.descriptor.displayName, currentProgress, taskPath)
+                emitProgress()
+            }
+        }, OperationType.GENERIC)
+
+        additionalProgressListeners.forEach { (listener, types) ->
+            launcher.addProgressListener(listener, types)
+        }
+    }
+
+    private fun handleTaskFinish(event: TaskFinishEvent, runningBuild: RunningBuild, emit: (Boolean) -> Unit) {
+        val descriptor = event.descriptor
+        if (descriptor is TaskOperationDescriptor) {
+            val taskPath = descriptor.taskPath
+            runningBuild.progressTracker.removeActiveOperation(taskPath)
+
+            val result = event.result
+            val outcome = when (result) {
+                is TaskSuccessResult -> when {
+                    result.isFromCache -> TaskOutcome.FROM_CACHE
+                    result.isUpToDate -> TaskOutcome.UP_TO_DATE
+                    else -> TaskOutcome.SUCCESS
+                }
+
+                is TaskFailureResult -> TaskOutcome.FAILED
+                is TaskSkippedResult -> if (result.skipMessage == "NO-SOURCE") TaskOutcome.NO_SOURCE else TaskOutcome.SKIPPED
+                else -> TaskOutcome.SUCCESS
+            }
+
+            val duration = if (result.startTime > 0) (event.eventTime - result.startTime).milliseconds else 0.seconds
+            runningBuild.addTaskResult(taskPath, outcome, duration, runningBuild.taskOutputs[taskPath])
+            runningBuild.progressTracker.onItemFinish()
+            emit(false)
+        } else {
+            runningBuild.addTaskCompleted(event.descriptor.displayName)
+        }
+    }
+
+    private fun setupOutputRedirection(
+        launcher: ConfigurableLauncher<*>,
+        runningBuild: RunningBuild,
+        buildId: BuildId,
+        stdoutLineHandler: ((String) -> Unit)?,
+        stderrLineHandler: ((String) -> Unit)?
+    ) {
+        launcher.setStandardOutput(
+            WriterOutputStream.builder().apply {
+                charset = StandardCharsets.UTF_8
+                bufferSize = 8192
+                writer = object : dev.rnett.gradle.mcp.gradle.GradleStdoutWriter({
+                    if (it.contains("Failed to set up gradle-mcp output capturing", ignoreCase = true)) {
+                        runningBuild.taskOutputCapturingFailed = true
+                    }
+                    processTaskOutput(it, runningBuild, false, buildId, stdoutLineHandler)
+                }) {
+                    override fun onScanPublication(url: String) {
+                        runningBuild.publishedScansInternal += GradleBuildScan.fromUrl(url)
+                    }
+                }
+            }.get().buffered()
+        )
+
+        launcher.setStandardError(
+            WriterOutputStream.builder().apply {
+                charset = StandardCharsets.UTF_8
+                bufferSize = 8192
+                writer = dev.rnett.gradle.mcp.gradle.LineEmittingWriter {
+                    processTaskOutput(it, runningBuild, true, buildId, stderrLineHandler)
+                }
+            }.get().buffered()
+        )
+    }
 
     private fun processTaskOutput(
         line: String,
@@ -258,14 +293,14 @@ class DefaultBuildExecutionService(
         buildId: BuildId,
         lineHandler: ((String) -> Unit)?
     ) {
-        val taskMatch = taskOutputRegex.matchEntire(line)
+        val taskMatch = TASK_OUTPUT_REGEX.matchEntire(line)
         if (taskMatch != null) {
             val taskPath = taskMatch.groupValues[1]
             val category = taskMatch.groupValues[2]
             val text = taskMatch.groupValues[3]
 
             if (taskPath == "PROGRESS") {
-                runningBuild.handleProgressLine(category, text)
+                runningBuild.progressTracker.handleProgressLine(category, text)
             } else {
                 val type = if (category == "system.err") "ERR" else "OUT"
                 val formattedLine = "$taskPath $type $text"
