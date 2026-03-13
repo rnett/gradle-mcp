@@ -180,15 +180,14 @@ fun resolveKotlinCompilerPluginOptions(task: Task): List<String> {
                 val configs = pluginOptions.get()
                 val allArgs = mutableListOf<String>()
                 for (config in configs) {
-                    if (config != null) {
-                        val optionsMap = config.callMethod("allOptions") as? Map<String, List<Any>>
-                        optionsMap?.forEach { (pluginId, options) ->
-                            for (option in options) {
-                                val key = option.getProperty("key")?.toString()
-                                val value = option.getProperty("value")?.toString()
-                                if (key != null && value != null) {
-                                    allArgs.add("$pluginId:$key=$value")
-                                }
+                    @Suppress("UNCHECKED_CAST")
+                    val optionsMap = config?.callMethod("allOptions") as? Map<String, List<Any>>
+                    optionsMap?.forEach { (pluginId, options) ->
+                        for (option in options) {
+                            val key = option.getProperty("key")?.toString()
+                            val value = option.getProperty("value")?.toString()
+                            if (key != null && value != null) {
+                                allArgs.add("$pluginId:$key=$value")
                             }
                         }
                     }
