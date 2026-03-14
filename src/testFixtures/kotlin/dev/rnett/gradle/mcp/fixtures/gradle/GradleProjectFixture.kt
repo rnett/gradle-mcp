@@ -10,6 +10,9 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.writeText
 
+/** JVM heap size used for all test Gradle daemons. */
+private const val TEST_DAEMON_HEAP = "256m"
+
 /**
  * A fixture for creating temporary Gradle projects for testing.
  * Projects are created in a temporary directory and cleaned up after use.
@@ -150,9 +153,14 @@ class GradleProjectBuilder {
      * Builds the project structure on disk.
      */
     fun build(projectDir: Path) {
-        // Create gradle user home
+        // Create gradle user home and write gradle.properties to control daemon JVM args,
+        // preventing the developer's real ~/.gradle/gradle.properties from affecting tests.
         val gradleUserHome = SharedTestInfrastructure.sharedWorkingDir.resolve("gradle-user-home")
         Files.createDirectories(gradleUserHome)
+        val gradleUserHomeProps = gradleUserHome.resolve("gradle.properties")
+        if (!gradleUserHomeProps.toFile().exists()) {
+            gradleUserHomeProps.writeText("org.gradle.jvmargs=-Xmx$TEST_DAEMON_HEAP\n")
+        }
 
         // Create gradle wrapper
         createGradleWrapper(projectDir)
@@ -192,6 +200,15 @@ class GradleProjectBuilder {
                 Files.createDirectories(file.parent)
                 file.writeText(content)
             }
+        }
+
+        // Ensure gradle.properties in the project directory sets daemon JVM args.
+        // Inject org.gradle.jvmargs if not already present in user-specified content.
+        val gradlePropsKey = "gradle.properties"
+        if (gradlePropsKey !in files) {
+            files[gradlePropsKey] = "org.gradle.jvmargs=-Xmx$TEST_DAEMON_HEAP\n"
+        } else if (!files.getValue(gradlePropsKey).contains("org.gradle.jvmargs")) {
+            files[gradlePropsKey] = "org.gradle.jvmargs=-Xmx$TEST_DAEMON_HEAP\n${files.getValue(gradlePropsKey)}"
         }
 
         // Create additional files
