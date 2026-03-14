@@ -16,6 +16,7 @@ suspend inline fun GradleProvider.doBuild(
     projectRoot: GradleProjectRootInput,
     invocationArgs: GradleInvocationArguments
 ): GradleResult<Unit> {
+    ctx.progressReporter.report(0.0, 1.0, "Starting Gradle build...")
     val root = projectRoot.resolve()
     val running = runBuild(
         root,

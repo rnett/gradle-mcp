@@ -38,6 +38,7 @@ class DefaultReplEnvironmentService(private val gradle: GradleProvider) : ReplEn
         sourceSet: String,
         additionalDependencies: List<String>
     ): ReplConfigWithJava {
+        progress.report(0.0, 1.0, "Resolving REPL environment...")
         val taskPath = if (projectPath == ":") ":resolveReplEnvironment" else "$projectPath:resolveReplEnvironment"
 
         val running = gradle.runBuild(

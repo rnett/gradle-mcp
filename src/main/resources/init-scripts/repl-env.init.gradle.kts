@@ -46,7 +46,10 @@ abstract class ResolveReplEnvironmentTask : DefaultTask() {
 
     @TaskAction
     fun resolve() {
+        println("[gradle-mcp] [PROGRESS] [RESOLUTION]: TOTAL: 1")
+        println("[gradle-mcp] [PROGRESS] [RESOLUTION]: 0/1: Resolving runtime classpath")
         val currentClasspathFiles = runtimeClasspath.files
+        println("[gradle-mcp] [PROGRESS] [RESOLUTION]: 1/1: Resolved runtime classpath")
 
         // Output format is recognized by the gradle-mcp client
         println("[gradle-mcp-repl-env] projectRoot=${projectRootPath.get()}")

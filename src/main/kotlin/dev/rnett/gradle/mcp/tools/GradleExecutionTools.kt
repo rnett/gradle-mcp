@@ -65,6 +65,7 @@ class GradleExecutionTools(
         val invocationArgs = it.invocationArguments.copy(additionalArguments = commandLine + it.invocationArguments.additionalArguments)
 
         if (it.background) {
+            progressReporter.report(0.0, 1.0, "Starting background Gradle build...")
             val root = it.projectRoot.resolve()
 
             @OptIn(kotlinx.coroutines.FlowPreview::class)

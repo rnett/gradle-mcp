@@ -99,10 +99,11 @@ workflows.
 - **Test Naming**: Always name tests using descriptive names in English, wrapped in backticks (e.g., `` `verify build status wait` ``).
 - **Concurrency**: ALWAYS use `runTest` for suspending tests, NEVER `runBlocking`.
 - **Dependency Catalog**: ALWAYS put dependencies in `gradle/libs.versions.toml`. Every version ref MUST have a corresponding entry for automated updates.
-- **Progress Reporting**: ALWAYS send progress commands/notifications (`ProgressReporter`) when implementing long-running operations or tool handlers. Do NOT artificially limit reports (e.g., `if count % 100`) as limiting is applied at the
-  top level. However, prioritize overall tool UX; for very fast operations where progress reporting is more noise/overhead than value, it is acceptable to omit it. Progress reporting does not have to be perfect - some slight or temporary
-  inaccuracies or
-  concurrency issues are OK - focus on the overall UX.
+- **Progress Reporting**: ALWAYS send progress commands/notifications (`ProgressReporter`) when implementing long-running operations or tool handlers.
+  - **Initial Feedback**: Always report an initial "Starting..." or "Preparing..." progress status (0.0) before invoking a long-running operation (like a Gradle build through the Tooling API) to prevent the user from perceiving the tool
+    as "stuck" during connection/startup delays.
+  - **Frequency**: Do NOT artificially limit reports (e.g., `if count % 100`) as limiting is applied at the top level. However, prioritize overall tool UX; for very fast operations where progress reporting is more noise/overhead than value,
+    it is acceptable to omit it. Progress reporting does not have to be perfect - some slight or temporary inaccuracies or concurrency issues are OK - focus on the overall UX.
 
 ### Skill Development Workflow
 
@@ -147,6 +148,9 @@ Mock in general needs the specific type args for the `any()` calls to resolve ov
 - **Merging Progress**: Base merging progress across multiple search providers on the total document count across all providers rather than the number of providers themselves. Provider-based progress is too low-resolution and causes
   significant jumps if document distribution is uneven across index types.
 - **State Consolidation**: Prefer consolidating sub-task or granular progress into a single state object within the tracker rather than managing multiple independent variables.
+- **Internal Gradle Progress**: For long-running Gradle tasks in init scripts, explicitly report progress during slow internal operations (e.g., dependency resolution) using the format
+  `[gradle-mcp] [PROGRESS] [CATEGORY]: CURRENT/TOTAL: MESSAGE`.
+  - **Categories**: Use descriptive categories (e.g., `RESOLUTION`, `VERSION_CHECK`) to provide context about the current phase. These are automatically incorporated into the formatted progress message by the `BuildProgressTracker`.
 - **Job Management**: When managing background collection jobs (e.g., in `GradleBuildLookupTools`), always use `job.cancelAndJoin()` instead of just `cancel()` to ensure clean termination before proceeding.
 
 ### Testing Asynchronous Events

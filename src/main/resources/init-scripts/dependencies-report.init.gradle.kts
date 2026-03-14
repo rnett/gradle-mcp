@@ -141,7 +141,12 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
 
     private fun gatherModuleComponents(configurations: List<Configuration>): Set<ModuleComponentIdentifier> {
         val components = mutableSetOf<ModuleComponentIdentifier>()
-        configurations.filter { it.isCanBeResolved }.forEach { config ->
+        val resolvableConfigs = configurations.filter { it.isCanBeResolved }
+        if (resolvableConfigs.isEmpty()) return emptySet()
+
+        println("[gradle-mcp] [PROGRESS] [RESOLUTION]: TOTAL: ${resolvableConfigs.size}")
+        resolvableConfigs.forEachIndexed { index, config ->
+            println("[gradle-mcp] [PROGRESS] [RESOLUTION]: ${index + 1}/${resolvableConfigs.size}: Resolving ${config.name}")
             try {
                 config.incoming.resolutionResult.allComponents.forEach {
                     val id = it.id

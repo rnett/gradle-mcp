@@ -240,6 +240,7 @@ class DefaultGradleDependencyService(
         onlyDirect: Boolean,
         downloadSources: Boolean
     ): GradleDependencyReport {
+        progress.report(0.0, 1.0, "Preparing dependency report...")
         // Prepare invocation args: include the init script and arguments
         var args = GradleInvocationArguments.DEFAULT
             .withInitScript(InitScriptNames.DEPENDENCIES_REPORT)
