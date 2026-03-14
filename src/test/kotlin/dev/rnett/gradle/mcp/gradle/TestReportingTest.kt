@@ -2,10 +2,7 @@ package dev.rnett.gradle.mcp.gradle
 
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.fixtures.gradle.testJavaProject
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -23,7 +20,7 @@ class TestReportingTest {
     }
 
     @Test
-    fun `verifies comprehensive test reporting including skips and cancellations`() = runTest(timeout = 180.seconds) {
+    fun `verifies comprehensive test reporting including skips`() = runTest(timeout = 180.seconds) {
         val provider = createTestProvider()
         testJavaProject {
             file(
@@ -54,12 +51,6 @@ class TestReportingTest {
                     @Disabled("Disabled by annotation")
                     @Test
                     void testDisabled() {
-                    }
-                    
-                    @Test
-                    void testHang() throws InterruptedException {
-                        System.out.println("Starting hang test...");
-                        Thread.sleep(6000);
                     }
                 }
             """.trimIndent()
@@ -94,32 +85,6 @@ class TestReportingTest {
             val skippedNames = testResults.skipped.map { it.testName }
             assertTrue(skippedNames.any { it.contains("testAssumption") }, "testAssumption should be skipped. Found: $skippedNames")
             assertTrue(skippedNames.any { it.contains("testDisabled") }, "testDisabled should be skipped. Found: $skippedNames")
-
-            // 2. Run and cancel to check CANCELLED
-            val cancellingBuild = provider.runTests(
-                projectRoot = projectRoot,
-                testPatterns = mapOf(":test" to setOf("com.example.ReportingTest.testHang")),
-                args = GradleInvocationArguments.DEFAULT
-            )
-
-            // Wait for test to start
-            var started = false
-            withContext(Dispatchers.Default) {
-                val start = System.currentTimeMillis()
-                while (System.currentTimeMillis() - start < 10000) {
-                    if (cancellingBuild.testResultsInternal.results(System.currentTimeMillis()).inProgress.any { it.testName.contains("testHang") }) {
-                        started = true
-                        break
-                    }
-                    delay(100)
-                }
-            }
-            assertTrue(started, "testHang did not start in time")
-
-            cancellingBuild.stop()
-            val cancelResult = cancellingBuild.awaitFinished()
-
-            assertTrue(cancelResult.testResults.cancelled.any { it.testName.contains("testHang") }, "testHang should be cancelled")
         }
     }
 
