@@ -1,5 +1,7 @@
 package dev.rnett.gradle.mcp.gradle
 
+import dev.rnett.gradle.mcp.BuildConfig
+import dev.rnett.gradle.mcp.gradle.InitScriptProvider.Companion.allInitScripts
 import dev.rnett.gradle.mcp.hash
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
@@ -15,6 +17,12 @@ import kotlin.uuid.Uuid
 
 interface InitScriptProvider {
     fun extractInitScripts(scriptNames: List<String>): List<Path>
+
+    companion object {
+        fun allInitScripts(): List<String> {
+            return BuildConfig.ALL_INIT_SCRIPTS.split("|")
+        }
+    }
 }
 
 class DefaultInitScriptProvider(
@@ -29,14 +37,6 @@ class DefaultInitScriptProvider(
         private const val RESOURCE_PATH = "init-scripts"
     }
 
-    private fun listResources(): List<String> {
-        return listOf(
-            "repl-env.init.gradle.kts",
-            "task-out.init.gradle.kts",
-            "dependencies-report.init.gradle.kts",
-            "scans.init.gradle"
-        )
-    }
 
     /**
      * Extracts requested init scripts from resources to the working directory.
@@ -44,10 +44,9 @@ class DefaultInitScriptProvider(
      */
     @OptIn(ExperimentalUuidApi::class)
     override fun extractInitScripts(scriptNames: List<String>): List<Path> {
-        val scripts = mutableListOf<Path>()
         initScriptsDir.createDirectories()
 
-        val resourceNames = listResources()
+        val resourceNames = allInitScripts()
 
         return buildList {
 

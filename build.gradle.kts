@@ -5,7 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.power.assert)
-    `application`
+    application
     `maven-publish`
     alias(libs.plugins.buildconfig)
     alias(libs.plugins.vanniktech.maven.publish)
@@ -19,16 +19,12 @@ repositories {
     maven("https://repo.gradle.org/gradle/libs-releases")
 }
 
-val sharedJvmArgs = listOf(
-    "-Xmx1024m",
-    "-Xms256m",
-//    "--enable-native-access=ALL-UNNAMED",
-//    "--sun-misc-unsafe-memory-access=allow"
-)
-
 application {
     mainClass.set("dev.rnett.gradle.mcp.Application")
-    applicationDefaultJvmArgs = sharedJvmArgs
+    applicationDefaultJvmArgs = listOf(
+        "-Xmx1024m",
+        "-Xms256m"
+    )
 }
 
 val updateToolsList by tasks.registering(JavaExec::class) {
@@ -149,11 +145,16 @@ testing {
                     testTask.configure {
                         maxParallelForks = if (isCI) 4 else 8
                         shouldRunAfter(tasks.test)
+                        maxHeapSize = "1g"
                     }
                 }
             }
         }
     }
+}
+
+tasks.test {
+    maxHeapSize = "2g"
 }
 
 tasks.withType<Test>().all {
@@ -195,6 +196,11 @@ buildConfig {
     // need to manage manually
     buildConfigField("REPL_WORKER_JAR", "repl-worker.jar")
     buildConfigField("BUNDLED_JARS", "repl-worker.jar")
+    buildConfigField("ALL_INIT_SCRIPTS", provider {
+        layout.projectDirectory.dir("src/main/resources/init-scripts")
+            .asFile.listFiles().map { it.name }
+            .joinToString("|")
+    })
 // Ensure build is re-run if init scripts, skills, or bundled jars change
     project.tasks.matching { it.name == "generateBuildConfig" }.configureEach {
         inputs.dir("src/main/resources")

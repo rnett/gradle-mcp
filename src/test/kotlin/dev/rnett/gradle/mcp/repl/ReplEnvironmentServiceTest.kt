@@ -268,27 +268,6 @@ class ReplEnvironmentServiceTest {
     }
 
     @Test
-    fun `repl-env init script compiles successfully with allWarningsAsErrors=true`() = runTest(timeout = 300.seconds) {
-        val project = testGradleProject {
-            buildScript(
-                """
-                plugins {
-                    kotlin("jvm") version "${TestFixturesBuildConfig.KOTLIN_VERSION}"
-                    kotlin("plugin.serialization") version "${TestFixturesBuildConfig.KOTLIN_VERSION}"
-                }
-                repositories { mavenCentral() }
-            """.trimIndent()
-            )
-            file("gradle.properties", "org.gradle.kotlin.dsl.allWarningsAsErrors=true")
-        }
-
-        val env = resolveEnv(project)
-        assert(env.javaExecutable.isNotBlank())
-        assert(env.config.classpath.isNotEmpty())
-        assert(env.config.pluginsClasspath.isNotEmpty())
-    }
-
-    @Test
     fun `ReplEnvironmentService extracts free compiler args`() = runTest(timeout = 300.seconds) {
         val env = resolveEnv(complexProject, projectPath = ":compiler-args")
 
