@@ -27,7 +27,6 @@ import kotlin.io.path.absolutePathString
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
-
 class GradleProgressIntegrationTest : BaseMcpServerTest() {
 
     companion object {
@@ -58,7 +57,7 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
     override fun setup() = runTest {
         System.setProperty("gradle.mcp.test.disableSampling", "true")
         _project = testGradleProject() {
-            buildScript("Thread.sleep(100)\n".repeat(4))
+            buildScript("Thread.sleep(100)\n".repeat(20))
         }
         super.setup()
         server.setServerRoots(Root(_project.path().toUri().toString(), "root"))
@@ -101,7 +100,7 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
 
         // Verify phase prefixes - at least one notification should have it
         val hasConfiguring = notifications.any { it.message?.contains(PHASE_CONFIGURING) == true }
-        // Note: transient messages like [CONFIGURING] might be sampled out in extremely fast builds, 
+        // Note: transient messages like [CONFIGURING] might be sampled out in extremely fast builds,
         // but typically at least one notification will capture it.
         assertTrue(hasConfiguring, "Should have seen $PHASE_CONFIGURING phase (messages: ${notifications.map { it.message }})")
 
