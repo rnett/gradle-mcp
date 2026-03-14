@@ -137,5 +137,3 @@ For instructions on how to use these skills, see the [Agent Skills](skills.md) d
 
 Even if you don't have your build configured to publish build scans automatically, you can still publish build scans - just ask your agent to publish a scan when invoking Gradle.
 These will publish to the public https://scans.gradle.com instance unless you have a Develocity instance configured in your build.
-You will be prompted by your agent to accept the terms of service for publishing scans.
-If your agent does not support elicitation, you will not be able to publish scans.

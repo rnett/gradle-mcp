@@ -17,7 +17,7 @@ A Model Context Protocol (MCP) server for Gradle. It gives AI agents the tools t
 * **Interactive Kotlin REPL**: Test project utilities and explore APIs in a persistent REPL with access to all your classes.
 * **Compose UI Previews**: Render UI components directly to images from the project runtime for visual auditing.
 * **Gradle Documentation**: Instant access to searchable, indexed Gradle User Guides and DSL references.
-* **Develocity Build Scans**: One-click publishing of Build Scans for deep troubleshooting.
+* **Develocity Build Scans**: Ask your agent to publishing of Build Scans for deep troubleshooting.
 * **Token Optimized**: Compact data formats designed to keep context usage low.
 
 ### Configuration
