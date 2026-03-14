@@ -143,7 +143,7 @@ testing {
             targets {
                 all {
                     testTask.configure {
-                        maxParallelForks = if (isCI) 4 else 8
+                        maxParallelForks = if (isCI) 3 else 8
                         shouldRunAfter(tasks.test)
                         maxHeapSize = "1g"
                     }
@@ -154,6 +154,11 @@ testing {
 }
 
 tasks.test {
+    if (isCI) {
+        systemProperty("junit.jupiter.execution.parallel.config.fixed.parallelism", "4")
+    } else {
+        systemProperty("junit.jupiter.execution.parallel.config.fixed.parallelism", "10")
+    }
     maxHeapSize = "2g"
 }
 
