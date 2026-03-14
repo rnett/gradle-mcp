@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.dependencies.gradle.docs
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.lucene.LuceneReaderCache
 import io.mockk.every
@@ -34,7 +35,7 @@ class GradleDocsIndexServiceTest {
         val markdownService = DefaultMarkdownService()
         val service = DefaultGradleDocsIndexService(extractor, HtmlConverter(markdownService), environment, LuceneReaderCache())
 
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             // First run ensureIndexed so it populates the index using the mock flow
             service.ensureIndexed(version)
 
@@ -79,7 +80,7 @@ class GradleDocsIndexServiceTest {
         val markdownService = DefaultMarkdownService()
         val service = DefaultGradleDocsIndexService(extractor, HtmlConverter(markdownService), environment, LuceneReaderCache())
 
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             // Index the mocked files
             service.ensureIndexed(version)
 

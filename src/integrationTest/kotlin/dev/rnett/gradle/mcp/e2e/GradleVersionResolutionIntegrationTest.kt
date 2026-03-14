@@ -3,8 +3,10 @@ package dev.rnett.gradle.mcp.e2e
 import dev.rnett.gradle.mcp.DI
 import dev.rnett.gradle.mcp.DefaultGradleVersionService
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.GradleVersionService
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.GradleSourceService
+import dev.rnett.gradle.mcp.dependencies.SourcesService
 import dev.rnett.gradle.mcp.dependencies.gradle.DefaultDistributionDownloaderService
 import dev.rnett.gradle.mcp.dependencies.gradle.DistributionDownloaderService
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.ContentExtractorService
@@ -25,9 +27,13 @@ import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.lucene.LuceneReaderCache
+import dev.rnett.gradle.mcp.maven.MavenCentralService
+import dev.rnett.gradle.mcp.maven.MavenRepoService
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.repl.DefaultReplEnvironmentService
+import dev.rnett.gradle.mcp.repl.DefaultReplManager
 import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
+import dev.rnett.gradle.mcp.repl.ReplManager
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -39,7 +45,6 @@ import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.koin.dsl.module
 import java.io.ByteArrayOutputStream
@@ -47,7 +52,7 @@ import java.util.zip.ZipOutputStream
 import kotlin.io.path.exists
 import kotlin.test.assertTrue
 
-@Tag("integration")
+
 class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
 
     private val testVersion = "9.9.9"
@@ -88,16 +93,16 @@ class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
         single { mockClient }
 
         single<GradleConfiguration> {
-            GradleConfiguration(4, kotlin.time.Duration.parse("10m"), false)
+            GradleConfiguration()
         }
         single<InitScriptProvider> { DefaultInitScriptProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("init-scripts")) }
         single<BundledJarProvider> { DefaultBundledJarProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("jars")) }
         single { buildManager }
-        single<dev.rnett.gradle.mcp.repl.ReplManager> { dev.rnett.gradle.mcp.repl.DefaultReplManager(get()) }
+        single<ReplManager> { DefaultReplManager(get()) }
         single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
         single { GradleMcpEnvironment(SharedTestInfrastructure.sharedMcpWorkingDir) }
         single<MarkdownService> { DefaultMarkdownService() }
-        single<dev.rnett.gradle.mcp.GradleVersionService> { DefaultGradleVersionService(get()) }
+        single<GradleVersionService> { DefaultGradleVersionService(get()) }
 
         single { HtmlConverter(get()) }
         single { LuceneReaderCache() }
@@ -108,9 +113,9 @@ class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
         single<GradleDocsService> { DefaultGradleDocsService(get(), get(), get(), get()) }
 
         single<GradleDependencyService> { mockk<GradleDependencyService>(relaxed = true) }
-        single<dev.rnett.gradle.mcp.maven.MavenRepoService> { mockk<dev.rnett.gradle.mcp.maven.MavenRepoService>(relaxed = true) }
-        single<dev.rnett.gradle.mcp.maven.MavenCentralService> { mockk<dev.rnett.gradle.mcp.maven.MavenCentralService>(relaxed = true) }
-        single<dev.rnett.gradle.mcp.dependencies.SourcesService> { mockk<dev.rnett.gradle.mcp.dependencies.SourcesService>(relaxed = true) }
+        single<MavenRepoService> { mockk<MavenRepoService>(relaxed = true) }
+        single<MavenCentralService> { mockk<MavenCentralService>(relaxed = true) }
+        single<SourcesService> { mockk<SourcesService>(relaxed = true) }
         single<GradleSourceService> { mockk<GradleSourceService>(relaxed = true) }
 
         single<GradleProvider> {
@@ -119,14 +124,14 @@ class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
 
         factory {
             val provider: GradleProvider = get()
-            val replManager: dev.rnett.gradle.mcp.repl.ReplManager = get()
+            val replManager: ReplManager = get()
             val replEnvironmentService: ReplEnvironmentService = get()
             val gradleDocsService: GradleDocsService = get()
-            val gradleVersionService: dev.rnett.gradle.mcp.GradleVersionService = get()
+            val gradleVersionService: GradleVersionService = get()
             val gradleDependencyService: GradleDependencyService = get()
-            val mavenRepoService: dev.rnett.gradle.mcp.maven.MavenRepoService = get()
-            val mavenCentralService: dev.rnett.gradle.mcp.maven.MavenCentralService = get()
-            val sourcesService: dev.rnett.gradle.mcp.dependencies.SourcesService = get()
+            val mavenRepoService: MavenRepoService = get()
+            val mavenCentralService: MavenCentralService = get()
+            val sourcesService: SourcesService = get()
             val gradleSourceService: GradleSourceService = get()
             DI.components(provider, replManager, replEnvironmentService, gradleDocsService, gradleVersionService, gradleDependencyService, mavenRepoService, mavenCentralService, sourcesService, gradleSourceService)
         }

@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.dependencies.search
 
+import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.fixtures.dependencies.search.index
 import kotlinx.coroutines.test.runTest
@@ -12,25 +13,30 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
+@OptIn(ExperimentalUuidApi::class)
 class FullTextSearchTest {
 
     @TempDir
     lateinit var tempDir: Path
 
+    fun depDir() = tempDir.resolve("dep-" + Uuid.random()).createDirectories()
+
     @Test
     fun `can index and merge indices`() = runTest {
-        val dep1Dir = tempDir.resolve("dep1").createDirectories()
+        val dep1Dir = depDir()
         dep1Dir.resolve("File1.kt").writeText("Content of File1")
         dep1Dir.resolve("subdir").createDirectories().resolve("File2.kt").writeText("Content of File2")
 
-        val dep2Dir = tempDir.resolve("dep2").createDirectories()
+        val dep2Dir = depDir()
         dep2Dir.resolve("File3.kt").writeText("Content of File3")
 
         val index1Dir = tempDir.resolve("index1")
         val index2Dir = tempDir.resolve("index2")
 
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             FullTextSearch.index(dep1Dir, index1Dir)
             FullTextSearch.index(dep2Dir, index2Dir)
 
@@ -67,7 +73,7 @@ class FullTextSearchTest {
 
     @Test
     fun `search returns correct line numbers`() = runTest {
-        val depDir = tempDir.resolve("dep").createDirectories()
+        val depDir = depDir()
         val fileContent = """
             line 0: zero
             line 1: match
@@ -78,7 +84,7 @@ class FullTextSearchTest {
         depDir.resolve("TestFile.kt").writeText(fileContent)
 
         val indexDir = tempDir.resolve("index")
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             FullTextSearch.index(depDir, indexDir)
         }
 
@@ -93,7 +99,7 @@ class FullTextSearchTest {
 
     @Test
     fun `search handles word boundaries`() = runTest {
-        val depDir = tempDir.resolve("dep").createDirectories()
+        val depDir = depDir()
         depDir.resolve("File.kt").writeText(
             """
             val camelCase = 1
@@ -103,7 +109,7 @@ class FullTextSearchTest {
         )
 
         val indexDir = tempDir.resolve("index")
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             FullTextSearch.index(depDir, indexDir)
         }
 
@@ -138,11 +144,11 @@ class FullTextSearchTest {
 
     @Test
     fun `search handles multiple matches on same line`() = runTest {
-        val depDir = tempDir.resolve("dep").createDirectories()
+        val depDir = tempDir.resolve("dep" + Uuid.random()).createDirectories()
         depDir.resolve("File.kt").writeText("match match match")
 
         val indexDir = tempDir.resolve("index")
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             FullTextSearch.index(depDir, indexDir)
         }
 
@@ -155,11 +161,11 @@ class FullTextSearchTest {
 
     @Test
     fun `search handles non-existent terms`() = runTest {
-        val depDir = tempDir.resolve("dep").createDirectories()
+        val depDir = depDir()
         depDir.resolve("File.kt").writeText("some content")
 
         val indexDir = tempDir.resolve("index")
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             FullTextSearch.index(depDir, indexDir)
         }
 
@@ -168,11 +174,11 @@ class FullTextSearchTest {
 
     @Test
     fun `search handles special characters`() = runTest {
-        val depDir = tempDir.resolve("dep").createDirectories()
+        val depDir = depDir()
         depDir.resolve("File.kt").writeText("val x = a + b * c / d")
 
         val indexDir = tempDir.resolve("index")
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             FullTextSearch.index(depDir, indexDir)
         }
 
@@ -186,12 +192,12 @@ class FullTextSearchTest {
 
     @Test
     fun `index handles empty files`() = runTest {
-        val depDir = tempDir.resolve("dep").createDirectories()
+        val depDir = depDir()
         depDir.resolve("Empty.kt").writeText("")
         depDir.resolve("NotEmpty.kt").writeText("content")
 
         val indexDir = tempDir.resolve("index")
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             FullTextSearch.index(depDir, indexDir)
         }
 
@@ -209,12 +215,12 @@ class FullTextSearchTest {
 
     @Test
     fun `cache invalidation works`() = runTest {
-        val depDir = tempDir.resolve("dep").createDirectories()
+        val depDir = depDir()
         val file = depDir.resolve("File.kt")
         file.writeText("initial")
 
         val indexDir = tempDir.resolve("index")
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             FullTextSearch.index(depDir, indexDir)
 
             assertEquals(1, FullTextSearch.search(indexDir, "initial").results.size)
@@ -231,12 +237,12 @@ class FullTextSearchTest {
 
     @Test
     fun `snippet generation`() = runTest {
-        val depDir = tempDir.resolve("dep").createDirectories()
+        val depDir = depDir()
         val fileContent = (1..10).joinToString("\n") { "line $it uniqueTerm" }
         depDir.resolve("File.kt").writeText(fileContent)
 
         val indexDir = tempDir.resolve("index")
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             FullTextSearch.index(depDir, indexDir)
         }
 
@@ -255,11 +261,11 @@ class FullTextSearchTest {
 
     @Test
     fun `search handles query with colon and syntax errors`() = runTest {
-        val depDir = tempDir.resolve("dep").createDirectories()
+        val depDir = depDir()
         depDir.resolve("Directive.kt").writeText("// LANGUAGE: +ContextParameters")
 
         val indexDir = tempDir.resolve("index")
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             FullTextSearch.index(depDir, indexDir)
         }
 
@@ -275,7 +281,7 @@ class FullTextSearchTest {
 
     @Test
     fun `search prioritizes exact matches`() = runTest {
-        val depDir = tempDir.resolve("dep").createDirectories()
+        val depDir = depDir()
 
         // Noisy file with many occurrences of 'language' in identifiers
         depDir.resolve("Noise.kt").writeText(
@@ -290,7 +296,7 @@ class FullTextSearchTest {
         depDir.resolve("Target.kt").writeText("val LANGUAGE = \"en\"")
 
         val indexDir = tempDir.resolve("index")
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             FullTextSearch.index(depDir, indexDir)
         }
 
@@ -306,11 +312,11 @@ class FullTextSearchTest {
 
     @Test
     fun `search handles Kotlin assignment fragments`() = runTest {
-        val depDir = tempDir.resolve("dep").createDirectories()
+        val depDir = depDir()
         depDir.resolve("Assignment.kt").writeText("val x = 10")
 
         val indexDir = tempDir.resolve("index")
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             FullTextSearch.index(depDir, indexDir)
         }
 
@@ -327,11 +333,11 @@ class FullTextSearchTest {
 
     @Test
     fun `search response includes interpreted query`() = runTest {
-        val depDir = tempDir.resolve("dep").createDirectories()
+        val depDir = depDir()
         depDir.resolve("File.kt").writeText("some content")
 
         val indexDir = tempDir.resolve("index")
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             FullTextSearch.index(depDir, indexDir)
         }
 

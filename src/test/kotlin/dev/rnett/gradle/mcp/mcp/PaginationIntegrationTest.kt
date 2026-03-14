@@ -11,11 +11,10 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import kotlin.test.assertTrue
 
-@Tag("integration")
+
 class PaginationIntegrationTest : BaseMcpServerTest() {
 
     @Serializable

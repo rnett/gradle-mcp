@@ -411,8 +411,6 @@ class DefaultSourcesService(private val depService: GradleDependencyService, pri
             dir.deleteRecursively()
             dir.createDirectories()
             try {
-                val currentExtractionProgress = extractionProgress.withMessage { "Extracting sources for ${dep.id}" }
-                currentExtractionProgress.report(0.0, 1.0, "Extracting sources for ${dep.id}")
                 if (index) {
                     val filesChannel = Channel<IndexEntry>(capacity = 20)
                     coroutineScope {
@@ -424,7 +422,7 @@ class DefaultSourcesService(private val depService: GradleDependencyService, pri
                             }
                         }
                         try {
-                            with(currentExtractionProgress) {
+                            with(ProgressReporter.NONE) {
                                 ArchiveExtractor.extractInto(dir, requireNotNull(dep.sourcesFile), skipSingleFirstDir = true, writeFiles = true) { path, contentBytes ->
                                     filesChannel.send(IndexEntry(path, String(contentBytes, Charsets.UTF_8)))
                                 }
@@ -435,7 +433,7 @@ class DefaultSourcesService(private val depService: GradleDependencyService, pri
                         job.join()
                     }
                 } else {
-                    with(currentExtractionProgress) {
+                    with(ProgressReporter.NONE) {
                         ArchiveExtractor.extractInto(dir, requireNotNull(dep.sourcesFile), skipSingleFirstDir = true, writeFiles = true)
                     }
                 }

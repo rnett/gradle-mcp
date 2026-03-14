@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.dependencies.gradle.docs
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.GradleVersionService
+import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import io.ktor.client.HttpClient
 import io.mockk.coEvery
@@ -40,7 +41,7 @@ class GradleDocsServiceTest {
         } returns Unit
 
         val service = DefaultGradleDocsService(httpClient, indexer, environment, createVersionService())
-        val content = with(ProgressReporter.NONE) {
+        val content = with(ProgressReporter.PRINTLN) {
             service.getDocsPageContent("userguide/test.md", version)
         }
 
@@ -69,7 +70,7 @@ class GradleDocsServiceTest {
         } returns Unit
 
         val service = DefaultGradleDocsService(httpClient, indexer, environment, createVersionService())
-        val content = with(ProgressReporter.NONE) {
+        val content = with(ProgressReporter.PRINTLN) {
             service.getDocsPageContent(".", version)
         }
 
@@ -107,7 +108,7 @@ class GradleDocsServiceTest {
         )
 
         val service = DefaultGradleDocsService(httpClient, indexer, environment, createVersionService())
-        val response = with(ProgressReporter.NONE) {
+        val response = with(ProgressReporter.PRINTLN) {
             service.searchDocs("test", version)
         }
         val results = response.results
@@ -146,7 +147,7 @@ class GradleDocsServiceTest {
         } returns Unit
 
         val service = DefaultGradleDocsService(httpClient, indexer, environment, createVersionService())
-        val summaries = with(ProgressReporter.NONE) {
+        val summaries = with(ProgressReporter.PRINTLN) {
             service.summarizeSections(version)
         }
 
@@ -187,7 +188,7 @@ class GradleDocsServiceTest {
         } returns Unit
 
         val service = DefaultGradleDocsService(httpClient, indexer, environment, createVersionService())
-        val summaries = with(ProgressReporter.NONE) {
+        val summaries = with(ProgressReporter.PRINTLN) {
             service.summarizeSections(version)
         }
 

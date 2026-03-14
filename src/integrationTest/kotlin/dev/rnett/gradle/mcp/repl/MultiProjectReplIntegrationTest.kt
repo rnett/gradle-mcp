@@ -5,12 +5,11 @@ import dev.rnett.gradle.mcp.fixtures.gradle.testMultiProjectBuild
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 
-@Tag("integration")
+
 class MultiProjectReplIntegrationTest : BaseReplIntegrationTest() {
 
     @BeforeAll

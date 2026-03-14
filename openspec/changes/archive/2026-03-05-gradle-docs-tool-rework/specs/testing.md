@@ -34,7 +34,7 @@ reflect the actual structure of each kind. See `specs/conversion.md` for the ful
 ### Integration tests (optional, network-dependent, disabled by default)
 
 - **`downloadsRealDistribution`**: Downloads a known small release (e.g., `8.0`) and
-  verifies ZIP is non-empty. Annotate with `@Tag("integration")` or skip via environment
+  verifies ZIP is non-empty. Annotate with `` or skip via environment
   variable.
 
 ---
@@ -143,5 +143,5 @@ All tests use a temp directory populated with synthetic HTML/text files.
 - Use `MockEngine` (Ktor test) for all HTTP mocking.
 - Use `@TempDir` (JUnit 5) for all file system tests.
 - Lucene tests use `ByteBuffersDirectory` (in-memory) where possible for speed.
-- Integration tests (real network) are tagged `@Tag("integration")` and excluded from
+- Integration tests (real network) are tagged `` and excluded from
   the default `check` task. Run with `./gradlew check -Pintegration`.

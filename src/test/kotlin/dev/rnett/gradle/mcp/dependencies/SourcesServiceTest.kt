@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.dependencies
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
 import dev.rnett.gradle.mcp.dependencies.search.IndexEntry
@@ -93,13 +94,12 @@ class SourcesServiceTest {
             sourcesService.downloadAllSources(projectRoot, fresh = true)
         }
 
-        assertTrue(progressMessages.any { it?.contains("Extracting sources for com.example:lib:1.0.0") == true }, "Should report extraction")
         assertTrue(progressMessages.any { it?.contains("Indexing sources for com.example:lib:1.0.0") == true }, "Should report indexing")
     }
 
     @Test
     fun `downloadAllSources skips resolution when fresh is false and cache exists`() = runTest {
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             val projectRootPath = tempDir.resolve("project")
             projectRootPath.createDirectories()
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
@@ -118,7 +118,7 @@ class SourcesServiceTest {
 
     @Test
     fun `downloadAllSources performs resolution when fresh is true even if cache exists`() = runTest {
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             val projectRootPath = tempDir.resolve("project")
             projectRootPath.createDirectories()
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
@@ -137,7 +137,7 @@ class SourcesServiceTest {
 
     @Test
     fun `downloadAllSources performs resolution when cache does not exist even if fresh is false`() = runTest {
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             val projectRootPath = tempDir.resolve("project")
             projectRootPath.createDirectories()
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
@@ -152,7 +152,7 @@ class SourcesServiceTest {
 
     @Test
     fun `downloadAllSources writes last refresh timestamp`() = runTest {
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             val projectRootPath = tempDir.resolve("project")
             projectRootPath.createDirectories()
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
@@ -169,7 +169,7 @@ class SourcesServiceTest {
 
     @Test
     fun `downloadProjectSources respects fresh parameter`() = runTest {
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             val projectRootPath = tempDir.resolve("project-p")
             projectRootPath.createDirectories()
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
@@ -188,7 +188,7 @@ class SourcesServiceTest {
 
     @Test
     fun `downloadConfigurationSources respects fresh parameter`() = runTest {
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             val projectRootPath = tempDir.resolve("project-c")
             projectRootPath.createDirectories()
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
@@ -207,7 +207,7 @@ class SourcesServiceTest {
 
     @Test
     fun `downloadSourceSetSources respects fresh parameter`() = runTest {
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             val projectRootPath = tempDir.resolve("project-s")
             projectRootPath.createDirectories()
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
@@ -271,7 +271,7 @@ class SourcesServiceTest {
 
         assertThrows(RuntimeException::class.java) {
             runTest {
-                with(ProgressReporter.NONE) {
+                with(ProgressReporter.PRINTLN) {
                     sourcesService.downloadAllSources(projectRoot, index = true)
                 }
             }

@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.dependencies
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.GradleVersionService
+import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService
 import dev.rnett.gradle.mcp.fixtures.dependencies.MockGradleSourceZip
@@ -18,7 +19,6 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
@@ -37,7 +37,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.time.Duration
 
-@Tag("integration")
+
 class GradleSourceServiceTest {
 
     private lateinit var environment: GradleMcpEnvironment
@@ -98,7 +98,7 @@ class GradleSourceServiceTest {
 
         val root = GradleProjectRoot(projectRoot.toString())
 
-        val sources = with(ProgressReporter.NONE) {
+        val sources = with(ProgressReporter.PRINTLN) {
             gradleSourceService.getGradleSources(root)
         }
 

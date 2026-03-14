@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.repl
 
+import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.TestFixturesBuildConfig
 import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
 import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
@@ -32,11 +33,7 @@ class ReplEnvironmentServiceTest {
     fun setupAll() {
         buildManager = BuildManager()
         provider = DefaultGradleProvider(
-            GradleConfiguration(
-                maxConnections = 5,
-                ttl = 60.seconds,
-                allowPublicScansPublishing = false
-            ),
+            GradleConfiguration(),
             buildManager = buildManager
         )
         replEnvService = DefaultReplEnvironmentService(provider)
@@ -273,13 +270,15 @@ class ReplEnvironmentServiceTest {
     @Test
     fun `repl-env init script compiles successfully with allWarningsAsErrors=true`() = runTest(timeout = 300.seconds) {
         val project = testGradleProject {
-            buildScript("""
+            buildScript(
+                """
                 plugins {
-                    kotlin("jvm") version "${BuildConfig.KOTLIN_VERSION}"
-                    kotlin("plugin.serialization") version "${BuildConfig.KOTLIN_VERSION}"
+                    kotlin("jvm") version "${TestFixturesBuildConfig.KOTLIN_VERSION}"
+                    kotlin("plugin.serialization") version "${TestFixturesBuildConfig.KOTLIN_VERSION}"
                 }
                 repositories { mavenCentral() }
-            """.trimIndent())
+            """.trimIndent()
+            )
             file("gradle.properties", "org.gradle.kotlin.dsl.allWarningsAsErrors=true")
         }
 
@@ -310,7 +309,7 @@ class ReplEnvironmentServiceTest {
         additionalDependencies: List<String> = emptyList()
     ): ReplConfigWithJava {
         val projectRoot = GradleProjectRoot(project.pathString())
-        val env = with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+        val env = with(dev.rnett.gradle.mcp.ProgressReporter.PRINTLN) {
             replEnvService.resolveReplEnvironment(
                 projectRoot = projectRoot,
                 projectPath = projectPath,

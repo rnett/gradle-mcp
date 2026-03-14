@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.dependencies.search
 
+import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.fixtures.dependencies.search.SearchIntegrationTestBase
@@ -55,7 +56,7 @@ class LuceneQueryTest : SearchIntegrationTestBase() {
 
     @Test
     fun `test phrase search`() = runTest {
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
             val response = sourcesService.search(sourcesDir, searchProvider, "\"unique phrase for testing\"")
             assertTrue(response.results.isNotEmpty(), "Phrase search failed")
@@ -65,7 +66,7 @@ class LuceneQueryTest : SearchIntegrationTestBase() {
 
     @Test
     fun `test wildcard search`() = runTest {
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
 
             // Single character wildcard
@@ -82,7 +83,7 @@ class LuceneQueryTest : SearchIntegrationTestBase() {
 
     @Test
     fun `test boolean operators`() = runTest {
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
 
             // AND
@@ -103,7 +104,7 @@ class LuceneQueryTest : SearchIntegrationTestBase() {
 
     @Test
     fun `test grouping`() = runTest {
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
             val response = sourcesService.search(sourcesDir, searchProvider, "(apple OR banana) AND unique")
             assertTrue(response.results.isNotEmpty(), "Grouping search failed")
@@ -113,7 +114,7 @@ class LuceneQueryTest : SearchIntegrationTestBase() {
 
     @Test
     fun `test fuzzy search`() = runTest {
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
             val response = sourcesService.search(sourcesDir, searchProvider, "aple~")
             assertTrue(response.results.isNotEmpty(), "Fuzzy search failed")
@@ -123,7 +124,7 @@ class LuceneQueryTest : SearchIntegrationTestBase() {
 
     @Test
     fun `test proximity search`() = runTest {
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
             // "unique" and "phrase" are close together
             val response = sourcesService.search(sourcesDir, searchProvider, "\"unique phrase\"~5")
@@ -133,7 +134,7 @@ class LuceneQueryTest : SearchIntegrationTestBase() {
 
     @Test
     fun `test field search`() = runTest {
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
 
             // Match a term to see current paths in index

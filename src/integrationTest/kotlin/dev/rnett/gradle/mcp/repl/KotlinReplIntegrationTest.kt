@@ -7,13 +7,12 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
-import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestMethodOrder
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 
-@Tag("integration")
+
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 class KotlinReplIntegrationTest : BaseReplIntegrationTest() {
 

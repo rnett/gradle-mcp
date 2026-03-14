@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.dependencies.search
 
+import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.fixtures.dependencies.search.index
 import kotlinx.coroutines.test.runTest
@@ -26,7 +27,7 @@ class GlobSearchTest {
         dependencyDir.resolve("LICENSE").apply { createFile(); writeText("Apache 2.0") }
 
         val outputDir = tempDir.resolve("index")
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             GlobSearch.index(dependencyDir, outputDir)
         }
 
@@ -56,7 +57,7 @@ class GlobSearchTest {
         dep1Dir.createDirectories()
         dep1Dir.resolve("File1.kt").createFile()
         val index1Dir = tempDir.resolve("index1")
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             GlobSearch.index(dep1Dir, index1Dir)
 
             val dep2Dir = tempDir.resolve("dep2")

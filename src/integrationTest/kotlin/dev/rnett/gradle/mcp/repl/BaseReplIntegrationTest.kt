@@ -55,7 +55,6 @@ import org.koin.dsl.module
 import java.nio.file.Files
 import kotlin.test.assertTrue
 import kotlin.test.fail
-import kotlin.time.Duration.Companion.minutes
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
@@ -121,7 +120,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single { DI.json }
         single { DI.xml }
         single { DI.createHttpClient(get(), get()) }
-        single { GradleConfiguration(4, 10.minutes, false) }
+        single { GradleConfiguration() }
         single { DefaultInitScriptProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("init-scripts")) } bind InitScriptProvider::class
         single { DefaultBundledJarProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("jars")) } bind BundledJarProvider::class
         single<BuildManager> { BuildManager() }

@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.dependencies
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
@@ -105,7 +106,7 @@ class SourceLockingTest {
         // Start multiple concurrent requests
         val jobs = List(3) {
             async(Dispatchers.IO) {
-                with(ProgressReporter.NONE) {
+                with(ProgressReporter.PRINTLN) {
                     sourcesService.downloadAllSources(projectRoot, fresh = false)
                 }
             }
@@ -168,7 +169,7 @@ class SourceLockingTest {
         } returns Unit
 
         // 1. Initial download to populate cache
-        with(ProgressReporter.NONE) {
+        with(ProgressReporter.PRINTLN) {
             sourcesService.downloadAllSources(projectRoot, fresh = true)
         }
         coVerify(exactly = 1) { with(any<ProgressReporter>()) { depService.downloadAllSources(projectRoot) } }
@@ -177,7 +178,7 @@ class SourceLockingTest {
         // They should all acquire shared lock and return immediately without blocking each other
         val jobs = List(5) {
             async(Dispatchers.IO) {
-                with(ProgressReporter.NONE) {
+                with(ProgressReporter.PRINTLN) {
                     sourcesService.downloadAllSources(projectRoot, fresh = false)
                 }
             }

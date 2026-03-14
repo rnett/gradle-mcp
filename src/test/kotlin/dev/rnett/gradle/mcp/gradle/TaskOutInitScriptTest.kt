@@ -21,11 +21,7 @@ class TaskOutInitScriptTest {
     fun setupAll() {
         buildManager = BuildManager()
         provider = DefaultGradleProvider(
-            GradleConfiguration(
-                maxConnections = 5,
-                ttl = 60.seconds,
-                allowPublicScansPublishing = false
-            ),
+            GradleConfiguration(),
             buildManager = buildManager
         )
     }

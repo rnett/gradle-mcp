@@ -20,7 +20,6 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.koin.core.scope.Scope
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -28,7 +27,7 @@ import kotlin.io.path.absolutePathString
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
-@Tag("integration")
+
 class GradleProgressIntegrationTest : BaseMcpServerTest() {
 
     companion object {

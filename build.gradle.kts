@@ -147,7 +147,7 @@ testing {
             targets {
                 all {
                     testTask.configure {
-                        maxParallelForks = if (isCI) 3 else 6
+                        maxParallelForks = if (isCI) 4 else 8
                         shouldRunAfter(tasks.test)
                     }
                 }

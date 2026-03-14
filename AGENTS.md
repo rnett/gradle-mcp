@@ -46,7 +46,9 @@ workflows.
 - **Why Power Assert?**: It eliminates the need for complex assertion libraries by providing rich, contextual failure messages from simple `assert` calls.
 - **Why Class-Level Test Resources?**: Creating Gradle projects and daemon environments is expensive; we reuse them across tests to maintain a fast feedback loop.
 - **Rule**: NEVER use reflection hacks for tests. ALWAYS close and clean up any resources or services they create.
-- **Integration test split**: **slow** integration tests, or other slow tests, may be placed in `integrationTest`. This is a PERFORMANCE concern, NOT an architectural one.
+- **Integration test split**: **slow** integration tests, or other slow tests, may be placed in `integrationTest`. This is a PERFORMANCE concern, NOT an architectural one. The integration tests are also ran sequentially within a JVM, and
+  use multiple JVMs for parallelization isntead of threads.
+- **Progress Logging**: Use `ProgressReporter.Companion.PRINTLN` for in tests instead of NONE.
 
 ### MCP Design
 

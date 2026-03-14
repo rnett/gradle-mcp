@@ -34,7 +34,6 @@ import org.koin.core.module.Module
 import org.koin.core.scope.Scope
 import org.koin.dsl.module
 import java.nio.file.Path
-import kotlin.time.Duration
 
 abstract class BaseMcpServerTest {
 
@@ -54,7 +53,7 @@ abstract class BaseMcpServerTest {
         single { DI.xml }
         single { DI.createHttpClient(get(), get()) }
         single<GradleConfiguration> {
-            GradleConfiguration(4, Duration.parse("10m"), false)
+            GradleConfiguration()
         }
         single<InitScriptProvider> { DefaultInitScriptProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("init-scripts")) }
         single<BundledJarProvider> { DefaultBundledJarProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("jars")) }

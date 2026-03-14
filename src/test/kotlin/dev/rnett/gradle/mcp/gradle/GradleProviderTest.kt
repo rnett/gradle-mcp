@@ -13,13 +13,12 @@ import org.gradle.tooling.model.build.BuildEnvironment
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.nio.file.Files
 import kotlin.time.Duration.Companion.seconds
 
-@Tag("integration")
+
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class GradleProviderTest {
 
@@ -68,11 +67,7 @@ class GradleProviderTest {
 
     private fun createTestProvider(): DefaultGradleProvider {
         return DefaultGradleProvider(
-            GradleConfiguration(
-                maxConnections = 5,
-                ttl = 60.seconds,
-                allowPublicScansPublishing = false
-            ),
+            GradleConfiguration(),
             buildManager = BuildManager()
         )
     }
@@ -260,11 +255,7 @@ class GradleProviderTest {
         testJavaProject(hasTests = false).use { project ->
             val tempDir = Files.createTempDirectory("gradle-mcp-test-init-scans-")
             DefaultGradleProvider(
-                GradleConfiguration(
-                    maxConnections = 2,
-                    ttl = 60.seconds,
-                    allowPublicScansPublishing = true
-                ),
+                GradleConfiguration(),
                 buildManager = BuildManager()
             ).use { provider ->
                 val projectRoot = GradleProjectRoot(project.pathString())

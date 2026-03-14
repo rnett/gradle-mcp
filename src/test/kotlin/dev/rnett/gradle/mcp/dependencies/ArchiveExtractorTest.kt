@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.dependencies
 
+import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
@@ -81,7 +82,7 @@ class ArchiveExtractorTest {
             }
 
             zipFile.inputStream().buffered().use {
-                with(ProgressReporter.NONE) {
+                with(ProgressReporter.PRINTLN) {
                     ArchiveExtractor.extractInto(target, ZipInputStream(it), skipSingleFirstDir = true)
                 }
             }
@@ -112,7 +113,7 @@ class ArchiveExtractorTest {
             }
 
             val extractedFiles = mutableMapOf<String, String>()
-            with(ProgressReporter.NONE) {
+            with(ProgressReporter.PRINTLN) {
                 ArchiveExtractor.extract(zipFile) { path, bytes ->
                     extractedFiles[path] = String(bytes)
                 }

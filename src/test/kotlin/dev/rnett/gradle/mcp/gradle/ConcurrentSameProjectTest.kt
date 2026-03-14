@@ -21,11 +21,7 @@ class ConcurrentSameProjectTest {
     @BeforeAll
     fun setupAll() {
         buildManager = BuildManager()
-        val config = GradleConfiguration(
-            maxConnections = 10,
-            ttl = 60.seconds,
-            allowPublicScansPublishing = false
-        )
+        val config = GradleConfiguration()
         provider = DefaultGradleProvider(config, buildManager = buildManager)
     }
 

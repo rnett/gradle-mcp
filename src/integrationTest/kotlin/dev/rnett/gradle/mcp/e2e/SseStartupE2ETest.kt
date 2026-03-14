@@ -12,24 +12,24 @@ import io.modelcontextprotocol.kotlin.sdk.client.SseClientTransport
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.coroutineScope
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
+import org.koin.core.context.GlobalContext.stopKoin
 import kotlin.random.Random
 import kotlin.test.assertTrue
 
-@Tag("integration")
+
 class SseStartupE2ETest {
 
     @AfterEach
     fun cleanup() {
-//        stopKoin()
+        stopKoin()
     }
 
     @OptIn(DelicateCoroutinesApi::class)
     @Test
     suspend fun `application starts with sse transport and client can initialize`() {
         coroutineScope {
-            val port = Random.nextInt(40000, 60000)
+            val port = Random.nextInt(6300, 6600)
 
             System.setProperty("ktor.deployment.port", port.toString())
             System.setProperty("gradle.maxConnections", "4")

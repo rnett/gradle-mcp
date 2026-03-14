@@ -3,12 +3,11 @@ package dev.rnett.gradle.mcp.maven
 import dev.rnett.gradle.mcp.DI
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import kotlin.test.assertContains
 import kotlin.test.assertTrue
 
-@Tag("integration")
+
 class MavenServicesIntegrationTest {
 
     private val client = DI.createHttpClient()

@@ -17,11 +17,7 @@ class TestReportingTest {
 
     private fun createTestProvider(): DefaultGradleProvider {
         return DefaultGradleProvider(
-            GradleConfiguration(
-                maxConnections = 5,
-                ttl = 60.seconds,
-                allowPublicScansPublishing = false
-            ),
+            GradleConfiguration(),
             buildManager = BuildManager()
         )
     }

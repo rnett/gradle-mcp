@@ -14,7 +14,6 @@ import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.koin.core.context.stopKoin
 import java.io.PipedInputStream
@@ -22,7 +21,7 @@ import java.io.PipedOutputStream
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
-@Tag("integration")
+
 class StdioStartupE2ETest {
 
     @AfterEach

@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.dependencies.gradle.docs
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.gradle.DefaultDistributionDownloaderService
 import io.ktor.client.HttpClient
@@ -34,7 +35,7 @@ class DistributionDownloaderServiceTest {
         val client = HttpClient(mockEngine)
         val service = DefaultDistributionDownloaderService(client, environment, "https://example.com/")
 
-        val path = with(ProgressReporter.NONE) {
+        val path = with(ProgressReporter.PRINTLN) {
             service.downloadDocs("9.4.0")
         }
 

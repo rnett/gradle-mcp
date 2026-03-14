@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.dependencies.gradle.docs
 
 import dev.rnett.gradle.mcp.DocsKind
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.gradle.DistributionDownloaderService
 import io.mockk.coEvery
@@ -52,7 +53,7 @@ class ContentExtractorServiceTest {
             val service = DefaultContentExtractorService(downloader, htmlConverter, environment)
 
             val convertedDir = tempDir.resolve("cache/reading_gradle_docs/9.4.0/converted")
-            with(ProgressReporter.NONE) {
+            with(ProgressReporter.PRINTLN) {
                 service.extractEntries("9.4.0").collect { (path, bytes) ->
                     val isHtml = path.endsWith(".html")
                     val targetPath = if (isHtml) path.replace(".html", ".md") else path
@@ -136,7 +137,7 @@ class ContentExtractorServiceTest {
             val service = DefaultContentExtractorService(downloader, htmlConverter, environment)
 
             val convertedDir = tempDir.resolve("cache/reading_gradle_docs/9.4.0/converted")
-            with(ProgressReporter.NONE) {
+            with(ProgressReporter.PRINTLN) {
                 service.extractEntries("9.4.0").collect { (path, bytes) ->
                     val isHtml = path.endsWith(".html")
                     val targetPath = if (isHtml) path.replace(".html", ".md") else path

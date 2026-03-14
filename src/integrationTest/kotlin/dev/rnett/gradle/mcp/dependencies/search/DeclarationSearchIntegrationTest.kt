@@ -1,14 +1,14 @@
 package dev.rnett.gradle.mcp.dependencies.search
 
+import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.fixtures.dependencies.search.SearchIntegrationTestBase
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import kotlin.test.assertTrue
 
-@Tag("integration")
+
 class DeclarationSearchIntegrationTest : SearchIntegrationTestBase() {
     override val searchProvider = DeclarationSearch
 
@@ -55,7 +55,7 @@ class DeclarationSearchIntegrationTest : SearchIntegrationTestBase() {
             )
         )
 
-        val sourcesDir = with(ProgressReporter.NONE) {
+        val sourcesDir = with(ProgressReporter.PRINTLN) {
             sourcesService.downloadAllSources(projectRoot, index = true)
         }
 
@@ -99,7 +99,7 @@ class DeclarationSearchIntegrationTest : SearchIntegrationTestBase() {
             )
         )
 
-        val sourcesDir = with(ProgressReporter.NONE) {
+        val sourcesDir = with(ProgressReporter.PRINTLN) {
             sourcesService.downloadAllSources(projectRoot, index = true)
         }
 
@@ -123,7 +123,7 @@ class DeclarationSearchIntegrationTest : SearchIntegrationTestBase() {
                 sourcesFile = zip
             )
         )
-        val sourcesDir = with(ProgressReporter.NONE) {
+        val sourcesDir = with(ProgressReporter.PRINTLN) {
             sourcesService.downloadAllSources(projectRoot, index = true)
         }
 

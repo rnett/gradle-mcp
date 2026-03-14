@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.dependencies.search
 
+import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.fixtures.dependencies.search.index
 import kotlinx.coroutines.test.runTest
@@ -60,7 +61,7 @@ class DeclarationSearchTest {
         depDir.resolve("MyJavaClass.java").writeText(javaFile)
 
         val indexDir = tempDir.resolve("index")
-        with(ProgressReporter.NONE) {
+            with(ProgressReporter.PRINTLN) {
             DeclarationSearch.index(depDir, indexDir)
         }
 
