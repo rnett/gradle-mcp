@@ -73,3 +73,4 @@ jobs:
           tag_name: ${{ steps.get-version.outputs.version }}
           name: ${{ steps.get-version.outputs.version }}
           generate_release_notes: true
+          draft: true
