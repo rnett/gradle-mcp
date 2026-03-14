@@ -193,10 +193,21 @@ class BuildProgressTracker(private val infoProvider: BuildProgressInfoProvider) 
         val subTask = subTaskProgress
         val subTaskProgressValue = if (subTask.total > 0) subTask.completed.toDouble() / subTask.total else null
         val total = totalItems
-        if (total <= 0) return (subTaskProgressValue ?: 0.0).coerceAtMost(MAX_ITEM_PROGRESS)
+
         val completed = completedItems
         val subStatus = activeStatusOperation?.let { _subStatuses[it] }
         val currentItemProgress = (subStatus?.progress ?: subTaskProgressValue ?: 0.0).coerceAtMost(MAX_ITEM_PROGRESS)
+
+        if (total <= 0) {
+            if (completed > 0 || currentItemProgress > 0) {
+                // Unknown total, use a curve: completed / (completed + 1)
+                // Add currentItemProgress to the "next" step
+                val effectiveCompleted = completed.toDouble() + currentItemProgress
+                return (effectiveCompleted / (effectiveCompleted + 1.0)).coerceAtMost(MAX_ITEM_PROGRESS)
+            }
+            return (subTaskProgressValue ?: 0.0).coerceAtMost(MAX_ITEM_PROGRESS)
+        }
+        
         val progress = (completed + currentItemProgress) / total
         return progress.coerceAtMost(MAX_ITEM_PROGRESS)
     }

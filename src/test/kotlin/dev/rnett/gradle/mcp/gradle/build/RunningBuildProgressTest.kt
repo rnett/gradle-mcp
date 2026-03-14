@@ -162,30 +162,32 @@ class RunningBuildProgressTest {
     }
 
     @Test
-    fun `verifies configuration phase progress does not reset`() {
+    fun `verifies progress updates even with unknown totalItems`() {
         val build = createRunningBuild()
-        // BuildPhaseStartEvent for configuration
-        build.progressTracker.onPhaseStart("CONFIGURE_BUILD", 5)
 
-        // First project starts configuration
+        // Configuration phase starts but we don't have a total yet (e.g. Gradle < 7.6 or missed event)
         build.progressTracker.onPhaseStart("CONFIGURATION", 0)
         build.progressTracker.addActiveOperation(":project1")
 
-        // Progress should be 0/5, but because CONFIGURE_BUILD != CONFIGURATION, it's 0/0
-        // If it's 0/0, getProgressValue returns 0.0
+        // Progress should be 0
         assertEquals(0.0, build.progressTracker.getProgressValue())
 
-        // First project finishes
+        // Project 1 finishes
         build.progressTracker.removeActiveOperation(":project1")
         build.progressTracker.onItemFinish()
 
-        // If it was reset to 0/0, onItemFinish makes it 1/0, which might be weird but getProgressValue handles total <= 0
-        // Wait, if totalItems is 0, getProgressValue returns 0.0 or 1.0
+        // With the fix, it should be 1 / (1 + 1) = 0.5
+        assertEquals(0.5, build.progressTracker.getProgressValue())
 
-        // Second project starts configuration
-        build.progressTracker.onPhaseStart("CONFIGURATION", 0)
+        // Project 2 starts
         build.progressTracker.addActiveOperation(":project2")
+        assertEquals(0.5, build.progressTracker.getProgressValue())
 
-        assertEquals(0.2, build.progressTracker.getProgressValue(), "Progress should be 1/5 even after CONFIGURATION phase call")
+        // Project 2 finishes
+        build.progressTracker.removeActiveOperation(":project2")
+        build.progressTracker.onItemFinish()
+
+        // 2 / (2 + 1) = 0.666...
+        assertEquals(2.0 / 3.0, build.progressTracker.getProgressValue())
     }
 }
