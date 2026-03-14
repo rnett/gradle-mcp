@@ -57,7 +57,9 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
     @BeforeEach
     override fun setup() = runTest {
         System.setProperty("gradle.mcp.test.disableSampling", "true")
-        _project = testGradleProject()
+        _project = testGradleProject() {
+            buildScript("Thread.sleep(100)\n".repeat(4))
+        }
         super.setup()
         server.setServerRoots(Root(_project.path().toUri().toString(), "root"))
     }
@@ -154,7 +156,7 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
     fun `gradle configuration phase shows detailed progress`() = runTest(timeout = 120.seconds) {
         val progressNotifications = ConcurrentLinkedQueue<ProgressNotification.Params>()
 
-        server.client.setNotificationHandler<ProgressNotification>(Method.Defined.NotificationsProgress) { notification: ProgressNotification ->
+        server.client.setNotificationHandler(Method.Defined.NotificationsProgress) { notification: ProgressNotification ->
             progressNotifications.add(notification.params)
             CompletableDeferred(Unit)
         }
