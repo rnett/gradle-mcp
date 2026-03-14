@@ -1,12 +1,15 @@
 package dev.rnett.gradle.mcp.gradle
 
 import java.io.Writer
+import java.util.concurrent.atomic.AtomicBoolean
 
 open class LineEmittingWriter(val lineLogger: (String) -> Unit) : Writer() {
-    private val buf = StringBuilder()
-    private var lastWasCR = false
+    private val buf = StringBuffer()
+    private val lastWasCR = AtomicBoolean(false)
 
-    protected fun current(): String = buf.toString()
+    protected fun current(): String {
+        return buf.toString()
+    }
 
     open fun onLine(line: String) {
 
@@ -16,43 +19,38 @@ open class LineEmittingWriter(val lineLogger: (String) -> Unit) : Writer() {
 
     }
 
-    @Synchronized
     override fun write(cbuf: CharArray, off: Int, len: Int) {
         for (i in off..<off + len) {
             val c = cbuf[i]
 
-            if (lastWasCR) {
+            if (lastWasCR.compareAndSet(true, false)) {
                 if (c == '\n') {
-                    emit()
-                    lastWasCR = false
+                    emitInternal()
                     continue
                 } else {
-                    emit()
-                    lastWasCR = false
+                    emitInternal()
                 }
             }
 
             if (c == '\r') {
-                lastWasCR = true
+                lastWasCR.set(true)
             } else if (c == '\n') {
-                emit()
+                emitInternal()
             } else {
                 buf.append(c)
             }
         }
     }
 
-    @Synchronized
     override fun flush() {
-        onLineOrFlush(current())
+        onLineOrFlush(buf.toString())
     }
 
-    @Synchronized
     override fun close() {
-        emit()
+        emitInternal()
     }
 
-    private fun emit() {
+    private fun emitInternal() {
         val str = buf.toString()
         if (str.isNotEmpty()) {
             onLine(str)

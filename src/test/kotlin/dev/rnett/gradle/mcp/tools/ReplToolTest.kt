@@ -208,6 +208,6 @@ class ReplToolTest : BaseMcpServerTest() {
         assert(response.isError == true)
         val text = (response.content.first() as TextContent).text
         assert(text!!.contains("Failed to resolve REPL environment because Gradle task failed"))
-        assert(text!!.contains("does not appear to be a JVM source set"))
+        assert(text.contains("does not appear to be a JVM source set"))
     }
 }

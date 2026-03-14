@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.utils
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
@@ -11,74 +12,82 @@ import java.nio.channels.FileLock
 import java.nio.channels.OverlappingFileLockException
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
-import java.time.Clock
-import java.time.Duration
 import kotlin.io.path.createDirectories
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 object FileLockManager {
-    private val LOGGER = LoggerFactory.getLogger(FileLockManager::class.java)
+    val LOGGER = LoggerFactory.getLogger(FileLockManager::class.java)
 
     /**
      * Executes the [action] with a file lock on the specified [lockFile].
      * Retries acquisition until [timeout] is reached.
      * If [shared] is true, multiple readers can hold the lock simultaneously.
      */
-    suspend fun <T> withLock(
+    suspend inline fun <T> withLock(
         lockFile: Path,
-        timeout: Duration = Duration.ofSeconds(60),
+        timeout: Duration = 60.seconds,
         shared: Boolean = false,
-        clock: Clock = Clock.systemUTC(),
+        timeSource: TimeSource = TimeSource.Monotonic,
         dispatcher: CoroutineDispatcher = Dispatchers.IO,
-        action: suspend () -> T
+        crossinline action: suspend () -> T
     ): T {
         val absolutePath = lockFile.toAbsolutePath()
-        absolutePath.parent.createDirectories()
 
-        val start = clock.instant()
-        var lastLog = clock.instant()
+        val start = timeSource.markNow()
+        var lastLog = timeSource.markNow()
+        val originalContext = currentCoroutineContext()
 
         return withContext(dispatcher) {
-            FileChannel.open(
-                absolutePath,
-                StandardOpenOption.CREATE,
-                StandardOpenOption.READ,
-                StandardOpenOption.WRITE
-            ).use { channel ->
-                var lock: FileLock? = null
+            var channel: FileChannel? = null
+            var lock: FileLock? = null
+            try {
                 while (lock == null) {
                     try {
-                        lock = channel.tryLock(0L, Long.MAX_VALUE, shared)
+                        if (channel == null || !channel.isOpen) {
+                            absolutePath.parent.createDirectories()
+                            channel = FileChannel.open(
+                                absolutePath,
+                                StandardOpenOption.CREATE,
+                                StandardOpenOption.READ,
+                                StandardOpenOption.WRITE
+                            )
+                        }
+                        lock = channel!!.tryLock(0L, Long.MAX_VALUE, shared)
                     } catch (e: OverlappingFileLockException) {
                         // Lock held by another thread in the same JVM
                     } catch (e: IOException) {
                         // On Windows, this can happen if the file is being deleted or other transient issues
-                        if (e.message?.contains("Access is denied", ignoreCase = true) != true) {
+                        val msg = e.message?.lowercase() ?: ""
+                        if (!msg.contains("access is denied") && !msg.contains("no such file")) {
                             throw e
                         }
+                        // Close channel on IO exception so we retry opening it
+                        channel?.close()
+                        channel = null
                     }
 
                     if (lock == null) {
-                        val now = clock.instant()
-                        if (Duration.between(start, now) > timeout) {
-                            throw IOException("Failed to acquire ${if (shared) "shared" else "exclusive"} lock on $absolutePath after ${timeout.toSeconds()}s")
+                        if (start.elapsedNow() > timeout) {
+                            throw IOException("Failed to acquire ${if (shared) "shared" else "exclusive"} lock on $absolutePath after ${timeout.inWholeSeconds}s")
                         }
 
-                        if (Duration.between(lastLog, now) > Duration.ofSeconds(5)) {
-                            LOGGER.info("Still waiting for ${if (shared) "shared" else "exclusive"} lock on $absolutePath... (${Duration.between(start, now).toSeconds()}s elapsed)")
-                            lastLog = now
+                        if (lastLog.elapsedNow() > 5.seconds) {
+                            LOGGER.info("Still waiting for ${if (shared) "shared" else "exclusive"} lock on $absolutePath... (${start.elapsedNow().inWholeSeconds}s elapsed)")
+                            lastLog = timeSource.markNow()
                         }
 
                         delay(100)
                     }
                 }
 
-                return@withContext try {
-                    LOGGER.debug("Acquired {} lock on {}", if (shared) "shared" else "exclusive", absolutePath)
-                    action()
-                } finally {
-                    lock.release()
-                    LOGGER.debug("Released {} lock on {}", if (shared) "shared" else "exclusive", absolutePath)
-                }
+                LOGGER.debug("Acquired {} lock on {}", if (shared) "shared" else "exclusive", absolutePath)
+                return@withContext withContext(originalContext) { action() }
+            } finally {
+                lock?.release()
+                channel?.close()
+                LOGGER.debug("Released {} lock on {}", if (shared) "shared" else "exclusive", absolutePath)
             }
         }
     }

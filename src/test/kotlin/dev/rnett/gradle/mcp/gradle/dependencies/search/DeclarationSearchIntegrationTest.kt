@@ -73,4 +73,58 @@ class DeclarationSearchIntegrationTest : SearchIntegrationTestBase() {
         assertTrue(resultsMethod.isNotEmpty(), "myMethod not found")
         assertTrue(resultsMethod.any { it.relativePath == "com.other/dep2-sources/other/OtherClass.java" && it.line == 4 }, "myMethod missing at line 4: ${resultsMethod}")
     }
+
+    @Test
+    fun `declaration search should not fail with index not found`() = runTest {
+        val zip = createSourceZip(
+            "test-sources", mapOf(
+                "com/example/Test.kt" to """
+                package com.example
+                class TestClass
+            """.trimIndent()
+            )
+        )
+
+        mockDependencyReport(
+            GradleDependency(
+                id = "com.example:test:1.0",
+                group = "com.example",
+                name = "test",
+                version = "1.0",
+                sourcesFile = zip
+            )
+        )
+
+        val sourcesDir = with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            sourcesService.downloadAllSources(projectRoot, index = true)
+        }
+
+        val searchResults = sourcesService.search(sourcesDir, searchProvider, "TestClass").results
+        assertTrue(searchResults.isNotEmpty(), "Expected results for TestClass")
+    }
+
+    @Test
+    fun `invalid regex in declaration search should return graceful error`() = runTest {
+        val zip = createSourceZip(
+            "test-sources", mapOf(
+                "com/example/Test.kt" to "package com.example\nclass Test"
+            )
+        )
+        mockDependencyReport(
+            GradleDependency(
+                id = "com.example:test:1.0",
+                group = "com.example",
+                name = "test",
+                version = "1.0",
+                sourcesFile = zip
+            )
+        )
+        val sourcesDir = with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+            sourcesService.downloadAllSources(projectRoot, index = true)
+        }
+
+        val result = sourcesService.search(sourcesDir, searchProvider, "[")
+
+        assertTrue(result.error != null, "Expected error for invalid regex")
+    }
 }

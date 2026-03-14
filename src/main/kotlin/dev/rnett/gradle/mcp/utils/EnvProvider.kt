@@ -27,9 +27,7 @@ object DefaultEnvProvider : EnvProvider {
 
     override fun getShellEnvironment(): Map<String, String> {
         LOGGER.trace("Detecting environment from shell")
-        val osName = System.getProperty("os.name").lowercase()
-        val isWindows = osName.contains("win")
-        val command = if (isWindows) {
+        val command = if (OS.isWindows) {
             listOf("cmd.exe", "/c", "set")
         } else {
             val shell = System.getenv("SHELL") ?: "sh"

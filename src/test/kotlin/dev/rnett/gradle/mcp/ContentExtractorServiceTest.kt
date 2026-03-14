@@ -53,7 +53,7 @@ class ContentExtractorServiceTest {
 
             val convertedDir = tempDir.resolve("cache/reading_gradle_docs/9.4.0/converted")
             with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
-                service.extractEntries("9.4.0") { path, bytes ->
+                service.extractEntries("9.4.0").collect { (path, bytes) ->
                     val isHtml = path.endsWith(".html")
                     val targetPath = if (isHtml) path.replace(".html", ".md") else path
                     val processedBytes = if (isHtml) htmlConverter.convert(String(bytes), dev.rnett.gradle.mcp.DocsKind.USERGUIDE).toByteArray() else bytes
@@ -137,7 +137,7 @@ class ContentExtractorServiceTest {
 
             val convertedDir = tempDir.resolve("cache/reading_gradle_docs/9.4.0/converted")
             with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
-                service.extractEntries("9.4.0") { path, bytes ->
+                service.extractEntries("9.4.0").collect { (path, bytes) ->
                     val isHtml = path.endsWith(".html")
                     val targetPath = if (isHtml) path.replace(".html", ".md") else path
                     val processedBytes = if (isHtml) htmlConverter.convert(String(bytes), dev.rnett.gradle.mcp.DocsKind.USERGUIDE).toByteArray() else bytes

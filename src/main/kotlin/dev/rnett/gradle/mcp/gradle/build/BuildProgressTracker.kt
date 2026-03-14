@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedDeque
+import kotlin.concurrent.atomics.AtomicLong
+import kotlin.concurrent.atomics.AtomicReference
 
 /**
  * Capping progress at 99% to avoid jumping to 100% while the build is still running.
@@ -32,9 +34,11 @@ interface BuildProgressInfoProvider {
  * Tracks and calculates progress for a running build.
  */
 class BuildProgressTracker(private val infoProvider: BuildProgressInfoProvider) {
-    private val lock = Any()
-
-    private data class PhaseState(var name: String, var totalItems: Long, var completedItems: Long = 0)
+    private data class PhaseState(
+        val name: AtomicReference<String>,
+        val totalItems: AtomicLong,
+        val completedItems: AtomicLong = AtomicLong(0)
+    )
 
     private val phaseStack = ConcurrentLinkedDeque<PhaseState>()
 
@@ -50,36 +54,41 @@ class BuildProgressTracker(private val infoProvider: BuildProgressInfoProvider) 
     /**
      * The total number of items in the current top-most phase.
      */
-    val totalItems: Long get() = synchronized(lock) { phaseStack.peekLast()?.totalItems ?: 0L }
+    val totalItems: Long get() = phaseStack.peekLast()?.totalItems?.load() ?: 0L
 
     /**
      * The number of completed items in the current top-most phase.
      */
-    val completedItems: Long get() = synchronized(lock) { phaseStack.peekLast()?.completedItems ?: 0L }
+    val completedItems: Long get() = phaseStack.peekLast()?.completedItems?.load() ?: 0L
 
     /**
      * The name of the current active phase.
      */
-    val currentPhase: String? get() = synchronized(lock) { phaseStack.peekLast()?.name }
+    val currentPhase: String? get() = phaseStack.peekLast()?.name?.load()
 
     private val _activeOperations: MutableSet<String> = Collections.newSetFromMap(ConcurrentHashMap())
     val activeOperations: List<String> get() = _activeOperations.toList()
 
-    @Volatile
-    var lastFinishedOperation: String? = null
-        private set
+    private val _lastFinishedOperation = AtomicReference<String?>(null)
+    var lastFinishedOperation: String?
+        get() = _lastFinishedOperation.load()
+        private set(value) = _lastFinishedOperation.store(value)
 
     internal data class SubStatus(val status: String?, val progress: Double?)
 
     private val _subStatuses = ConcurrentHashMap<String, SubStatus>()
 
-    @Volatile
-    internal var activeStatusOperation: String? = null
+    private val _activeStatusOperation = AtomicReference<String?>(null)
+    internal var activeStatusOperation: String?
+        get() = _activeStatusOperation.load()
+        set(value) = _activeStatusOperation.store(value)
 
     internal data class SubTaskProgress(val total: Long, val completed: Long, val message: String?)
 
-    @Volatile
-    internal var subTaskProgress = SubTaskProgress(0, 0, null)
+    private val _subTaskProgress = AtomicReference(SubTaskProgress(0, 0, null))
+    internal var subTaskProgress: SubTaskProgress
+        get() = _subTaskProgress.load()
+        set(value) = _subTaskProgress.store(value)
 
     companion object {
         private val SUB_TASK_TOTAL_REGEX = Regex("TOTAL: ([0-9]+)")
@@ -105,26 +114,27 @@ class BuildProgressTracker(private val infoProvider: BuildProgressInfoProvider) 
         return false
     }
 
-    internal fun onPhaseStart(phase: String, total: Int) = synchronized(lock) {
+    internal fun onPhaseStart(phase: String, total: Int) {
         val top = phaseStack.peekLast()
-        if (isSameLogicalPhase(top?.name, phase)) {
+        if (top != null && isSameLogicalPhase(top.name.load(), phase)) {
             if (total > 0) {
-                top!!.totalItems = total.toLong()
-                if (top.name == "CONFIGURATION" || top.name == "EXECUTION") {
-                    top.name = phase
+                top.totalItems.store(total.toLong())
+                val currentName = top.name.load()
+                if (currentName == "CONFIGURATION" || currentName == "EXECUTION") {
+                    top.name.store(phase)
                 }
             }
         } else {
-            phaseStack.addLast(PhaseState(phase, total.toLong()))
+            phaseStack.addLast(PhaseState(AtomicReference(phase), AtomicLong(total.toLong())))
         }
         emitProgress()
     }
 
-    internal fun onPhaseFinish(phase: String) = synchronized(lock) {
+    internal fun onPhaseFinish(phase: String) {
         val it = phaseStack.descendingIterator()
         while (it.hasNext()) {
             val state = it.next()
-            if (isSameLogicalPhase(state.name, phase)) {
+            if (isSameLogicalPhase(state.name.load(), phase)) {
                 it.remove()
                 break
             }
@@ -132,18 +142,18 @@ class BuildProgressTracker(private val infoProvider: BuildProgressInfoProvider) 
         emitProgress(true)
     }
 
-    internal fun onItemFinish() = synchronized(lock) {
-        phaseStack.peekLast()?.let { it.completedItems++ }
+    internal fun onItemFinish() {
+        phaseStack.peekLast()?.completedItems?.addAndFetch(1)
         emitProgress()
     }
 
-    internal fun addActiveOperation(operation: String) = synchronized(lock) {
+    internal fun addActiveOperation(operation: String) {
         _activeOperations.add(operation)
         if (activeStatusOperation == null) activeStatusOperation = operation
         emitProgress()
     }
 
-    internal fun removeActiveOperation(operation: String) = synchronized(lock) {
+    internal fun removeActiveOperation(operation: String) {
         _activeOperations.remove(operation)
         lastFinishedOperation = operation
         _subStatuses.remove(operation)
@@ -153,7 +163,7 @@ class BuildProgressTracker(private val infoProvider: BuildProgressInfoProvider) 
         emitProgress()
     }
 
-    internal fun setSubStatus(status: String?, progress: Double? = null, operationPath: String? = null) = synchronized(lock) {
+    internal fun setSubStatus(status: String?, progress: Double? = null, operationPath: String? = null) {
         val op = operationPath ?: activeStatusOperation ?: "unknown"
         _subStatuses[op] = SubStatus(status, progress)
         if (operationPath != null || activeStatusOperation == null) activeStatusOperation = op
@@ -178,7 +188,7 @@ class BuildProgressTracker(private val infoProvider: BuildProgressInfoProvider) 
         emitProgress()
     }
 
-    fun getProgressValue(isFinish: Boolean = false): Double = synchronized(lock) {
+    fun getProgressValue(isFinish: Boolean = false): Double {
         if (isFinish) return 1.0
         val subTask = subTaskProgress
         val subTaskProgressValue = if (subTask.total > 0) subTask.completed.toDouble() / subTask.total else null

@@ -75,9 +75,9 @@ class BuildProgressFormatter(
         val skipped = infoProvider.skippedTests
 
         val parts = mutableListOf<String>()
-        if (passed > 0) parts += "$passed passed"
-        if (failed > 0) parts += "$failed failed"
-        if (skipped > 0) parts += "$skipped skipped"
+        if (passed > 0) parts += "pass: $passed"
+        if (failed > 0) parts += "fail: $failed"
+        if (skipped > 0) parts += "skip: $skipped"
 
         return if (parts.isNotEmpty()) " (${parts.joinToString(", ")})" else ""
     }

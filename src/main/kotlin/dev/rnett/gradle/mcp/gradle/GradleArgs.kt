@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.gradle
 
 import dev.rnett.gradle.mcp.tools.GradlePathUtils
 import dev.rnett.gradle.mcp.utils.EnvProvider
+import dev.rnett.gradle.mcp.utils.OS
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import io.github.smiley4.schemakenerator.core.annotations.Example
 import kotlinx.serialization.Serializable
@@ -70,8 +71,7 @@ data class GradleInvocationArguments(
         }
         if (additionalEnvVars.isEmpty()) return base
 
-        val isWindows = System.getProperty("os.name").lowercase().contains("win")
-        if (!isWindows) return base + additionalEnvVars
+        if (!OS.isWindows) return base + additionalEnvVars
 
         val result = base.toMutableMap()
         additionalEnvVars.forEach { (k, v) ->

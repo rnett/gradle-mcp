@@ -329,7 +329,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<ProgressReporter>()) {
-                dependencyService.getDependencies(any(), any(), any(), any(), checkUpdates = true, any(), any())
+                dependencyService.getDependencies(any(), any(), any(), any(), checkUpdates = true, any(), any(), any(), any())
             }
         } returns report
 
@@ -358,7 +358,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<ProgressReporter>()) {
-                dependencyService.getDependencies(any(), any(), any(), any(), any(), any(), any())
+                dependencyService.getDependencies(any(), any(), any(), any(), any(), any(), any(), any(), any())
             }
         } returns report
 

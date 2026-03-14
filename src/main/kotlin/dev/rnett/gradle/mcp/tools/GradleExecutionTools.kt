@@ -20,7 +20,7 @@ class GradleExecutionTools(
     @Serializable
     data class GradleExecuteArgs(
         val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
-        @Description("The arguments for gradle. Syntax: ':task' (root only), 'task' (all projects), or ':app:task'. Required if not stopping a build.")
+        @Description("Providing the arguments for gradle. Syntax: ':task' (root only), 'task' (all projects), or ':app:task'. Required if not stopping a build.")
         val commandLine: List<String>? = null,
         @Description("Setting to true starts the build in the background and returns a managed BuildId immediately. Use ONLY for persistent tasks (e.g., servers) or when you explicitly intend to perform other tasks in parallel. Foreground is STRONGLY PREFERRED for most tasks as it provides superior progressive disclosure.")
         val background: Boolean = false,
@@ -62,7 +62,7 @@ class GradleExecutionTools(
         val commandLine = it.commandLine
             ?: throw IllegalArgumentException("commandLine is required when not stopping a build.")
 
-        val invocationArgs = it.invocationArguments.copy(additionalArguments = commandLine)
+        val invocationArgs = it.invocationArguments.copy(additionalArguments = commandLine + it.invocationArguments.additionalArguments)
 
         if (it.background) {
             val root = it.projectRoot.resolve()

@@ -5,10 +5,10 @@ import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.lucene.LuceneReaderCache
 import dev.rnett.gradle.mcp.lucene.LuceneUtils
 import dev.rnett.gradle.mcp.lucene.addTextAndExact
-import dev.rnett.gradle.mcp.withPhase
+import dev.rnett.gradle.mcp.utils.parallelForEach
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.document.Document
@@ -20,6 +20,7 @@ import org.apache.lucene.search.uhighlight.DefaultPassageFormatter
 import org.apache.lucene.search.uhighlight.UnifiedHighlighter
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.io.path.createParentDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.writeText
 
@@ -41,6 +42,7 @@ class DefaultGradleDocsIndexService(
     private val analyzer: Analyzer = LuceneUtils.createBoostedAnalyzer(setOf("title_exact", "body_exact"))
 
     context(progress: ProgressReporter)
+    @OptIn(ExperimentalCoroutinesApi::class)
     override suspend fun ensureIndexed(version: String) {
         val versionDir = environment.cacheDir.resolve("reading_gradle_docs").resolve(version)
         val indexDir = versionDir.resolve("index")
@@ -51,39 +53,29 @@ class DefaultGradleDocsIndexService(
         }
 
         val convertedDir = versionDir.resolve("converted")
-
         withContext(Dispatchers.IO) {
             Files.createDirectories(indexDir)
             Files.createDirectories(convertedDir)
+        }
 
-            val filesChannel = kotlinx.coroutines.channels.Channel<Pair<String, ByteArray>>(capacity = 10)
-
-            val indexingProgress = progress.withPhase("PROCESSING")
-            var processedFiles = 0.0
-
-            coroutineScope {
-                val indexer = DocsIndexer(indexDir, convertedDir)
-                val indexJob = launch(Dispatchers.IO) {
-                    indexer.use {
-                        for (entry in filesChannel) {
-                            processedFiles++
-                            indexingProgress.report(processedFiles, null, "Indexing documentation")
-                            it.indexFile(entry.first, entry.second)
-                        }
-                        it.finish()
-                    }
+        coroutineScope {
+            val indexer = DocsIndexer(indexDir, convertedDir)
+            try {
+                extractor.extractEntries(version).parallelForEach(context = Dispatchers.IO) { (path, bytes) ->
+                    indexer.indexFile(path, bytes)
                 }
 
-                try {
-                    extractor.extractEntries(version) { path, bytes ->
-                        filesChannel.send(path to bytes)
-                    }
-                } finally {
-                    filesChannel.close()
+                withContext(Dispatchers.IO) {
+                    indexer.finish()
                 }
-                indexJob.join()
+            } finally {
+                withContext(Dispatchers.IO) {
+                    indexer.close()
+                }
             }
+        }
 
+        withContext(Dispatchers.IO) {
             readerCache.invalidate(indexDir)
             doneMarker.writeText(System.currentTimeMillis().toString())
         }
@@ -94,7 +86,7 @@ class DefaultGradleDocsIndexService(
         private val config = org.apache.lucene.index.IndexWriterConfig(analyzer).apply { openMode = org.apache.lucene.index.IndexWriterConfig.OpenMode.CREATE }
         private val writer = org.apache.lucene.index.IndexWriter(directory, config)
 
-        suspend fun indexFile(path: String, bytes: ByteArray) {
+        fun indexFile(path: String, bytes: ByteArray) {
             val isHtml = path.endsWith(".html")
             val targetPath = if (isHtml) path.replace(".html", ".md") else path
             val processedBytes = if (isHtml) htmlConverter.convert(String(bytes), detectKind(path)).toByteArray() else bytes
@@ -115,11 +107,12 @@ class DefaultGradleDocsIndexService(
             writer.addDocument(doc)
 
             val outFile = convertedDir.resolve(targetPath)
-            Files.createDirectories(outFile.parent)
+            outFile.createParentDirectories()
             outFile.writeText(content)
         }
 
         fun finish() {
+            writer.forceMerge(1)
             writer.commit()
         }
 

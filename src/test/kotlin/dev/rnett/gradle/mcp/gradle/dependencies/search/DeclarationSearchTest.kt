@@ -111,25 +111,52 @@ class DeclarationSearchTest {
         assertFound("com.example.MyKotlinClass", "MyKotlinClass.kt", 3)
         assertFound("com.example.MyKotlinClass.myVal", "MyKotlinClass.kt", 4)
 
-        // Partial FQN (analyzed)
-        assertFound("example.MyKotlinClass", "MyKotlinClass.kt", 3)
+        // Partial FQN without wildcards should NOT match anymore (Case 3 eliminated)
+        assertTrue(DeclarationSearch.search(indexDir, "example.MyKotlinClass").results.isEmpty(), "Partial FQN without wildcard should not match")
+
+        // Unqualified wildcard matching name
+        assertFound("MyKotlin*", "MyKotlinClass.kt", 3)
+        assertFound("*Class", "MyKotlinClass.kt", 3)
+
+        // CamelCase token wildcard matching
+        assertFound("Kotlin*", "MyKotlinClass.kt", 3)
+        assertFound("*Method", "MyJavaClass.java", 5)
+
+        // Partial FQN with wildcards
+        assertFound("*.example.MyKotlinClass", "MyKotlinClass.kt", 3)
+        assertFound("com.*.MyKotlinClass", "MyKotlinClass.kt", 3)
 
         // Glob wildcards
         assertFound("com.example.*.myVal", "MyKotlinClass.kt", 4)
-        assertFound("com.**.myVal", "MyKotlinClass.kt", 4)
-        assertFound("com.**.MyKotlinClass.myVal", "MyKotlinClass.kt", 4)
+        assertFound("com.*.myVal", "MyKotlinClass.kt", 4)
+        assertFound("com.*.MyKotlinClass.myVal", "MyKotlinClass.kt", 4)
         assertFound("*.example.MyKotlinClass", "MyKotlinClass.kt", 3)
-        assertFound("**.MyKotlinClass", "MyKotlinClass.kt", 3)
-        assertFound("com.example.**", "MyKotlinClass.kt", 3)
+        assertFound("*.MyKotlinClass", "MyKotlinClass.kt", 3)
+        assertFound("com.example.*", "MyKotlinClass.kt", 3)
 
-        // Lucene syntax
+        // Lucene syntax (field prefixes)
         assertFound("name:MyKotlinClass", "MyKotlinClass.kt", 3)
+        assertFound("name:MyKotlin*", "MyKotlinClass.kt", 3)
+        assertFound("name:Kotlin*", "MyKotlinClass.kt", 3)
         assertFound("fqn:com.example.MyKotlinClass", "MyKotlinClass.kt", 3)
         assertFound("fqn:com.*.MyKotlinClass", "MyKotlinClass.kt", 3)
+        assertFound("fqn:*.MyKotlinClass", "MyKotlinClass.kt", 3)
+
+        // Explicit Regex
+        assertFound("name:/MyKotlin.*/", "MyKotlinClass.kt", 3)
+        assertFound("fqn:/com\\.example\\.MyKotlin.*/", "MyKotlinClass.kt", 3)
+        assertFound("fqn:/.*/", "MyKotlinClass.kt", 3) // match all FQNs
 
         // FQN search (MyJavaEnum is top-level in com.example)
         assertFound("com.example.MyJavaEnum", "MyJavaClass.java", 9)
-        assertFound("**.MyJavaEnum", "MyJavaClass.java", 9)
+        assertFound("*.MyJavaEnum", "MyJavaClass.java", 9)
+
+        // Regex search (unqualified)
+        assertFound("/.*MyKotlin.*/", "MyKotlinClass.kt", 3)
+        assertFound("/.*myVal/", "MyKotlinClass.kt", 4)
+        assertFound("/com\\.example\\.MyKotlin.*/", "MyKotlinClass.kt", 3)
+        assertFound("/.*(MyKotlin|MyJava).*/", "MyKotlinClass.kt", 3)
+        assertFound("/.*[Mm]yKotlin.*/", "MyKotlinClass.kt", 3)
 
         // Package exploration
         val packageContents = DeclarationSearch.listPackageContents(indexDir, "com.example")

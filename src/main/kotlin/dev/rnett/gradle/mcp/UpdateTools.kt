@@ -345,6 +345,7 @@ private object ThrowingGradleDependencyService : GradleDependencyService {
         sourceSet: String?,
         checkUpdates: Boolean,
         versionFilter: String?,
+        stableOnly: Boolean,
         onlyDirect: Boolean,
         downloadSources: Boolean
     ): GradleDependencyReport {

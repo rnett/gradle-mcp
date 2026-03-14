@@ -98,7 +98,7 @@ class RunningBuildProgressTest {
         collector.statusChanged(successEvent("test1"))
         collector.statusChanged(successEvent("test2"))
 
-        assertEquals("[EXECUTING] :test (2 passed)", build.progressTracker.getProgressMessage())
+        assertEquals("[EXECUTING] :test (pass: 2)", build.progressTracker.getProgressMessage())
     }
 
     @Test
@@ -148,7 +148,7 @@ class RunningBuildProgressTest {
         collector.statusChanged(finishEvent("t3", false))
         collector.statusChanged(finishEvent("t4", false, true))
 
-        assertEquals("[EXECUTING] :test (2 passed, 1 failed, 1 skipped)", build.progressTracker.getProgressMessage())
+        assertEquals("[EXECUTING] :test (pass: 2, fail: 1, skip: 1)", build.progressTracker.getProgressMessage())
     }
 
     @Test

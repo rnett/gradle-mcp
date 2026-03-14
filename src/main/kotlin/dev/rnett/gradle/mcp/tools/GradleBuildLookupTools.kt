@@ -43,44 +43,44 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
 
     @Serializable
     data class InspectBuildArgs(
-        @Description("The managed BuildId to inspect authoritatively. If omitted, returns the high-level build dashboard showing active and recently completed builds.")
+        @Description("Providing the managed BuildId to inspect authoritatively. If omitted, returns the high-level build dashboard showing active and recently completed builds.")
         val buildId: BuildId? = null,
 
         @Description("Applying a surgical lookup mode: 'summary' (default) or 'details'. Use 'details' for exhaustive, deep-dive information.")
         val mode: LookupMode = LookupMode.summary,
 
-        @Description("The maximum number of seconds to wait for the requested condition(s). If omitted, the tool returns immediately with the current build status.")
+        @Description("Specifying the maximum number of seconds to wait for the requested condition(s). If omitted, the tool returns immediately with the current build status.")
         val timeout: Double? = null,
-        @Description("If true, wait for the build to finish authoritatively. This is the default behavior if 'timeout' is provided but no other wait conditions are specified.")
+        @Description("Waiting for the build to finish authoritatively. This is the default behavior if 'timeout' is provided but no other wait conditions are specified.")
         val waitForFinished: Boolean = false,
-        @Description("Regex pattern to wait for in the build logs authoritatively. Ideal for detecting when a server has started or a specific event has occurred. Uses 'timeout' for the maximum wait duration.")
+        @Description("Providing a regex pattern to wait for in the build logs authoritatively. Ideal for detecting when a server has started or a specific event has occurred. Uses 'timeout' for the maximum wait duration.")
         val waitFor: String? = null,
-        @Description("Task path to wait for completion authoritatively. The most surgical way to monitor specific task progress. Uses 'timeout' for the maximum wait duration.")
+        @Description("Providing a task path to wait for completion authoritatively. The most surgical way to monitor specific task progress. Uses 'timeout' for the maximum wait duration.")
         val waitForTask: String? = null,
         @Description("Setting to true only looks for matches emitted after this call. Only applies if 'timeout' and a wait condition ('waitFor', 'waitForTask', or 'waitForFinished') are provided.")
         val afterCall: Boolean = false,
 
         val pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS,
 
-        @Description("Filter task results. In 'summary' mode, a prefix of the task path. In 'details' mode, the full path of the task. Specify this to get task details. DO NOT use this for tests; use testName instead.")
+        @Description("Filtering task results. In 'summary' mode, a prefix of the task path. In 'details' mode, the full path of the task. Specify this to get task details. DO NOT use this for tests; use testName instead.")
         val taskPath: String? = null,
-        @Description("Filter task results by outcome (summary mode only).")
+        @Description("Filtering task results by outcome (summary mode only).")
         val taskOutcome: TaskOutcome? = null,
 
-        @Description("Filter test results. In 'summary' mode, a prefix of the test name. In 'details' mode, the full name of the test. Specify this to get test details. ALWAYS use this with `mode=\"details\"` instead of taskPath to see individual test outputs, metadata, and stack traces. Generic task output lacks test-specific diagnostic information.")
+        @Description("Filtering test results. In 'summary' mode, a prefix of the test name. In 'details' mode, the full name of the test. Specify this to get test details. ALWAYS use this with `mode=\"details\"` instead of taskPath to see individual test outputs, metadata, and stack traces. Generic task output lacks test-specific diagnostic information.")
         val testName: String? = null,
-        @Description("Filter test results by outcome (summary mode only).")
+        @Description("Filtering test results by outcome (summary mode only).")
         val testOutcome: TestOutcome? = null,
-        @Description("The index of the test to show if multiple tests have the same name (details mode only).")
+        @Description("Specifying the index of the test to show if multiple tests have the same name (details mode only).")
         val testIndex: Int? = null,
 
-        @Description("The failure ID to get details for (details mode only). Use this for surgical analysis of build-level failures.")
+        @Description("Providing the failure ID to get details for (details mode only). Use this for surgical analysis of build-level failures.")
         val failureId: FailureId? = null,
 
-        @Description("The ProblemId of the problem to look up (details mode only).")
+        @Description("Providing the ProblemId of the problem to look up (details mode only).")
         val problemId: ProblemId? = null,
 
-        @Description("If true, return the last 'limit' lines of the console output instead of the first. Useful for checking the end of long logs. Specify this to get raw console output.")
+        @Description("Returning the last 'limit' lines of the console output instead of the first. Useful for checking the end of long logs. Specify this to get raw console output.")
         val consoleTail: Boolean? = null
     )
 
@@ -418,7 +418,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                         select {
                             if (waitForRegex != null) {
                                 async {
-                                    if (!args.afterCall && waitForRegex.containsMatchIn(runningBuild.logBuffer.toString())) {
+                                    if (!args.afterCall && waitForRegex.containsMatchIn(runningBuild.consoleOutput.toString())) {
                                         return@async true
                                     }
                                     runningBuild.logLines.firstOrNull { line: String ->
@@ -438,7 +438,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                                 if (waitForRegex != null || waitForTask != null) {
                                     // Check if the condition was met in the very last moment (e.g. in the final log lines)
                                     val finalMatched = if (waitForRegex != null) {
-                                        waitForRegex.containsMatchIn(runningBuild.logBuffer.toString())
+                                        waitForRegex.containsMatchIn(runningBuild.consoleOutput.toString())
                                     } else {
                                         runningBuild.completedTaskPaths.contains(waitForTask)
                                     }
@@ -466,7 +466,8 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             }
 
             // re-get build to pick up any changes (e.g. it might have finished)
-            build = buildResults.getBuild(args.buildId)!!
+            val buildId = args.buildId
+            build = requireNotNull(buildResults.getBuild(buildId)) { "No build found with ID $buildId" }
         }
 
         val hasTasks = args.taskPath != null || args.taskOutcome != null

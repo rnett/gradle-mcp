@@ -9,7 +9,8 @@ workflows.
 2. **Source Control**: ALWAYS add changes to Git for persistence, but NEVER create commits or push unless explicitly instructed.
 3. **Tool Preference**: ALWAYS prefer using the Gradle MCP tools (`gradle`, `inspect_build`, etc.) over raw shell execution of `./gradlew` or generic shell commands.
 4. **Verification**: NO change is complete without passing relevant tests and the final `check` task.
-5. **Tool Metadata**: After modifying any tool descriptions or metadata, you MUST run `./gradlew :updateToolsList` to ensure consistency.
+5. **Tool Metadata**: After modifying any tool descriptions or metadata, or making structural changes that might affect tool discovery, you MUST run `./gradlew :updateToolsList` to ensure consistency. This is required even if no `@McpTool`
+   annotations were directly changed.
 6. **Agent Documentation**: This is an MCP server and set of tools for agents to use. If behavior or features aren't documented in the tool descriptions AND skills, they might as well not exist. Ensure they are documented well enough in
    both places for agents to use them.
 
@@ -57,6 +58,21 @@ workflows.
 
 ## HOW (Operational Execution)
 
+- **Prefix Stability**: This file (`AGENTS.md`) is designed to be at the start of the context. Maintain its structure to maximize context caching hits.
+- **Instruction Density**: Focus on non-obvious constraints. If it can be inferred from the file structure, don't add it here.
+- **Caching**: This workspace uses heavy caching for Gradle sources. Use `inspect_dependencies` and `search_dependency_sources` with `fresh = true` only when dependencies change.
+- **Parallel Source Processing**: Source extraction and indexing are performed in parallel using Kotlin `Flow` and `flatMapMerge` (or `Semaphore`-managed `async`). This significantly improves performance but requires careful concurrency
+  management (limiting global IO tasks).
+- **Gradle Source Exploration**: On some machines, the Gradle build tool project is checked out in `./managing-gradle-builds-tool`. Use it as a source of knowledge for Gradle's internal APIs, but be careful not to include it in broad
+  search/build commands unless intended. See [gradle-sources-overview.md](./gradle-sources-overview.md).
+
+### Lucene & Search Conventions
+
+- **Field Constants**: For Lucene-based search providers (e.g., `DeclarationSearch`), field names MUST be extracted to a nested `Fields` object. This ensures consistency and prevents typos across indexing and searching logic.
+- **Object Pooling**: For heavy, non-thread-safe objects like `TreeSitterDeclarationExtractor`, prefer a `ConcurrentLinkedQueue`-based pool over `ThreadLocal` when using Kotlin Coroutines. This ensures better resource management and
+  predictability across diverse threading environments.
+- **Regex Search**: `DeclarationSearch` supports full string regex queries on the FQN field when the query is wrapped in `/` (e.g., `/.*MyClass/`). This should be preferred for complex, precise symbol discovery.
+
 ### Build & Test Commands
 
 - **Build All**: `./gradlew build`
@@ -71,10 +87,18 @@ workflows.
 
 ### Code Style & Conventions
 
+- **Kotlin 2.3+ Standard Library**: ALWAYS prefer Kotlin's native types over Java-specific ones. Refer to the `kotlin_reference` skill for full details.
+    - **Atomics**: Use `kotlin.concurrent.atomics.*` (`AtomicInt`, `AtomicLong`, `AtomicBoolean`, `AtomicReference`). Note: These require `@OptIn(ExperimentalAtomicApi::class)`.
+    - **Time**: Use `kotlin.time.*` (`Instant`, `Clock`, `Duration`). `Clock.System.now()` is the standard for current time.
+    - **UUID**: Use `kotlin.uuid.*` for UUID operations (e.g., `UUID.parse()`, `UUID.random()`).
+    - **Coroutines**: We use Coroutines and Flows extensively. This means AVOID SYNCHRONIZATION whenever possible as it pins and blocks the underlying thread.
 - **Test Naming**: Always name tests using descriptive names in English, wrapped in backticks (e.g., `` `verify build status wait` ``).
 - **Concurrency**: ALWAYS use `runTest` for suspending tests, NEVER `runBlocking`.
 - **Dependency Catalog**: ALWAYS put dependencies in `gradle/libs.versions.toml`. Every version ref MUST have a corresponding entry for automated updates.
-- **Progress Reporting**: ALWAYS send progress commands/notifications (`ProgressReporter`) when implementing long-running operations or tool handlers. Do not omit them to reduce noise; they will be filtered later by the client.
+- **Progress Reporting**: ALWAYS send progress commands/notifications (`ProgressReporter`) when implementing long-running operations or tool handlers. Do NOT artificially limit reports (e.g., `if count % 100`) as limiting is applied at the
+  top level. However, prioritize overall tool UX; for very fast operations where progress reporting is more noise/overhead than value, it is acceptable to omit it. Progress reporting does not have to be perfect - some slight or temporary
+  inaccuracies or
+  concurrency issues are OK - focus on the overall UX.
 
 ### Skill Development Workflow
 
@@ -93,9 +117,31 @@ Skills in this project guide other agents. They will be installed in users' skil
 
 ## Concurrency and Testing Patterns
 
+### Context parameters
+
+- **Mockk:** To get mockk to work well with context parameters, you need to do something like:
+
+```kotlin
+context(any<ContextParamAType>(), any<ContextParamBType>()) {
+    myFunction(any(), any<ResolveOverloadParamType>())
+}
+```
+
+Mock in general needs the specific type args for the `any()` calls to resolve overloads.
+
+### Error Handling & Propagation
+
+- **Fail Fast**: ALWAYS propagate exceptions in indexing, extraction, and search operations. NEVER swallow errors silently. "Well-documented failures" are preferred over silent partial successes.
+- **Extraction Tests**: When writing tests for source extraction, avoid using empty or invalid ZIP files. Since extraction failures are no longer swallowed, these will now cause `ZipException` and fail the test.
+
 ### Progress Tracking
 
-- **Thread Safety**: All progress trackers (e.g., `BuildProgressTracker`) must be thread-safe. Use `private val lock = Any()` and `synchronized(lock)` for state updates, as updates may come from multiple Gradle listener threads.
+- **Thread Safety**: Progress trackers (e.g., `BuildProgressTracker`) handle updates from multiple Gradle listener threads. It's OK if progress is not perfectly consistent as long as it is eventually consistent. Avoid heavy synchronization.
+- **Reporting Frequency**: Do NOT artificially limit report frequency (e.g., `if count % 100`) in trackers or producers; throttled delivery is handled authoritatively at the top level.
+- **Parallel Operations Strategy**: When designing progress reporting for complex parallel operations, prioritize stable activity messaging and independent phase ranges over high-resolution, jittery percentages. Stable task-based messaging
+  and sequential phase progression build significantly more user trust than flickering percentages.
+- **Merging Progress**: Base merging progress across multiple search providers on the total document count across all providers rather than the number of providers themselves. Provider-based progress is too low-resolution and causes
+  significant jumps if document distribution is uneven across index types.
 - **State Consolidation**: Prefer consolidating sub-task or granular progress into a single state object within the tracker rather than managing multiple independent variables.
 - **Job Management**: When managing background collection jobs (e.g., in `GradleBuildLookupTools`), always use `job.cancelAndJoin()` instead of just `cancel()` to ensure clean termination before proceeding.
 
@@ -103,20 +149,6 @@ Skills in this project guide other agents. They will be installed in users' skil
 
 - **Deterministic Sync**: Avoid `delay()` or `Dispatchers.Unconfined` for synchronizing tests with background progress. Instead, use `CompletableDeferred<Unit>` as a "signal" that can be completed by the tracker and awaited by the test.
 - **Test Hooks**: It is acceptable to add internal "onProgressFinished" or similar callback hooks to trackers specifically for test synchronization.
-
-### [2026-03-11] Progress Reporting Enhancements
-
-- Enhanced `inspect_build` tool to report real-time progress while waiting for background builds.
-- Refactored `BuildProgressTracker` to incorporate granular sub-task progress (e.g., dependency resolution).
-- Improved thread safety in `RunningBuild` and `BuildProgressTracker`.
-- Decomposed `RunningBuild.kt` for better maintainability.
-
-
-- **Prefix Stability**: This file (`AGENTS.md`) is designed to be at the start of the context. Maintain its structure to maximize context caching hits.
-- **Instruction Density**: Focus on non-obvious constraints. If it can be inferred from the file structure, don't add it here.
-- **Caching**: This workspace uses heavy caching for Gradle sources. Use `inspect_dependencies` and `search_dependency_sources` with `fresh = true` only when dependencies change.
-- **Gradle Source Exploration**: On some machines, the Gradle build tool project is checked out in `./managing-gradle-builds-tool`. Use it as a source of knowledge for Gradle's internal APIs, but be careful not to include it in broad
-  search/build commands unless intended. See [gradle-sources-overview.md](./gradle-sources-overview.md).
 
 ---
 

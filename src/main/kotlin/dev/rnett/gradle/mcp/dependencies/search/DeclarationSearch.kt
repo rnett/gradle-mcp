@@ -13,63 +13,84 @@ import org.apache.lucene.index.Term
 import org.apache.lucene.index.TermsEnum
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser
 import org.apache.lucene.search.IndexSearcher
-import org.apache.lucene.search.RegexpQuery
 import org.apache.lucene.search.TermQuery
 import org.apache.lucene.util.BytesRef
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
+import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.io.path.exists
 import kotlin.time.measureTimedValue
 
 object DeclarationSearch : LuceneBaseSearchProvider() {
+    object Fields {
+        const val NAME = "name"
+        const val FQN = "fqn"
+        const val PACKAGE_NAME = "packageName"
+        const val PATH = "path"
+        const val LINE = "line"
+        const val OFFSET = "offset"
+    }
+
     override val logger = LoggerFactory.getLogger(DeclarationSearch::class.java)
     override val name: String = "declarations"
-    override val indexVersion: Int = 6
+    override val indexVersion: Int = 7
 
-    override fun createAnalyzer() = LuceneUtils.createCaseSensitiveAnalyzer()
+    override fun createAnalyzer() = org.apache.lucene.analysis.miscellaneous.PerFieldAnalyzerWrapper(
+        LuceneUtils.createCaseSensitiveAnalyzer(),
+        mapOf(
+            Fields.FQN to org.apache.lucene.analysis.core.KeywordAnalyzer(),
+            Fields.PACKAGE_NAME to org.apache.lucene.analysis.core.KeywordAnalyzer(),
+            Fields.PATH to org.apache.lucene.analysis.core.KeywordAnalyzer()
+        )
+    )
 
     override fun copyDocument(oldDoc: Document, newPath: String): Document {
         return Document().apply {
-            add(TextField("name", oldDoc.get("name"), org.apache.lucene.document.Field.Store.YES))
-            add(TextField("fqn", oldDoc.get("fqn"), org.apache.lucene.document.Field.Store.YES))
-            add(StringField("fqn_raw", oldDoc.get("fqn"), org.apache.lucene.document.Field.Store.NO))
-            add(StringField("packageName", oldDoc.get("packageName"), org.apache.lucene.document.Field.Store.YES))
-            add(StringField("path", newPath, org.apache.lucene.document.Field.Store.YES))
-            add(StoredField("line", oldDoc.getField("line").numericValue().toInt()))
-            add(StoredField("offset", oldDoc.getField("offset").numericValue().toInt()))
+            add(TextField(Fields.NAME, oldDoc.get(Fields.NAME), org.apache.lucene.document.Field.Store.YES))
+            add(StringField(Fields.FQN, oldDoc.get(Fields.FQN), org.apache.lucene.document.Field.Store.YES))
+            add(StringField(Fields.PACKAGE_NAME, oldDoc.get(Fields.PACKAGE_NAME), org.apache.lucene.document.Field.Store.YES))
+            add(StringField(Fields.PATH, newPath, org.apache.lucene.document.Field.Store.YES))
+            add(StoredField(Fields.LINE, oldDoc.getField(Fields.LINE).numericValue().toInt()))
+            add(StoredField(Fields.OFFSET, oldDoc.getField(Fields.OFFSET).numericValue().toInt()))
         }
     }
 
     override suspend fun newIndexer(outputDir: Path): Indexer = object : LuceneBaseIndexer(outputDir) {
-        private val localExtractor = TreeSitterDeclarationExtractor()
+        private val pool = ConcurrentLinkedQueue<TreeSitterDeclarationExtractor>()
 
         override suspend fun indexFile(path: String, content: String) {
             val ext = path.substringAfterLast('.', "")
             if (ext !in listOf("java", "kt")) return
 
+            val extractor = pool.poll() ?: TreeSitterDeclarationExtractor()
             val fileSymbols = try {
-                localExtractor.extractSymbols(content, ext)
+                extractor.extractSymbols(content, ext)
             } catch (e: Exception) {
                 logger.error("Failed to extract symbols from $path", e)
                 emptyList()
+            } finally {
+                pool.add(extractor)
             }
 
             val documents = fileSymbols.map { sym ->
                 Document().apply {
-                    add(TextField("name", sym.name, org.apache.lucene.document.Field.Store.YES))
-                    add(TextField("fqn", sym.fqn, org.apache.lucene.document.Field.Store.YES))
-                    add(StringField("fqn_raw", sym.fqn, org.apache.lucene.document.Field.Store.NO))
-                    add(StringField("packageName", sym.packageName, org.apache.lucene.document.Field.Store.YES))
-                    add(StringField("path", path, org.apache.lucene.document.Field.Store.YES))
-                    add(StoredField("line", sym.line))
-                    add(StoredField("offset", sym.offset))
+                    add(TextField(Fields.NAME, sym.name, org.apache.lucene.document.Field.Store.YES))
+                    add(StringField(Fields.FQN, sym.fqn, org.apache.lucene.document.Field.Store.YES))
+                    add(StringField(Fields.PACKAGE_NAME, sym.packageName, org.apache.lucene.document.Field.Store.YES))
+                    add(StringField(Fields.PATH, path, org.apache.lucene.document.Field.Store.YES))
+                    add(StoredField(Fields.LINE, sym.line))
+                    add(StoredField(Fields.OFFSET, sym.offset))
                 }
             }
             writer.addDocuments(documents)
         }
 
         override fun close() {
-            localExtractor.close()
+            var extractor = pool.poll()
+            while (extractor != null) {
+                extractor.close()
+                extractor = pool.poll()
+            }
             super.close()
         }
     }
@@ -85,18 +106,18 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
 
         // 1. Direct symbols in this package
         val symbols = mutableSetOf<String>()
-        val symbolsQuery = TermQuery(Term("packageName", packageName))
+        val symbolsQuery = TermQuery(Term(Fields.PACKAGE_NAME, packageName))
         val topSymbols = searcher.search(symbolsQuery, 5000)
         topSymbols.scoreDocs.forEach { hit ->
-            val doc = searcher.storedFields().document(hit.doc, setOf("name"))
-            doc.get("name")?.let { symbols.add(it) }
+            val doc = searcher.storedFields().document(hit.doc, setOf(Fields.NAME))
+            doc.get(Fields.NAME)?.let { symbols.add(it) }
         }
 
         // 2. Sub-packages
         val subPackages = mutableSetOf<String>()
         val prefix = if (packageName.isEmpty()) "" else "$packageName."
 
-        val terms = MultiTerms.getTerms(reader, "packageName")
+        val terms = MultiTerms.getTerms(reader, Fields.PACKAGE_NAME)
         if (terms != null) {
             val iterator = terms.iterator()
             if (iterator.seekCeil(BytesRef(prefix)) != TermsEnum.SeekStatus.END) {
@@ -119,24 +140,6 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
         PackageContents(symbols.sorted(), subPackages.sorted())
     }
 
-    private fun transformGlobToRegex(glob: String): String {
-        // First escape dots for regex (literal dot)
-        val escaped = glob.replace(".", "\\.")
-
-        // Use placeholders to avoid issues with subsequent replacements
-        // ** matches zero or more segments (including dots)
-        // * matches one or more characters within a segment (excluding dots)
-
-        return escaped
-            .replace("**", "DOUBLE_ASTERISK")
-            .replace("*", "SINGLE_ASTERISK")
-            .replace("\\.DOUBLE_ASTERISK\\.", "\\.(.*\\.)?")
-            .replace("DOUBLE_ASTERISK\\.", "(.*\\.)?")
-            .replace("\\.DOUBLE_ASTERISK", "(\\..*)?")
-            .replace("DOUBLE_ASTERISK", ".*")
-            .replace("SINGLE_ASTERISK", "[^.]+")
-    }
-
     override suspend fun search(indexDir: Path, query: String, pagination: PaginationInput): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (res, duration) = measureTimedValue {
             if (!indexDir.exists()) {
@@ -147,36 +150,15 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
             val searcher = IndexSearcher(reader)
             createAnalyzer().use { analyzer ->
                 val q = try {
-                    if ((query.contains("*") || query.contains("**")) && !query.contains(":") && !query.contains("\"")) {
-                        // Simple glob-like query for FQN
-                        val regex = transformGlobToRegex(query)
-                        RegexpQuery(Term("fqn_raw", regex))
-                    } else {
-                        val parser = object : MultiFieldQueryParser(arrayOf("name", "fqn"), analyzer) {
-                            init {
-                                allowLeadingWildcard = true
-                            }
-
-                            override fun getWildcardQuery(field: String?, termStr: String?): org.apache.lucene.search.Query {
-                                if (field == "fqn" && termStr != null && (termStr.contains(".") || termStr.contains("*"))) {
-                                    return RegexpQuery(Term("fqn_raw", transformGlobToRegex(termStr)))
-                                }
-                                return super.getWildcardQuery(field, termStr)
-                            }
-
-                            override fun getFieldQuery(field: String?, queryText: String?, quoted: Boolean): org.apache.lucene.search.Query {
-                                if (field == "fqn" && queryText != null && queryText.contains(".") && !quoted) {
-                                    return RegexpQuery(Term("fqn_raw", transformGlobToRegex(queryText)))
-                                }
-                                return super.getFieldQuery(field, queryText, quoted)
-                            }
-                        }
-                        parser.parse(query)
-                    }
+                    val parser = MultiFieldQueryParser(arrayOf(Fields.NAME, Fields.FQN), analyzer)
+                    parser.allowLeadingWildcard = true
+                    parser.parse(query)
                 } catch (e: Exception) {
+                    val message = e.message ?: "Unknown error"
+                    val error = LuceneUtils.formatSyntaxError(message)
                     return@measureTimedValue SearchResponse<RelativeSearchResult>(
                         emptyList(),
-                        error = LuceneUtils.formatSyntaxError(e.message)
+                        error = error
                     )
                 }
 
@@ -186,9 +168,9 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
                 val matchedResults: List<RelativeSearchResult> = hits.drop(pagination.offset).take(pagination.limit).map { hit ->
                     val doc = searcher.storedFields().document(hit.doc)
                     RelativeSearchResult(
-                        relativePath = doc.get("path"),
-                        offset = doc.getField("offset").numericValue().toInt(),
-                        line = doc.getField("line").numericValue().toInt(),
+                        relativePath = doc.get(Fields.PATH),
+                        offset = doc.getField(Fields.OFFSET).numericValue().toInt(),
+                        line = doc.getField(Fields.LINE).numericValue().toInt(),
                         score = hit.score
                     )
                 }.toList()

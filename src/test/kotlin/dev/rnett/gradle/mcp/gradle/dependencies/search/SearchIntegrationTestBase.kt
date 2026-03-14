@@ -19,6 +19,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.io.path.createDirectories
 import kotlin.io.path.outputStream
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 abstract class SearchIntegrationTestBase {
@@ -74,6 +75,33 @@ abstract class SearchIntegrationTestBase {
             )
         )
         coEvery { with(any<ProgressReporter>()) { dependencyService.downloadAllSources(projectRoot) } } returns report
+    }
+
+    @Test
+    fun `test that search fails if indexing was disabled`() = kotlinx.coroutines.test.runTest {
+        val zip = createSourceZip(
+            "test-sources", mapOf(
+                "com/example/MyClass.kt" to "class MyClass"
+            )
+        )
+
+        mockDependencyReport(
+            GradleDependency(
+                id = "com.example:test:1.0",
+                group = "com.example",
+                name = "test",
+                version = "1.0",
+                sourcesFile = zip
+            )
+        )
+
+        val sourcesDir = with(ProgressReporter.NONE) {
+            sourcesService.downloadAllSources(projectRoot, index = false)
+        }
+
+        assertFailsWith<IllegalStateException> {
+            sourcesService.search(sourcesDir, searchProvider, "MyClass")
+        }
     }
 
     @Test

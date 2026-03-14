@@ -9,12 +9,12 @@ import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.tools.GradlePathUtils
 import dev.rnett.gradle.mcp.utils.FileLockManager
 import dev.rnett.gradle.mcp.withPhase
-import io.ktor.client.*
-import io.ktor.client.plugins.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
-import io.ktor.utils.io.jvm.javaio.*
+import io.ktor.client.HttpClient
+import io.ktor.client.plugins.onDownload
+import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.http.isSuccess
+import io.ktor.utils.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
@@ -63,9 +63,10 @@ class DefaultGradleSourceService(
         val inputVersion = GradlePathUtils.getGradleVersion(rootPath)
         val version = versionService.resolveVersion(inputVersion)
 
-        val targetDir = SourcesDir(gradleSourcesDir.resolve(version))
-        val lockFile = targetDir.path.resolve(".lock")
-        val markerFile = targetDir.path.resolve(".completed")
+        val storagePath = gradleSourcesDir.resolve(version)
+        val targetDir = SourcesDir(storagePath)
+        val lockFile = lockFile(projectRoot, version, "gradle")
+        val markerFile = targetDir.storagePath.resolve(".completed")
 
         if (!forceDownload) {
             val cached = FileLockManager.withLock(lockFile, shared = true) {
@@ -81,10 +82,10 @@ class DefaultGradleSourceService(
 
             if (forceDownload) {
                 LOGGER.info("Force downloading Gradle sources for version $version")
-                targetDir.path.deleteRecursively()
+                targetDir.storagePath.deleteRecursively()
             }
 
-            targetDir.path.createDirectories()
+            targetDir.storagePath.createDirectories()
             val sourceZip = try {
                 downloadGradleSources(version)
             } catch (e: Exception) {
@@ -98,12 +99,16 @@ class DefaultGradleSourceService(
                 targetDir
             } catch (e: Exception) {
                 LOGGER.error("Failed to extract and index Gradle sources for version $version", e)
-                targetDir.path.deleteRecursively()
+                targetDir.storagePath.deleteRecursively()
                 throw e
             } finally {
                 sourceZip.deleteIfExists()
             }
         }
+    }
+
+    private fun lockFile(projectRoot: GradleProjectRoot, path: String, kind: String): Path {
+        return environment.lockFile(projectRoot.projectRoot, path, kind, "sources")
     }
 
     context(progress: ProgressReporter)
@@ -117,14 +122,9 @@ class DefaultGradleSourceService(
 
         val duration = measureTime {
             LOGGER.info("Downloading Gradle sources from $url to $tempZip")
-            var lastUpdate = 0L
             val response = httpClient.get(url) {
                 onDownload { bytesSentTotal, contentLength ->
-                    val now = System.currentTimeMillis()
-                    if (now - lastUpdate >= 200 || bytesSentTotal == contentLength) {
-                        lastUpdate = now
-                        downloadProgress.report(bytesSentTotal.toDouble(), contentLength?.toDouble(), "Downloading Gradle $version source distribution")
-                    }
+                    downloadProgress.report(bytesSentTotal.toDouble(), contentLength?.toDouble(), "Downloading Gradle $version source distribution")
                 }
             }
             if (!response.status.isSuccess()) {
@@ -155,8 +155,9 @@ class DefaultGradleSourceService(
 
         LOGGER.info("Indexing Gradle sources at ${targetDir.sources} for version $version")
         val duration = measureTime {
-            val index = indexService.index(dummyDependency, targetDir.sources)
-                ?: throw IllegalStateException("Failed to index Gradle sources at ${targetDir.sources}")
+            val index = with(progress) {
+                indexService.index(dummyDependency, targetDir.sources)
+            } ?: throw IllegalStateException("Failed to index Gradle sources at ${targetDir.sources}")
 
             if (index.dir != targetDir.index) {
                 index.dir.toFile().copyRecursively(targetDir.index.toFile(), overwrite = true)

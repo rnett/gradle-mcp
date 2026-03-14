@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.dependencies.search
 
 import com.github.benmanes.caffeine.cache.Caffeine
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.lucene.LuceneUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,6 +15,7 @@ import org.slf4j.Logger
 import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.createDirectories
+import kotlin.io.path.exists
 import kotlin.time.measureTime
 
 abstract class LuceneBaseSearchProvider : SearchProvider {
@@ -45,7 +47,7 @@ abstract class LuceneBaseSearchProvider : SearchProvider {
         protected val config = IndexWriterConfig(analyzer).apply { openMode = IndexWriterConfig.OpenMode.CREATE }
         protected val writer = IndexWriter(directory, config)
 
-        protected open val doForceMerge: Boolean = false
+        protected open val doForceMerge: Boolean = true
 
         override suspend fun finish() {
             if (doForceMerge) {
@@ -62,7 +64,10 @@ abstract class LuceneBaseSearchProvider : SearchProvider {
         }
     }
 
-    override suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path) = withContext(Dispatchers.IO) {
+    override suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path, progress: ProgressReporter) = withContext(Dispatchers.IO) {
+        val totalDocs = indexDirs.keys.sumOf { countDocuments(it) }
+        var completedDocs = 0
+
         val duration = measureTime {
             val resolvedOutputDir = resolveIndexDir(outputDir)
             resolvedOutputDir.createDirectories()
@@ -71,15 +76,26 @@ abstract class LuceneBaseSearchProvider : SearchProvider {
                 LuceneUtils.writeIndex(resolvedOutputDir, analyzer) { writer ->
                     indexDirs.forEach { (idxDir, relativePrefix) ->
                         val resolvedIdxDir = resolveIndexDir(idxDir)
-                        DirectoryReader.open(FSDirectory.open(resolvedIdxDir)).use { reader ->
-                            val storedFields = reader.storedFields()
-                            for (i in 0 until reader.maxDoc()) {
-                                val oldDoc = storedFields.document(i)
-                                val oldPath = oldDoc.get("path")
-                                val newPath = relativePrefix.resolve(oldPath).toString().replace('\\', '/')
+                        FSDirectory.open(resolvedIdxDir).use { directory ->
+                            if (DirectoryReader.indexExists(directory)) {
+                                DirectoryReader.open(directory).use { reader ->
+                                    val storedFields = reader.storedFields()
+                                    val count = reader.numDocs()
+                                    for (i in 0 until reader.maxDoc()) {
+                                        val oldDoc = try {
+                                            storedFields.document(i)
+                                        } catch (e: Exception) {
+                                            continue
+                                        }
+                                        val oldPath = oldDoc.get("path")
+                                        val newPath = relativePrefix.resolve(oldPath).toString().replace('\\', '/')
 
-                                val newDoc = copyDocument(oldDoc, newPath)
-                                writer.addDocument(newDoc)
+                                        val newDoc = copyDocument(oldDoc, newPath)
+                                        writer.addDocument(newDoc)
+                                    }
+                                    completedDocs += count
+                                    progress.report(completedDocs.toDouble(), totalDocs.toDouble(), null)
+                                }
                             }
                         }
                     }
@@ -89,5 +105,17 @@ abstract class LuceneBaseSearchProvider : SearchProvider {
             invalidateCache(resolvedOutputDir)
         }
         logger.info("$name index merging took $duration (${indexDirs.size} indices)")
+    }
+
+    override suspend fun countDocuments(indexDir: Path): Int = withContext(Dispatchers.IO) {
+        val resolvedIdxDir = resolveIndexDir(indexDir)
+        if (!resolvedIdxDir.exists()) return@withContext 0
+        FSDirectory.open(resolvedIdxDir).use { directory ->
+            if (DirectoryReader.indexExists(directory)) {
+                DirectoryReader.open(directory).use { reader ->
+                    reader.numDocs()
+                }
+            } else 0
+        }
     }
 }

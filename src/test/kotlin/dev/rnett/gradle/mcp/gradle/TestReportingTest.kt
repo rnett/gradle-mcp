@@ -165,9 +165,9 @@ class TestReportingTest {
             runningBuild.awaitFinished()
 
             val messages = progressMessages.toList()
-            val hasPass = messages.any { it.contains(Regex("1 passed")) }
-            val hasFail = messages.any { it.contains(Regex("1 failed")) }
-            val hasCombined = messages.any { it.contains(Regex("1 passed.*1 failed")) }
+            val hasPass = messages.any { it.contains(Regex("pass: 1")) }
+            val hasFail = messages.any { it.contains(Regex("fail: 1")) }
+            val hasCombined = messages.any { it.contains(Regex("pass: 1.*fail: 1")) }
 
             assertTrue(hasPass || hasFail || hasCombined, "Should have seen test progress in messages: $messages")
         }

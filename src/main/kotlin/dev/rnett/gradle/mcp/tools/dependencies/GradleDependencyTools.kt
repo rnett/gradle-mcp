@@ -14,10 +14,15 @@ import dev.rnett.gradle.mcp.tools.paginate
 import dev.rnett.gradle.mcp.tools.resolveRoot
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
+import org.slf4j.LoggerFactory
 
 class GradleDependencyTools(
     private val dependencyService: GradleDependencyService
 ) : McpServerComponent("Project Dependency Tools", "Tools for querying Gradle dependencies and checking for updates.") {
+
+    companion object {
+        private val LOGGER = LoggerFactory.getLogger(GradleDependencyTools::class.java)
+    }
 
     @Serializable
     data class InspectDependenciesArgs(
@@ -36,7 +41,7 @@ class GradleDependencyTools(
         val updatesOnly: Boolean = false,
         @Description("Ignoring pre-release versions (alpha, beta, rc, etc.) when checking for updates.")
         val stableOnly: Boolean = false,
-        @Description("Applying a regex pattern for surgical control over considered update versions.")
+        @Description("Applying a regex pattern for surgical control over considered update versions. This is a regex search (e.g., use ^1\\. to match versions starting with 1.).")
         val versionFilter: String? = null,
         val pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS
     )
@@ -70,11 +75,8 @@ class GradleDependencyTools(
                 configuration = it.configuration,
                 sourceSet = it.sourceSet,
                 checkUpdates = it.checkUpdates || it.updatesOnly,
-                versionFilter = when {
-                    it.stableOnly -> "^(?i).+?(?<![.-](?:alpha|beta|rc|m|milestone|releasecandidate|dev|ea|preview|snapshot|canary)[0-9]*)$"
-                    it.versionFilter != null -> it.versionFilter
-                    else -> null
-                },
+                versionFilter = it.versionFilter,
+                stableOnly = it.stableOnly,
                 onlyDirect = it.onlyDirect
             )
         }

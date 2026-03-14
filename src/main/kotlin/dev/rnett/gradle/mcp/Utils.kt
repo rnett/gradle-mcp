@@ -59,6 +59,18 @@ data class GradleMcpEnvironment(val workingDir: Path) {
         cacheDir.toFile().mkdirs()
     }
 
+    fun lockFile(root: String, path: String, kind: String, subDir: String): Path {
+        val rootPath = root.replace(Regex("[^a-zA-Z0-9]"), "_")
+        val safePath = path.replace(Regex("[^a-zA-Z0-9]"), "_")
+        val filename = "${rootPath}_${safePath}_${kind}.lock"
+        return cacheDir.resolve(".locks").resolve(subDir).resolve(filename)
+    }
+
+    fun lockFile(storagePath: Path, subDir: String): Path {
+        val filename = "${storagePath.fileName}.lock"
+        return cacheDir.resolve(".locks").resolve(subDir).resolve(filename)
+    }
+
     companion object {
         fun fromEnv(): GradleMcpEnvironment {
             val workingDir = System.getenv("GRADLE_MCP_WORKING_DIR") ?: "${System.getProperty("user.home")}/.gradle-mcp"

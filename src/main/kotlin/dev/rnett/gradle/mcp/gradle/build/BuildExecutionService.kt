@@ -6,6 +6,7 @@ import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
+import dev.rnett.gradle.mcp.gradle.GradleStdoutWriter
 import dev.rnett.gradle.mcp.localSupervisorScope
 import dev.rnett.gradle.mcp.utils.EnvProvider
 import kotlinx.coroutines.CancellationException
@@ -262,7 +263,7 @@ class DefaultBuildExecutionService(
             WriterOutputStream.builder().apply {
                 charset = StandardCharsets.UTF_8
                 bufferSize = 8192
-                writer = object : dev.rnett.gradle.mcp.gradle.GradleStdoutWriter({
+                writer = object : GradleStdoutWriter({
                     if (it.contains("Failed to set up gradle-mcp output capturing", ignoreCase = true)) {
                         runningBuild.taskOutputCapturingFailed = true
                     }

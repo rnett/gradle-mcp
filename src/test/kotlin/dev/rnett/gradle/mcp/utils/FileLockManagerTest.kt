@@ -9,11 +9,6 @@ import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.runTest
 import java.io.IOException
 import java.nio.file.Path
-import java.time.Clock
-import java.time.Duration
-import java.time.Instant
-import java.time.ZoneId
-import java.time.ZoneOffset
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.deleteRecursively
@@ -22,6 +17,10 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 @OptIn(ExperimentalPathApi::class)
 class FileLockManagerTest {
@@ -38,17 +37,18 @@ class FileLockManagerTest {
         tempDir.deleteRecursively()
     }
 
-    private class TestClock(private val scheduler: TestCoroutineScheduler) : Clock() {
-        override fun getZone(): ZoneId = ZoneOffset.UTC
-        override fun withZone(zone: ZoneId?): Clock = this
-        override fun instant(): Instant = Instant.ofEpochMilli(scheduler.currentTime)
+    private class TestTimeSource(private val scheduler: TestCoroutineScheduler) : TimeSource {
+        override fun markNow(): TimeMark = object : TimeMark {
+            val start = scheduler.currentTime
+            override fun elapsedNow(): Duration = (scheduler.currentTime - start).milliseconds
+        }
     }
 
     @Test
     fun `withLock acquires lock and executes action`() = runTest {
         val lockFile = tempDir.resolve("test.lock")
         var executed = false
-        FileLockManager.withLock(lockFile, clock = TestClock(testScheduler), dispatcher = StandardTestDispatcher(testScheduler)) {
+        FileLockManager.withLock(lockFile, timeSource = TestTimeSource(testScheduler), dispatcher = StandardTestDispatcher(testScheduler)) {
             executed = true
         }
         assertEquals(true, executed)
@@ -58,12 +58,12 @@ class FileLockManagerTest {
     fun `withLock prevents concurrent access`() = runTest {
         val lockFile = tempDir.resolve("concurrent.lock")
         var counter = 0
-        val clock = TestClock(testScheduler)
+        val timeSource = TestTimeSource(testScheduler)
         val dispatcher = StandardTestDispatcher(testScheduler)
 
         val jobs = List(5) {
             async(dispatcher) {
-                FileLockManager.withLock(lockFile, clock = clock, dispatcher = dispatcher) {
+                FileLockManager.withLock(lockFile, timeSource = timeSource, dispatcher = dispatcher) {
                     val current = counter
                     delay(50)
                     counter = current + 1
@@ -78,12 +78,12 @@ class FileLockManagerTest {
     @Test
     fun `withLock fails after timeout`() = runTest {
         val lockFile = tempDir.resolve("timeout.lock")
-        val clock = TestClock(testScheduler)
+        val timeSource = TestTimeSource(testScheduler)
         val dispatcher = StandardTestDispatcher(testScheduler)
 
         val lockAcquired = CompletableDeferred<Unit>()
         val job = async(dispatcher) {
-            FileLockManager.withLock(lockFile, clock = clock, dispatcher = dispatcher) {
+            FileLockManager.withLock(lockFile, timeSource = timeSource, dispatcher = dispatcher) {
                 lockAcquired.complete(Unit)
                 delay(500)
             }
@@ -93,7 +93,7 @@ class FileLockManagerTest {
         lockAcquired.await()
 
         assertFailsWith<IOException> {
-            FileLockManager.withLock(lockFile, timeout = Duration.ofMillis(100), clock = clock, dispatcher = dispatcher) {
+            FileLockManager.withLock(lockFile, timeout = 100.milliseconds, timeSource = timeSource, dispatcher = dispatcher) {
                 // Should not reach here
             }
         }

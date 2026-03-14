@@ -11,6 +11,8 @@ import kotlin.io.path.absolute
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.writeBytes
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 interface BundledJarProvider {
     fun extractAllJars(): List<Path>
@@ -43,6 +45,7 @@ open class DefaultBundledJarProvider(
      * Extracts a bundled JAR from resources to the working directory.
      * Returns the absolute path to the extracted JAR.
      */
+    @OptIn(ExperimentalUuidApi::class)
     override fun extractJar(resourceName: String): Path {
         jarsDir.createDirectories()
 
@@ -57,7 +60,7 @@ open class DefaultBundledJarProvider(
         val targetPath = jarsDir.resolve(targetFileName)
 
         if (!targetPath.exists()) {
-            val tempPath = targetPath.resolveSibling("${targetPath.fileName}.tmp.${java.util.UUID.randomUUID()}")
+            val tempPath = targetPath.resolveSibling("${targetPath.fileName}.tmp.${Uuid.random()}")
             try {
                 tempPath.writeBytes(bytes)
                 Files.move(tempPath, targetPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)

@@ -1,8 +1,7 @@
 Steps are in order, from next to furthest.
 
-- [x] Real-time progress reporting in `inspect_build` tool.
-- [x] Granular sub-task progress tracking.
-- [x] Refactor and decompose core build components.
+- Progress stays at 0 during the configuration phase. Should update for each progrect configured.
+- Support for searching a single dependency's sources. Should support explicit G:A, or G:A and look up from project/config/source set, or maybe just group too?
 - A "Gradle doctor" like skill with best practices embedded in it (via gradle task), or enhance the expert skill.
 - Searching + indexing for the Gradle project's sources?
 - More skills in general.

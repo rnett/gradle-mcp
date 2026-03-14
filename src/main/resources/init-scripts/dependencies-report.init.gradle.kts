@@ -39,8 +39,30 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         val checkUpdates = realProject.hasProperty("mcp.checkUpdates") && realProject.property("mcp.checkUpdates").toString() == "true"
         val onlyDirect = realProject.hasProperty("mcp.onlyDirect") && realProject.property("mcp.onlyDirect").toString() == "true"
         val downloadSources = realProject.hasProperty("mcp.downloadSources") && realProject.property("mcp.downloadSources").toString() == "true"
+        val stableOnly = realProject.hasProperty("mcp.stableOnly") && realProject.property("mcp.stableOnly").toString() == "true"
         val versionFilter = if (realProject.hasProperty("mcp.versionFilter")) realProject.property("mcp.versionFilter").toString() else null
         val targetConfig = if (realProject.hasProperty("mcp.configuration")) realProject.property("mcp.configuration").toString() else null
+        val targetSourceSet = if (realProject.hasProperty("mcp.sourceSet")) realProject.property("mcp.sourceSet").toString() else null
+
+        if (targetConfig != null) {
+            val isBuildscript = targetConfig.startsWith("buildscript:")
+            val configName = if (isBuildscript) targetConfig.substringAfter("buildscript:") else targetConfig
+            val exists = if (isBuildscript) {
+                realProject.buildscript.configurations.findByName(configName) != null
+            } else {
+                realProject.configurations.findByName(configName) != null
+            }
+            if (!exists) {
+                throw IllegalArgumentException("Configuration '$targetConfig' not found in project '${realProject.path}'")
+            }
+        }
+
+        if (targetSourceSet != null) {
+            val sourceSets = realProject.extensions.findByType(SourceSetContainer::class.java)
+            if (sourceSets == null || sourceSets.findByName(targetSourceSet) == null) {
+                throw IllegalArgumentException("SourceSet '$targetSourceSet' not found in project '${realProject.path}'")
+            }
+        }
 
         val modelConfigurations = getModelConfigurations(model)
 
@@ -55,8 +77,9 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         val allConfigs = projectConfigs + buildscriptConfigs
 
         val directDependencies = gatherDirectDependencies(allConfigs)
-        val latestVersions = if (checkUpdates) gatherLatestVersions(allConfigs, directDependencies, onlyDirect, versionFilter) else emptyMap()
-        val sourcesFiles = if (downloadSources) gatherSources(allConfigs) else emptyMap()
+        val allComponents = if (checkUpdates || downloadSources) gatherModuleComponents(allConfigs) else emptySet()
+        val latestVersions = if (checkUpdates) gatherLatestVersions(allComponents, directDependencies, onlyDirect, versionFilter, stableOnly) else emptyMap()
+        val sourcesFiles = if (downloadSources) gatherSources(allComponents, directDependencies, onlyDirect) else emptyMap()
 
         mcpRenderer.latestVersions = latestVersions
         mcpRenderer.sourcesFiles = sourcesFiles
@@ -67,11 +90,25 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         outputSourceSets(project, realProject, mcpRenderer)
         outputKotlinSourceSets(project, realProject, mcpRenderer)
 
-        super.generateReportFor(project, model)
+        val totalConfigs = projectConfigs.size + buildscriptConfigs.size
+        var currentConfigIdx = 0
+
+        println("[gradle-mcp] [PROGRESS] [RENDERING]: TOTAL: $totalConfigs")
 
         mcpRenderer.startProject(project)
+        projectConfigs.forEach { config ->
+            currentConfigIdx++
+            println("[gradle-mcp] [PROGRESS] [RENDERING]: $currentConfigIdx/$totalConfigs: ${config.name}")
+            val details = ConfigurationDetails.of(config)
+            mcpRenderer.startConfiguration(details)
+            mcpRenderer.render(details)
+            mcpRenderer.completeConfiguration(details)
+        }
+
         mcpRenderer.inBuildscript = true
         for (config in buildscriptConfigs) {
+            currentConfigIdx++
+            println("[gradle-mcp] [PROGRESS] [RENDERING]: $currentConfigIdx/$totalConfigs: buildscript:${config.name}")
             val details = ConfigurationDetails.of(config)
             mcpRenderer.startConfiguration(details)
             mcpRenderer.render(details)
@@ -90,7 +127,6 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
 
     private fun gatherDirectDependencies(configurations: List<Configuration>): Set<String> {
         val directDependencies = mutableSetOf<String>()
-        val realProject = getProject()
         configurations.forEach { config ->
             config.dependencies.forEach { dep ->
                 if (dep is ProjectDependency) {
@@ -103,44 +139,68 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         return directDependencies
     }
 
-    private fun gatherLatestVersions(
-        configurations: List<Configuration>,
-        directDependencies: Set<String>,
-        onlyDirect: Boolean,
-        versionFilter: String?
-    ): Map<String, String> {
-        val realProject = getProject()
-        val allUniqueModuleComponents = mutableSetOf<ModuleComponentIdentifier>()
-
+    private fun gatherModuleComponents(configurations: List<Configuration>): Set<ModuleComponentIdentifier> {
+        val components = mutableSetOf<ModuleComponentIdentifier>()
         configurations.filter { it.isCanBeResolved }.forEach { config ->
             try {
                 config.incoming.resolutionResult.allComponents.forEach {
                     val id = it.id
                     if (id is ModuleComponentIdentifier) {
-                        allUniqueModuleComponents.add(id)
+                        components.add(id)
                     }
                 }
             } catch (e: Exception) {
             }
         }
+        return components
+    }
 
-        if (allUniqueModuleComponents.isEmpty()) return emptyMap()
+    private fun gatherLatestVersions(
+        allComponents: Set<ModuleComponentIdentifier>,
+        directDependencies: Set<String>,
+        onlyDirect: Boolean,
+        versionFilter: String?,
+        stableOnly: Boolean
+    ): Map<String, String> {
+        val realProject = getProject()
+        if (allComponents.isEmpty()) return emptyMap()
 
-        val targetComponents = allUniqueModuleComponents.filter { !onlyDirect || "${it.group}:${it.module}" in directDependencies }
+        val targetComponents = allComponents.filter { !onlyDirect || "${it.group}:${it.module}" in directDependencies }
         if (targetComponents.isEmpty()) return emptyMap()
 
         println("[gradle-mcp] [PROGRESS] [VERSION_CHECK]: TOTAL: ${targetComponents.size}")
 
         val updatesConfig = realProject.configurations.detachedConfiguration()
 
-        if (versionFilter != null) {
-            val versionRegex = Regex(versionFilter)
+        if (versionFilter != null || stableOnly) {
+            val versionRegex = versionFilter?.let { Regex(it) }
+            val unstableKeywords = setOf("alpha", "beta", "rc", "m", "milestone", "releasecandidate", "dev", "ea", "preview", "snapshot", "canary")
+
+            fun isStable(version: String): Boolean {
+                val tokens = version.split(Regex("[.\\-_+ ]"))
+                val parts = tokens.flatMap { token ->
+                    val result = mutableListOf<String>()
+                    var start = 0
+                    for (i in 1 until token.length) {
+                        if (token[i].isDigit() != token[i - 1].isDigit()) {
+                            result.add(token.substring(start, i))
+                            start = i
+                        }
+                    }
+                    result.add(token.substring(start))
+                    result
+                }
+                return parts.none { it.lowercase() in unstableKeywords }
+            }
+
             updatesConfig.resolutionStrategy.componentSelection {
                 all(delegateClosureOf<org.gradle.api.artifacts.ComponentSelection> {
                     val candidate = this.candidate
                     val version = candidate.version
 
-                    if (!version.matches(versionRegex)) {
+                    if (stableOnly && !isStable(version)) {
+                        reject("Version '$version' is a pre-release version")
+                    } else if (versionRegex != null && !versionRegex.containsMatchIn(version)) {
                         reject("Version '$version' does not match the provided filter regex: $versionFilter")
                     }
                 })
@@ -171,30 +231,19 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         return latestVersions
     }
 
-    private fun gatherSources(configurations: List<Configuration>): Map<String, String> {
+    private fun gatherSources(allComponents: Set<ModuleComponentIdentifier>, directDependencies: Set<String>, onlyDirect: Boolean): Map<String, String> {
         val realProject = getProject()
-        val components = mutableSetOf<ModuleComponentIdentifier>()
+        if (allComponents.isEmpty()) return emptyMap()
 
-        configurations.filter { it.isCanBeResolved }.forEach { config ->
-            try {
-                config.incoming.resolutionResult.allComponents.forEach {
-                    val id = it.id
-                    if (id is ModuleComponentIdentifier) {
-                        components.add(id)
-                    }
-                }
-            } catch (e: Exception) {
-            }
-        }
+        val targetComponents = allComponents.filter { !onlyDirect || "${it.group}:${it.module}" in directDependencies }
+        if (targetComponents.isEmpty()) return emptyMap()
 
-        if (components.isEmpty()) return emptyMap()
-
-        println("[gradle-mcp] [PROGRESS] [SOURCE_RESOLUTION]: TOTAL: ${components.size}")
+        println("[gradle-mcp] [PROGRESS] [SOURCE_RESOLUTION]: TOTAL: ${targetComponents.size}")
 
         val sourcesFiles = mutableMapOf<String, String>()
         try {
             val sourcesConfig = realProject.configurations.detachedConfiguration()
-            components.forEach { id ->
+            targetComponents.forEach { id ->
                 val dep = realProject.dependencies.create("${id.group}:${id.module}:${id.version}:sources@jar") {
                     (this as org.gradle.api.artifacts.ExternalModuleDependency).isTransitive = false
                 }
@@ -206,7 +255,7 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
                 val id = artifact.moduleVersion.id
                 sourcesFiles["${id.group}:${id.name}:${id.version}"] = artifact.file.absolutePath
                 resolvedCount++
-                println("[gradle-mcp] [PROGRESS] [SOURCE_RESOLUTION]: $resolvedCount/${components.size}: ${id.group}:${id.name}:${id.version}")
+                println("[gradle-mcp] [PROGRESS] [SOURCE_RESOLUTION]: $resolvedCount/${targetComponents.size}: ${id.group}:${id.name}:${id.version}")
             }
         } catch (e: Throwable) {
             println("ERROR_GATHERING_SOURCES: ${e.message}")
@@ -283,6 +332,11 @@ class McpDependencyReportRenderer : DependencyReportRenderer {
     var inBuildscript: Boolean = false
     private var currentProject: ProjectDetails? = null
     private var currentConfigurationName: String? = null
+
+    // Performance Caches
+    private val hierarchyCache = mutableMapOf<Configuration, List<Configuration>>()
+    private val declaredDependenciesCache = mutableMapOf<Configuration, Set<Pair<String?, String>>>()
+    private val declaringConfigCache = mutableMapOf<Pair<Configuration, Any>, Configuration?>()
 
     override fun setOutput(textOutput: StyledTextOutput) {
         this.output = textOutput
@@ -362,27 +416,39 @@ class McpDependencyReportRenderer : DependencyReportRenderer {
 
     private fun findDeclaringConfiguration(currentConfig: Configuration, dep: DependencyResult): Configuration? {
         val requested = dep.requested
+        val key = currentConfig to requested
+        return declaringConfigCache.getOrPut(key) {
+            val hierarchy = hierarchyCache.getOrPut(currentConfig) { currentConfig.hierarchy.toList() }
 
-        // We want to find a configuration in the hierarchy that declares this dependency.
-        // Hierarchy includes the configuration itself.
-        for (conf in currentConfig.getHierarchy()) {
-            val match = conf.dependencies.any { declared ->
-                when (requested) {
+            // We want to find a configuration in the hierarchy that declares this dependency.
+            for (conf in hierarchy) {
+                val declaredDeps = declaredDependenciesCache.getOrPut(conf) {
+                    conf.dependencies.map { it.group to it.name }.toSet()
+                }
+
+                val match = when (requested) {
                     is ModuleComponentSelector -> {
-                        declared.group == requested.group && declared.name == requested.module
+                        (requested.group to requested.module) in declaredDeps
                     }
 
                     is ProjectComponentSelector -> {
-                        val dPath = if (declared is ProjectDependency) declared.getPath() else if (declared is org.gradle.api.artifacts.ExternalModuleDependency && declared.group == "project") declared.name else null
-                        dPath != null && (dPath == requested.projectPath || (dPath == ":" && requested.projectPath == ":") || (dPath == requested.projectPath.removePrefix(":")))
+                        conf.dependencies.any { declared ->
+                            if (declared is ProjectDependency) {
+                                val dPath = declared.path
+                                dPath == requested.projectPath || (dPath == ":" && requested.projectPath == ":") || (dPath == requested.projectPath.removePrefix(":"))
+                            } else if (declared is org.gradle.api.artifacts.ExternalModuleDependency && declared.group == "project") {
+                                val dPath = declared.name
+                                dPath == requested.projectPath || (dPath == ":" && requested.projectPath == ":") || (dPath == requested.projectPath.removePrefix(":"))
+                            } else false
+                        }
                     }
 
                     else -> false
                 }
+                if (match) return@getOrPut conf
             }
-            if (match) return conf
+            null
         }
-        return null
     }
 
     private fun isDeclaredInUnresolvable(configName: String, dep: RenderableDependency): Boolean {
@@ -547,5 +613,30 @@ class McpDependencyReportRenderer : DependencyReportRenderer {
 }
 
 allprojects {
-    tasks.register("mcpDependencyReport", McpDependencyReportTask::class.java)
+    tasks.register("mcpDependencyReport", McpDependencyReportTask::class.java) {
+        doFirst {
+            val targetConfig = if (project.hasProperty("mcp.configuration")) project.property("mcp.configuration").toString() else null
+            val targetSourceSet = if (project.hasProperty("mcp.sourceSet")) project.property("mcp.sourceSet").toString() else null
+
+            if (targetConfig != null) {
+                val isBuildscript = targetConfig.startsWith("buildscript:")
+                val configName = if (isBuildscript) targetConfig.substringAfter("buildscript:") else targetConfig
+                val exists = if (isBuildscript) {
+                    project.buildscript.configurations.findByName(configName) != null
+                } else {
+                    project.configurations.findByName(configName) != null
+                }
+                if (!exists) {
+                    throw IllegalArgumentException("Configuration '$targetConfig' not found in project '${project.path}'")
+                }
+            }
+
+            if (targetSourceSet != null) {
+                val sourceSets = project.extensions.findByType(org.gradle.api.tasks.SourceSetContainer::class.java)
+                if (sourceSets == null || sourceSets.findByName(targetSourceSet) == null) {
+                    throw IllegalArgumentException("SourceSet '$targetSourceSet' not found in project '${project.path}'")
+                }
+            }
+        }
+    }
 }

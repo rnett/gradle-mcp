@@ -8,7 +8,21 @@ import java.io.PrintStream
 class FileStatusListener : OnPrintStreamStatusListenerBase() {
 
     var filename: String? = null
-    private var ps: PrintStream? = null
+
+    private fun createLazy() = lazy {
+        val path = requireNotNull(filename) { "filename must be set before calling getPrintStream()" }
+        val logFile = File(path)
+        try {
+            logFile.parentFile?.mkdirs()
+            PrintStream(FileOutputStream(logFile, true), true)
+        } catch (e: Exception) {
+            addError("Failed to open status log file [$path] for writing: ${e.message}", e)
+            System.err
+        }
+    }
+
+    @Volatile
+    private var psLazy = createLazy()
 
     override fun start() {
         if (filename == null) {
@@ -22,24 +36,14 @@ class FileStatusListener : OnPrintStreamStatusListenerBase() {
     }
 
     override fun stop() {
-        ps?.close()
-        ps = null
+        if (psLazy.isInitialized()) {
+            psLazy.value.close()
+        }
+        psLazy = createLazy()
         super.stop()
     }
 
     override fun getPrintStream(): PrintStream {
-        return ps ?: synchronized(this) {
-            ps ?: run {
-                val path = filename!!
-                val logFile = File(path)
-                try {
-                    logFile.parentFile?.mkdirs()
-                    PrintStream(FileOutputStream(logFile, true), true).also { ps = it }
-                } catch (e: Exception) {
-                    addError("Failed to open status log file [$path] for writing: ${e.message}", e)
-                    System.err
-                }
-            }
-        }
+        return psLazy.value
     }
 }

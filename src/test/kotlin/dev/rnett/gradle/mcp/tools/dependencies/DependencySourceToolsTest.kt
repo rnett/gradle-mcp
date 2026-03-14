@@ -293,7 +293,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         sources.createDirectories()
         val metadata = sourcesDir.resolve("metadata")
         metadata.createDirectories()
-        val lastRefresh = java.time.Instant.now().minusSeconds(3600) // 1 hour ago
+        val lastRefresh = kotlin.time.Clock.System.now().minus(kotlin.time.Duration.parse("1h")) // 1 hour ago
         metadata.resolve(".last_refresh").writeText(lastRefresh.toString())
 
         coEvery {

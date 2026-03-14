@@ -47,7 +47,7 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
         "string",
         "null"
       ],
-      "description": "The managed BuildId to inspect authoritatively. If omitted, returns the high-level build dashboard showing active and recently completed builds."
+      "description": "Providing the managed BuildId to inspect authoritatively. If omitted, returns the high-level build dashboard showing active and recently completed builds."
     },
     "mode": {
       "enum": [
@@ -64,25 +64,25 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
       ],
       "minimum": -1.7976931348623157E308,
       "maximum": 1.7976931348623157E308,
-      "description": "The maximum number of seconds to wait for the requested condition(s). If omitted, the tool returns immediately with the current build status."
+      "description": "Specifying the maximum number of seconds to wait for the requested condition(s). If omitted, the tool returns immediately with the current build status."
     },
     "waitForFinished": {
       "type": "boolean",
-      "description": "If true, wait for the build to finish authoritatively. This is the default behavior if 'timeout' is provided but no other wait conditions are specified."
+      "description": "Waiting for the build to finish authoritatively. This is the default behavior if 'timeout' is provided but no other wait conditions are specified."
     },
     "waitFor": {
       "type": [
         "string",
         "null"
       ],
-      "description": "Regex pattern to wait for in the build logs authoritatively. Ideal for detecting when a server has started or a specific event has occurred. Uses 'timeout' for the maximum wait duration."
+      "description": "Providing a regex pattern to wait for in the build logs authoritatively. Ideal for detecting when a server has started or a specific event has occurred. Uses 'timeout' for the maximum wait duration."
     },
     "waitForTask": {
       "type": [
         "string",
         "null"
       ],
-      "description": "Task path to wait for completion authoritatively. The most surgical way to monitor specific task progress. Uses 'timeout' for the maximum wait duration."
+      "description": "Providing a task path to wait for completion authoritatively. The most surgical way to monitor specific task progress. Uses 'timeout' for the maximum wait duration."
     },
     "afterCall": {
       "type": "boolean",
@@ -110,7 +110,7 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
         "string",
         "null"
       ],
-      "description": "Filter task results. In 'summary' mode, a prefix of the task path. In 'details' mode, the full path of the task. Specify this to get task details. DO NOT use this for tests; use testName instead."
+      "description": "Filtering task results. In 'summary' mode, a prefix of the task path. In 'details' mode, the full path of the task. Specify this to get task details. DO NOT use this for tests; use testName instead."
     },
     "taskOutcome": {
       "enum": [
@@ -121,7 +121,7 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
         "FROM_CACHE",
         "NO_SOURCE"
       ],
-      "description": "Filter task results by outcome (summary mode only).",
+      "description": "Filtering task results by outcome (summary mode only).",
       "type": "string"
     },
     "testName": {
@@ -129,7 +129,7 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
         "string",
         "null"
       ],
-      "description": "Filter test results. In 'summary' mode, a prefix of the test name. In 'details' mode, the full name of the test. Specify this to get test details. ALWAYS use this with `mode=\"details\"` instead of taskPath to see individual test outputs, metadata, and stack traces. Generic task output lacks test-specific diagnostic information."
+      "description": "Filtering test results. In 'summary' mode, a prefix of the test name. In 'details' mode, the full name of the test. Specify this to get test details. ALWAYS use this with `mode=\"details\"` instead of taskPath to see individual test outputs, metadata, and stack traces. Generic task output lacks test-specific diagnostic information."
     },
     "testOutcome": {
       "enum": [
@@ -139,7 +139,7 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
         "CANCELLED",
         "IN_PROGRESS"
       ],
-      "description": "Filter test results by outcome (summary mode only).",
+      "description": "Filtering test results by outcome (summary mode only).",
       "type": "string"
     },
     "testIndex": {
@@ -149,28 +149,28 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
       ],
       "minimum": -2147483648,
       "maximum": 2147483647,
-      "description": "The index of the test to show if multiple tests have the same name (details mode only)."
+      "description": "Specifying the index of the test to show if multiple tests have the same name (details mode only)."
     },
     "failureId": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The failure ID to get details for (details mode only). Use this for surgical analysis of build-level failures."
+      "description": "Providing the failure ID to get details for (details mode only). Use this for surgical analysis of build-level failures."
     },
     "problemId": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The ProblemId of the problem to look up (details mode only)."
+      "description": "Providing the ProblemId of the problem to look up (details mode only)."
     },
     "consoleTail": {
       "type": [
         "boolean",
         "null"
       ],
-      "description": "If true, return the last 'limit' lines of the console output instead of the first. Useful for checking the end of long logs. Specify this to get raw console output."
+      "description": "Returning the last 'limit' lines of the console output instead of the first. Useful for checking the end of long logs. Specify this to get raw console output."
     }
   },
   "required": [],

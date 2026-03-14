@@ -32,12 +32,15 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 - **NEVER** use generic shell tools like `grep` or `find` on the local directory to find dependency sources; they reside in remote caches managed by Gradle.
 - **ALWAYS** escape Lucene special characters (`:`, `=`, `+`, `-`, `*`, `/`) in `FULL_TEXT` searches using a backslash (e.g., `\:`) or double quotes.
 - **ALWAYS** use `read_dependency_sources` once a specific file path has been identified via search.
+- **ALWAYS** use `fresh: true` if a search fails due to a missing index; the tool will throw rather than returning empty results if the index is not found.
+- **BE AWARE** that indexing and extraction failures are now propagated and will cause the tool to fail with a descriptive error.
 
 ## Directives
 
 - **Identify Search Mode Authoritatively**:
-    - **DECLARATION**: Best for classes, methods, or interfaces. Regex matches full declaration name. All declaration searches are **case-sensitive**. Do NOT include keywords like `class`, `interface`, or `fun` (e.g., use `MyClass`, not
-      `class MyClass`). Supports simple names, FQNs, partial package paths, glob wildcards (e.g., `*`, `**`), and Lucene query syntax.
+    - **DECLARATION**: Best for classes, methods, or interfaces. Matches against the simple name (tokenized for CamelCase) and the full path (exact literal). All declaration searches are **case-sensitive**. Do NOT include keywords like
+      `class`, `interface`, or `fun`. Supports exact names, exact FQNs, glob wildcards (e.g., `*`, `**`), and regular expressions. Partial package paths require wildcards (e.g., use `*.MyClass` to find `com.example.MyClass`). You can target
+      specific fields using `name:` (discovery) or `fqn:` (precision) prefixes.
     - **FULL_TEXT**: Best for literal strings, constants, and complex code patterns using Lucene. **Case-insensitive**.
     - **GLOB**: Best for finding specific files (XML, properties, etc.) by name or extension. **Case-insensitive**.
 - **Invoke Precisely**: ALWAYS set `searchType` explicitly if the intent is not a general full-text search. This improves result accuracy and reduces noise.
@@ -91,17 +94,47 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
   "query": "JsonConfiguration",
   "searchType": "DECLARATION"
 }
-// Reasoning: Using DECLARATION search to find the declaration of a specific class across all project dependencies.
+// Reasoning: Using DECLARATION search to find a class named 'JsonConfiguration' across both name and FQN fields.
 ```
 
-### Trace a method signature from a symbol name
+### Search with field-specific precision
 
 ```json
 {
-  "query": "encodeToString",
+  "query": "fqn:kotlinx.serialization.json.*",
   "searchType": "DECLARATION"
 }
-// Reasoning: Finding all definitions of 'encodeToString' across dependencies to identify the correct implementation.
+// Reasoning: Using the 'fqn:' prefix with a wildcard to find all declarations within a specific package literal.
+```
+
+### Search with name-specific discovery (CamelCase)
+
+```json
+{
+  "query": "name:Configuration",
+  "searchType": "DECLARATION"
+}
+// Reasoning: Using the 'name:' prefix to find classes like 'JsonConfiguration' via CamelCase tokenization.
+```
+
+### Trace a method signature using wildcards
+
+```json
+{
+  "query": "encodeTo*",
+  "searchType": "DECLARATION"
+}
+// Reasoning: Finding all definitions starting with 'encodeTo' across both name and FQN fields.
+```
+
+### Use regular expressions for complex matching
+
+```json
+{
+  "query": "fqn:/.*\\.internal\\..*/",
+  "searchType": "DECLARATION"
+}
+// Reasoning: Using a regular expression on the 'fqn' field to find all internal declarations.
 ```
 
 ### Search for a constant value assignment

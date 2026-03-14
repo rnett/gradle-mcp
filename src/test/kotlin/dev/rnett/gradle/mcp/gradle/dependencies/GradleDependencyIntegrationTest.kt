@@ -24,10 +24,17 @@ class GradleDependencyIntegrationTest {
 
     private lateinit var provider: DefaultGradleProvider
     private lateinit var service: GradleDependencyService
+    private lateinit var indexService: dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService
+    private lateinit var sourcesService: dev.rnett.gradle.mcp.dependencies.DefaultSourcesService
+    private lateinit var environment: dev.rnett.gradle.mcp.GradleMcpEnvironment
+    private lateinit var tempDir: java.nio.file.Path
     private lateinit var complexProject: GradleProjectFixture
 
     @BeforeAll
     fun setupAll() {
+        tempDir = kotlin.io.path.createTempDirectory("gradle-dep-integration")
+        environment = dev.rnett.gradle.mcp.GradleMcpEnvironment(tempDir.resolve("mcp"))
+        
         provider = DefaultGradleProvider(
             config = GradleConfiguration(
                 maxConnections = 4,
@@ -37,6 +44,8 @@ class GradleDependencyIntegrationTest {
             buildManager = BuildManager()
         )
         service = DefaultGradleDependencyService(provider)
+        indexService = dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(environment)
+        sourcesService = dev.rnett.gradle.mcp.dependencies.DefaultSourcesService(service, environment, indexService)
 
         // A single complex project to cover all test cases
         complexProject = testGradleProject {
@@ -144,6 +153,7 @@ class GradleDependencyIntegrationTest {
     fun cleanupAll() {
         provider.close()
         complexProject.close()
+        tempDir.toFile().deleteRecursively()
     }
 
     @Test
@@ -321,7 +331,7 @@ class GradleDependencyIntegrationTest {
                 projectRoot,
                 projectPath = ":sub-a",
                 checkUpdates = true,
-                versionFilter = "^(?i).+?(?<![.-](?:alpha|beta|rc|m|preview|snapshot|canary)[0-9]*)$"
+                stableOnly = true
             )
         }
 
@@ -334,6 +344,43 @@ class GradleDependencyIntegrationTest {
         // Verify latest version is stable (doesn't contain beta etc)
         val nonStable = listOf("alpha", "beta", "rc", "m", "preview", "snapshot", "canary")
         assertTrue(nonStable.none { slf4j.latestVersion.contains(it, ignoreCase = true) }, "Latest version ${slf4j.latestVersion} should be stable")
+    }
+
+    @Test
+    fun `invalid configuration should return graceful error`() = runTest(timeout = 180.seconds) {
+        val projectRoot = GradleProjectRoot(complexProject.pathString())
+        val exception = org.junit.jupiter.api.assertThrows<Exception> {
+            with(ProgressReporter.NONE) {
+                service.getDependencies(
+                    projectRoot = projectRoot,
+                    configuration = "fakeConfig"
+                )
+            }
+        }
+
+        val message = exception.toString()
+        assertTrue(message.contains("Configuration 'fakeConfig' not found"), "Expected message to contain 'Configuration 'fakeConfig' not found', but got: $message")
+    }
+
+    @Test
+    fun `can filter by version regex`() = runTest(timeout = 180.seconds) {
+        val projectRoot = GradleProjectRoot(complexProject.pathString())
+        val report = with(ProgressReporter.NONE) {
+            service.getDependencies(
+                projectRoot = projectRoot,
+                projectPath = ":sub-a",
+                checkUpdates = true,
+                versionFilter = "^1\\."
+            )
+        }
+
+        val slf4j = report.projects.flatMap { it.configurations }
+            .flatMap { it.dependencies }
+            .find { it.name.contains("slf4j-api") }
+
+        assertNotNull(slf4j)
+        assertNotNull(slf4j.latestVersion)
+        assertTrue(slf4j.latestVersion.startsWith("1."), "Expected latest version to start with 1. due to regex filter, but got ${slf4j.latestVersion}")
     }
 
     // --- Tests from GradleDependencyConfigurationTest ---
@@ -417,5 +464,45 @@ class GradleDependencyIntegrationTest {
         // This fails locally if downloading sources isn't working/mocked perfectly in tests, but it tests the feature flow
         // The fact that we even get the dependency is the primary win.
         assertNotNull(kotlinPlugin.sourcesFile, "Should find sources for kotlin-gradle-plugin")
+    }
+
+    // --- Tests from SourcesService & IndexService integration ---
+
+    @Test
+    fun `declaration search against real dependencies should succeed`() = runTest(timeout = 300.seconds) {
+        val projectRoot = GradleProjectRoot(complexProject.pathString())
+
+        val sourcesDir = with(ProgressReporter.NONE) {
+            sourcesService.downloadAllSources(projectRoot, index = true)
+        }
+
+        val searchProvider = dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch
+        val searchResults = sourcesService.search(sourcesDir, searchProvider, "LoggerFactory").results
+
+        assertTrue(searchResults.isNotEmpty(), "Expected search results for 'LoggerFactory'")
+    }
+
+    @Test
+    fun `scope to configuration should succeed`() = runTest(timeout = 180.seconds) {
+        val projectRoot = GradleProjectRoot(complexProject.pathString())
+
+        with(ProgressReporter.NONE) {
+            sourcesService.downloadConfigurationSources(projectRoot, ":sub-a:compileClasspath", index = true, forceDownload = false)
+        }
+    }
+
+    @Test
+    fun `force download should succeed`() = runTest(timeout = 180.seconds) {
+        val projectRoot = GradleProjectRoot(complexProject.pathString())
+
+        // First download normally
+        with(ProgressReporter.NONE) {
+            sourcesService.downloadConfigurationSources(projectRoot, ":sub-a:compileClasspath", index = true, forceDownload = false)
+        }
+
+        // Then force download
+        with(ProgressReporter.NONE) {
+            sourcesService.downloadConfigurationSources(projectRoot, ":sub-a:compileClasspath", index = true, forceDownload = true)
+        }
     }
 }

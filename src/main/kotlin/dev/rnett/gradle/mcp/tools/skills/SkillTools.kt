@@ -4,6 +4,7 @@ import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -13,6 +14,10 @@ class SkillTools : McpServerComponent(
     "Skill Tools",
     "Tools for managing Gradle MCP skills."
 ) {
+
+    companion object {
+        private val LOGGER = LoggerFactory.getLogger(SkillTools::class.java)
+    }
 
     @Serializable
     data class InstallSkillsArgs(
@@ -44,7 +49,9 @@ class SkillTools : McpServerComponent(
     ) { args ->
         val targetDir = File(args.directory)
         if (!targetDir.exists()) {
-            targetDir.mkdirs()
+            if (!targetDir.mkdirs()) {
+                throw IllegalStateException("Failed to create target directory: ${args.directory}")
+            }
         }
 
         if (args.replaceOld) {

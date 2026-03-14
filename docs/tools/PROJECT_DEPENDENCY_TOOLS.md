@@ -79,7 +79,7 @@ This tool provides the ONLY authoritative, searchable view of the project's exac
         "string",
         "null"
       ],
-      "description": "Applying a regex pattern for surgical control over considered update versions."
+      "description": "Applying a regex pattern for surgical control over considered update versions. This is a regex search (e.g., use ^1\\. to match versions starting with 1.)."
     },
     "pagination": {
       "type": "object",

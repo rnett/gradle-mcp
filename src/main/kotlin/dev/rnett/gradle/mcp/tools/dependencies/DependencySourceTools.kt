@@ -17,25 +17,27 @@ import dev.rnett.gradle.mcp.tools.paginateText
 import dev.rnett.gradle.mcp.tools.resolveRoot
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
+import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.name
 import kotlin.io.path.readText
-import kotlin.time.Duration.Companion.milliseconds
 
 class DependencySourceTools(
     private val sourcesService: SourcesService,
     private val gradleSourceService: GradleSourceService
 ) : McpServerComponent("Project Dependency Source Tools", "Tools for searching and inspecting source code of Gradle dependencies.") {
 
+    companion object {
+        private val LOGGER = LoggerFactory.getLogger(DependencySourceTools::class.java)
+    }
+
     @Serializable
     enum class SearchType {
-        @Description("Best for finding precise declarations (classes, methods, interfaces). Matches against the 'name' and 'fqn' fields. Case-sensitive. Supports glob wildcards (*, **) and partial FQNs. Note: Dot-separated paths are matched against the FQN field. Do NOT include keywords like 'class', 'interface', or 'fun' in the query. Only search for the declaration name itself (e.g., use 'MyClass', not 'class MyClass').")
+        @Description("Best for finding precise declarations (classes, methods, interfaces). Matches against the 'name' (tokenized for CamelCase) and 'fqn' (exact literal path) fields. Case-sensitive. Supports glob wildcards (*, **) and regular expressions. Note: Searching for a simple name like 'MyClass' will find all declarations with that name. Searching for a path like 'com.example.MyClass' requires an exact match or wildcards (e.g., '*.MyClass'). You can target specific fields using prefixes like 'name:MyClass' (discovery-oriented) or 'fqn:com.example.*' (precision-oriented). Do NOT include keywords like 'class', 'interface', or 'fun' in the query.")
         DECLARATION,
 
         @Description("Best for exhaustive searching of literal strings, constants, or code patterns. Case-insensitive. Uses high-performance Lucene indexing. Supports complex queries (e.g., '\"val x =\" AND NOT internal'). Remember to escape special characters like ':' or '='.")
@@ -205,9 +207,7 @@ class DependencySourceTools(
             SearchType.FULL_TEXT -> FullTextSearch
             SearchType.GLOB -> GlobSearch
         }
-        val response = with(progressReporter) {
-            sourcesService.search(sources, provider, args.query, args.pagination)
-        }
+        val response = sourcesService.search(sources, provider, args.query, args.pagination)
         val refreshMessage = formatRefreshMessage(sources.lastRefresh())
         if (response.error != null) {
             isError = true
@@ -266,13 +266,11 @@ class DependencySourceTools(
         }
     }
 
-    private fun formatRefreshMessage(lastRefresh: java.time.Instant?): String {
+    private fun formatRefreshMessage(lastRefresh: kotlin.time.Instant?): String {
         if (lastRefresh == null) return "Sources have not been refreshed yet."
-        val now = java.time.Instant.now()
-        val duration = (now.toEpochMilli() - lastRefresh.toEpochMilli()).milliseconds
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-            .withZone(ZoneId.systemDefault())
-        val timestamp = formatter.format(lastRefresh)
+        val now = kotlin.time.Clock.System.now()
+        val duration = now - lastRefresh
+        val timestamp = lastRefresh.toString().substringBefore('.').replace('T', ' ') + " UTC"
 
         val ago = when {
             duration.inWholeDays > 0 -> "${duration.inWholeDays} day(s) ago"

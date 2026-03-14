@@ -3,6 +3,7 @@ package dev.rnett.gradle.mcp.gradle
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.TaskOutcome
 import dev.rnett.gradle.mcp.gradle.fixtures.testGradleProject
+import dev.rnett.gradle.mcp.utils.OS
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
@@ -108,8 +109,7 @@ class TaskOutInitScriptTest {
 
     @Test
     fun `task-out init script prefixes external process output`() = runTest(timeout = 120.seconds) {
-        val isWindows = System.getProperty("os.name").lowercase().contains("win")
-        val command = if (isWindows) {
+        val command = if (OS.isWindows) {
             "listOf(\"cmd\", \"/c\", \"echo Hello from external process\")"
         } else {
             "listOf(\"sh\", \"-c\", \"echo Hello from external process\")"

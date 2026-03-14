@@ -179,7 +179,6 @@ object FullTextSearch : LuceneBaseSearchProvider() {
     }
 
     override suspend fun newIndexer(outputDir: Path): Indexer = object : LuceneBaseIndexer(outputDir) {
-        override val doForceMerge = true
 
         override suspend fun indexFile(path: String, content: String) {
             val ext = path.substringAfterLast('.', "")

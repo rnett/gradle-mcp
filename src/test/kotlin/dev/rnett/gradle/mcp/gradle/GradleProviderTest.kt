@@ -58,10 +58,7 @@ class GradleProviderTest {
             testProvider.close()
 
             // Internal scope should be cancelled
-            val scope = (testProvider as DefaultGradleProvider)::class.java.getDeclaredField("scope").let {
-                it.isAccessible = true
-                it.get(testProvider) as kotlinx.coroutines.CoroutineScope
-            }
+            val scope = testProvider.scope
             assert(!scope.coroutineContext[Job]!!.isActive)
         }
     }
@@ -149,7 +146,7 @@ class GradleProviderTest {
         val buildResult = runningBuild.awaitFinished()
 
         assert(buildResult.outcome is BuildOutcome.Success)
-        assert(runningBuild.logBuffer.isNotEmpty())
+        assert(runningBuild.consoleOutput.isNotEmpty())
 
         // Verify it's STILL in the manager after finish, but as a FrozenBuild
         val finalBuild = provider.buildManager.getBuild(buildId)
@@ -220,9 +217,6 @@ class GradleProviderTest {
             args = args
         )
 
-        assert(runningBuild1 != null)
-        assert(runningBuild2 != null)
-
         // Both should be in the manager
         assert(provider.buildManager.getBuild(runningBuild1.id) != null)
         assert(provider.buildManager.getBuild(runningBuild2.id) != null)
@@ -248,7 +242,6 @@ class GradleProviderTest {
             args = GradleInvocationArguments(additionalArguments = listOf("help"))
         )
 
-        assert(runningBuild != null)
         runningBuild.stop()
 
         val result = runningBuild.awaitFinished()

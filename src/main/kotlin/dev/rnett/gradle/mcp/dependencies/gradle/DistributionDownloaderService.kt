@@ -3,11 +3,11 @@ package dev.rnett.gradle.mcp.dependencies.gradle
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.withPhase
-import io.ktor.client.*
-import io.ktor.client.plugins.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.utils.io.jvm.javaio.*
+import io.ktor.client.HttpClient
+import io.ktor.client.plugins.onDownload
+import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.utils.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -52,14 +52,9 @@ class DefaultDistributionDownloaderService(
                 val url = "$baseUrl$fileName"
 
                 try {
-                    var lastUpdate = 0L
                     val response = httpClient.get(url) {
                         onDownload { bytesSentTotal: Long, contentLength: Long? ->
-                            val now = System.currentTimeMillis()
-                            if (now - lastUpdate >= 200 || bytesSentTotal == contentLength) {
-                                lastUpdate = now
-                                downloadProgress.report(bytesSentTotal.toDouble(), contentLength?.toDouble(), "Downloading Gradle $version documentation")
-                            }
+                            downloadProgress.report(bytesSentTotal.toDouble(), contentLength?.toDouble(), "Downloading Gradle $version documentation")
                         }
                     }
                     if (response.status.value !in 200..299) {

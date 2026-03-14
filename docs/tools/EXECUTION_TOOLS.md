@@ -41,7 +41,7 @@ Note: Avoid `--rerun-tasks` (which reruns ALL tasks) unless investigating broad 
       "items": {
         "type": "string"
       },
-      "description": "The arguments for gradle. Syntax: ':task' (root only), 'task' (all projects), or ':app:task'. Required if not stopping a build."
+      "description": "Providing the arguments for gradle. Syntax: ':task' (root only), 'task' (all projects), or ':app:task'. Required if not stopping a build."
     },
     "background": {
       "type": "boolean",

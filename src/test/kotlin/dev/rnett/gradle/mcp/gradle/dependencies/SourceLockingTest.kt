@@ -20,7 +20,6 @@ import java.nio.file.Path
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.createDirectories
-import kotlin.io.path.createFile
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.deleteRecursively
 import kotlin.test.AfterTest
@@ -57,7 +56,11 @@ class SourceLockingTest {
         val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
 
         val sourceFile = tempDir.resolve("test-sources.jar")
-        sourceFile.createFile()
+        java.util.zip.ZipOutputStream(sourceFile.toFile().outputStream()).use {
+            it.putNextEntry(java.util.zip.ZipEntry("foo.txt"))
+            it.write("bar".toByteArray())
+            it.closeEntry()
+        }
 
         val dep = GradleDependency(
             id = "test:test:1.0",
@@ -90,15 +93,13 @@ class SourceLockingTest {
         }
 
         coEvery {
-            indexService.index(any<GradleDependency>(), any<kotlinx.coroutines.flow.Flow<IndexEntry>>())
+            with(any<ProgressReporter>()) { indexService.indexFiles(any<GradleDependency>(), any<kotlinx.coroutines.flow.Flow<IndexEntry>>()) }
         } returns null
         coEvery {
-            indexService.index(any<GradleDependency>(), any<Path>())
+            with(any<ProgressReporter>()) { indexService.index(any<GradleDependency>(), any<Path>()) }
         } returns null
         coEvery {
-            with(any<ProgressReporter>()) {
-                indexService.mergeIndices(any(), any())
-            }
+            with(any<ProgressReporter>()) { indexService.mergeIndices(any(), any()) }
         } returns Unit
 
         // Start multiple concurrent requests
@@ -122,7 +123,11 @@ class SourceLockingTest {
         val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
 
         val sourceFile = tempDir.resolve("test-sources-parallel.jar")
-        sourceFile.createFile()
+        java.util.zip.ZipOutputStream(sourceFile.toFile().outputStream()).use {
+            it.putNextEntry(java.util.zip.ZipEntry("foo.txt"))
+            it.write("bar".toByteArray())
+            it.closeEntry()
+        }
 
         val dep = GradleDependency(
             id = "test:test:1.0",
@@ -153,15 +158,13 @@ class SourceLockingTest {
 
         coEvery { with(any<ProgressReporter>()) { depService.downloadAllSources(any()) } } returns report
         coEvery {
-            indexService.index(any<GradleDependency>(), any<kotlinx.coroutines.flow.Flow<IndexEntry>>())
+            with(any<ProgressReporter>()) { indexService.indexFiles(any<GradleDependency>(), any<kotlinx.coroutines.flow.Flow<IndexEntry>>()) }
         } returns null
         coEvery {
-            indexService.index(any<GradleDependency>(), any<Path>())
+            with(any<ProgressReporter>()) { indexService.index(any<GradleDependency>(), any<Path>()) }
         } returns null
         coEvery {
-            with(any<ProgressReporter>()) {
-                indexService.mergeIndices(any(), any())
-            }
+            with(any<ProgressReporter>()) { indexService.mergeIndices(any(), any()) }
         } returns Unit
 
         // 1. Initial download to populate cache

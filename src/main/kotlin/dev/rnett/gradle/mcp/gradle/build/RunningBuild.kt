@@ -31,6 +31,7 @@ class RunningBuild(
     val logBuffer: StringBuffer = StringBuffer(),
     val cancellationTokenSource: CancellationTokenSource
 ) : Build, BuildProgressInfoProvider {
+
     /**
      * The progress tracker for this running build.
      */
@@ -108,7 +109,7 @@ class RunningBuild(
     override var status: BuildStatus = BuildStatus.Running
         private set
 
-    override val consoleOutput: CharSequence get() = synchronized(logBuffer) { logBuffer.toString() }
+    override val consoleOutput: CharSequence get() = logBuffer.toString()
 
     private val finishedBuildDeferred = CompletableDeferred<FinishedBuild>()
 
@@ -141,19 +142,32 @@ class RunningBuild(
         cancellationTokenSource.cancel()
     }
 
-    private var lastLine: String? = null
-    internal fun addLogLine(line: String) = synchronized(logBuffer) {
-        lastLine = line
-        logBuffer.append(line).append(System.lineSeparator())
-        _logLines.tryEmit(line)
+    internal fun addLogLine(line: String) {
+        addLogLineInternal(line)
     }
 
-    internal fun replaceLastLogLine(oldLine: String, newLine: String) = synchronized(logBuffer) {
-        if (lastLine == oldLine || lastLine == "STDERR: $oldLine") {
-            val toRemove = (lastLine ?: "") + System.lineSeparator()
-            logBuffer.setLength(logBuffer.length - toRemove.length)
+    internal fun replaceLastLogLine(oldLine: String, newLine: String) {
+        val suffix = oldLine + System.lineSeparator()
+        val stderrSuffix = "STDERR: " + suffix
+
+        val len = logBuffer.length
+        if (len >= suffix.length) {
+            val actual = logBuffer.substring(len - suffix.length)
+            if (actual == suffix) {
+                logBuffer.setLength(len - suffix.length)
+            } else if (len >= stderrSuffix.length) {
+                val actualStderr = logBuffer.substring(len - stderrSuffix.length)
+                if (actualStderr == stderrSuffix) {
+                    logBuffer.setLength(len - stderrSuffix.length)
+                }
+            }
         }
-        addLogLine(newLine)
+        addLogLineInternal(newLine)
+    }
+
+    private fun addLogLineInternal(line: String) {
+        logBuffer.append(line).append(System.lineSeparator())
+        _logLines.tryEmit(line)
     }
 
     internal fun addTaskResult(taskPath: String, outcome: TaskOutcome, duration: Duration, consoleOutput: String?) {
@@ -204,4 +218,3 @@ private fun TestCollector.Result.toModel(indexer: FailureIndexer, status: TestOu
         attachments.map { TestResult.Attachment(it.file, it.mediaType) }
     )
 }
-

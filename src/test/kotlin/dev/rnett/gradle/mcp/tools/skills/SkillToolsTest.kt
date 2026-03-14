@@ -110,4 +110,20 @@ class SkillToolsTest : BaseMcpServerTest() {
         assertTrue(skillFile.exists())
         assertTrue(skillFile.readText() == "author: https://github.com/rnett/gradle-mcp", "Content should not be overwritten")
     }
+
+    @Test
+    fun `invalid directory should return a graceful error if dir can not be created`() = runTest {
+        val response = server.client.callTool(
+            ToolNames.INSTALL_GRADLE_SKILLS, kotlinx.serialization.json.buildJsonObject {
+                put("directory", JsonPrimitive("C:\\Windows\\System32\\some-skills"))
+                put("replaceOld", JsonPrimitive(true))
+            }
+        ) ?: throw IllegalStateException("Tool call returned null")
+
+        assertTrue(response.isError == true, "Expected an error response for an invalid directory")
+        val text = (response.content.firstOrNull() as? TextContent)?.text ?: ""
+
+        // Now it returns a graceful error message
+        assertTrue(text.contains("Failed to create target directory"), "Expected graceful error message, got: $text")
+    }
 }

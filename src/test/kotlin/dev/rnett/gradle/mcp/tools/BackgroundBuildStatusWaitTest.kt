@@ -136,7 +136,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
             }
         ) as CallToolResult
 
-        assert(statusCall != null)
         val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assert(statusText.contains("BUILD FINISHED"))
     }
@@ -172,7 +171,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         ) as CallToolResult
         val duration = testScheduler.currentTime - startTime
 
-        assert(statusCall != null)
         assert(duration >= 500)
         assert(duration < 2000)
 
@@ -207,7 +205,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         ) as CallToolResult
         val duration = testScheduler.currentTime - startTime
 
-        assert(statusCall != null)
         assert(duration < 100)
 
         val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
@@ -245,7 +242,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         ) as CallToolResult
         val duration = testScheduler.currentTime - startTime
 
-        assert(statusCall != null)
         assert(duration >= 500)
         val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assert(statusText.contains("BUILD IN PROGRESS"))
@@ -276,7 +272,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         ) as CallToolResult
         val duration = testScheduler.currentTime - startTime
 
-        assert(statusCall != null)
         assert(duration < 100)
         val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assert(statusText.contains("BUILD IN PROGRESS"))
@@ -314,7 +309,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         ) as CallToolResult
         val duration = testScheduler.currentTime - startTime
 
-        assert(statusCall != null)
         assert(duration >= 500) { "Expected duration >= 500ms, but was $duration" }
         val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assert(statusText.contains("BUILD IN PROGRESS"))
@@ -391,7 +385,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         // If the tool waited for the build to finish, this test would hang/timeout.
         // The fact that it completes proves the background path returns immediately.
-        assert(result != null)
         val text = result.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assertEquals(buildId.toString(), text)
     }

@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.dependencies.search
 
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import kotlinx.serialization.Serializable
 import java.nio.file.Path
@@ -24,7 +25,9 @@ interface SearchProvider {
     /**
      * [indexDirs] a map of index dirs to the relative path of that origin in the combined set
      */
-    suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path)
+    suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path, progress: ProgressReporter = ProgressReporter.NONE)
+
+    suspend fun countDocuments(indexDir: Path): Int
 
     companion object {
         val SOURCE_EXTENSIONS = setOf("kt", "kts", "java", "groovy")

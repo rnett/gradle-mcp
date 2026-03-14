@@ -11,6 +11,7 @@ import dev.rnett.gradle.mcp.dependencies.model.GradleSourceSetDependencyReport
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.GradleProvider
+import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.tools.InitScriptNames
 import kotlin.io.path.Path
@@ -39,6 +40,7 @@ interface GradleDependencyService {
         sourceSet: String? = null,
         checkUpdates: Boolean = false,
         versionFilter: String? = null,
+        stableOnly: Boolean = false,
         onlyDirect: Boolean = false,
         downloadSources: Boolean = false
     ): GradleDependencyReport
@@ -173,8 +175,9 @@ class DefaultGradleDependencyService(
                     val resolvable = parts.getOrNull(3)?.toBooleanStrictOrNull() ?: false
                     val extendsFrom = parts.getOrNull(4)?.takeIf { it.isNotEmpty() }?.split(",")?.map { it.trim() }
                         ?: emptyList()
-                    currentConfig = MutableConfig(name, desc, resolvable, extendsFrom)
-                    project.configurations.add(currentConfig!!)
+                    val config = MutableConfig(name, desc, resolvable, extendsFrom)
+                    currentConfig = config
+                    project.configurations.add(config)
                     depStack.clear()
                 }
 
@@ -233,6 +236,7 @@ class DefaultGradleDependencyService(
         sourceSet: String?,
         checkUpdates: Boolean,
         versionFilter: String?,
+        stableOnly: Boolean,
         onlyDirect: Boolean,
         downloadSources: Boolean
     ): GradleDependencyReport {
@@ -252,11 +256,7 @@ class DefaultGradleDependencyService(
         additional += task
 
         if (!configuration.isNullOrBlank()) {
-            if (configuration.startsWith("buildscript:")) {
-                additional += listOf("-Pmcp.configuration=$configuration")
-            } else {
-                additional += listOf("--configuration", configuration)
-            }
+            additional += "-Pmcp.configuration=$configuration"
         }
         if (!sourceSet.isNullOrBlank()) {
             // The init-script may handle this flag; pass through for filtering on Gradle side if supported
@@ -267,6 +267,9 @@ class DefaultGradleDependencyService(
         }
         if (!versionFilter.isNullOrBlank()) {
             additional += "-Pmcp.versionFilter=$versionFilter"
+        }
+        if (stableOnly) {
+            additional += "-Pmcp.stableOnly=true"
         }
         if (onlyDirect) {
             additional += "-Pmcp.onlyDirect=true"
@@ -285,7 +288,12 @@ class DefaultGradleDependencyService(
         )
 
         // Wait for build to complete so console output is finalized
-        running.awaitFinished()
+        val finished = running.awaitFinished()
+        if (finished.outcome is BuildOutcome.Failed) {
+            val failure = (finished.outcome as BuildOutcome.Failed).failures.firstOrNull()
+            val allMessages = failure?.flatten()?.mapNotNull { it.message }?.joinToString("; ") ?: "Unknown error"
+            throw IllegalStateException("Gradle build failed: $allMessages")
+        }
 
         val text = running.consoleOutput.toString()
         val parsed = parseStructuredOutput(text)
@@ -337,6 +345,7 @@ class DefaultGradleDependencyService(
             sourceSet = sourceSetName,
             checkUpdates = false,
             versionFilter = null,
+            stableOnly = false,
             onlyDirect = false,
             downloadSources = downloadSources
         )
@@ -386,6 +395,7 @@ class DefaultGradleDependencyService(
             sourceSet = null,
             checkUpdates = false,
             versionFilter = null,
+            stableOnly = false,
             onlyDirect = false,
             downloadSources = downloadSources
         )
@@ -459,7 +469,9 @@ class DefaultGradleDependencyService(
             parser.parseLine(type, parts)
         }
 
-        val projects = projectOrder.map { projectParsers[it]!!.project }
+        val projects = projectOrder.map {
+            requireNotNull(projectParsers[it]) { "No parser found for project $it" }.project
+        }
 
         // Collect known children from fully explored nodes using composite key
         val knownChildren = mutableMapOf<Triple<String, String?, List<String>>, List<GradleDependency>>()

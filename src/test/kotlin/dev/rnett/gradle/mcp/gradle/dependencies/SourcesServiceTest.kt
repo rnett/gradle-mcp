@@ -3,6 +3,7 @@ package dev.rnett.gradle.mcp.dependencies
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
+import dev.rnett.gradle.mcp.dependencies.search.IndexEntry
 import dev.rnett.gradle.mcp.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import io.mockk.coEvery
@@ -10,11 +11,11 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.nio.file.Path
-import java.util.*
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.createDirectories
@@ -36,7 +37,13 @@ class SourcesServiceTest {
         tempDir = createTempDirectory("sources-service-test")
         environment = GradleMcpEnvironment(tempDir)
         depService = mockk(relaxed = true)
-        indexService = mockk(relaxed = true)
+        indexService = mockk()
+        coEvery { with(any<ProgressReporter>()) { indexService.indexFiles(any(), any()) } } returns null
+        coEvery { with(any<ProgressReporter>()) { indexService.index(any(), any()) } } returns null
+        coEvery { indexService.search(any(), any(), any(), any()) } returns dev.rnett.gradle.mcp.dependencies.search.SearchResponse(emptyList())
+        coEvery { indexService.listPackageContents(any(), any()) } returns null
+        coEvery { with(any<ProgressReporter>()) { indexService.mergeIndices(any(), any()) } } returns Unit
+
         sourcesService = DefaultSourcesService(depService, environment, indexService)
     }
 
@@ -79,7 +86,7 @@ class SourcesServiceTest {
             )
         )
 
-        val progressMessages = Collections.synchronizedList(mutableListOf<String?>())
+        val progressMessages = java.util.concurrent.ConcurrentLinkedQueue<String?>()
         val reporter = ProgressReporter { _, _, msg -> progressMessages.add(msg) }
 
         with(reporter) {
@@ -156,7 +163,7 @@ class SourcesServiceTest {
 
             assertTrue(result.lastRefreshFile.exists())
             val timestamp = result.lastRefreshFile.readText()
-            assertNotNull(java.time.Instant.parse(timestamp))
+            assertNotNull(kotlin.time.Instant.parse(timestamp))
         }
     }
 
@@ -214,6 +221,60 @@ class SourcesServiceTest {
             coEvery { with(any<ProgressReporter>()) { depService.downloadSourceSetSources(any(), any()) } } returns mockk(relaxed = true)
             sourcesService.downloadSourceSetSources(projectRoot, ":app:main", fresh = true)
             coVerify(exactly = 1) { with(any<ProgressReporter>()) { depService.downloadSourceSetSources(projectRoot, ":app:main") } }
+        }
+    }
+
+    @Test
+    fun `downloadAllSources fails if indexing fails`() = runTest {
+        val projectRootPath = tempDir.resolve("project-fail")
+        projectRootPath.createDirectories()
+        val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
+
+        val sourcesFile = tempDir.resolve("lib-sources-fail.jar")
+        java.util.zip.ZipOutputStream(sourcesFile.toFile().outputStream()).use {
+            it.putNextEntry(java.util.zip.ZipEntry("foo.txt"))
+            it.write("bar".toByteArray())
+            it.closeEntry()
+        }
+
+        val mockDep = dev.rnett.gradle.mcp.dependencies.model.GradleDependency(
+            id = "com.example:lib:1.0.0",
+            group = "com.example",
+            name = "lib",
+            version = "1.0.0",
+            sourcesFile = sourcesFile
+        )
+
+        coEvery { with(any<ProgressReporter>()) { depService.downloadAllSources(any()) } } returns GradleDependencyReport(
+            listOf(
+                dev.rnett.gradle.mcp.dependencies.model.GradleProjectDependencies(
+                    path = ":",
+                    sourceSets = emptyList(),
+                    repositories = emptyList(),
+                    configurations = listOf(
+                        dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies(
+                            name = "main",
+                            description = null,
+                            isResolvable = true,
+                            dependencies = listOf(mockDep)
+                        )
+                    )
+                )
+            )
+        )
+
+        coEvery {
+            with(any<ProgressReporter>()) {
+                indexService.indexFiles(any(), any<kotlinx.coroutines.flow.Flow<IndexEntry>>())
+            }
+        } throws RuntimeException("Indexing failed")
+
+        assertThrows(RuntimeException::class.java) {
+            runTest {
+                with(ProgressReporter.NONE) {
+                    sourcesService.downloadAllSources(projectRoot, index = true)
+                }
+            }
         }
     }
 }

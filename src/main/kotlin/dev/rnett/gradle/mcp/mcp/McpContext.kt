@@ -130,7 +130,7 @@ open class McpContext(
                     repeat(4) {
                         val suffix = if (it == 0) "" else ".".repeat(it)
                         emit(Triple(p, t, msg + suffix))
-                        delay(250)
+                        delay(500)
                     }
                 }
             }

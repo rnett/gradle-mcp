@@ -10,6 +10,8 @@ import kotlin.io.path.absolute
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.writeBytes
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 interface InitScriptProvider {
     fun extractInitScripts(scriptNames: List<String>): List<Path>
@@ -40,6 +42,7 @@ class DefaultInitScriptProvider(
      * Extracts requested init scripts from resources to the working directory.
      * Returns a list of absolute paths to the extracted scripts.
      */
+    @OptIn(ExperimentalUuidApi::class)
     override fun extractInitScripts(scriptNames: List<String>): List<Path> {
         val scripts = mutableListOf<Path>()
         initScriptsDir.createDirectories()
@@ -71,7 +74,7 @@ class DefaultInitScriptProvider(
                 val targetPath = initScriptsDir.resolve(targetFileName)
 
                 if (!targetPath.exists()) {
-                    val tempPath = targetPath.resolveSibling("${targetPath.fileName}.tmp.${java.util.UUID.randomUUID()}")
+                    val tempPath = targetPath.resolveSibling("${targetPath.fileName}.tmp.${Uuid.random()}")
                     try {
                         tempPath.writeBytes(bytes)
                         Files.move(tempPath, targetPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)

@@ -124,7 +124,8 @@ kotlin {
     compilerOptions {
         freeCompilerArgs.addAll(
             "-Xannotation-default-target=param-property",
-            "-Xcontext-parameters"
+            "-Xcontext-parameters",
+            "-opt-in=kotlin.concurrent.atomics.ExperimentalAtomicApi"
         )
     }
 }

@@ -6,6 +6,7 @@ import dev.rnett.gradle.mcp.dependencies.SourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.utils.FileLockManager
+import dev.rnett.gradle.mcp.withPhase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import org.slf4j.LoggerFactory
@@ -30,6 +31,7 @@ value class Index(val dir: Path)
 
 interface IndexService {
     @OptIn(ExperimentalPathApi::class)
+    context(progress: ProgressReporter)
     suspend fun index(dependency: GradleDependency, sourceDir: Path): Index? {
         val filesFlow = flow {
             sourceDir.walk().filter { it.isRegularFile() }.forEach { file ->
@@ -37,10 +39,11 @@ interface IndexService {
                 emit(IndexEntry(relativePath, file.readText()))
             }
         }
-        return index(dependency, filesFlow)
+        return indexFiles(dependency, filesFlow)
     }
 
-    suspend fun index(dependency: GradleDependency, fileFlow: Flow<IndexEntry>): Index?
+    context(progress: ProgressReporter)
+    suspend fun indexFiles(dependency: GradleDependency, fileFlow: Flow<IndexEntry>): Index?
 
     /**
      * [includedDeps] is map of relative path in merged to the index
@@ -63,7 +66,8 @@ class DefaultIndexService(
     private val indexDir = environment.cacheDir.resolve("source-indices")
 
     @OptIn(ExperimentalPathApi::class)
-    override suspend fun index(dependency: GradleDependency, fileFlow: Flow<IndexEntry>): Index? {
+    context(progress: ProgressReporter)
+    override suspend fun indexFiles(dependency: GradleDependency, fileFlow: Flow<IndexEntry>): Index? {
         if (dependency.group == null) return null
 
         val dirName = dependency.sourcesFile?.nameWithoutExtension ?: "direct-${dependency.hashCode()}"
@@ -91,6 +95,7 @@ class DefaultIndexService(
                 try {
                     fileFlow.collect { entry ->
                         count++
+                        progress.report(count.toDouble(), null, "Indexing ${entry.relativePath}")
                         indexers.forEach { (_, indexer) ->
                             indexer.indexFile(entry.relativePath, entry.content)
                         }
@@ -141,25 +146,40 @@ class DefaultIndexService(
 
                 val includedIndices = includedDeps.mapValues { it.value.dir }
                 try {
-                    providers.forEach { provider ->
+                    val mergeProgress = progress.withPhase("MERGING")
 
+                    val totalDocs = providers.sumOf { provider ->
+                        includedIndices.keys.sumOf { provider.countDocuments(it.resolve(provider.name)) }
+                    }
+                    var completedDocs = 0
+
+                    providers.forEach { provider ->
+                        val providerTotalDocs = includedIndices.keys.sumOf { provider.countDocuments(it.resolve(provider.name)) }
                         val providerDir = dir.resolve(provider.name)
                         if (providerDir.exists()) {
                             providerDir.deleteRecursively()
                         }
 
                         providerDir.createDirectories()
-                        provider.mergeIndices(includedIndices.entries.associate { it.value.resolve(provider.name) to it.key }, providerDir)
+
+                        val providerReporter = ProgressReporter { p, t, _ ->
+                            val fraction = if (t != null && t > 0.0) p / t else p
+                            val current = completedDocs + (fraction * providerTotalDocs).toInt()
+                            mergeProgress.report(current.toDouble(), totalDocs.toDouble(), "Merging indices")
+                        }
+
+                        provider.mergeIndices(includedIndices.entries.associate { it.value.resolve(provider.name) to it.key }, providerDir, providerReporter)
+                        completedDocs += providerTotalDocs
                     }
                     hashFile.createParentDirectories()
                     hashFile.writeText(currentHash)
                 } catch (e: Exception) {
-                    LOGGER.error("Failed to merge indices for ${sourcesDir.path}", e)
+                    LOGGER.error("Failed to merge indices for ${sourcesDir.storagePath}", e)
                     dir.deleteRecursively()
                     throw e
                 }
             }
-            LOGGER.info("Merging indices for ${sourcesDir.path} took $duration (${includedDeps.size} dependencies)")
+            LOGGER.info("Merging indices for ${sourcesDir.storagePath} took $duration (${includedDeps.size} dependencies)")
         }
     }
 
@@ -172,7 +192,7 @@ class DefaultIndexService(
         val (response, duration) = measureTimedValue {
             val providerIndexDir = sourcesDir.index.resolve(provider.name)
             if (!sourcesDir.index.exists()) {
-                return@measureTimedValue SearchResponse(emptyList())
+                throw IllegalStateException("Index not found in ${sourcesDir.index}. Did you enable indexing?")
             }
             if (!providerIndexDir.exists()) {
                 throw IllegalStateException("Index for provider ${provider.name} not found in ${sourcesDir.index}")
@@ -180,7 +200,7 @@ class DefaultIndexService(
             provider.search(providerIndexDir, query, pagination)
         }
         val res = response
-        LOGGER.info("Search using ${provider.name} for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) in ${sourcesDir.path} took $duration (${res.results.size} results)")
+        LOGGER.info("Search using ${provider.name} for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) in ${sourcesDir.storagePath} took $duration (${res.results.size} results)")
         return res
     }
 

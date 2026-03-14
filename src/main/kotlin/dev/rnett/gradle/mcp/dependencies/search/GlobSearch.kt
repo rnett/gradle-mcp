@@ -1,11 +1,13 @@
 package dev.rnett.gradle.mcp.dependencies.search
 
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import java.nio.file.FileSystems
 import java.nio.file.Path
+import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.readLines
@@ -81,7 +83,7 @@ object GlobSearch : SearchProvider {
 
     class GlobIndexer(outputDir: Path) : Indexer {
         private val file = outputDir.resolve(v1FileName)
-        private val paths = mutableListOf<String>()
+        private val paths = ConcurrentLinkedQueue<String>()
 
         init {
             outputDir.createDirectories()
@@ -93,14 +95,17 @@ object GlobSearch : SearchProvider {
 
         override suspend fun finish() {
             withContext(Dispatchers.IO) {
-                file.writeLines(paths)
+                file.writeLines(paths.toList())
             }
         }
 
         override fun close() {}
     }
 
-    override suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path) = withContext(Dispatchers.IO) {
+    override suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path, progress: ProgressReporter) = withContext(Dispatchers.IO) {
+        val totalDocs = indexDirs.keys.sumOf { countDocuments(it) }
+        var completedDocs = 0
+
         val (fileCount, duration) = measureTimedValue {
             val file = outputDir.resolve(v1FileName)
             outputDir.createDirectories()
@@ -108,12 +113,22 @@ object GlobSearch : SearchProvider {
             val allPaths = indexDirs.flatMap { (idxDir, relativePrefix) ->
                 val srcFile = idxDir.resolve(v1FileName)
                 if (!srcFile.exists()) return@flatMap emptyList()
-                srcFile.readLines().map { relativePrefix.resolve(it).toString().replace('\\', '/') }
+                val paths = srcFile.readLines().map { relativePrefix.resolve(it).toString().replace('\\', '/') }
+                completedDocs += paths.size
+                progress.report(completedDocs.toDouble(), totalDocs.toDouble(), null)
+                paths
             }
 
             file.writeLines(allPaths)
             allPaths.size
         }
         LOGGER.info("Glob index merging took $duration ($fileCount files across ${indexDirs.size} indices)")
+    }
+
+    override suspend fun countDocuments(indexDir: Path): Int = withContext(Dispatchers.IO) {
+        val file = indexDir.resolve(v1FileName)
+        if (file.exists()) {
+            file.readLines().size
+        } else 0
     }
 }

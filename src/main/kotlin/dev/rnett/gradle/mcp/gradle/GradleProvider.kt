@@ -24,6 +24,8 @@ import org.gradle.tooling.model.Model
 import org.gradle.tooling.model.build.BuildEnvironment
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.reflect.KClass
 import kotlin.time.Clock
@@ -97,8 +99,10 @@ class DefaultGradleProvider(
         })
     }
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val closed = java.util.concurrent.atomic.AtomicBoolean(false)
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    @OptIn(ExperimentalAtomicApi::class)
+    private val closed = AtomicBoolean(false)
 
     override fun close() {
         if (closed.compareAndSet(false, true)) {

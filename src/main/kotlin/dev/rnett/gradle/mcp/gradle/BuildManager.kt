@@ -12,7 +12,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.time.Clock
@@ -21,8 +21,8 @@ import kotlin.time.Instant
 
 @OptIn(ExperimentalAtomicApi::class)
 class BuildManager : AutoCloseable {
-    private val counter = AtomicInteger(1)
-    fun newId() = BuildId("b-${counter.getAndIncrement()}")
+    private val counter = AtomicInt(1)
+    fun newId() = BuildId("b-${counter.fetchAndAdd(1)}")
 
     private val builds = ConcurrentHashMap<BuildId, Build>()
     private val lastAccess = ConcurrentHashMap<BuildId, Instant>()
@@ -51,7 +51,7 @@ class BuildManager : AutoCloseable {
         val stoppedBuilds = lastAccess.keys
             .mapNotNull { id -> builds[id]?.let { id to it } }
             .filter { it.second.hasBuildFinished }
-            .sortedByDescending { lastAccess[it.first]!! }
+            .sortedByDescending { lastAccess[it.first] ?: Instant.fromEpochMilliseconds(0) }
 
         if (stoppedBuilds.size > 1000) {
             stoppedBuilds.drop(1000).forEach { stopAndRemove(it.first) }

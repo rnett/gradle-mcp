@@ -37,26 +37,10 @@ object ArchiveExtractor {
 
             var singleFirstDirPrefix: String? = null
             if (skipSingleFirstDir) {
-                val topLevelDirs = mutableSetOf<String>()
-                val entries = zip.entries()
-                var hasFilesAtRoot = false
-                while (entries.hasMoreElements()) {
-                    val name = entries.nextElement().name
-                    val slashIdx = name.indexOf('/')
-                    if (slashIdx == -1 && name.isNotEmpty()) {
-                        hasFilesAtRoot = true
-                        break
-                    }
-                    if (slashIdx != -1) {
-                        topLevelDirs.add(name.substring(0, slashIdx + 1))
-                    }
-                }
-                if (!hasFilesAtRoot && topLevelDirs.size == 1) {
-                    singleFirstDirPrefix = topLevelDirs.first()
-                }
+                singleFirstDirPrefix = calculateSingleFirstDirPrefix(zip)
             }
 
-            extractIntoInternal(target, skipSingleFirstDir, writeFiles, total, singleFirstDirPrefix, onFileExtracted) { block ->
+            extractInternal(target, skipSingleFirstDir, writeFiles, total, singleFirstDirPrefix, onFileExtracted) { block ->
                 val entries = zip.entries()
                 while (entries.hasMoreElements()) {
                     val entry = entries.nextElement()
@@ -80,7 +64,7 @@ object ArchiveExtractor {
         if (skipSingleFirstDir && onFileExtracted != null) {
             LOGGER.warn("extractInto called with ZipInputStream, skipSingleFirstDir=true, and a callback. Paths passed to the callback will NOT be shifted.")
         }
-        extractIntoInternal(target, skipSingleFirstDir, writeFiles, null, null, onFileExtracted) { block ->
+        extractInternal(target, skipSingleFirstDir, writeFiles, null, null, onFileExtracted) { block ->
             var entry = archiveStream.nextEntry
             while (entry != null) {
                 block(entry, archiveStream)
@@ -91,8 +75,75 @@ object ArchiveExtractor {
 
     @OptIn(ExperimentalPathApi::class)
     context(progress: ProgressReporter)
-    private suspend fun extractIntoInternal(
-        target: Path,
+    suspend fun extract(
+        archivePath: Path,
+        skipSingleFirstDir: Boolean = true,
+        onFileExtracted: suspend (String, ByteArray) -> Unit
+    ) {
+        ZipFile(archivePath.toFile()).use { zip ->
+            val total = zip.size().toDouble()
+
+            var singleFirstDirPrefix: String? = null
+            if (skipSingleFirstDir) {
+                singleFirstDirPrefix = calculateSingleFirstDirPrefix(zip)
+            }
+
+            extractInternal(null, skipSingleFirstDir, false, total, singleFirstDirPrefix, onFileExtracted) { block ->
+                val entries = zip.entries()
+                while (entries.hasMoreElements()) {
+                    val entry = entries.nextElement()
+                    zip.getInputStream(entry).use { input ->
+                        block(entry, input)
+                    }
+                }
+            }
+        }
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    context(progress: ProgressReporter)
+    suspend fun extract(
+        archiveStream: ZipInputStream,
+        skipSingleFirstDir: Boolean = true,
+        onFileExtracted: suspend (String, ByteArray) -> Unit
+    ) {
+        if (skipSingleFirstDir) {
+            LOGGER.warn("extract called with ZipInputStream, skipSingleFirstDir=true. Paths passed to the callback will NOT be shifted.")
+        }
+        extractInternal(null, skipSingleFirstDir, false, null, null, onFileExtracted) { block ->
+            var entry = archiveStream.nextEntry
+            while (entry != null) {
+                block(entry, archiveStream)
+                entry = archiveStream.nextEntry
+            }
+        }
+    }
+
+    private fun calculateSingleFirstDirPrefix(zip: ZipFile): String? {
+        val topLevelDirs = mutableSetOf<String>()
+        val entries = zip.entries()
+        var hasFilesAtRoot = false
+        while (entries.hasMoreElements()) {
+            val name = entries.nextElement().name
+            val slashIdx = name.indexOf('/')
+            if (slashIdx == -1 && name.isNotEmpty()) {
+                hasFilesAtRoot = true
+                break
+            }
+            if (slashIdx != -1) {
+                topLevelDirs.add(name.substring(0, slashIdx + 1))
+            }
+        }
+        if (!hasFilesAtRoot && topLevelDirs.size == 1) {
+            return topLevelDirs.first()
+        }
+        return null
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    context(progress: ProgressReporter)
+    private suspend fun extractInternal(
+        target: Path?,
         skipSingleFirstDir: Boolean,
         writeFiles: Boolean,
         total: Double?,
@@ -119,8 +170,9 @@ object ArchiveExtractor {
                 }
 
                 if (writeFiles) {
-                    val outPath = tempTarget!!.resolve(entry.name).normalize()
-                    if (!outPath.startsWith(tempTarget)) {
+                    val targetDir = requireNotNull(tempTarget)
+                    val outPath = targetDir.resolve(entry.name).normalize()
+                    if (!outPath.startsWith(targetDir)) {
                         throw IllegalStateException("Archive entry attempts to escape destination: ${entry.name}")
                     }
                     if (entry.isDirectory) {
@@ -143,21 +195,23 @@ object ArchiveExtractor {
             }
 
             if (writeFiles) {
-                target.createParentDirectories()
+                val finalTarget = requireNotNull(target)
+                finalTarget.createParentDirectories()
 
-                if (target.exists()) {
-                    target.deleteRecursively()
+                if (finalTarget.exists()) {
+                    finalTarget.deleteRecursively()
                 }
 
                 if (skipSingleFirstDir) {
-                    val child = tempTarget!!.listDirectoryEntries().filter { !it.name.startsWith(".") }.singleOrNull()
+                    val targetDir = requireNotNull(tempTarget)
+                    val child = targetDir.listDirectoryEntries().filter { !it.name.startsWith(".") }.singleOrNull()
                     if (child != null && child.isDirectory()) {
-                        child.moveTo(target, StandardCopyOption.REPLACE_EXISTING)
+                        child.moveTo(finalTarget, StandardCopyOption.REPLACE_EXISTING)
                     } else {
-                        tempTarget.moveTo(target, StandardCopyOption.REPLACE_EXISTING)
+                        targetDir.moveTo(finalTarget, StandardCopyOption.REPLACE_EXISTING)
                     }
                 } else {
-                    tempTarget!!.moveTo(target, StandardCopyOption.REPLACE_EXISTING)
+                    requireNotNull(tempTarget).moveTo(finalTarget, StandardCopyOption.REPLACE_EXISTING)
                 }
 
                 if (tempTarget.exists()) {

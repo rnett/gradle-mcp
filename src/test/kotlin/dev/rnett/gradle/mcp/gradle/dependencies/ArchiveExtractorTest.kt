@@ -92,4 +92,36 @@ class ArchiveExtractorTest {
             tempDir.deleteRecursively()
         }
     }
+
+    @Test
+    fun `test extract without target directory`() = runTest {
+        val tempDir = createTempDirectory("archive-extractor-test-no-target")
+        try {
+            val zipFile = tempDir.resolve("test-no-target.zip")
+
+            zipFile.outputStream().use { fos ->
+                ZipOutputStream(fos).use { zos ->
+                    zos.putNextEntry(ZipEntry("file1.txt"))
+                    zos.write("content1".toByteArray())
+                    zos.closeEntry()
+                    zos.putNextEntry(ZipEntry("dir/file2.txt"))
+                    zos.write("content2".toByteArray())
+                    zos.closeEntry()
+                }
+            }
+
+            val extractedFiles = mutableMapOf<String, String>()
+            with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
+                ArchiveExtractor.extract(zipFile) { path, bytes ->
+                    extractedFiles[path] = String(bytes)
+                }
+            }
+
+            assertEquals(2, extractedFiles.size)
+            assertEquals("content1", extractedFiles["file1.txt"])
+            assertEquals("content2", extractedFiles["dir/file2.txt"])
+        } finally {
+            tempDir.deleteRecursively()
+        }
+    }
 }

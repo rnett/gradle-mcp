@@ -4,8 +4,9 @@ import dev.rnett.gradle.mcp.dependencies.gradle.docs.ContentExtractorService
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultGradleDocsIndexService
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.HtmlConverter
 import dev.rnett.gradle.mcp.lucene.LuceneReaderCache
-import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.runTest
 import java.nio.file.Files
 import kotlin.test.Test
@@ -21,23 +22,21 @@ class GradleDocsIndexServiceTest {
         val version = "9.4.0"
 
         val extractor = mockk<ContentExtractorService>()
-        val callbackSlot1 = io.mockk.slot<suspend (String, ByteArray) -> Unit>()
-        coEvery {
+        every {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                extractor.extractEntries(version, capture(callbackSlot1))
+                extractor.extractEntries(version)
             }
-        } coAnswers {
-            val callback = callbackSlot1.captured
-            callback("userguide/test.html", "<html><body><h1>Userguide Test</h1><p>This is some content about dependencies.</p></body></html>".toByteArray())
-            callback("dsl/Project.html", "<html><body><h1>Project DSL</h1><p>Project is the main interface.</p></body></html>".toByteArray())
-            callback("release-notes.html", "<html><body><h1>Release Notes</h1><p>New features in this version.</p></body></html>".toByteArray())
+        } returns flow {
+            emit("userguide/test.html" to "<html><body><h1>Userguide Test</h1><p>This is some content about dependencies.</p></body></html>".toByteArray())
+            emit("dsl/Project.html" to "<html><body><h1>Project DSL</h1><p>Project is the main interface.</p></body></html>".toByteArray())
+            emit("release-notes.html" to "<html><body><h1>Release Notes</h1><p>New features in this version.</p></body></html>".toByteArray())
         }
 
         val markdownService = dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultMarkdownService()
         val service = DefaultGradleDocsIndexService(extractor, HtmlConverter(markdownService), environment, LuceneReaderCache())
 
         with(dev.rnett.gradle.mcp.ProgressReporter.NONE) {
-            // First run ensureIndexed so it populates the index using the mock callback
+            // First run ensureIndexed so it populates the index using the mock flow
             service.ensureIndexed(version)
 
             // Search for 'dependencies'
@@ -69,15 +68,13 @@ class GradleDocsIndexServiceTest {
         val version = "9.4.0"
 
         val extractor = mockk<ContentExtractorService>()
-        val callbackSlot2 = io.mockk.slot<suspend (String, ByteArray) -> Unit>()
-        coEvery {
+        every {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                extractor.extractEntries(version, capture(callbackSlot2))
+                extractor.extractEntries(version)
             }
-        } coAnswers {
-            val callback = callbackSlot2.captured
-            callback("userguide/best_practices_performance.html", "<html><body><h1>Performance Best Practices</h1><p>Use build cache.</p></body></html>".toByteArray())
-            callback("userguide/intro.html", "<html><body><h1>Introduction</h1><p>Welcome to Gradle.</p></body></html>".toByteArray())
+        } returns flow {
+            emit("userguide/best_practices_performance.html" to "<html><body><h1>Performance Best Practices</h1><p>Use build cache.</p></body></html>".toByteArray())
+            emit("userguide/intro.html" to "<html><body><h1>Introduction</h1><p>Welcome to Gradle.</p></body></html>".toByteArray())
         }
 
         val markdownService = dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultMarkdownService()
