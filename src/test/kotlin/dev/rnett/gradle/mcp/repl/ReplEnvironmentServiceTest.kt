@@ -1,22 +1,22 @@
 package dev.rnett.gradle.mcp.repl
 
-import dev.rnett.gradle.mcp.BuildConfig
+import dev.rnett.gradle.mcp.TestFixturesBuildConfig
+import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
+import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
-import dev.rnett.gradle.mcp.gradle.fixtures.GradleProjectFixture
-import dev.rnett.gradle.mcp.gradle.fixtures.testGradleProject
 import dev.rnett.gradle.mcp.tools.toOutputString
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.io.File
-import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
@@ -51,7 +51,7 @@ class ReplEnvironmentServiceTest {
 
             subproject(
                 "kotlin-jvm", buildScript = """
-                plugins { kotlin("jvm") version "${BuildConfig.KOTLIN_VERSION}" }
+                plugins { kotlin("jvm") version "${TestFixturesBuildConfig.KOTLIN_VERSION}" }
                 repositories { mavenCentral() }
                 kotlin { jvmToolchain(17) }
                 dependencies { implementation(kotlin("stdlib")) }
@@ -75,7 +75,7 @@ class ReplEnvironmentServiceTest {
 
             subproject(
                 "kmp-project", buildScript = """
-                plugins { kotlin("multiplatform") version "${BuildConfig.KOTLIN_VERSION}" }
+                plugins { kotlin("multiplatform") version "${TestFixturesBuildConfig.KOTLIN_VERSION}" }
                 repositories { mavenCentral() }
                 kotlin { jvm() }
                 tasks.register("createSource") {
@@ -92,7 +92,7 @@ class ReplEnvironmentServiceTest {
             subproject(
                 "kotlin-java-mixed", buildScript = """
                 plugins { 
-                    kotlin("jvm") version "${BuildConfig.KOTLIN_VERSION}"
+                    kotlin("jvm") version "${TestFixturesBuildConfig.KOTLIN_VERSION}"
                     java
                 }
                 repositories { mavenCentral() }
@@ -101,7 +101,7 @@ class ReplEnvironmentServiceTest {
 
             subproject(
                 "clean-test", buildScript = """
-                plugins { kotlin("jvm") version "${BuildConfig.KOTLIN_VERSION}" }
+                plugins { kotlin("jvm") version "${TestFixturesBuildConfig.KOTLIN_VERSION}" }
                 repositories { mavenCentral() }
                 tasks.register("createSource") {
                     doLast {
@@ -117,8 +117,8 @@ class ReplEnvironmentServiceTest {
             subproject(
                 "compiler-args", buildScript = """
                 plugins {
-                    kotlin("jvm") version "${BuildConfig.KOTLIN_VERSION}"
-                    kotlin("plugin.serialization") version "${BuildConfig.KOTLIN_VERSION}"
+                    kotlin("jvm") version "${TestFixturesBuildConfig.KOTLIN_VERSION}"
+                    kotlin("plugin.serialization") version "${TestFixturesBuildConfig.KOTLIN_VERSION}"
                 }
                 repositories { mavenCentral() }
                 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
@@ -167,7 +167,7 @@ class ReplEnvironmentServiceTest {
             complexProject,
             projectPath = ":kotlin-jvm",
             sourceSet = "main",
-            additionalDependencies = listOf("org.jetbrains.kotlin:kotlin-reflect:${BuildConfig.KOTLIN_VERSION}")
+            additionalDependencies = listOf("org.jetbrains.kotlin:kotlin-reflect:${TestFixturesBuildConfig.KOTLIN_VERSION}")
         )
 
         assert(env.javaExecutable.isNotBlank())
@@ -182,7 +182,7 @@ class ReplEnvironmentServiceTest {
             complexProject,
             projectPath = ":java-only",
             sourceSet = "main",
-            additionalDependencies = listOf("org.jetbrains.kotlin:kotlin-reflect:${BuildConfig.KOTLIN_VERSION}")
+            additionalDependencies = listOf("org.jetbrains.kotlin:kotlin-reflect:${TestFixturesBuildConfig.KOTLIN_VERSION}")
         )
 
         assert(env.javaExecutable.isNotBlank())
@@ -196,7 +196,7 @@ class ReplEnvironmentServiceTest {
             complexProject,
             projectPath = ":kmp-project",
             sourceSet = "jvmMain",
-            additionalDependencies = listOf("org.jetbrains.kotlin:kotlin-reflect:${BuildConfig.KOTLIN_VERSION}")
+            additionalDependencies = listOf("org.jetbrains.kotlin:kotlin-reflect:${TestFixturesBuildConfig.KOTLIN_VERSION}")
         )
 
         assert(env.javaExecutable.isNotBlank())

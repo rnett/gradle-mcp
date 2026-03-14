@@ -1,12 +1,12 @@
 package dev.rnett.gradle.mcp.mcp
 
-import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
+import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.tools.PaginationUnit
 import dev.rnett.gradle.mcp.tools.paginate
 import dev.rnett.gradle.mcp.tools.paginateText
 import kotlinx.coroutines.test.runTest
-import kotlin.test.Test
+import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue

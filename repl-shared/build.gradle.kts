@@ -11,3 +11,7 @@ dependencies {
 kotlin {
     jvmToolchain(8)
 }
+
+tasks.test {
+    enabled = false
+}

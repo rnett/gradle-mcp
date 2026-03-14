@@ -3,15 +3,15 @@ package dev.rnett.gradle.mcp.tools
 import dev.rnett.gradle.mcp.GradleVersionService
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsSectionSummary
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
-import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
+import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import io.mockk.coEvery
 import io.modelcontextprotocol.kotlin.sdk.Root
 import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
-import kotlin.test.BeforeTest
-import kotlin.test.Test
 import kotlin.test.assertContains
 
 class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
@@ -19,7 +19,7 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
     val mockDocsService: GradleDocsService get() = server.koin.get()
     val mockVersionService: GradleVersionService get() = server.koin.get()
 
-    @BeforeTest
+    @BeforeEach
     override fun setup() = runTest {
         super.setup()
         coEvery { mockVersionService.resolveVersion(any()) } answers {

@@ -1,12 +1,12 @@
 package dev.rnett.gradle.mcp.tools
 
+import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.gradle.build.TestResults
-import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk

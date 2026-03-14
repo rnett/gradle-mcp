@@ -7,14 +7,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import java.io.IOException
 import java.nio.file.Path
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.deleteRecursively
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
-import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.time.Duration
@@ -27,12 +27,12 @@ class FileLockManagerTest {
 
     private lateinit var tempDir: Path
 
-    @BeforeTest
+    @BeforeEach
     fun setup() {
         tempDir = createTempDirectory("file-lock-manager-test")
     }
 
-    @AfterTest
+    @AfterEach
     fun cleanup() {
         tempDir.deleteRecursively()
     }

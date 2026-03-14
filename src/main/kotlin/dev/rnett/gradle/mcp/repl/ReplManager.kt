@@ -23,7 +23,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import org.slf4j.MDC
-import java.util.*
+import java.util.Scanner
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.absolutePathString
 import kotlin.time.Instant
@@ -335,7 +335,7 @@ class DefaultReplManager(
     override suspend fun closeAll() {
         sessions.keys().toList().forEach { terminateSession(it) }
         // Give the OS a brief moment to release any file handles on Windows
-        delay(100)
+        delay(20)
         scope.cancel()
     }
 

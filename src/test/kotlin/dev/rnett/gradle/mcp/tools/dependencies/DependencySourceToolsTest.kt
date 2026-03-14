@@ -7,7 +7,7 @@ import dev.rnett.gradle.mcp.dependencies.search.FullTextSearch
 import dev.rnett.gradle.mcp.dependencies.search.GlobSearch
 import dev.rnett.gradle.mcp.dependencies.search.SearchResponse
 import dev.rnett.gradle.mcp.dependencies.search.SearchResult
-import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
+import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.mockk.coEvery
 import io.modelcontextprotocol.kotlin.sdk.CallToolResult
@@ -15,10 +15,10 @@ import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
-import kotlin.test.BeforeTest
-import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -27,7 +27,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
     private lateinit var sourcesService: SourcesService
     private lateinit var gradleSourceService: GradleSourceService
 
-    @BeforeTest
+    @BeforeEach
     fun setupTest() {
         sourcesService = server.koin.get()
         gradleSourceService = server.koin.get()

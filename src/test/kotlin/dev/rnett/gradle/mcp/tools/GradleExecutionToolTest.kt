@@ -1,19 +1,19 @@
 package dev.rnett.gradle.mcp.tools
 
+import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
+import dev.rnett.gradle.mcp.fixtures.gradle.testKotlinProject
+import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleProvider
-import dev.rnett.gradle.mcp.gradle.fixtures.GradleProjectFixture
-import dev.rnett.gradle.mcp.gradle.fixtures.testKotlinProject
-import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import io.modelcontextprotocol.kotlin.sdk.Root
 import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.koin.core.scope.Scope
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
-import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertTrue
 
@@ -28,14 +28,14 @@ class GradleExecutionToolTest : BaseMcpServerTest() {
         )
     }
 
-    @BeforeTest
+    @BeforeEach
     override fun setup() = runTest {
         _project = testKotlinProject()
         super.setup()
         server.setServerRoots(Root(_project.path().toUri().toString(), "root"))
     }
 
-    @AfterTest
+    @AfterEach
     override fun cleanup() = runTest {
         _project.close()
         super.cleanup()

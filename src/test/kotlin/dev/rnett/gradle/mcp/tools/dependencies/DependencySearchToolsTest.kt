@@ -1,18 +1,18 @@
 package dev.rnett.gradle.mcp.tools.dependencies
 
+import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.maven.MAVEN_CENTRAL_URL
 import dev.rnett.gradle.mcp.maven.MavenCentralSearchResponse
 import dev.rnett.gradle.mcp.maven.MavenCentralService
 import dev.rnett.gradle.mcp.maven.MavenRepoService
-import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.mockk.coEvery
 import io.modelcontextprotocol.kotlin.sdk.CallToolResult
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlin.test.BeforeTest
-import kotlin.test.Test
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import kotlin.test.assertContains
 
 class DependencySearchToolsTest : BaseMcpServerTest() {
@@ -20,7 +20,7 @@ class DependencySearchToolsTest : BaseMcpServerTest() {
     private lateinit var mavenRepoService: MavenRepoService
     private lateinit var mavenCentralService: MavenCentralService
 
-    @BeforeTest
+    @BeforeEach
     fun setupTest() {
         mavenRepoService = server.koin.get()
         mavenCentralService = server.koin.get()

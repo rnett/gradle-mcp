@@ -1,11 +1,11 @@
 package dev.rnett.gradle.mcp.gradle
 
+import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
+import dev.rnett.gradle.mcp.fixtures.gradle.testJavaProject
+import dev.rnett.gradle.mcp.fixtures.gradle.testKotlinProject
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
 import dev.rnett.gradle.mcp.gradle.build.failuresIfFailed
-import dev.rnett.gradle.mcp.gradle.fixtures.GradleProjectFixture
-import dev.rnett.gradle.mcp.gradle.fixtures.testJavaProject
-import dev.rnett.gradle.mcp.gradle.fixtures.testKotlinProject
 import dev.rnett.gradle.mcp.tools.InitScriptNames
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.test.runTest
@@ -13,10 +13,13 @@ import org.gradle.tooling.model.build.BuildEnvironment
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import kotlin.test.Test
+import java.nio.file.Files
 import kotlin.time.Duration.Companion.seconds
 
+@Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class GradleProviderTest {
 
@@ -255,7 +258,7 @@ class GradleProviderTest {
         Assumptions.assumeTrue(System.getenv("CI") != null, "Only publish scans from CI")
 
         testJavaProject(hasTests = false).use { project ->
-            val tempDir = java.nio.file.Files.createTempDirectory("gradle-mcp-test-init-scans-")
+            val tempDir = Files.createTempDirectory("gradle-mcp-test-init-scans-")
             DefaultGradleProvider(
                 GradleConfiguration(
                     maxConnections = 2,

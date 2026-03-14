@@ -1,14 +1,14 @@
 package dev.rnett.gradle.mcp.gradle
 
+import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.TaskOutcome
-import dev.rnett.gradle.mcp.gradle.fixtures.testGradleProject
 import dev.rnett.gradle.mcp.utils.OS
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import kotlin.test.Test
 import kotlin.time.Duration.Companion.seconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)

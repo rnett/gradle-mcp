@@ -1,10 +1,10 @@
 package dev.rnett.gradle.mcp.gradle
 
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.name
-import kotlin.test.Test
 
 class BundledJarProviderTest {
 

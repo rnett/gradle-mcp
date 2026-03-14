@@ -1,8 +1,8 @@
 package dev.rnett.gradle.mcp.gradle
 
+import dev.rnett.gradle.mcp.fixtures.gradle.testJavaProject
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.failuresIfFailed
-import dev.rnett.gradle.mcp.gradle.fixtures.testJavaProject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterAll

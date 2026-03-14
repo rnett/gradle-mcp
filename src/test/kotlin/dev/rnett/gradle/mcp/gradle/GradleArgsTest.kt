@@ -2,7 +2,7 @@ package dev.rnett.gradle.mcp.gradle
 
 import dev.rnett.gradle.mcp.utils.EnvProvider
 import kotlinx.serialization.json.Json
-import kotlin.test.Test
+import org.junit.jupiter.api.Test
 
 class GradleInvocationArgumentsTest {
 

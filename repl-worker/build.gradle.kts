@@ -30,6 +30,7 @@ dependencies {
 }
 
 tasks.test {
+    useJUnitPlatform()
     val stdlibJar = configurations.runtimeClasspath.get().find { it.name.startsWith("kotlin-stdlib-") && !it.name.contains("jdk") }
     if (stdlibJar != null) {
         systemProperty("kotlin.stdlib.path", stdlibJar.absolutePath)

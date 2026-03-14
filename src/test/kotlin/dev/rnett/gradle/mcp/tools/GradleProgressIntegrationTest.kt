@@ -1,11 +1,11 @@
 package dev.rnett.gradle.mcp.tools
 
+import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
+import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
+import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
+import dev.rnett.gradle.mcp.fixtures.mcp.McpServerFixture
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleProvider
-import dev.rnett.gradle.mcp.gradle.fixtures.GradleProjectFixture
-import dev.rnett.gradle.mcp.gradle.fixtures.testGradleProject
-import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
-import dev.rnett.gradle.mcp.mcp.fixtures.McpServerFixture
 import io.modelcontextprotocol.kotlin.sdk.CallToolRequest
 import io.modelcontextprotocol.kotlin.sdk.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.ClientCapabilities
@@ -18,15 +18,17 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.Test
 import org.koin.core.scope.Scope
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.io.path.absolutePathString
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
-import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
+@Tag("integration")
 class GradleProgressIntegrationTest : BaseMcpServerTest() {
 
     companion object {
@@ -53,7 +55,7 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
         )
     }
 
-    @BeforeTest
+    @BeforeEach
     override fun setup() = runTest {
         System.setProperty("gradle.mcp.test.disableSampling", "true")
         _project = testGradleProject()
@@ -61,7 +63,7 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
         server.setServerRoots(Root(_project.path().toUri().toString(), "root"))
     }
 
-    @AfterTest
+    @AfterEach
     override fun cleanup() = runTest {
         System.clearProperty("gradle.mcp.test.disableSampling")
         _project.close()

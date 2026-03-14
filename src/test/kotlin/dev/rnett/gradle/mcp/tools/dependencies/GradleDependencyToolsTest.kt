@@ -7,7 +7,7 @@ import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
 import dev.rnett.gradle.mcp.dependencies.model.GradleProjectDependencies
 import dev.rnett.gradle.mcp.dependencies.model.GradleSourceSetDependencies
-import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
+import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.mockk.coEvery
@@ -18,7 +18,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.jupiter.api.BeforeEach
-import kotlin.test.Test
+import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 

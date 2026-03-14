@@ -2,7 +2,7 @@ package dev.rnett.gradle.mcp.mcp
 
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsPageContent
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
-import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
+import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.mockk.coEvery
 import io.modelcontextprotocol.kotlin.sdk.Progress
@@ -10,7 +10,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
-import kotlin.test.Test
+import org.junit.jupiter.api.Test
 import kotlin.test.assertTrue
 
 /**

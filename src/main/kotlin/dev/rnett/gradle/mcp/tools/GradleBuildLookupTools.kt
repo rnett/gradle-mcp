@@ -188,13 +188,14 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         val matched = build.testResults.all
             .filter { tr -> tr.testName.startsWith(testNamePrefix) }
             .filter { tr -> args.testOutcome == null || tr.status == args.testOutcome }
+            .sortedByDescending { it.executionDuration }
             .toList()
 
         return buildString {
             appendLine("Total matching results: ${matched.size}")
-            appendLine("Test | Outcome | Metadata")
+            appendLine("Test | Outcome | Duration | Metadata")
             val paged = paginate(matched, args.pagination, "test results") { tr ->
-                "${tr.testName} | ${tr.status} | ${
+                "${tr.testName} | ${tr.status} | ${tr.executionDuration} | ${
                     tr.metadata.mapValues {
                         if (it.value.length > 20) it.value.take(20) + " ... (truncated by gradle-mcp)" else it.value
                     }

@@ -2,23 +2,25 @@ package dev.rnett.gradle.mcp.e2e
 
 import dev.rnett.gradle.mcp.Application
 import dev.rnett.gradle.mcp.Transport
-import io.ktor.client.*
-import io.ktor.client.engine.cio.*
-import io.ktor.client.plugins.sse.*
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.sse.SSE
 import io.modelcontextprotocol.kotlin.sdk.Implementation
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.ClientOptions
 import io.modelcontextprotocol.kotlin.sdk.client.SseClientTransport
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.coroutineScope
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import kotlin.random.Random
-import kotlin.test.AfterTest
 import kotlin.test.assertTrue
 
+@Tag("integration")
 class SseStartupE2ETest {
 
-    @AfterTest
+    @AfterEach
     fun cleanup() {
 //        stopKoin()
     }

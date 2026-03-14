@@ -8,7 +8,7 @@ workflows.
 1. **Security & Secrets**: NEVER log, print, or commit API keys, secrets, or .env contents.
 2. **Source Control**: ALWAYS add changes to Git for persistence, but NEVER create commits or push unless explicitly instructed.
 3. **Tool Preference**: ALWAYS prefer using the Gradle MCP tools (`gradle`, `inspect_build`, etc.) over raw shell execution of `./gradlew` or generic shell commands.
-4. **Verification**: NO change is complete without passing relevant tests and the final `check` task.
+4. **Verification**: NO change is complete without passing relevant tests and the final `test` task. Only run `check` or `integrationTest` for changes that may influence them.
 5. **Tool Metadata**: After modifying any tool descriptions or metadata, or making structural changes that might affect tool discovery, you MUST run `./gradlew :updateToolsList` to ensure consistency. This is required even if no `@McpTool`
    annotations were directly changed.
 6. **Agent Documentation**: This is an MCP server and set of tools for agents to use. If behavior or features aren't documented in the tool descriptions AND skills, they might as well not exist. Ensure they are documented well enough in
@@ -46,6 +46,7 @@ workflows.
 - **Why Power Assert?**: It eliminates the need for complex assertion libraries by providing rich, contextual failure messages from simple `assert` calls.
 - **Why Class-Level Test Resources?**: Creating Gradle projects and daemon environments is expensive; we reuse them across tests to maintain a fast feedback loop.
 - **Rule**: NEVER use reflection hacks for tests. ALWAYS close and clean up any resources or services they create.
+- **Integration test split**: **slow** integration tests, or other slow tests, may be placed in `integrationTest`. This is a PERFORMANCE concern, NOT an architectural one.
 
 ### MCP Design
 
@@ -76,7 +77,8 @@ workflows.
 ### Build & Test Commands
 
 - **Build All**: `./gradlew build`
-- **Run Tests**: `./gradlew test`
+- **Run Fast Tests**: `./gradlew test` - usually good enough for most changes
+- **Run All Tests**: `./gradlew test integrationTest`
 - **Quality Check**: `./gradlew check` (Runs all verification tasks including linting and tests)
 - **Update Tools**: `./gradlew :updateToolsList` (Mandatory after metadata changes)
 

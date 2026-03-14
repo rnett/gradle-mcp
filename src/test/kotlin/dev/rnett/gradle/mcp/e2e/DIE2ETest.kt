@@ -6,16 +6,18 @@ import dev.rnett.gradle.mcp.mcp.McpServer
 import dev.rnett.gradle.mcp.repl.ReplManager
 import io.ktor.server.config.MapApplicationConfig
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.Test
 import org.koin.core.context.stopKoin
 import org.koin.test.KoinTest
 import org.koin.test.check.checkModules
-import kotlin.test.AfterTest
-import kotlin.test.Test
 import kotlin.test.assertNotNull
 
+@Tag("integration")
 class DIE2ETest : KoinTest {
 
-    @AfterTest
+    @AfterEach
     fun cleanup() {
         stopKoin()
     }

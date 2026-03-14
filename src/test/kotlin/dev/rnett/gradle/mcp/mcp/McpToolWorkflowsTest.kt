@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.mcp
 
+import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
@@ -16,7 +17,6 @@ import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.gradle.build.TestOutcome
 import dev.rnett.gradle.mcp.gradle.build.TestResult
 import dev.rnett.gradle.mcp.gradle.build.TestResults
-import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -28,13 +28,41 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import kotlin.io.path.absolutePathString
-import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class McpToolWorkflowsTest : BaseMcpServerTest() {
+
+    @BeforeAll
+    fun setupAll() = runTest {
+        super.setup()
+    }
+
+    @AfterAll
+    fun cleanupAll() = runTest {
+        super.cleanup()
+    }
+
+    override fun setup() {
+        // Handled by setupAll
+    }
+
+    override fun cleanup() {
+        // Handled by cleanupAll
+    }
+
+    @BeforeEach
+    fun setupTest() {
+        // Optional: clear builds if needed, but synthetic builds use new IDs anyway
+    }
 
     private fun syntheticBuildResult(): FinishedBuild {
         val args = GradleInvocationArguments.DEFAULT

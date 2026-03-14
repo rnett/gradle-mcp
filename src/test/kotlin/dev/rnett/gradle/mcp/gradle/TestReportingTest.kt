@@ -1,10 +1,14 @@
 package dev.rnett.gradle.mcp.gradle
 
 import dev.rnett.gradle.mcp.ProgressReporter
-import dev.rnett.gradle.mcp.gradle.fixtures.testJavaProject
+import dev.rnett.gradle.mcp.fixtures.gradle.testJavaProject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import kotlin.test.Test
+import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
@@ -59,7 +63,7 @@ class TestReportingTest {
                     @Test
                     void testHang() throws InterruptedException {
                         System.out.println("Starting hang test...");
-                        Thread.sleep(60000);
+                        Thread.sleep(6000);
                     }
                 }
             """.trimIndent()
@@ -104,13 +108,15 @@ class TestReportingTest {
 
             // Wait for test to start
             var started = false
-            val start = System.currentTimeMillis()
-            while (System.currentTimeMillis() - start < 20000) {
-                if (cancellingBuild.testResultsInternal.results(System.currentTimeMillis()).inProgress.any { it.testName.contains("testHang") }) {
-                    started = true
-                    break
+            withContext(Dispatchers.Default) {
+                val start = System.currentTimeMillis()
+                while (System.currentTimeMillis() - start < 10000) {
+                    if (cancellingBuild.testResultsInternal.results(System.currentTimeMillis()).inProgress.any { it.testName.contains("testHang") }) {
+                        started = true
+                        break
+                    }
+                    delay(100)
                 }
-                kotlinx.coroutines.delay(100)
             }
             assertTrue(started, "testHang did not start in time")
 
@@ -147,7 +153,7 @@ class TestReportingTest {
             )
         }.use { project ->
             val projectRoot = GradleProjectRoot(project.pathString())
-            val progressMessages = java.util.concurrent.ConcurrentLinkedQueue<String>()
+            val progressMessages = ConcurrentLinkedQueue<String>()
 
             val runningBuild = provider.runTests(
                 projectRoot = projectRoot,

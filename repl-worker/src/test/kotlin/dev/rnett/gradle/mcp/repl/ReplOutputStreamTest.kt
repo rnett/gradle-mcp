@@ -1,6 +1,6 @@
 package dev.rnett.gradle.mcp.repl
 
-import kotlin.test.Test
+import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
 class ReplOutputStreamTest {

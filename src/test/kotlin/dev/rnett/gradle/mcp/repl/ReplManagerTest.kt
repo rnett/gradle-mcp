@@ -6,10 +6,10 @@ import io.mockk.mockk
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.util.zip.ZipOutputStream
-import kotlin.test.Test
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
@@ -27,7 +27,7 @@ class ReplManagerTest {
                 public static void main(String[] args) throws InterruptedException {
                     System.out.println("Hello from stdout");
                     System.err.println("Hello from stderr");
-                    Thread.sleep(10000);
+                    Thread.sleep(2000);
                 }
             }
         """.trimIndent()

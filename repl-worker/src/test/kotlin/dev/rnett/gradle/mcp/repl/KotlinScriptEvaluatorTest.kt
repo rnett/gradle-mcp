@@ -1,6 +1,6 @@
 package dev.rnett.gradle.mcp.repl
 
-import kotlin.test.Test
+import org.junit.jupiter.api.Test
 
 class KotlinScriptEvaluatorTest {
 
@@ -100,13 +100,13 @@ class KotlinScriptEvaluatorTest {
     @Test
     fun `test loading from classpath`() {
         // Use junit jar as a sample classpath entry
-        val junitJar = org.junit.Test::class.java.protectionDomain.codeSource.location.toURI().let { java.io.File(it).absolutePath }
+        val junitJar = Test::class.java.protectionDomain.codeSource.location.toURI().let { java.io.File(it).absolutePath }
         val config = ReplConfig(classpath = stdlibPaths + junitJar)
         val evaluator = KotlinScriptEvaluator(config, mockResponder)
-        val result = evaluator.evaluate("org.junit.Test::class.java.name")
+        val result = evaluator.evaluate("org.junit.jupiter.api.Test::class.java.name")
         assert(result is KotlinScriptEvaluator.EvalResult.Success)
         val success = result as KotlinScriptEvaluator.EvalResult.Success
-        assert(success.data.value == "org.junit.Test")
+        assert(success.data.value == "org.junit.jupiter.api.Test")
     }
 
 

@@ -16,6 +16,8 @@ import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsIndexService
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.HtmlConverter
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.MarkdownService
+import dev.rnett.gradle.mcp.fixtures.SharedTestInfrastructure
+import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.gradle.BundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultBundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
@@ -24,25 +26,28 @@ import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.lucene.LuceneReaderCache
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
-import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
-import dev.rnett.gradle.mcp.mcp.fixtures.SharedTestInfrastructure
 import dev.rnett.gradle.mcp.repl.DefaultReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
 import dev.rnett.gradle.mcp.tools.ToolNames
-import io.ktor.client.*
-import io.ktor.client.engine.mock.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import io.ktor.serialization.kotlinx.json.json
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.Test
 import org.koin.dsl.module
 import java.io.ByteArrayOutputStream
 import java.util.zip.ZipOutputStream
 import kotlin.io.path.exists
-import kotlin.test.Test
 import kotlin.test.assertTrue
 
+@Tag("integration")
 class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
 
     private val testVersion = "9.9.9"

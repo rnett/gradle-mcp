@@ -5,14 +5,14 @@ import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsSearchResponse
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsSearchResult
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsSectionSummary
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
-import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
+import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import io.mockk.coEvery
 import io.modelcontextprotocol.kotlin.sdk.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlin.test.Test
+import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 

@@ -54,6 +54,10 @@ class SkillTools : McpServerComponent(
             }
         }
 
+        if (targetDir.isFile) {
+            throw IllegalStateException("Target directory is a file: ${targetDir.absolutePath}")
+        }
+
         if (args.replaceOld) {
             // Remove existing skills from this repo to ensure clean update
             val authorUrl = "https://github.com/rnett/gradle-mcp"

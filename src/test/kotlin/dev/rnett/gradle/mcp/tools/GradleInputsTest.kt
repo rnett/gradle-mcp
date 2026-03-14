@@ -4,8 +4,8 @@ import dev.rnett.gradle.mcp.expandPath
 import dev.rnett.gradle.mcp.mcp.McpServer
 import io.mockk.every
 import io.mockk.mockk
+import org.junit.jupiter.api.Test
 import java.nio.file.Path
-import kotlin.test.Test
 
 class GradleInputsTest {
 

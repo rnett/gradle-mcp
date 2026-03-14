@@ -1,6 +1,6 @@
 package dev.rnett.gradle.mcp.mcp
 
-import dev.rnett.gradle.mcp.mcp.fixtures.BaseMcpServerTest
+import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.tools.PaginationUnit
 import dev.rnett.gradle.mcp.tools.paginate
@@ -11,9 +11,11 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlin.test.Test
+import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.Test
 import kotlin.test.assertTrue
 
+@Tag("integration")
 class PaginationIntegrationTest : BaseMcpServerTest() {
 
     @Serializable

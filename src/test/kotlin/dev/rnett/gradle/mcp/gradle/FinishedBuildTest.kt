@@ -9,7 +9,7 @@ import dev.rnett.gradle.mcp.gradle.build.TestOutcome
 import dev.rnett.gradle.mcp.gradle.build.TestResult
 import dev.rnett.gradle.mcp.gradle.build.TestResults
 import dev.rnett.gradle.mcp.tools.toSummary
-import kotlin.test.Test
+import org.junit.jupiter.api.Test
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 
