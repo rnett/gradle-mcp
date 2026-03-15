@@ -2,6 +2,8 @@ package dev.rnett.gradle.mcp.gradle.build
 
 import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runTest
 import org.gradle.tooling.GradleConnector
 import org.gradle.tooling.events.test.source.TestSource
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -11,18 +13,19 @@ import kotlin.time.Clock
 
 class RunningBuildProgressTest {
 
-    private fun createRunningBuild(): RunningBuild {
+    private fun TestScope.createRunningBuild(): RunningBuild {
         return RunningBuild(
             id = BuildId("test-id"),
             args = GradleInvocationArguments.DEFAULT,
             startTime = Clock.System.now(),
             projectRoot = Path("."),
-            cancellationTokenSource = GradleConnector.newCancellationTokenSource()
+            cancellationTokenSource = GradleConnector.newCancellationTokenSource(),
+            scope = this.backgroundScope
         )
     }
 
     @Test
-    fun `verifies progress message without tests`() {
+    fun `verifies progress message without tests`() = runTest {
         val build = createRunningBuild()
         build.progressTracker.onPhaseStart("RUN_MAIN_TASKS", 1)
         build.progressTracker.addActiveOperation(":test")
@@ -31,7 +34,7 @@ class RunningBuildProgressTest {
     }
 
     @Test
-    fun `verifies progress message with multiple operations improved format`() {
+    fun `verifies progress message with multiple operations improved format`() = runTest {
         val build = createRunningBuild()
         build.progressTracker.onPhaseStart("RUN_MAIN_TASKS", 2)
         build.progressTracker.addActiveOperation(":test")
@@ -41,7 +44,7 @@ class RunningBuildProgressTest {
     }
 
     @Test
-    fun `verifies progress message with many operations improved format`() {
+    fun `verifies progress message with many operations improved format`() = runTest {
         val build = createRunningBuild()
         build.progressTracker.onPhaseStart("RUN_MAIN_TASKS", 3)
         build.progressTracker.addActiveOperation(":test")
@@ -52,7 +55,7 @@ class RunningBuildProgressTest {
     }
 
     @Test
-    fun `verifies sub-status clearing when operation finishes`() {
+    fun `verifies sub-status clearing when operation finishes`() = runTest {
         val build = createRunningBuild()
         build.progressTracker.onPhaseStart("RUN_MAIN_TASKS", 1)
         build.progressTracker.addActiveOperation(":test")
@@ -66,7 +69,7 @@ class RunningBuildProgressTest {
     }
 
     @Test
-    fun `verifies progress message with test summary`() {
+    fun `verifies progress message with test summary`() = runTest {
         val build = createRunningBuild()
         build.progressTracker.onPhaseStart("RUN_MAIN_TASKS", 1)
         build.progressTracker.addActiveOperation(":test")
@@ -102,7 +105,7 @@ class RunningBuildProgressTest {
     }
 
     @Test
-    fun `verifies complex test summary formatting`() {
+    fun `verifies complex test summary formatting`() = runTest {
         val build = createRunningBuild()
         build.progressTracker.onPhaseStart("RUN_MAIN_TASKS", 1)
         build.progressTracker.addActiveOperation(":test")
@@ -152,7 +155,7 @@ class RunningBuildProgressTest {
     }
 
     @Test
-    fun `verifies progress message with sub-task progress`() {
+    fun `verifies progress message with sub-task progress`() = runTest {
         val build = createRunningBuild()
         build.progressTracker.onPhaseStart("RUN_MAIN_TASKS", 1)
         build.progressTracker.handleProgressLine("SOURCE_RESOLUTION", "TOTAL: 10")
@@ -162,7 +165,7 @@ class RunningBuildProgressTest {
     }
 
     @Test
-    fun `verifies progress updates even with unknown totalItems`() {
+    fun `verifies progress updates even with unknown totalItems`() = runTest {
         val build = createRunningBuild()
 
         // Configuration phase starts but we don't have a total yet (e.g. Gradle < 7.6 or missed event)

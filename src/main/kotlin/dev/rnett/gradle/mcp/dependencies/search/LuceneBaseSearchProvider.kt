@@ -16,6 +16,8 @@ import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
+import kotlin.io.path.readText
+import kotlin.io.path.writeText
 import kotlin.time.measureTime
 
 abstract class LuceneBaseSearchProvider : SearchProvider {
@@ -49,11 +51,15 @@ abstract class LuceneBaseSearchProvider : SearchProvider {
 
         protected open val doForceMerge: Boolean = true
 
+        override val documentCount: Int get() = writer.docStats.numDocs
+
         override suspend fun finish() {
             if (doForceMerge) {
                 writer.forceMerge(1)
             }
             writer.commit()
+            val count = documentCount
+            resolveIndexDir(outputDir).resolve(".count").writeText(count.toString())
             invalidateCache(resolveIndexDir(outputDir))
         }
 
@@ -100,6 +106,7 @@ abstract class LuceneBaseSearchProvider : SearchProvider {
                         }
                     }
                     writer.forceMerge(1)
+                    resolvedOutputDir.resolve(".count").writeText(writer.docStats.numDocs.toString())
                 }
             }
             invalidateCache(resolvedOutputDir)
@@ -110,10 +117,17 @@ abstract class LuceneBaseSearchProvider : SearchProvider {
     override suspend fun countDocuments(indexDir: Path): Int = withContext(Dispatchers.IO) {
         val resolvedIdxDir = resolveIndexDir(indexDir)
         if (!resolvedIdxDir.exists()) return@withContext 0
+        val countFile = resolvedIdxDir.resolve(".count")
+        if (countFile.exists()) {
+            return@withContext countFile.readText().toIntOrNull() ?: 0
+        }
+
         FSDirectory.open(resolvedIdxDir).use { directory ->
             if (DirectoryReader.indexExists(directory)) {
                 DirectoryReader.open(directory).use { reader ->
-                    reader.numDocs()
+                    reader.numDocs().also { count ->
+                        countFile.writeText(count.toString())
+                    }
                 }
             } else 0
         }

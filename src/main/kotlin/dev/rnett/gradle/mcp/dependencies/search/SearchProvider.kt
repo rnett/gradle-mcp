@@ -10,6 +10,7 @@ import kotlin.io.path.readText
 interface Indexer : AutoCloseable {
     suspend fun indexFile(path: String, content: String)
     suspend fun finish()
+    val documentCount: Int
 }
 
 interface SearchProvider {

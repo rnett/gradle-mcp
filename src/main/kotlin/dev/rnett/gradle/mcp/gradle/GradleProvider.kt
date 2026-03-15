@@ -132,7 +132,8 @@ class DefaultGradleProvider(
             args = args,
             startTime = Clock.System.now(),
             projectRoot = projectRoot,
-            cancellationTokenSource = cancellationTokenSource
+            cancellationTokenSource = cancellationTokenSource,
+            scope = scope
         ).also { buildManager.registerBuild(it) }
 
         val deferred = scope.async {

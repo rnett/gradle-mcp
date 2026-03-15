@@ -64,14 +64,20 @@ workflows.
 - **Prefix Stability**: This file (`AGENTS.md`) is designed to be at the start of the context. Maintain its structure to maximize context caching hits.
 - **Instruction Density**: Focus on non-obvious constraints. If it can be inferred from the file structure, don't add it here.
 - **Caching**: This workspace uses heavy caching for Gradle sources. Use `inspect_dependencies` and `search_dependency_sources` with `fresh = true` only when dependencies change.
-- **Parallel Source Processing**: Source extraction and indexing are performed in parallel using Kotlin `Flow` and `flatMapMerge` (or `Semaphore`-managed `async`). This significantly improves performance but requires careful concurrency
-  management (limiting global IO tasks).
+- **Parallel Source Processing**: Source extraction and indexing are performed in parallel using Kotlin `Flow` and `flatMapMerge`. This significantly improves performance but requires careful concurrency management (limiting global IO
+  tasks).
+    - **Guideline**: Prefer `flatMapMerge` (via `parallelMap`/`parallelForEach` utilities) for concurrency control over manual `Semaphore` management when working with Kotlin Flows. This simplifies code and leverages built-in coroutine
+      orchestration.
+    - **Naming**: Explicitly name non-deterministic parallelism utilities (e.g., `unorderedParallelMap`) to signal that input order is not preserved.
 - **Gradle Source Exploration**: On some machines, the Gradle build tool project is checked out in `./managing-gradle-builds-tool`. Use it as a source of knowledge for Gradle's internal APIs, but be careful not to include it in broad
   search/build commands unless intended. See [gradle-sources-overview.md](./gradle-sources-overview.md).
 
 ### Lucene & Search Conventions
 
 - **Field Constants**: For Lucene-based search providers (e.g., `DeclarationSearch`), field names MUST be extracted to a nested `Fields` object. This ensures consistency and prevents typos across indexing and searching logic.
+- **Lucene 10+ API**: Use `writer.docStats.numDocs` to retrieve the current document count from an `IndexWriter`.
+- **Metadata Caching**: Always cache expensive metadata (like document counts) in a lightweight file (e.g., `.count`) within the index directory. This enables instantaneous preparation phases and provides immediate progress reporting
+  feedback.
 - **Object Pooling**: For heavy, non-thread-safe objects like `TreeSitterDeclarationExtractor`, prefer a `ConcurrentLinkedQueue`-based pool over `ThreadLocal` when using Kotlin Coroutines. This ensures better resource management and
   predictability across diverse threading environments.
 - **Regex Search**: `DeclarationSearch` supports full string regex queries on the FQN field when the query is wrapped in `/` (e.g., `/.*MyClass/`). This should be preferred for complex, precise symbol discovery.
@@ -153,9 +159,16 @@ Mock in general needs the specific type args for the `any()` calls to resolve ov
   - **Categories**: Use descriptive categories (e.g., `RESOLUTION`, `VERSION_CHECK`) to provide context about the current phase. These are automatically incorporated into the formatted progress message by the `BuildProgressTracker`.
 - **Job Management**: When managing background collection jobs (e.g., in `GradleBuildLookupTools`), always use `job.cancelAndJoin()` instead of just `cancel()` to ensure clean termination before proceeding.
 
+### Async Log Processing
+
+- **Completion Signaling**: When implementing asynchronous log processing using a `Channel`, always use a `CompletableDeferred` to signal completion of the processing loop. This prevents race conditions where tools return before all logs
+  are buffered and ensures tests using `runTest` do not hang indefinitely waiting for the channel coroutine.
+
 ### Testing Asynchronous Events
 
 - **Deterministic Sync**: Avoid `delay()` or `Dispatchers.Unconfined` for synchronizing tests with background progress. Instead, use `CompletableDeferred<Unit>` as a "signal" that can be completed by the tracker and awaited by the test.
+- **Test Synchronization**: Use `backgroundScope` in `runTest` when creating objects that launch long-lived background coroutines (like `RunningBuild`). This allows the test to complete normally without waiting for infrastructure coroutines
+  that stay active for the object's lifetime.
 - **Test Hooks**: It is acceptable to add internal "onProgressFinished" or similar callback hooks to trackers specifically for test synchronization.
 
 ---

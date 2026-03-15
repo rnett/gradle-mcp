@@ -13,20 +13,16 @@ import dev.rnett.gradle.mcp.dependencies.search.SearchResult
 import dev.rnett.gradle.mcp.dependencies.search.toSearchResults
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.tools.PaginationInput
-import dev.rnett.gradle.mcp.utils.Concurrency
 import dev.rnett.gradle.mcp.utils.FileLockManager
 import dev.rnett.gradle.mcp.utils.FileUtils
+import dev.rnett.gradle.mcp.utils.unorderedParallelMap
 import dev.rnett.gradle.mcp.withMessage
 import dev.rnett.gradle.mcp.withPhase
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.util.Collections
@@ -336,58 +332,50 @@ class DefaultSourcesService(private val depService: GradleDependencyService, pri
                 processingProgress.report(completed.toDouble(), total, message)
             }
 
-            val concurrency = Concurrency.DEFAULT_IO_CONCURRENCY
-            val semaphore = Semaphore(concurrency)
-            coroutineScope {
-                depsByDir.entries.map { (dir, depsForDir) ->
-                    async(Dispatchers.IO) {
-                        semaphore.withPermit {
-                            val dep = depsForDir.first()
-                            val depId = dep.id
-                            activeTasks.add(depId)
+            depsByDir.entries.unorderedParallelMap(context = Dispatchers.IO) { (dir, depsForDir) ->
+                val dep = depsForDir.first()
+                val depId = dep.id
+                activeTasks.add(depId)
 
-                            val subProgress = ProgressReporter { _, _, m ->
-                                if (m != null) {
-                                    lastActivity.store(m)
-                                    reportProcessing()
-                                }
-                            }
-
-                            try {
-                                val lockFile = globalLockFile(dir)
-                                FileLockManager.withLock(lockFile) {
-                                    with(subProgress) {
-                                        extractDependencySources(dir, dep, index, subProgress)
-                                    }
-                                }
-
-                                // Use shared lock for read sync operations
-                                val results = FileLockManager.withLock(lockFile, shared = true) {
-                                    // Sync all dependencies that share this directory, but only once per relativePath
-                                    depsForDir.distinctBy { d ->
-                                        Path(requireNotNull(d.group)).resolve(requireNotNull(d.sourcesFile).nameWithoutExtension)
-                                    }.mapNotNull { d ->
-                                        val relativePath = Path(requireNotNull(d.group)).resolve(requireNotNull(d.sourcesFile).nameWithoutExtension)
-                                        val scopeLink = targetSources.resolve(relativePath)
-
-                                        syncDependencySources(scopeLink, dir, d, target.sources)
-
-                                        if (index) {
-                                            indexDependencySources(d, dir, relativePath, subProgress)
-                                        } else null
-                                    }
-                                }
-                                completedCounter.addAndFetch(1)
-                                reportProcessing()
-                                results
-                            } finally {
-                                activeTasks.remove(depId)
-                                reportProcessing()
-                            }
-                        }
+                val subProgress = ProgressReporter { _, _, m ->
+                    if (m != null) {
+                        lastActivity.store(m)
+                        reportProcessing()
                     }
                 }
-            }.awaitAll().flatten()
+
+                try {
+                    val lockFile = globalLockFile(dir)
+                    FileLockManager.withLock(lockFile) {
+                        with(subProgress) {
+                            extractDependencySources(dir, dep, index, subProgress)
+                        }
+                    }
+
+                    // Use shared lock for read sync operations
+                    val results = FileLockManager.withLock(lockFile, shared = true) {
+                        // Sync all dependencies that share this directory, but only once per relativePath
+                        depsForDir.distinctBy { d ->
+                            Path(requireNotNull(d.group)).resolve(requireNotNull(d.sourcesFile).nameWithoutExtension)
+                        }.mapNotNull { d ->
+                            val relativePath = Path(requireNotNull(d.group)).resolve(requireNotNull(d.sourcesFile).nameWithoutExtension)
+                            val scopeLink = targetSources.resolve(relativePath)
+
+                            syncDependencySources(scopeLink, dir, d, target.sources)
+
+                            if (index) {
+                                indexDependencySources(d, dir, relativePath, subProgress)
+                            } else null
+                        }
+                    }
+                    completedCounter.addAndFetch(1)
+                    reportProcessing()
+                    results
+                } finally {
+                    activeTasks.remove(depId)
+                    reportProcessing()
+                }
+            }.flatten()
         }
 
         if (index) {

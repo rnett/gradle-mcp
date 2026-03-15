@@ -5,10 +5,13 @@ import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.ProblemAggregation
 import dev.rnett.gradle.mcp.gradle.ProblemSeverity
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
 import org.gradle.tooling.BuildCancelledException
 import org.gradle.tooling.CancellationTokenSource
 import org.gradle.tooling.GradleConnectionException
@@ -29,8 +32,32 @@ class RunningBuild(
     override val startTime: Instant,
     val projectRoot: Path,
     val logBuffer: StringBuffer = StringBuffer(),
-    val cancellationTokenSource: CancellationTokenSource
+    val cancellationTokenSource: CancellationTokenSource,
+    private val scope: CoroutineScope
 ) : Build, BuildProgressInfoProvider {
+
+    private sealed class LogAction {
+        data class Add(val line: String) : LogAction()
+        data class Replace(val oldLine: String, val newLine: String) : LogAction()
+    }
+
+    private val logActionChannel = Channel<LogAction>(Channel.UNLIMITED)
+    private val logProcessingFinished = CompletableDeferred<Unit>()
+
+    init {
+        scope.launch {
+            try {
+                for (action in logActionChannel) {
+                    when (action) {
+                        is LogAction.Add -> addLogLineInternal(action.line)
+                        is LogAction.Replace -> replaceLastLogLineInternal(action.oldLine, action.newLine)
+                    }
+                }
+            } finally {
+                logProcessingFinished.complete(Unit)
+            }
+        }
+    }
 
     /**
      * The progress tracker for this running build.
@@ -114,7 +141,9 @@ class RunningBuild(
     private val finishedBuildDeferred = CompletableDeferred<FinishedBuild>()
 
     override suspend fun awaitFinished(): FinishedBuild {
-        return finishedBuildDeferred.await()
+        val finished = finishedBuildDeferred.await()
+        logProcessingFinished.await()
+        return finished
     }
 
     private fun toFinishedBuild(exception: GradleConnectionException? = null): FinishedBuild {
@@ -132,6 +161,7 @@ class RunningBuild(
         val finished = toFinishedBuild(exception)
         this.status = finished.outcome
         store(finished)
+        logActionChannel.close()
         finishedBuildDeferred.complete(finished)
         return finished
     }
@@ -143,10 +173,14 @@ class RunningBuild(
     }
 
     internal fun addLogLine(line: String) {
-        addLogLineInternal(line)
+        logActionChannel.trySend(LogAction.Add(line))
     }
 
     internal fun replaceLastLogLine(oldLine: String, newLine: String) {
+        logActionChannel.trySend(LogAction.Replace(oldLine, newLine))
+    }
+
+    private fun replaceLastLogLineInternal(oldLine: String, newLine: String) {
         val suffix = oldLine + System.lineSeparator()
         val stderrSuffix = "STDERR: " + suffix
 
@@ -186,7 +220,7 @@ class RunningBuild(
     }
 
     internal fun addTaskOutput(taskPath: String, output: String) {
-        taskOutputsAccumulator.getOrPut(taskPath) { StringBuffer() }.appendLine(output)
+        taskOutputsAccumulator.computeIfAbsent(taskPath) { StringBuffer() }.appendLine(output)
     }
 
 }

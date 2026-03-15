@@ -4,12 +4,26 @@
 
 The `inspect_build` tool SHALL report progress to the client when waiting for a background build to complete or reach a specific state.
 
-#### Scenario: Waiting for build completion
+#### Requirement: `afterCall` parameter
 
-- **WHEN** `inspect_build` is called with a `wait` parameter for an active build
-- **THEN** it periodically reports progress (e.g. percentages, task states) via the MCP progress notification mechanism until the wait condition is met or the build finishes.
+- **WHEN** `inspect_build` is called with a `wait` parameter and `afterCall` is `true`
+- **THEN** it SHALL only consider events that occur after the current tool call started. This prevents immediate returns for events that have already occurred.
 
-#### Scenario: Wait condition met before build completes
+#### Requirement: Progress Heuristics
 
-- **WHEN** `inspect_build` is waiting on a specific task (`waitForTask`) or log line (`waitFor`)
-- **THEN** it reports progress during the wait period and ceases reporting once the condition is met and the tool returns, even if the build continues in the background.
+- **PROGRESS CAP**: All progress reported for a running build SHALL be capped at 99% (0.99) to avoid jumping to 100% before the build has officially finished and reported its outcome.
+- **UNKNOWN TOTAL CURVE**: When the total number of items in a phase is unknown, progress SHALL be calculated using an asymptotic curve: `completed / (completed + 1)`.
+
+### Requirement: Stdout Progress Protocol
+
+The build system SHALL support a structured stdout-based progress protocol for granular sub-task reporting.
+
+#### Scenario: Reporting sub-task progress
+
+- **WHEN** a task or script emits a line in the format `[gradle-mcp] [PROGRESS] [CATEGORY]: [CURRENT]/[TOTAL]: [MESSAGE]`
+- **THEN** the `BuildProgressTracker` SHALL capture this line and update the granular progress for that category.
+
+#### Scenario: Reporting sub-task total
+
+- **WHEN** a task or script emits a line in the format `[gradle-mcp] [PROGRESS] [CATEGORY]: TOTAL: [TOTAL]`
+- **THEN** the `BuildProgressTracker` SHALL set the total items for that category.

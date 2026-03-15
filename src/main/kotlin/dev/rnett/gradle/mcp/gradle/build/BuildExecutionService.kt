@@ -10,9 +10,12 @@ import dev.rnett.gradle.mcp.gradle.GradleStdoutWriter
 import dev.rnett.gradle.mcp.localSupervisorScope
 import dev.rnett.gradle.mcp.utils.EnvProvider
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.apache.commons.io.output.WriterOutputStream
 import org.gradle.tooling.ConfigurableLauncher
 import org.gradle.tooling.events.OperationDescriptor
@@ -93,13 +96,22 @@ class DefaultBuildExecutionService(
         }) { scope ->
             configureLauncher(launcher, args, buildId, runningBuild)
 
-            registerProgressListeners(launcher, runningBuild, progress, additionalProgressListeners)
+            registerProgressListeners(launcher, runningBuild, additionalProgressListeners)
 
             setupOutputRedirection(launcher, runningBuild, buildId, stdoutLineHandler, stderrLineHandler)
 
+            // Collect progress from the tracker and report it
+            scope.launch {
+                runningBuild.progressTracker.progress.collect { p ->
+                    progress.report(p.progress, 1.0, p.message)
+                }
+            }
+
             val result = scope.async {
                 LOGGER.info("Starting Gradle build (buildId={}, args={})", buildId, args.allAdditionalArguments)
-                invoker(launcher)
+                withContext(Dispatchers.IO) {
+                    invoker(launcher)
+                }
             }.await()
             LOGGER.info("Gradle build finished (buildId={})", buildId)
             result
@@ -140,21 +152,14 @@ class DefaultBuildExecutionService(
     private fun registerProgressListeners(
         launcher: ConfigurableLauncher<*>,
         runningBuild: RunningBuild,
-        progress: ProgressReporter,
         additionalProgressListeners: Map<ProgressListener, Set<OperationType>>
     ) {
-        fun emitProgress(isFinish: Boolean = false) {
-            val progressValue = runningBuild.progressTracker.getProgressValue(isFinish)
-            val message = runningBuild.progressTracker.getProgressMessage()
-            progress.report(progressValue, 1.0, message)
-        }
-
         launcher.addProgressListener(runningBuild.testResultsInternal, runningBuild.testResultsInternal.operations)
 
         // Test progress
         launcher.addProgressListener({ event ->
             if (event is TestStartEvent || event is TestFinishEvent) {
-                emitProgress()
+                runningBuild.progressTracker.emitProgress()
             }
         }, OperationType.TEST)
 
@@ -172,13 +177,11 @@ class DefaultBuildExecutionService(
                 val descriptor = event.descriptor
                 if (descriptor is BuildPhaseOperationDescriptor) {
                     runningBuild.progressTracker.onPhaseStart(descriptor.buildPhase, descriptor.buildItemsCount)
-                    emitProgress()
                 }
             } else if (event is BuildPhaseFinishEvent) {
                 val descriptor = event.descriptor
                 if (descriptor is BuildPhaseOperationDescriptor) {
                     runningBuild.progressTracker.onPhaseFinish(descriptor.buildPhase)
-                    emitProgress(true)
                 }
             }
         }, OperationType.BUILD_PHASE)
@@ -190,21 +193,18 @@ class DefaultBuildExecutionService(
                     val descriptor = event.descriptor
                     if (descriptor is TaskOperationDescriptor) {
                         runningBuild.progressTracker.addActiveOperation(descriptor.taskPath)
-                        emitProgress()
                     }
                 }
 
                 is ProjectConfigurationStartEvent -> {
                     runningBuild.progressTracker.onPhaseStart("CONFIGURATION", 0)
                     runningBuild.progressTracker.addActiveOperation(event.descriptor.displayName)
-                    emitProgress()
                 }
 
-                is TaskFinishEvent -> handleTaskFinish(event, runningBuild, ::emitProgress)
+                is TaskFinishEvent -> handleTaskFinish(event, runningBuild)
                 is ProjectConfigurationFinishEvent -> {
                     runningBuild.progressTracker.removeActiveOperation(event.descriptor.displayName)
                     runningBuild.progressTracker.onItemFinish()
-                    emitProgress()
                 }
             }
         }, OperationType.TASK, OperationType.PROJECT_CONFIGURATION)
@@ -215,7 +215,6 @@ class DefaultBuildExecutionService(
                 val currentProgress = if (event.total > 0) event.progress.toDouble() / event.total else null
                 val taskPath = findTaskPath(event.descriptor)
                 runningBuild.progressTracker.setSubStatus(event.descriptor.displayName, currentProgress, taskPath)
-                emitProgress()
             }
         }, OperationType.GENERIC)
 
@@ -224,7 +223,7 @@ class DefaultBuildExecutionService(
         }
     }
 
-    private fun handleTaskFinish(event: TaskFinishEvent, runningBuild: RunningBuild, emit: (Boolean) -> Unit) {
+    private fun handleTaskFinish(event: TaskFinishEvent, runningBuild: RunningBuild) {
         val descriptor = event.descriptor
         if (descriptor is TaskOperationDescriptor) {
             val taskPath = descriptor.taskPath
@@ -246,7 +245,6 @@ class DefaultBuildExecutionService(
             val duration = if (result.startTime > 0) (event.eventTime - result.startTime).milliseconds else 0.seconds
             runningBuild.addTaskResult(taskPath, outcome, duration, runningBuild.taskOutputs[taskPath])
             runningBuild.progressTracker.onItemFinish()
-            emit(false)
         } else {
             runningBuild.addTaskCompleted(event.descriptor.displayName)
         }

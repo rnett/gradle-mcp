@@ -76,10 +76,70 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         }
         val allConfigs = projectConfigs + buildscriptConfigs
 
+        // Progress Tracking
+        var totalItems = allConfigs.size.toLong() * 2 // RESOLUTION + RENDERING
+        var completedItems = 0L
+
+        fun reportProgress(category: String, detail: String) {
+            completedItems++
+            println("[gradle-mcp] [PROGRESS] [$category]: $completedItems/$totalItems: $detail")
+        }
+
+        fun updateTotal(newTotal: Long) {
+            totalItems = newTotal
+            println("[gradle-mcp] [PROGRESS] [Dependency Report]: TOTAL: $totalItems")
+        }
+
+        updateTotal(totalItems)
+
         val directDependencies = gatherDirectDependencies(allConfigs)
-        val allComponents = if (checkUpdates || downloadSources) gatherModuleComponents(allConfigs) else emptySet()
-        val latestVersions = if (checkUpdates) gatherLatestVersions(allComponents, directDependencies, onlyDirect, versionFilter, stableOnly) else emptyMap()
-        val sourcesFiles = if (downloadSources) gatherSources(allComponents, directDependencies, onlyDirect) else emptyMap()
+
+        // Phase 1: Resolving
+        val allComponents = if (checkUpdates || downloadSources) {
+            val resolvableConfigs = allConfigs.filter { it.isCanBeResolved }
+            val components = mutableSetOf<ModuleComponentIdentifier>()
+            resolvableConfigs.forEach { config ->
+                reportProgress("Resolving", config.name)
+                try {
+                    config.incoming.resolutionResult.allComponents.forEach {
+                        val id = it.id
+                        if (id is ModuleComponentIdentifier) {
+                            components.add(id)
+                        }
+                    }
+                } catch (e: Exception) {
+                }
+            }
+            // Mark remaining non-resolvable configs as finished for this phase
+            val nonResolvableCount = allConfigs.size - resolvableConfigs.size
+            repeat(nonResolvableCount) { completedItems++ }
+            components
+        } else {
+            allConfigs.forEach { reportProgress("Resolving", "Skipping ${it.name}") }
+            emptySet()
+        }
+
+        val targetComponents = allComponents.filter { !onlyDirect || "${it.group}:${it.module}" in directDependencies }
+        if (checkUpdates || downloadSources) {
+            var newTotal = allConfigs.size.toLong() * 2
+            if (checkUpdates) newTotal += targetComponents.size
+            if (downloadSources) newTotal += targetComponents.size
+            updateTotal(newTotal)
+        }
+
+        // Phase 2: Checking Updates
+        val latestVersions = if (checkUpdates && targetComponents.isNotEmpty()) {
+            gatherLatestVersions(targetComponents, directDependencies, onlyDirect, versionFilter, stableOnly) { id ->
+                reportProgress("Checking Updates", id)
+            }
+        } else emptyMap()
+
+        // Phase 3: Downloading Sources
+        val sourcesFiles = if (downloadSources && targetComponents.isNotEmpty()) {
+            gatherSources(targetComponents, directDependencies, onlyDirect) { id ->
+                reportProgress("Downloading Sources", id)
+            }
+        } else emptyMap()
 
         mcpRenderer.latestVersions = latestVersions
         mcpRenderer.sourcesFiles = sourcesFiles
@@ -90,15 +150,10 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         outputSourceSets(project, realProject, mcpRenderer)
         outputKotlinSourceSets(project, realProject, mcpRenderer)
 
-        val totalConfigs = projectConfigs.size + buildscriptConfigs.size
-        var currentConfigIdx = 0
-
-        println("[gradle-mcp] [PROGRESS] [RENDERING]: TOTAL: $totalConfigs")
-
+        // Phase 4: Rendering
         mcpRenderer.startProject(project)
         projectConfigs.forEach { config ->
-            currentConfigIdx++
-            println("[gradle-mcp] [PROGRESS] [RENDERING]: $currentConfigIdx/$totalConfigs: ${config.name}")
+            reportProgress("Rendering", config.name)
             val details = ConfigurationDetails.of(config)
             mcpRenderer.startConfiguration(details)
             mcpRenderer.render(details)
@@ -107,8 +162,7 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
 
         mcpRenderer.inBuildscript = true
         for (config in buildscriptConfigs) {
-            currentConfigIdx++
-            println("[gradle-mcp] [PROGRESS] [RENDERING]: $currentConfigIdx/$totalConfigs: buildscript:${config.name}")
+            reportProgress("Rendering", "buildscript:${config.name}")
             val details = ConfigurationDetails.of(config)
             mcpRenderer.startConfiguration(details)
             mcpRenderer.render(details)
@@ -139,42 +193,15 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         return directDependencies
     }
 
-    private fun gatherModuleComponents(configurations: List<Configuration>): Set<ModuleComponentIdentifier> {
-        val components = mutableSetOf<ModuleComponentIdentifier>()
-        val resolvableConfigs = configurations.filter { it.isCanBeResolved }
-        if (resolvableConfigs.isEmpty()) return emptySet()
-
-        println("[gradle-mcp] [PROGRESS] [RESOLUTION]: TOTAL: ${resolvableConfigs.size}")
-        resolvableConfigs.forEachIndexed { index, config ->
-            println("[gradle-mcp] [PROGRESS] [RESOLUTION]: ${index + 1}/${resolvableConfigs.size}: Resolving ${config.name}")
-            try {
-                config.incoming.resolutionResult.allComponents.forEach {
-                    val id = it.id
-                    if (id is ModuleComponentIdentifier) {
-                        components.add(id)
-                    }
-                }
-            } catch (e: Exception) {
-            }
-        }
-        return components
-    }
-
     private fun gatherLatestVersions(
-        allComponents: Set<ModuleComponentIdentifier>,
+        targetComponents: List<ModuleComponentIdentifier>,
         directDependencies: Set<String>,
         onlyDirect: Boolean,
         versionFilter: String?,
-        stableOnly: Boolean
+        stableOnly: Boolean,
+        onProgress: (String) -> Unit
     ): Map<String, String> {
         val realProject = getProject()
-        if (allComponents.isEmpty()) return emptyMap()
-
-        val targetComponents = allComponents.filter { !onlyDirect || "${it.group}:${it.module}" in directDependencies }
-        if (targetComponents.isEmpty()) return emptyMap()
-
-        println("[gradle-mcp] [PROGRESS] [VERSION_CHECK]: TOTAL: ${targetComponents.size}")
-
         val updatesConfig = realProject.configurations.detachedConfiguration()
 
         if (versionFilter != null || stableOnly) {
@@ -222,13 +249,11 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
 
         val latestVersions = mutableMapOf<String, String>()
         try {
-            var checkedCount = 0
             updatesConfig.incoming.resolutionResult.allComponents.forEach {
                 val id = it.id
                 if (id is ModuleComponentIdentifier) {
                     latestVersions["${id.group}:${id.module}"] = id.version
-                    checkedCount++
-                    println("[gradle-mcp] [PROGRESS] [VERSION_CHECK]: $checkedCount/${targetComponents.size}: ${id.group}:${id.module}")
+                    onProgress("${id.group}:${id.module}")
                 }
             }
         } catch (e: Exception) {
@@ -236,15 +261,13 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         return latestVersions
     }
 
-    private fun gatherSources(allComponents: Set<ModuleComponentIdentifier>, directDependencies: Set<String>, onlyDirect: Boolean): Map<String, String> {
+    private fun gatherSources(
+        targetComponents: List<ModuleComponentIdentifier>,
+        directDependencies: Set<String>,
+        onlyDirect: Boolean,
+        onProgress: (String) -> Unit
+    ): Map<String, String> {
         val realProject = getProject()
-        if (allComponents.isEmpty()) return emptyMap()
-
-        val targetComponents = allComponents.filter { !onlyDirect || "${it.group}:${it.module}" in directDependencies }
-        if (targetComponents.isEmpty()) return emptyMap()
-
-        println("[gradle-mcp] [PROGRESS] [SOURCE_RESOLUTION]: TOTAL: ${targetComponents.size}")
-
         val sourcesFiles = mutableMapOf<String, String>()
         try {
             val sourcesConfig = realProject.configurations.detachedConfiguration()
@@ -255,18 +278,17 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
                 sourcesConfig.dependencies.add(dep)
             }
 
-            var resolvedCount = 0
             sourcesConfig.resolvedConfiguration.lenientConfiguration.artifacts.forEach { artifact ->
                 val id = artifact.moduleVersion.id
                 sourcesFiles["${id.group}:${id.name}:${id.version}"] = artifact.file.absolutePath
-                resolvedCount++
-                println("[gradle-mcp] [PROGRESS] [SOURCE_RESOLUTION]: $resolvedCount/${targetComponents.size}: ${id.group}:${id.name}:${id.version}")
+                onProgress("${id.group}:${id.name}:${id.version}")
             }
         } catch (e: Throwable) {
             println("ERROR_GATHERING_SOURCES: ${e.message}")
         }
         return sourcesFiles
     }
+
 
     private fun outputRepositories(project: ProjectDetails, realProject: Project, mcpRenderer: McpDependencyReportRenderer) {
         realProject.repositories.forEach { repo ->

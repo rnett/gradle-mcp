@@ -7,8 +7,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flatMapMerge
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.flow.toList
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
@@ -17,31 +16,39 @@ object Concurrency {
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-suspend inline fun <T> Iterable<T>.parallelForEach(
+suspend inline fun <T> Iterable<T>.unorderedParallelForEach(
     concurrency: Int = Concurrency.DEFAULT_IO_CONCURRENCY,
-    semaphore: Semaphore? = null,
     context: CoroutineContext = EmptyCoroutineContext,
     crossinline block: suspend (T) -> Unit
 ) {
-    asFlow().parallelForEach(concurrency, semaphore, context, block)
+    asFlow().unorderedParallelForEach(concurrency, context, block)
+}
+
+/**
+ * Maps an [Iterable] in parallel. Note that the order of the resulting list is **not** preserved.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+suspend inline fun <T, R> Iterable<T>.unorderedParallelMap(
+    concurrency: Int = Concurrency.DEFAULT_IO_CONCURRENCY,
+    context: CoroutineContext = EmptyCoroutineContext,
+    crossinline block: suspend (T) -> R
+): List<R> {
+    return asFlow().flatMapMerge(concurrency) { item ->
+        flow {
+            emit(block(item))
+        }.flowOn(context)
+    }.toList()
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-suspend inline fun <T> Flow<T>.parallelForEach(
+suspend inline fun <T> Flow<T>.unorderedParallelForEach(
     concurrency: Int = Concurrency.DEFAULT_IO_CONCURRENCY,
-    semaphore: Semaphore? = null,
     context: CoroutineContext = EmptyCoroutineContext,
     crossinline block: suspend (T) -> Unit
 ) {
     flatMapMerge(concurrency) { item ->
         flow {
-            if (semaphore != null) {
-                semaphore.withPermit {
-                    block(item)
-                }
-            } else {
-                block(item)
-            }
+            block(item)
             emit(Unit)
         }.flowOn(context)
     }.collect()

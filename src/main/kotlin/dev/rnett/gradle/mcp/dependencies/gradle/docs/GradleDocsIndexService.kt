@@ -5,7 +5,7 @@ import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.lucene.LuceneReaderCache
 import dev.rnett.gradle.mcp.lucene.LuceneUtils
 import dev.rnett.gradle.mcp.lucene.addTextAndExact
-import dev.rnett.gradle.mcp.utils.parallelForEach
+import dev.rnett.gradle.mcp.utils.unorderedParallelForEach
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
@@ -61,7 +61,7 @@ class DefaultGradleDocsIndexService(
         coroutineScope {
             val indexer = DocsIndexer(indexDir, convertedDir)
             try {
-                extractor.extractEntries(version).parallelForEach(context = Dispatchers.IO) { (path, bytes) ->
+                extractor.extractEntries(version).unorderedParallelForEach(context = Dispatchers.IO) { (path, bytes) ->
                     indexer.indexFile(path, bytes)
                 }
 

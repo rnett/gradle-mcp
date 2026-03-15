@@ -6,11 +6,17 @@ import dev.rnett.gradle.mcp.dependencies.SourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.utils.FileLockManager
+import dev.rnett.gradle.mcp.utils.unorderedParallelForEach
+import dev.rnett.gradle.mcp.utils.unorderedParallelMap
 import dev.rnett.gradle.mcp.withPhase
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
+import kotlin.concurrent.atomics.AtomicInt
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createFile
@@ -56,6 +62,7 @@ interface IndexService {
     suspend fun listPackageContents(sourcesDir: SourcesDir, packageName: String): PackageContents?
 }
 
+@OptIn(ExperimentalAtomicApi::class)
 class DefaultIndexService(
     val environment: GradleMcpEnvironment
 ) : IndexService {
@@ -103,6 +110,14 @@ class DefaultIndexService(
                     indexers.forEach { (_, indexer) ->
                         indexer.finish()
                     }
+
+                    val counts = indexers.associate { (provider, indexer) ->
+                        provider.name to indexer.documentCount
+                    }
+                    val metadataFile = dir.resolve(".metadata.json")
+                    val tempMetadata = dir.resolve(".metadata.json.tmp")
+                    tempMetadata.writeText(Json.encodeToString(counts))
+                    java.nio.file.Files.move(tempMetadata, metadataFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE)
                 } finally {
                     indexers.forEach { (_, indexer) ->
                         indexer.close()
@@ -147,14 +162,35 @@ class DefaultIndexService(
                 val includedIndices = includedDeps.mapValues { it.value.dir }
                 try {
                     val mergeProgress = progress.withPhase("MERGING")
+                    val prepProgress = progress.withPhase("PREPARING")
 
-                    val totalDocs = providers.sumOf { provider ->
-                        includedIndices.keys.sumOf { provider.countDocuments(it.resolve(provider.name)) }
+                    val totalPreps = includedIndices.size.toDouble()
+                    val currentPreps = AtomicInt(0)
+
+                    val dependencyMetadata = includedIndices.values.unorderedParallelMap(context = Dispatchers.IO) { depDir ->
+                        val metadataFile = depDir.resolve(".metadata.json")
+                        val metadata: Map<String, Int>? = if (metadataFile.exists()) {
+                            try {
+                                Json.decodeFromString<Map<String, Int>>(metadataFile.readText())
+                            } catch (e: Exception) {
+                                null
+                            }
+                        } else null
+                        prepProgress.report(currentPreps.addAndFetch(1).toDouble(), totalPreps, "Reading metadata")
+                        depDir to metadata
+                    }.toMap()
+
+                    val providerCounts = providers.associateWith { provider ->
+                        includedIndices.values.sumOf { depDir ->
+                            dependencyMetadata[depDir]?.get(provider.name) ?: provider.countDocuments(depDir.resolve(provider.name))
+                        }
                     }
-                    var completedDocs = 0
 
-                    providers.forEach { provider ->
-                        val providerTotalDocs = includedIndices.keys.sumOf { provider.countDocuments(it.resolve(provider.name)) }
+                    val totalDocs = providerCounts.values.sum().toDouble()
+                    val currentDocs = AtomicInt(0)
+
+                    providers.unorderedParallelForEach(context = Dispatchers.IO) { provider ->
+                        val providerTotalDocs = providerCounts[provider] ?: 0
                         val providerDir = dir.resolve(provider.name)
                         if (providerDir.exists()) {
                             providerDir.deleteRecursively()
@@ -162,14 +198,17 @@ class DefaultIndexService(
 
                         providerDir.createDirectories()
 
+                        val lastProviderDocs = AtomicInt(0)
                         val providerReporter = ProgressReporter { p, t, _ ->
                             val fraction = if (t != null && t > 0.0) p / t else p
-                            val current = completedDocs + (fraction * providerTotalDocs).toInt()
-                            mergeProgress.report(current.toDouble(), totalDocs.toDouble(), "Merging indices")
+                            val currentP = (fraction * providerTotalDocs).toInt()
+                            val delta = currentP - lastProviderDocs.exchange(currentP)
+                            if (delta != 0) {
+                                mergeProgress.report(currentDocs.addAndFetch(delta).toDouble(), totalDocs, "Merging ${provider.name}")
+                            }
                         }
 
                         provider.mergeIndices(includedIndices.entries.associate { it.value.resolve(provider.name) to it.key }, providerDir, providerReporter)
-                        completedDocs += providerTotalDocs
                     }
                     hashFile.createParentDirectories()
                     hashFile.writeText(currentHash)

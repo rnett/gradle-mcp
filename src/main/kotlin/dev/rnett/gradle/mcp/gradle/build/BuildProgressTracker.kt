@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedDeque
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.AtomicReference
+import kotlin.concurrent.atomics.update
 
 /**
  * Capping progress at 99% to avoid jumping to 100% while the build is still running.
@@ -93,6 +94,13 @@ class BuildProgressTracker(private val infoProvider: BuildProgressInfoProvider) 
     companion object {
         private val SUB_TASK_TOTAL_REGEX = Regex("TOTAL: ([0-9]+)")
         private val SUB_TASK_PROGRESS_REGEX = Regex("([0-9]+)/([0-9]+): (.*)")
+
+        private const val CONFIGURE_ROOT_BUILD = "CONFIGURE_ROOT_BUILD"
+        private const val CONFIGURE_BUILD = "CONFIGURE_BUILD"
+        private const val RUN_MAIN_TASKS = "RUN_MAIN_TASKS"
+        private const val RUN_WORK = "RUN_WORK"
+        private const val CONFIGURATION = "CONFIGURATION"
+        private const val EXECUTION = "EXECUTION"
     }
 
     internal fun emitProgress(isFinish: Boolean = false) {
@@ -105,8 +113,8 @@ class BuildProgressTracker(private val infoProvider: BuildProgressInfoProvider) 
         if (old == null) return false
         if (old == new) return true
 
-        val isConfig = { s: String -> s == "CONFIGURE_ROOT_BUILD" || s == "CONFIGURE_BUILD" || s.contains("CONFIGUR", ignoreCase = true) }
-        val isRun = { s: String -> s == "RUN_MAIN_TASKS" || s == "RUN_WORK" || s.contains("EXECUT", ignoreCase = true) || s.contains("RUN", ignoreCase = true) }
+        val isConfig = { s: String -> s == CONFIGURE_ROOT_BUILD || s == CONFIGURE_BUILD || s.contains("CONFIGUR", ignoreCase = true) }
+        val isRun = { s: String -> s == RUN_MAIN_TASKS || s == RUN_WORK || s.contains("EXECUT", ignoreCase = true) || s.contains("RUN", ignoreCase = true) }
 
         if (isConfig(old) && isConfig(new)) return true
         if (isRun(old) && isRun(new)) return true
@@ -120,7 +128,7 @@ class BuildProgressTracker(private val infoProvider: BuildProgressInfoProvider) 
             if (total > 0) {
                 top.totalItems.store(total.toLong())
                 val currentName = top.name.load()
-                if (currentName == "CONFIGURATION" || currentName == "EXECUTION") {
+                if (currentName == CONFIGURATION || currentName == EXECUTION) {
                     top.name.store(phase)
                 }
             }
@@ -172,10 +180,18 @@ class BuildProgressTracker(private val infoProvider: BuildProgressInfoProvider) 
 
     internal fun getSubStatus(operation: String): SubStatus? = _subStatuses[operation]
 
+    @OptIn(kotlin.concurrent.atomics.ExperimentalAtomicApi::class)
     internal fun handleProgressLine(category: String, text: String) {
         val totalMatch = SUB_TASK_TOTAL_REGEX.matchEntire(text)
         if (totalMatch != null) {
-            subTaskProgress = SubTaskProgress(totalMatch.groupValues[1].toLong(), 0, "Starting $category")
+            val newTotal = totalMatch.groupValues[1].toLong()
+            _subTaskProgress.update { current ->
+                if (newTotal >= current.total && current.total > 0) {
+                    current.copy(total = newTotal)
+                } else {
+                    SubTaskProgress(newTotal, 0, category)
+                }
+            }
         } else {
             val progressMatch = SUB_TASK_PROGRESS_REGEX.matchEntire(text)
             if (progressMatch != null) {

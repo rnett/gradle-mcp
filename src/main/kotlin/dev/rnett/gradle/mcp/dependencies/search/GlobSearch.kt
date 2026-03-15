@@ -11,7 +11,10 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.readLines
+import kotlin.io.path.readText
+import kotlin.io.path.useLines
 import kotlin.io.path.writeLines
+import kotlin.io.path.writeText
 import kotlin.time.measureTimedValue
 
 object GlobSearch : SearchProvider {
@@ -42,28 +45,28 @@ object GlobSearch : SearchProvider {
             val paths = file.readLines()
 
             val matches = paths.asSequence()
-                .filter { path ->
+                .filter {
                     if (matcher != null) {
                         try {
                             // Java's glob matcher on Windows expects the Path object, but it works correctly with the default Path representation.
                             // However, we should make sure we create the Path correctly.
-                            matcher.matches(Path.of(path))
+                            matcher.matches(Path.of(it))
                         } catch (e: Exception) {
-                            path.contains(query, ignoreCase = true)
+                            it.contains(query, ignoreCase = true)
                         }
                     } else {
-                        path.contains(query, ignoreCase = true)
+                        it.contains(query, ignoreCase = true)
                     }
                 }
                 .toList()
 
             SearchResponse(
-                matches.asSequence()
+                matches.asSequence() 
                     .drop(pagination.offset)
                     .take(pagination.limit)
-                    .map { relativePath ->
+                    .map {
                         RelativeSearchResult(
-                            relativePath = relativePath,
+                            relativePath = it,
                             offset = 0,
                             line = null,
                             score = 1.0f,
@@ -81,7 +84,7 @@ object GlobSearch : SearchProvider {
 
     override suspend fun newIndexer(outputDir: Path): Indexer = GlobIndexer(outputDir)
 
-    class GlobIndexer(outputDir: Path) : Indexer {
+    class GlobIndexer(private val outputDir: Path) : Indexer {
         private val file = outputDir.resolve(v1FileName)
         private val paths = ConcurrentLinkedQueue<String>()
 
@@ -93,9 +96,12 @@ object GlobSearch : SearchProvider {
             paths.add(path)
         }
 
+        override val documentCount: Int get() = paths.size
+
         override suspend fun finish() {
             withContext(Dispatchers.IO) {
                 file.writeLines(paths.toList())
+                outputDir.resolve(".count").writeText(documentCount.toString())
             }
         }
 
@@ -120,15 +126,22 @@ object GlobSearch : SearchProvider {
             }
 
             file.writeLines(allPaths)
+            outputDir.resolve(".count").writeText(allPaths.size.toString())
             allPaths.size
         }
         LOGGER.info("Glob index merging took $duration ($fileCount files across ${indexDirs.size} indices)")
     }
 
     override suspend fun countDocuments(indexDir: Path): Int = withContext(Dispatchers.IO) {
+        val countFile = indexDir.resolve(".count")
+        if (countFile.exists()) {
+            return@withContext countFile.readText().toIntOrNull() ?: 0
+        }
+
         val file = indexDir.resolve(v1FileName)
-        if (file.exists()) {
-            file.readLines().size
-        } else 0
+        if (!file.exists()) return@withContext 0
+        file.useLines { it.count() }.also { count ->
+            countFile.writeText(count.toString())
+        }
     }
 }
