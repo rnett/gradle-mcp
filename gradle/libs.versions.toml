@@ -1,7 +1,7 @@
 [versions]
 # For renovate to work right, every version referenced here MUST have a coresponding dependency in the catalog, which is used to detect updates for it
 
-kotlin = "2.3.10"
+kotlin = "2.3.20"
 ktor = "3.3.3"
 logback = "1.5.32"
 caffeine = "3.2.3"
