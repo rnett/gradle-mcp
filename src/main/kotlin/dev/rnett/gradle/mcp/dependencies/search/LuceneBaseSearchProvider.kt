@@ -36,8 +36,27 @@ abstract class LuceneBaseSearchProvider : SearchProvider {
             reader?.close()
         }
         .build<Path, DirectoryReader> { path ->
-            DirectoryReader.open(FSDirectory.open(path))
+            val dir = FSDirectory.open(path)
+            val reader = DirectoryReader.open(dir)
+            reader.readerCacheHelper?.addClosedListener { _ ->
+                try {
+                    dir.close()
+                } catch (e: Exception) {
+                    logger.error("Failed to close directory for reader at $path", e)
+                }
+            }
+            reader
         }
+
+    protected inline fun <T> withReader(idxDir: Path, action: (DirectoryReader) -> T): T {
+        val reader = readerCache.get(idxDir)
+        reader.incRef()
+        try {
+            return action(reader)
+        } finally {
+            reader.decRef()
+        }
+    }
 
     fun invalidateCache(path: Path) {
         readerCache.invalidate(path)

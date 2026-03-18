@@ -105,72 +105,65 @@ object FullTextSearch : LuceneBaseSearchProvider() {
                 throw IllegalStateException("Lucene index directory does not exist: $idxDir")
             }
 
-            val reader = try {
-                readerCache.get(idxDir)
-            } catch (e: Exception) {
-                val cause = e.cause
-                if (cause is org.apache.lucene.index.IndexNotFoundException) {
-                    throw IllegalStateException("Lucene index not found in $idxDir", cause)
-                }
-                throw e
-            }
-            val indexSearcher = IndexSearcher(reader)
-            createAnalyzer().use { analyzer ->
-                val q = try {
-                    LuceneUtils.parseBoostedQuery(query, arrayOf(CONTENTS), arrayOf(CONTENTS_EXACT), analyzer)
-                } catch (e: Exception) {
-                    return@measureTimedValue SearchResponse(
-                        emptyList(),
-                        error = LuceneUtils.formatSyntaxError(e.message)
-                    )
-                }
-
-                val topDocs = LuceneUtils.searchPaginated(indexSearcher, q, pagination)
-                val weight = indexSearcher.createWeight(indexSearcher.rewrite(q), ScoreMode.COMPLETE_NO_SCORES, 1.0f)
-                val stored = indexSearcher.storedFields()
-
-                val leaves = reader.leaves()
-
-                val offset = pagination.offset
-                val limit = pagination.limit
-
-                val pagedScoreDocs = topDocs.scoreDocs.drop(offset).take(limit)
-
-                val results = pagedScoreDocs.flatMap { r ->
-                    val leafContext = leaves[ReaderUtil.subIndex(r.doc, leaves)]
-                    val localDocId = r.doc - leafContext.docBase
-                    val matches = weight.matches(leafContext, localDocId) ?: return@flatMap emptyList()
-
-                    val doc = stored.document(r.doc)
-                    val path = doc.get(PATH)
-
-                    val contentsMatches = matches.getMatches(CONTENTS)
-                    val exactMatches = matches.getMatches(CONTENTS_EXACT)
-
-                    val matchResults = mutableListOf<RelativeSearchResult>()
-
-                    if (contentsMatches != null) {
-                        while (contentsMatches.next()) {
-                            matchResults.add(RelativeSearchResult(path, offset = contentsMatches.startOffset(), score = r.score))
-                        }
+            withReader(idxDir) { reader ->
+                val indexSearcher = IndexSearcher(reader)
+                createAnalyzer().use { analyzer ->
+                    val q = try {
+                        LuceneUtils.parseBoostedQuery(query, arrayOf(CONTENTS), arrayOf(CONTENTS_EXACT), analyzer)
+                    } catch (e: Exception) {
+                        return@withReader SearchResponse(
+                            emptyList(),
+                            error = LuceneUtils.formatSyntaxError(e.message)
+                        )
                     }
 
-                    if (exactMatches != null) {
-                        while (exactMatches.next()) {
-                            // Avoid duplicates if both fields match at the same offset
-                            if (matchResults.none { it.offset == exactMatches.startOffset() }) {
-                                matchResults.add(RelativeSearchResult(path, offset = exactMatches.startOffset(), score = r.score))
+                    val topDocs = LuceneUtils.searchPaginated(indexSearcher, q, pagination)
+                    val weight = indexSearcher.createWeight(indexSearcher.rewrite(q), ScoreMode.COMPLETE_NO_SCORES, 1.0f)
+                    val stored = indexSearcher.storedFields()
+
+                    val leaves = reader.leaves()
+
+                    val offset = pagination.offset
+                    val limit = pagination.limit
+
+                    val pagedScoreDocs = topDocs.scoreDocs.drop(offset).take(limit)
+
+                    val results = pagedScoreDocs.flatMap { r ->
+                        val leafContext = leaves[ReaderUtil.subIndex(r.doc, leaves)]
+                        val localDocId = r.doc - leafContext.docBase
+                        val matches = weight.matches(leafContext, localDocId) ?: return@flatMap emptyList()
+
+                        val doc = stored.document(r.doc)
+                        val path = doc.get(PATH)
+
+                        val contentsMatches = matches.getMatches(CONTENTS)
+                        val exactMatches = matches.getMatches(CONTENTS_EXACT)
+
+                        val matchResults = mutableListOf<RelativeSearchResult>()
+
+                        if (contentsMatches != null) {
+                            while (contentsMatches.next()) {
+                                matchResults.add(RelativeSearchResult(path, offset = contentsMatches.startOffset(), score = r.score))
                             }
                         }
-                    }
 
-                    if (matchResults.isEmpty()) {
-                        listOf(RelativeSearchResult(path, offset = 0, line = null, score = r.score, skipBoilerplate = true))
-                    } else {
-                        matchResults
+                        if (exactMatches != null) {
+                            while (exactMatches.next()) {
+                                // Avoid duplicates if both fields match at the same offset
+                                if (matchResults.none { it.offset == exactMatches.startOffset() }) {
+                                    matchResults.add(RelativeSearchResult(path, offset = exactMatches.startOffset(), score = r.score))
+                                }
+                            }
+                        }
+
+                        if (matchResults.isEmpty()) {
+                            listOf(RelativeSearchResult(path, offset = 0, line = null, score = r.score, skipBoilerplate = true))
+                        } else {
+                            matchResults
+                        }
                     }
+                    SearchResponse(results, interpretedQuery = q.toString())
                 }
-                SearchResponse(results, interpretedQuery = q.toString())
             }
         }
         val res = response

@@ -97,47 +97,44 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
 
     override suspend fun listPackageContents(indexDir: Path, packageName: String): PackageContents? = withContext(Dispatchers.IO) {
         if (!indexDir.exists()) return@withContext null
-        val reader = try {
-            readerCache.get(indexDir)
-        } catch (e: Exception) {
-            return@withContext null
-        }
-        val searcher = IndexSearcher(reader)
+        withReader(indexDir) { reader ->
+            val searcher = IndexSearcher(reader)
 
-        // 1. Direct symbols in this package
-        val symbols = mutableSetOf<String>()
-        val symbolsQuery = TermQuery(Term(Fields.PACKAGE_NAME, packageName))
-        val topSymbols = searcher.search(symbolsQuery, 5000)
-        topSymbols.scoreDocs.forEach { hit ->
-            val doc = searcher.storedFields().document(hit.doc, setOf(Fields.NAME))
-            doc.get(Fields.NAME)?.let { symbols.add(it) }
-        }
+            // 1. Direct symbols in this package
+            val symbols = mutableSetOf<String>()
+            val symbolsQuery = TermQuery(Term(Fields.PACKAGE_NAME, packageName))
+            val topSymbols = searcher.search(symbolsQuery, 5000)
+            topSymbols.scoreDocs.forEach { hit ->
+                val doc = searcher.storedFields().document(hit.doc, setOf(Fields.NAME))
+                doc.get(Fields.NAME)?.let { symbols.add(it) }
+            }
 
-        // 2. Sub-packages
-        val subPackages = mutableSetOf<String>()
-        val prefix = if (packageName.isEmpty()) "" else "$packageName."
+            // 2. Sub-packages
+            val subPackages = mutableSetOf<String>()
+            val prefix = if (packageName.isEmpty()) "" else "$packageName."
 
-        val terms = MultiTerms.getTerms(reader, Fields.PACKAGE_NAME)
-        if (terms != null) {
-            val iterator = terms.iterator()
-            if (iterator.seekCeil(BytesRef(prefix)) != TermsEnum.SeekStatus.END) {
-                var term = iterator.term()
-                while (term != null) {
-                    val fullPkg = term.utf8ToString()
-                    if (!fullPkg.startsWith(prefix)) break
+            val terms = MultiTerms.getTerms(reader, Fields.PACKAGE_NAME)
+            if (terms != null) {
+                val iterator = terms.iterator()
+                if (iterator.seekCeil(BytesRef(prefix)) != TermsEnum.SeekStatus.END) {
+                    var term = iterator.term()
+                    while (term != null) {
+                        val fullPkg = term.utf8ToString()
+                        if (!fullPkg.startsWith(prefix)) break
 
-                    val remainder = fullPkg.substring(prefix.length)
-                    if (remainder.isNotEmpty()) {
-                        subPackages.add(remainder.substringBefore('.'))
+                        val remainder = fullPkg.substring(prefix.length)
+                        if (remainder.isNotEmpty()) {
+                            subPackages.add(remainder.substringBefore('.'))
+                        }
+                        term = iterator.next()
                     }
-                    term = iterator.next()
                 }
             }
+
+            if (symbols.isEmpty() && subPackages.isEmpty()) return@withReader null
+
+            PackageContents(symbols.sorted(), subPackages.sorted())
         }
-
-        if (symbols.isEmpty() && subPackages.isEmpty()) return@withContext null
-
-        PackageContents(symbols.sorted(), subPackages.sorted())
     }
 
     override suspend fun search(indexDir: Path, query: String, pagination: PaginationInput): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
@@ -146,36 +143,37 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
                 throw IllegalStateException("Symbol index dir does not exist: $indexDir")
             }
 
-            val reader = readerCache.get(indexDir)
-            val searcher = IndexSearcher(reader)
-            createAnalyzer().use { analyzer ->
-                val q = try {
-                    val parser = MultiFieldQueryParser(arrayOf(Fields.NAME, Fields.FQN), analyzer)
-                    parser.allowLeadingWildcard = true
-                    parser.parse(query)
-                } catch (e: Exception) {
-                    val message = e.message ?: "Unknown error"
-                    val error = LuceneUtils.formatSyntaxError(message)
-                    return@measureTimedValue SearchResponse<RelativeSearchResult>(
-                        emptyList(),
-                        error = error
-                    )
+            withReader(indexDir) { reader ->
+                val searcher = IndexSearcher(reader)
+                createAnalyzer().use { analyzer ->
+                    val q = try {
+                        val parser = MultiFieldQueryParser(arrayOf(Fields.NAME, Fields.FQN), analyzer)
+                        parser.allowLeadingWildcard = true
+                        parser.parse(query)
+                    } catch (e: Exception) {
+                        val message = e.message ?: "Unknown error"
+                        val error = LuceneUtils.formatSyntaxError(message)
+                        return@withReader SearchResponse<RelativeSearchResult>(
+                            emptyList(),
+                            error = error
+                        )
+                    }
+
+                    val topDocs = LuceneUtils.searchPaginated(searcher, q, pagination)
+                    val hits = topDocs.scoreDocs
+
+                    val matchedResults: List<RelativeSearchResult> = hits.drop(pagination.offset).take(pagination.limit).map { hit ->
+                        val doc = searcher.storedFields().document(hit.doc)
+                        RelativeSearchResult(
+                            relativePath = doc.get(Fields.PATH),
+                            offset = doc.getField(Fields.OFFSET).numericValue().toInt(),
+                            line = doc.getField(Fields.LINE).numericValue().toInt(),
+                            score = hit.score
+                        )
+                    }.toList()
+
+                    SearchResponse<RelativeSearchResult>(matchedResults, interpretedQuery = q.toString())
                 }
-
-                val topDocs = LuceneUtils.searchPaginated(searcher, q, pagination)
-                val hits = topDocs.scoreDocs
-
-                val matchedResults: List<RelativeSearchResult> = hits.drop(pagination.offset).take(pagination.limit).map { hit ->
-                    val doc = searcher.storedFields().document(hit.doc)
-                    RelativeSearchResult(
-                        relativePath = doc.get(Fields.PATH),
-                        offset = doc.getField(Fields.OFFSET).numericValue().toInt(),
-                        line = doc.getField(Fields.LINE).numericValue().toInt(),
-                        score = hit.score
-                    )
-                }.toList()
-
-                SearchResponse<RelativeSearchResult>(matchedResults, interpretedQuery = q.toString())
             }
         }
         logger.info("Symbol search for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) took $duration (${res.results.size} results)")
