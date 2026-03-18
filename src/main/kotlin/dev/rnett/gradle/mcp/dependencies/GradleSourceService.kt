@@ -4,6 +4,8 @@ import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.GradleVersionService
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
+import dev.rnett.gradle.mcp.dependencies.model.MergedSourcesDir
+import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
 import dev.rnett.gradle.mcp.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.tools.GradlePathUtils
@@ -64,9 +66,9 @@ class DefaultGradleSourceService(
         val version = versionService.resolveVersion(inputVersion)
 
         val storagePath = gradleSourcesDir.resolve(version)
-        val targetDir = SourcesDir(storagePath)
         val lockFile = lockFile(projectRoot, version, "gradle")
-        val markerFile = targetDir.storagePath.resolve(".completed")
+        val targetDir = MergedSourcesDir(storagePath, lockFile, storagePath.resolve("sources"))
+        val markerFile = storagePath.resolve(".completed")
 
         if (!forceDownload) {
             val cached = FileLockManager.withLock(lockFile, shared = true) {
@@ -82,10 +84,10 @@ class DefaultGradleSourceService(
 
             if (forceDownload) {
                 LOGGER.info("Force downloading Gradle sources for version $version")
-                targetDir.storagePath.deleteRecursively()
+                storagePath.deleteRecursively()
             }
 
-            targetDir.storagePath.createDirectories()
+            storagePath.createDirectories()
             val sourceZip = try {
                 downloadGradleSources(version)
             } catch (e: Exception) {
@@ -99,7 +101,7 @@ class DefaultGradleSourceService(
                 targetDir
             } catch (e: Exception) {
                 LOGGER.error("Failed to extract and index Gradle sources for version $version", e)
-                targetDir.storagePath.deleteRecursively()
+                storagePath.deleteRecursively()
                 throw e
             } finally {
                 sourceZip.deleteIfExists()

@@ -31,10 +31,10 @@ class McpServerFixture(
     ),
     private val koinModules: List<Module> = emptyList()
 ) {
-    private val LOGGER = LoggerFactory.getLogger(McpServerFixture::class.java)
+    private val logger = LoggerFactory.getLogger(McpServerFixture::class.java)
 
     val scope = CoroutineScope(Dispatchers.Default + SupervisorJob() + CoroutineExceptionHandler { _, it ->
-        LOGGER.error("Exception in fixture scope", it)
+        logger.error("Exception in fixture scope", it)
     })
 
     private val transports = ChannelBasedInMemoryTransport.createLinkedPair(scope)

@@ -115,8 +115,11 @@ data class GradleDependency(
     val fromConfiguration: String? = null,
     val reason: String? = null,
     val sourcesFile: Path? = null,
+    val updatesChecked: Boolean = false,
     val children: List<GradleDependency> = emptyList()
 ) {
+    val hasSources: Boolean get() = sourcesFile != null && group != null && version != null
+
     fun allDependencies(): Sequence<GradleDependency> {
         return sequence {
             yield(this@GradleDependency)

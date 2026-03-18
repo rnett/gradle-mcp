@@ -11,7 +11,7 @@ description: >
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
-  version: "3.2"
+  version: "3.3"
 ---
 
 # Authoritative Dependency Intelligence & Maven Central Search
@@ -32,6 +32,10 @@ Audits project dependencies, performs high-resolution update checks, and discove
 - **Identify authoritative paths**: ALWAYS use the Gradle project path (e.g., `:app`) when querying dependencies.
 - **Inspect plugins and build scripts**: Build script dependencies (like plugins) are automatically included in `inspect_dependencies` output under configurations prefixed with `buildscript:` (e.g. `buildscript:classpath`).
 - **Monitor for updates**: ALWAYS use `updatesOnly: true` in `inspect_dependencies` to retrieve a high-signal report of available library updates.
+- **Target dependencies surgically**: Use the `dependency` parameter in `inspect_dependencies` to target a single library. It supports `group:name:version:variant`, `group:name:version`, `group:name`, or just `group`. This is significantly
+  faster than resolving the entire project graph.
+- **Efficient Transitive Isolation**: When isolating a single library, filter the flattened list of resolved components using the dependency filter rather than traversing the dependency graph. This naturally and efficiently excludes
+  transitive dependencies that do not match the targeted filter.
 - **Discover libraries surgically**: ALWAYS use `search_maven_central` to find new libraries or check the version history of an existing artifact.
 - **Use `gradle` for diagnostics**: For built-in tasks like `dependencyInsight`, ALWAYS use the `gradle` tool with `captureTaskOutput`.
 - **Audit full trees**: ALWAYS use `onlyDirect: false` in `inspect_dependencies` when you need to visualize the complete transitive dependency graph.
@@ -45,6 +49,7 @@ Audits project dependencies, performs high-resolution update checks, and discove
 - **Automated Update Detection**: When performing maintenance and you want a concise report on available stable or pre-release updates.
 - **Precision Artifact Discovery**: When looking for new libraries on Maven Central and you need to find exact GAV coordinates or explore an artifact's full version history.
 - **Version Conflict Resolution**: When you need to identify why a specific version of a library is being resolved and look for compatible alternatives.
+- **Targeted Audit**: When you only care about a specific library and want to bypass the cost of a full project resolution.
 
 ## Workflows
 
@@ -64,6 +69,12 @@ Audits project dependencies, performs high-resolution update checks, and discove
 1. Use `search_maven_central(query="search-term")` to find candidates.
 2. Use `search_maven_central(query="group:artifact", versions=true)` to see all available versions for a specific library.
 
+### 4. Targeted Dependency Inspection
+
+1. Identify the dependency you want to check (e.g., `org.mongodb:mongodb-driver-sync`).
+2. Call `inspect_dependencies(dependency="org.mongodb:mongodb-driver-sync")`.
+3. The report will be focused ONLY on that library across all matched configurations.
+
 ## Examples
 
 ### List dependencies for a specific module
@@ -73,6 +84,16 @@ Audits project dependencies, performs high-resolution update checks, and discove
   "projectPath": ":app"
 }
 // Reasoning: Auditing the direct and transitive dependencies of the 'app' module to understand its runtime footprint.
+```
+
+### Check for updates for a specific library
+
+```json
+{
+  "dependency": "org.jetbrains.kotlinx:kotlinx-coroutines-core",
+  "updatesOnly": true
+}
+// Reasoning: Surgically checking if a specific library has available updates.
 ```
 
 ### Check for stable updates across the project

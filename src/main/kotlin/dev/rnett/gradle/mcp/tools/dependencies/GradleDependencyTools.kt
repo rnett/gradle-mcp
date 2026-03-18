@@ -33,6 +33,8 @@ class GradleDependencyTools(
         val configuration: String? = null,
         @Description("Filtering the report by a specific source set (e.g., 'test').")
         val sourceSet: String? = null,
+        @Description("Authoritatively targeting a single dependency by its coordinates (e.g., 'org.jetbrains.kotlinx:kotlinx-coroutines-core'). Supports 'group:name:version:variant', 'group:name:version', 'group:name', or just 'group'. Targets ONLY the specific library, NOT its transitive dependencies.")
+        val dependency: String? = null,
         @Description("Checking project repositories for newer versions of all dependencies authoritatively.")
         val checkUpdates: Boolean = true,
         @Description("Showing only direct dependencies in the summary. Set to false for the full tree.")
@@ -60,6 +62,10 @@ class GradleDependencyTools(
             |3.  **Update Summaries**: Use `updatesOnly=true` to return only a summary of dependencies that have available updates.
             |4.  **Plugin Auditing**: Use `configuration="buildscript:classpath"` to audit build script dependencies (plugins).
             |
+            |### Targeted Auditing
+            |Use the `dependency` parameter to target a single library (e.g., `dependency="org.mongodb:mongodb-driver-sync"`). This is significantly faster as it avoids resolving the entire project graph.
+            |**Note:** When a dependency filter is applied, update checks are skipped for non-matching transitive dependencies to improve performance. These will be marked with `[UPDATE CHECK SKIPPED]` in the output.
+            |
             |### Discovery Best Practices
             |- **Searching Maven Central**: Use `${ToolNames.SEARCH_MAVEN_CENTRAL}` to find coordinates or version histories.
             |- **Dependency Insight**: Use `${ToolNames.GRADLE}` for built-in Gradle tasks like `dependencyInsight`.
@@ -68,13 +74,15 @@ class GradleDependencyTools(
         """.trimMargin()
     ) {
         val root = with(server) { it.projectRoot.resolveRoot() }
+        val checkingUpdates = it.checkUpdates || it.updatesOnly
         val report = with(progressReporter) {
             dependencyService.getDependencies(
                 projectRoot = root,
                 projectPath = it.projectPath.path,
                 configuration = it.configuration,
                 sourceSet = it.sourceSet,
-                checkUpdates = it.checkUpdates || it.updatesOnly,
+                dependency = it.dependency,
+                checkUpdates = checkingUpdates,
                 versionFilter = it.versionFilter,
                 stableOnly = it.stableOnly,
                 onlyDirect = it.onlyDirect
@@ -84,11 +92,11 @@ class GradleDependencyTools(
         if (it.updatesOnly) {
             formatUpdatesSummary(report, it.pagination)
         } else {
-            formatDependencyReport(report, it.pagination)
+            formatDependencyReport(report, it.pagination, checkingUpdates)
         }
     }
 
-    fun formatDependencyReport(report: GradleDependencyReport, pagination: PaginationInput): String {
+    fun formatDependencyReport(report: GradleDependencyReport, pagination: PaginationInput, checkingUpdates: Boolean = false): String {
         if (report.projects.isEmpty()) return "No projects found."
 
         return buildString {
@@ -98,14 +106,14 @@ class GradleDependencyTools(
 
             val pagedProjects = paginate(report.projects, pagination, "projects") { project ->
                 buildString {
-                    formatProject(project)
+                    formatProject(project, checkingUpdates)
                 }.trim()
             }
             append(pagedProjects)
         }.trim()
     }
 
-    private fun StringBuilder.formatProject(project: GradleProjectDependencies) {
+    private fun StringBuilder.formatProject(project: GradleProjectDependencies, checkingUpdates: Boolean = false) {
         appendLine("Project: ${project.path}")
         if (project.repositories.isNotEmpty()) {
             appendLine("  Repositories:")
@@ -146,7 +154,7 @@ class GradleDependencyTools(
             } else if (config.dependencies.isEmpty()) {
                 appendLine("    (no dependencies)")
             } else {
-                renderDependencies(filteredDeps, 2) { dep ->
+                renderDependencies(filteredDeps, 2, checkingUpdates = checkingUpdates) { dep ->
                     if (dep.fromConfiguration != null) {
                         val parent = includedConfigs[dep.fromConfiguration]
                         val parentDep = parent?.dependencies?.find {
@@ -241,6 +249,7 @@ class GradleDependencyTools(
         deps: List<GradleDependency>,
         indent: Int,
         visited: MutableSet<Triple<String, String?, List<String>>>,
+        checkingUpdates: Boolean = false,
         noteProvider: (GradleDependency) -> String?
     ) {
         deps.forEach { dep ->
@@ -257,13 +266,15 @@ class GradleDependencyTools(
             }
             if (dep.latestVersion != null && dep.latestVersion != dep.version) {
                 append(" [UPDATE AVAILABLE: ${dep.latestVersion}]")
+            } else if (checkingUpdates && !dep.updatesChecked) {
+                append(" [UPDATE CHECK SKIPPED]")
             }
             if (dep.reason != null) {
                 append(" (${dep.reason})")
             }
             appendLine()
             if (!alreadyVisited) {
-                renderDependencies(dep.children, indent + 1, visited, noteProvider)
+                renderDependencies(dep.children, indent + 1, visited, checkingUpdates, noteProvider)
             }
         }
     }
@@ -271,8 +282,9 @@ class GradleDependencyTools(
     private fun StringBuilder.renderDependencies(
         deps: List<GradleDependency>,
         indent: Int,
+        checkingUpdates: Boolean = false,
         noteProvider: (GradleDependency) -> String? = { null }
     ) {
-        renderDependencies(deps, indent, mutableSetOf(), noteProvider)
+        renderDependencies(deps, indent, mutableSetOf(), checkingUpdates, noteProvider)
     }
 }

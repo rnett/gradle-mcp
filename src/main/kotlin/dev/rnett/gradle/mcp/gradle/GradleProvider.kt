@@ -172,7 +172,7 @@ class DefaultGradleProvider(
                         progress,
                         requiresGradleProject
                     )
-                    val text = "Gradle ${model.value.getOrThrow().gradle.gradleVersion}"
+                    val text = model.value.getOrThrow().versionInfo
                     runningBuild.addLogLine(text)
                     stdoutLineHandler?.invoke(text)
                     Result.failure(InterceptedSpecialCommandException("Version command intercepted, result is in console output."))

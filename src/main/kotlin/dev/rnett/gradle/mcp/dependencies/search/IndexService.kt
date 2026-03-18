@@ -2,8 +2,8 @@ package dev.rnett.gradle.mcp.dependencies.search
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.ProgressReporter
-import dev.rnett.gradle.mcp.dependencies.SourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
+import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.utils.FileLockManager
 import dev.rnett.gradle.mcp.utils.unorderedParallelForEach
@@ -49,7 +49,7 @@ interface IndexService {
     }
 
     context(progress: ProgressReporter)
-    suspend fun indexFiles(dependency: GradleDependency, fileFlow: Flow<IndexEntry>): Index?
+    suspend fun indexFiles(dependency: GradleDependency, fileFlow: Flow<IndexEntry>, forceIndex: Boolean = false): Index?
 
     /**
      * [includedDeps] is map of relative path in merged to the index
@@ -66,7 +66,7 @@ interface IndexService {
 class DefaultIndexService(
     val environment: GradleMcpEnvironment
 ) : IndexService {
-    private val LOGGER = LoggerFactory.getLogger(DefaultIndexService::class.java)
+    private val logger = LoggerFactory.getLogger(DefaultIndexService::class.java)
     private val providers = listOf(DeclarationSearch, FullTextSearch, GlobSearch)
     private val combinedIndexVersion = providers.joinToString("-") { "${it.name}:${it.indexVersion}" }
     private val markerFileName = ".indexed-${combinedIndexVersion.hashCode()}"
@@ -74,23 +74,28 @@ class DefaultIndexService(
 
     @OptIn(ExperimentalPathApi::class)
     context(progress: ProgressReporter)
-    override suspend fun indexFiles(dependency: GradleDependency, fileFlow: Flow<IndexEntry>): Index? {
+    override suspend fun indexFiles(dependency: GradleDependency, fileFlow: Flow<IndexEntry>, forceIndex: Boolean): Index? {
         if (dependency.group == null) return null
 
         val dirName = dependency.sourcesFile?.nameWithoutExtension ?: "direct-${dependency.hashCode()}"
         val dir = indexDir.resolve(dependency.group).resolve(dirName)
-        val lockFile = dir.resolve(".lock")
+        val lockFile = environment.cacheDir.resolve(".locks/source-indices").resolve(dependency.group).resolve("$dirName.lock")
         val markerFile = dir.resolve(markerFileName)
 
-        val cached = FileLockManager.withLock(lockFile, shared = true) {
-            if (markerFile.exists()) Index(dir) else null
+        if (!forceIndex) {
+            val cached = FileLockManager.withLock(lockFile, shared = true) {
+                if (markerFile.exists()) Index(dir) else null
+            }
+            if (cached != null) return cached
         }
-        if (cached != null) return cached
 
         return FileLockManager.withLock(lockFile, shared = false) {
-            if (markerFile.exists()) return@withLock Index(dir)
+            if (!forceIndex && markerFile.exists()) return@withLock Index(dir)
 
             try {
+                if (dir.exists()) dir.deleteRecursively()
+                dir.createDirectories()
+
                 val indexers = providers.map { provider ->
                     val providerDir = dir.resolve(provider.name)
                     if (providerDir.exists()) providerDir.deleteRecursively()
@@ -128,7 +133,7 @@ class DefaultIndexService(
                 markerFile.createFile()
                 Index(dir)
             } catch (e: Exception) {
-                LOGGER.error("Failed to index dependency $dependency", e)
+                logger.error("Failed to index dependency $dependency", e)
                 dir.deleteRecursively()
                 null
             }
@@ -144,11 +149,7 @@ class DefaultIndexService(
         val lockFile = sourcesDir.index.resolve(".lock")
         val currentHash = combinedIndexVersion + "\n" + includedDeps.hashCode().toString()
 
-        val upToDate = FileLockManager.withLock(lockFile, shared = true) {
-            val hashFile = sourcesDir.index.resolve(".merged.hash")
-            hashFile.exists() && hashFile.readText() == currentHash
-        }
-        if (upToDate) return
+        if (checkMergeUpToDate(sourcesDir.index, currentHash, lockFile)) return
 
         FileLockManager.withLock(lockFile, shared = false) {
             val duration = measureTime {
@@ -162,23 +163,8 @@ class DefaultIndexService(
                 val includedIndices = includedDeps.mapValues { it.value.dir }
                 try {
                     val mergeProgress = progress.withPhase("MERGING")
-                    val prepProgress = progress.withPhase("PREPARING")
 
-                    val totalPreps = includedIndices.size.toDouble()
-                    val currentPreps = AtomicInt(0)
-
-                    val dependencyMetadata = includedIndices.values.unorderedParallelMap(context = Dispatchers.IO) { depDir ->
-                        val metadataFile = depDir.resolve(".metadata.json")
-                        val metadata: Map<String, Int>? = if (metadataFile.exists()) {
-                            try {
-                                Json.decodeFromString<Map<String, Int>>(metadataFile.readText())
-                            } catch (e: Exception) {
-                                null
-                            }
-                        } else null
-                        prepProgress.report(currentPreps.addAndFetch(1).toDouble(), totalPreps, "Reading metadata")
-                        depDir to metadata
-                    }.toMap()
+                    val dependencyMetadata = loadDependencyMetadata(includedIndices)
 
                     val providerCounts = providers.associateWith { provider ->
                         includedIndices.values.sumOf { depDir ->
@@ -189,36 +175,80 @@ class DefaultIndexService(
                     val totalDocs = providerCounts.values.sum().toDouble()
                     val currentDocs = AtomicInt(0)
 
-                    providers.unorderedParallelForEach(context = Dispatchers.IO) { provider ->
-                        val providerTotalDocs = providerCounts[provider] ?: 0
-                        val providerDir = dir.resolve(provider.name)
-                        if (providerDir.exists()) {
-                            providerDir.deleteRecursively()
-                        }
+                    mergeProviderIndices(dir, includedIndices, providerCounts, totalDocs, currentDocs, mergeProgress)
 
-                        providerDir.createDirectories()
-
-                        val lastProviderDocs = AtomicInt(0)
-                        val providerReporter = ProgressReporter { p, t, _ ->
-                            val fraction = if (t != null && t > 0.0) p / t else p
-                            val currentP = (fraction * providerTotalDocs).toInt()
-                            val delta = currentP - lastProviderDocs.exchange(currentP)
-                            if (delta != 0) {
-                                mergeProgress.report(currentDocs.addAndFetch(delta).toDouble(), totalDocs, "Merging ${provider.name}")
-                            }
-                        }
-
-                        provider.mergeIndices(includedIndices.entries.associate { it.value.resolve(provider.name) to it.key }, providerDir, providerReporter)
-                    }
                     hashFile.createParentDirectories()
                     hashFile.writeText(currentHash)
                 } catch (e: Exception) {
-                    LOGGER.error("Failed to merge indices for ${sourcesDir.storagePath}", e)
+                    logger.error("Failed to merge indices for ${sourcesDir.sources}", e)
                     dir.deleteRecursively()
                     throw e
                 }
             }
-            LOGGER.info("Merging indices for ${sourcesDir.storagePath} took $duration (${includedDeps.size} dependencies)")
+            logger.info("Merging indices for ${sourcesDir.sources} took $duration (${includedDeps.size} dependencies)")
+        }
+    }
+
+    private suspend fun checkMergeUpToDate(indexDir: Path, currentHash: String, lockFile: Path): Boolean {
+        return FileLockManager.withLock(lockFile, shared = true) {
+            val hashFile = indexDir.resolve(".merged.hash")
+            hashFile.exists() && hashFile.readText() == currentHash
+        }
+    }
+
+    context(progress: ProgressReporter)
+    private suspend fun loadDependencyMetadata(includedIndices: Map<Path, Path>): Map<Path, Map<String, Int>?> {
+        val prepProgress = progress.withPhase("PREPARING")
+        val totalPreps = includedIndices.size.toDouble()
+        val currentPreps = AtomicInt(0)
+
+        return includedIndices.values.unorderedParallelMap(context = Dispatchers.IO) { depDir ->
+            val group = depDir.parent.fileName.toString()
+            val lockFile = environment.cacheDir.resolve(".locks/source-indices").resolve(group).resolve("${depDir.fileName}.lock")
+            FileLockManager.withLock(lockFile, shared = true) {
+                val metadataFile = depDir.resolve(".metadata.json")
+                val metadata: Map<String, Int>? = if (metadataFile.exists()) {
+                    try {
+                        Json.decodeFromString<Map<String, Int>>(metadataFile.readText())
+                    } catch (e: Exception) {
+                        null
+                    }
+                } else null
+                prepProgress.report(currentPreps.addAndFetch(1).toDouble(), totalPreps, "Reading metadata")
+                depDir to metadata
+            }
+        }.toMap()
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    private suspend fun mergeProviderIndices(
+        targetDir: Path,
+        includedIndices: Map<Path, Path>,
+        providerCounts: Map<SearchProvider, Int>,
+        totalDocs: Double,
+        currentDocs: AtomicInt,
+        mergeProgress: ProgressReporter
+    ) {
+        providers.unorderedParallelForEach(context = Dispatchers.IO) { provider ->
+            val providerTotalDocs = providerCounts[provider] ?: 0
+            val providerDir = targetDir.resolve(provider.name)
+            if (providerDir.exists()) {
+                providerDir.deleteRecursively()
+            }
+
+            providerDir.createDirectories()
+
+            val lastProviderDocs = AtomicInt(0)
+            val providerReporter = ProgressReporter { p, t, _ ->
+                val fraction = if (t != null && t > 0.0) p / t else p
+                val currentP = (fraction * providerTotalDocs).toInt()
+                val delta = currentP - lastProviderDocs.exchange(currentP)
+                if (delta != 0) {
+                    mergeProgress.report(currentDocs.addAndFetch(delta).toDouble(), totalDocs, "Merging ${provider.name}")
+                }
+            }
+
+            provider.mergeIndices(includedIndices.entries.associate { it.value.resolve(provider.name) to it.key }, providerDir, providerReporter)
         }
     }
 
@@ -239,7 +269,7 @@ class DefaultIndexService(
             provider.search(providerIndexDir, query, pagination)
         }
         val res = response
-        LOGGER.info("Search using ${provider.name} for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) in ${sourcesDir.storagePath} took $duration (${res.results.size} results)")
+        logger.info("Search using ${provider.name} for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) in ${sourcesDir.sources} took $duration (${res.results.size} results)")
         return res
     }
 

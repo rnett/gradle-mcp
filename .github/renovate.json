@@ -3,10 +3,10 @@
   "extends": [
     "config:recommended"
   ],
-  assignees: [
+  "assignees": [
     "rnett"
   ],
-  automerge: true,
+  "automerge": true,
   "pruneStaleBranches": false,
   "packageRules": [
     {

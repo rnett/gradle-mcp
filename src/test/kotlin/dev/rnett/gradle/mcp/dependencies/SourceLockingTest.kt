@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -51,7 +52,7 @@ class SourceLockingTest {
     }
 
     @Test
-    fun `downloadAllSources prevents concurrent extraction`() = kotlinx.coroutines.runBlocking {
+    fun `downloadAllSources prevents concurrent extraction`() = runTest {
         val projectRootPath = tempDir.resolve("project")
         projectRootPath.createDirectories()
         val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
@@ -94,7 +95,7 @@ class SourceLockingTest {
         }
 
         coEvery {
-            with(any<ProgressReporter>()) { indexService.indexFiles(any<GradleDependency>(), any<kotlinx.coroutines.flow.Flow<IndexEntry>>()) }
+            with(any<ProgressReporter>()) { indexService.indexFiles(any<GradleDependency>(), any<kotlinx.coroutines.flow.Flow<IndexEntry>>(), any()) }
         } returns null
         coEvery {
             with(any<ProgressReporter>()) { indexService.index(any<GradleDependency>(), any<Path>()) }
@@ -118,7 +119,7 @@ class SourceLockingTest {
     }
 
     @Test
-    fun `downloadAllSources allows parallel readers when cached`() = kotlinx.coroutines.runBlocking {
+    fun `downloadAllSources allows parallel readers when cached`() = runTest {
         val projectRootPath = tempDir.resolve("project-parallel")
         projectRootPath.createDirectories()
         val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
@@ -159,7 +160,7 @@ class SourceLockingTest {
 
         coEvery { with(any<ProgressReporter>()) { depService.downloadAllSources(any()) } } returns report
         coEvery {
-            with(any<ProgressReporter>()) { indexService.indexFiles(any<GradleDependency>(), any<kotlinx.coroutines.flow.Flow<IndexEntry>>()) }
+            with(any<ProgressReporter>()) { indexService.indexFiles(any<GradleDependency>(), any<kotlinx.coroutines.flow.Flow<IndexEntry>>(), any()) }
         } returns null
         coEvery {
             with(any<ProgressReporter>()) { indexService.index(any<GradleDependency>(), any<Path>()) }

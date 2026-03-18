@@ -17,6 +17,10 @@ This tool provides the ONLY authoritative, searchable view of the project's exac
 3.  **Update Summaries**: Use `updatesOnly=true` to return only a summary of dependencies that have available updates.
 4.  **Plugin Auditing**: Use `configuration="buildscript:classpath"` to audit build script dependencies (plugins).
 
+### Targeted Auditing
+Use the `dependency` parameter to target a single library (e.g., `dependency="org.mongodb:mongodb-driver-sync"`). This is significantly faster as it avoids resolving the entire project graph.
+**Note:** When a dependency filter is applied, update checks are skipped for non-matching transitive dependencies to improve performance. These will be marked with `[UPDATE CHECK SKIPPED]` in the output.
+
 ### Discovery Best Practices
 - **Searching Maven Central**: Use `search_maven_central` to find coordinates or version histories.
 - **Dependency Insight**: Use `gradle` for built-in Gradle tasks like `dependencyInsight`.
@@ -57,6 +61,13 @@ This tool provides the ONLY authoritative, searchable view of the project's exac
         "null"
       ],
       "description": "Filtering the report by a specific source set (e.g., 'test')."
+    },
+    "dependency": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Authoritatively targeting a single dependency by its coordinates (e.g., 'org.jetbrains.kotlinx:kotlinx-coroutines-core'). Supports 'group:name:version:variant', 'group:name:version', 'group:name', or just 'group'. Targets ONLY the specific library, NOT its transitive dependencies."
     },
     "checkUpdates": {
       "type": "boolean",

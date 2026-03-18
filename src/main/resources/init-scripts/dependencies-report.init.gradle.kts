@@ -43,6 +43,25 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         val versionFilter = if (realProject.hasProperty("mcp.versionFilter")) realProject.property("mcp.versionFilter").toString() else null
         val targetConfig = if (realProject.hasProperty("mcp.configuration")) realProject.property("mcp.configuration").toString() else null
         val targetSourceSet = if (realProject.hasProperty("mcp.sourceSet")) realProject.property("mcp.sourceSet").toString() else null
+        val dependencyFilter = if (realProject.hasProperty("mcp.dependencyFilter")) realProject.property("mcp.dependencyFilter").toString() else null
+        val filterParts = dependencyFilter?.split(":", limit = 4)
+
+        fun matchesFilter(id: ModuleComponentIdentifier): Boolean {
+            if (filterParts == null) return true
+            val group = id.group
+            val module = id.module
+            val version = id.version
+
+            return when (filterParts.size) {
+                1 -> group == filterParts[0]
+                2 -> group == filterParts[0] && module == filterParts[1]
+                3 -> group == filterParts[0] && module == filterParts[1] && version == filterParts[2]
+                else -> group == filterParts[0] && module == filterParts[1] && version == filterParts[2]
+                // Note: variant matching is harder here as we don't have it in ModuleComponentIdentifier easily,
+                // so we fallback to 3-part matching (G:A:V) for filters with 4+ parts.
+                // The SourcesService will do the final filtering if variants are specified.
+            }
+        }
 
         if (targetConfig != null) {
             val isBuildscript = targetConfig.startsWith("buildscript:")
@@ -119,7 +138,7 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
             emptySet()
         }
 
-        val targetComponents = allComponents.filter { !onlyDirect || "${it.group}:${it.module}" in directDependencies }
+        val targetComponents = allComponents.filter { (!onlyDirect || "${it.group}:${it.module}" in directDependencies) && matchesFilter(it) }
         if (checkUpdates || downloadSources) {
             var newTotal = allConfigs.size.toLong() * 2
             if (checkUpdates) newTotal += targetComponents.size
@@ -143,6 +162,7 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
 
         mcpRenderer.latestVersions = latestVersions
         mcpRenderer.sourcesFiles = sourcesFiles
+        mcpRenderer.updatesCheckedDeps = if (checkUpdates) targetComponents.map { "${it.group}:${it.module}" }.toSet() else emptySet()
         mcpRenderer.onlyDirect = onlyDirect
 
         mcpRenderer.outputProject(project)
@@ -354,6 +374,7 @@ class McpDependencyReportRenderer : DependencyReportRenderer {
     private var output: StyledTextOutput? = null
     var latestVersions: Map<String, String> = emptyMap()
     var sourcesFiles: Map<String, String> = emptyMap()
+    var updatesCheckedDeps: Set<String> = emptySet()
     var onlyDirect: Boolean = false
     var gradleProject: Project? = null
     var inBuildscript: Boolean = false
@@ -528,6 +549,7 @@ class McpDependencyReportRenderer : DependencyReportRenderer {
             val markers = "*".repeat(depth)
             val latestVersion = latestVersions["$group:$name"] ?: ""
             val sourcesFile = sourcesFiles[id.toString()] ?: sourcesFiles["$group:$name:$version"] ?: ""
+            val updatesChecked = updatesCheckedDeps.contains("$group:$name")
 
             var selectionReason = ""
             val requested = dep.requested
@@ -538,7 +560,7 @@ class McpDependencyReportRenderer : DependencyReportRenderer {
                 }
             }
 
-            output?.println("DEP: $path | $markers | $id | $group | $name | $version | $selectionReason | $latestVersion | $isDirect | $variantName | ${caps.joinToString(",")} | ${fromConfiguration ?: ""} | $sourcesFile")
+            output?.println("DEP: $path | $markers | $id | $group | $name | $version | $selectionReason | $latestVersion | $isDirect | $variantName | ${caps.joinToString(",")} | ${fromConfiguration ?: ""} | $sourcesFile | $updatesChecked")
 
             if (!alreadyRendered) {
                 component.getDependenciesForVariant(variant).forEach { child ->
@@ -606,8 +628,9 @@ class McpDependencyReportRenderer : DependencyReportRenderer {
         }
 
         val sourcesFile = sourcesFiles[renderedId] ?: sourcesFiles["$group:$name:$version"] ?: ""
+        val updatesChecked = updatesCheckedDeps.contains("$group:$name")
 
-        output?.println("DEP: $path | $markers | $renderedId | $group | $name | $version | ${dep.getDescription() ?: ""} | | $isDirect | | | | $sourcesFile")
+        output?.println("DEP: $path | $markers | $renderedId | $group | $name | $version | ${dep.getDescription() ?: ""} | | $isDirect | | | | $sourcesFile | $updatesChecked")
 
         if (!alreadyRendered) {
             dep.children.forEach { renderRenderableDependency(project, it, depth + 1, visited) }

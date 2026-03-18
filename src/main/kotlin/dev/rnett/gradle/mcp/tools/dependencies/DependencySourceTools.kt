@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.tools.dependencies
 
 import dev.rnett.gradle.mcp.dependencies.GradleSourceService
 import dev.rnett.gradle.mcp.dependencies.SourcesService
+import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
 import dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch
 import dev.rnett.gradle.mcp.dependencies.search.FullTextSearch
 import dev.rnett.gradle.mcp.dependencies.search.GlobSearch
@@ -18,11 +19,11 @@ import dev.rnett.gradle.mcp.tools.resolveRoot
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
 import org.slf4j.LoggerFactory
-import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
 import kotlin.io.path.isRegularFile
+import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.name
 import kotlin.io.path.readText
 
@@ -56,9 +57,11 @@ class DependencySourceTools(
         val configurationPath: String? = null,
         @Description("Authoritatively targeting a source set (e.g., ':app:main'). Highest project precedence.")
         val sourceSetPath: String? = null,
+        @Description("Authoritatively targeting a single dependency by its coordinates (e.g., 'org.jetbrains.kotlinx:kotlinx-coroutines-core'). Supports 'group:name:version:variant', 'group:name:version', 'group:name', or just 'group'. Targets ONLY the specific library, NOT its transitive dependencies.")
+        val dependency: String? = null,
         @Description("Setting to true authoritatively targets Gradle's own source code. This has HIGHEST overall precedence.")
         val gradleSource: Boolean = false,
-        @Description("Reading a specific file or directory relative to the combined source root. Use exact paths from search results - the first- and second-level \"library directories\" MUST be included..")
+        @Description("Reading a specific file, directory, or package. If 'dependency' is NOT provided, this is relative to the combined source root and file paths MUST include the first- and second-level \"library directories\" (e.g., 'group/artifact...'). If 'dependency' IS provided, file paths are relative to the library root and the prefix MUST be omitted. Note: Dot-separated package paths (e.g., 'org.mongodb.client') are logically absolute within the library namespace and do not change relativity.")
         val path: String? = null,
         @Description("Setting to true forces authoritative re-download and re-indexing of targeted sources.")
         val forceDownload: Boolean = false,
@@ -79,6 +82,10 @@ class DependencySourceTools(
             To read the sources of a particular library, the `path` MUST include the first- and second-level "library directories". 
             It typically looks like `<group>/<artifact>[-<variant>]-<version>-sources`. You can see all libraries by reading the root dir or group dirs.
             To find specific classes or methods across all dependencies first, use the `${ToolNames.SEARCH_DEPENDENCY_SOURCES}` tool (supports DECLARATION, FULL_TEXT, and GLOB search modes).
+            
+            ### Targeted Exploration
+            Use the `dependency` parameter to target a single library (e.g., `dependency="org.mongodb:mongodb-driver-sync"`). This is significantly faster and avoids project-wide index creation.
+            **Note:** When `dependency` is used, the `path` is relative to the library root, so the `<group>/<artifact>...` prefix MUST be omitted. All returned paths will be relative to the targeted library root.
         """.trimMargin()
     ) { args ->
         val root = with(server) { args.projectRoot.resolveRoot() }
@@ -89,6 +96,7 @@ class DependencySourceTools(
                 args.sourceSetPath,
                 args.configurationPath,
                 args.projectPath,
+                args.dependency,
                 args.forceDownload,
                 args.fresh
             )
@@ -127,6 +135,7 @@ class DependencySourceTools(
         } else {
             "${refreshMessage}\n\n" + paginateText(walkDirectory(baseDir, 2), args.pagination)
         }
+
     }
 
     @Serializable
@@ -138,9 +147,11 @@ class DependencySourceTools(
         val configurationPath: String? = null,
         @Description("Authoritatively targeting a source set (e.g., ':app:main'). Highest project precedence.")
         val sourceSetPath: String? = null,
+        @Description("Authoritatively targeting a single dependency by its coordinates (e.g., 'org.jetbrains.kotlinx:kotlinx-coroutines-core'). Supports 'group:name:version:variant', 'group:name:version', 'group:name', or just 'group'. Targets ONLY the specific library, NOT its transitive dependencies.")
+        val dependency: String? = null,
         @Description("Setting to true authoritatively searches Gradle Build Tool's own source code.")
         val gradleSource: Boolean = false,
-        @Description("Performing an authoritative search with a regex (DECLARATION), Lucene query (FULL_TEXT), or glob (GLOB, e.g., '**/Job.kt').")
+        @Description("Performing an authoritative search with a regex (DECLARATION), Lucene query (FULL_TEXT), or glob (GLOB, e.g., '**/Job.kt'). Note: If 'dependency' is used, GLOB patterns are relative to the library root.")
         val query: String,
         @Description("Selecting the search mode: FULL_TEXT (default, exhaustive strings), DECLARATION (full string regex match on declaration name), or GLOB (file paths).")
         val searchType: SearchType = SearchType.FULL_TEXT,
@@ -184,8 +195,11 @@ class DependencySourceTools(
             - **Managing Search Scopes**: Narrow searches to specific projects, configurations (including `buildscript:` configurations for plugins), or source sets to maintain token efficiency.
             - **Accessing Gradle Engine Internals**: Set `gradleSource=true` to search the authoritative source code of the Gradle Build Tool itself.
             
+            ### Targeted Exploration
+            Use the `dependency` parameter to target a single library (e.g., `dependency="org.mongodb:mongodb-driver-sync"`). This is significantly faster and avoids project-wide index creation.
+            
             Once identified, use the `${ToolNames.READ_DEPENDENCY_SOURCES}` tool to read the full content.
-            Note: All returned paths are relative to the combined source root.
+            Note: All returned paths are relative to the search root (either the combined source root or the targeted library root if `dependency` is used).
             For detailed search strategies, refer to the `searching_dependency_sources` skill.
         """.trimMargin()
     ) { args ->
@@ -197,6 +211,7 @@ class DependencySourceTools(
                 args.sourceSetPath,
                 args.configurationPath,
                 args.projectPath,
+                args.dependency,
                 args.forceDownload,
                 args.fresh
             )
@@ -282,9 +297,9 @@ class DependencySourceTools(
         return "Sources last refreshed at $timestamp ($ago)"
     }
 
-    private fun java.lang.StringBuilder.walkDirectoryImpl(root: Path, current: Path, prefix: String, depth: Int, maxDepth: Int) {
+    private fun StringBuilder.walkDirectoryImpl(root: Path, current: Path, prefix: String, depth: Int, maxDepth: Int) {
         if (depth >= maxDepth) return
-        val children = Files.list(current).use { it.toList() }.sortedBy { it.name }
+        val children = current.listDirectoryEntries().sortedBy { it.name }
         for ((index, child) in children.withIndex()) {
             val isLast = index == children.lastIndex
             val marker = if (isLast) "└── " else "├── "
@@ -303,15 +318,16 @@ class DependencySourceTools(
         sourceSetPath: String?,
         configurationPath: String?,
         projectPath: String?,
+        dependency: String?,
         forceDownload: Boolean,
         fresh: Boolean
-    ): dev.rnett.gradle.mcp.dependencies.SourcesDir {
+    ): SourcesDir {
         return when {
             gradleSource -> gradleSourceService.getGradleSources(root, forceDownload = forceDownload)
-            sourceSetPath != null -> sourcesService.downloadSourceSetSources(root, sourceSetPath, forceDownload = forceDownload, fresh = fresh)
-            configurationPath != null -> sourcesService.downloadConfigurationSources(root, configurationPath, forceDownload = forceDownload, fresh = fresh)
-            projectPath != null -> sourcesService.downloadProjectSources(root, projectPath, forceDownload = forceDownload, fresh = fresh)
-            else -> sourcesService.downloadAllSources(root, forceDownload = forceDownload, fresh = fresh)
+            sourceSetPath != null -> sourcesService.downloadSourceSetSources(root, sourceSetPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh)
+            configurationPath != null -> sourcesService.downloadConfigurationSources(root, configurationPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh)
+            projectPath != null -> sourcesService.downloadProjectSources(root, projectPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh)
+            else -> sourcesService.downloadAllSources(root, dependency = dependency, forceDownload = forceDownload, fresh = fresh)
         }
     }
 }

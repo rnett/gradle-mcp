@@ -11,7 +11,6 @@ import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createDirectories
-import kotlin.io.path.createParentDirectories
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
@@ -179,24 +178,26 @@ object ArchiveExtractor {
                         outPath.createDirectories()
                     } else {
                         outPath.parent?.createDirectories()
-                        val bytes = if (onFileExtracted != null) input.readAllBytes() else null
-                        if (bytes != null) {
+                        if (onFileExtracted != null) {
+                            // If we need the content for a callback AND we are writing to disk,
+                            // we have to read it. We'll read it once.
+                            val bytes = input.readAllBytes()
                             outPath.outputStream().use { out -> out.write(bytes) }
-                            onFileExtracted?.invoke(finalPath, bytes)
+                            onFileExtracted.invoke(finalPath, bytes)
                         } else {
                             outPath.outputStream().use { out -> input.copyTo(out) }
                         }
                     }
                 } else {
-                    if (!entry.isDirectory) {
-                        onFileExtracted?.invoke(finalPath, input.readAllBytes())
+                    if (!entry.isDirectory && onFileExtracted != null) {
+                        onFileExtracted.invoke(finalPath, input.readAllBytes())
                     }
                 }
             }
 
             if (writeFiles) {
                 val finalTarget = requireNotNull(target)
-                finalTarget.createParentDirectories()
+                finalTarget.toFile().parentFile.mkdirs()
 
                 if (finalTarget.exists()) {
                     finalTarget.deleteRecursively()

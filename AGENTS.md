@@ -64,11 +64,20 @@ workflows.
 - **Prefix Stability**: This file (`AGENTS.md`) is designed to be at the start of the context. Maintain its structure to maximize context caching hits.
 - **Instruction Density**: Focus on non-obvious constraints. If it can be inferred from the file structure, don't add it here.
 - **Caching**: This workspace uses heavy caching for Gradle sources. Use `inspect_dependencies` and `search_dependency_sources` with `fresh = true` only when dependencies change.
+    - **Flexible Path Abstractions**: When representing filesystem structures for caches (like `SourcesDir`), prefer interfaces with flexible implementations (e.g., `MergedSourcesDir`, `SingleDependencySourcesDir`) over rigid data classes.
+      This allows pointing directly to global cache directories and indices, eliminating the need for project-level "wrapper" directories, symlink overhead, and marker files for isolated targeted searches.
+    - **Multi-Layer Filtering**: When implementing filtering across multiple layers (e.g., init script vs service), document discrepancies in filtering capabilities (e.g., G:A:V vs G:A:V:Variant). Ensure the final layer provides precise
+      verification to safely handle over-fetching from limited earlier layers while maintaining correctness and performance.
+    - **Cache Invalidation**: When implementing re-extraction or re-indexing logic with `forceDownload`, explicitly propagate the flag to all underlying services (like `IndexService`) to ensure stale caches are invalidated.
+    - **Expensive Cached Operations**: In `withSources` (and similar cached operations), perform expensive external calls (like Gradle `resolve()`) exactly once under an exclusive lock, and only after checking a shared lock for a fresh
+      cache.
+    - **Lock File Naming**: Include the group name or a hash of the full path in global lock file names for shared resources to prevent collisions across different organizations.
 - **Parallel Source Processing**: Source extraction and indexing are performed in parallel using Kotlin `Flow` and `flatMapMerge`. This significantly improves performance but requires careful concurrency management (limiting global IO
   tasks).
     - **Guideline**: Prefer `flatMapMerge` (via `parallelMap`/`parallelForEach` utilities) for concurrency control over manual `Semaphore` management when working with Kotlin Flows. This simplifies code and leverages built-in coroutine
       orchestration.
     - **Naming**: Explicitly name non-deterministic parallelism utilities (e.g., `unorderedParallelMap`) to signal that input order is not preserved.
+  - **Flow Draining**: Always ensure that indexing operations consume the entire file flow, even if the index is already up-to-date, when using a `Channel` based extraction pipeline to prevent deadlocks.
 - **Gradle Source Exploration**: On some machines, the Gradle build tool project is checked out in `./managing-gradle-builds-tool`. Use it as a source of knowledge for Gradle's internal APIs, but be careful not to include it in broad
   search/build commands unless intended. See [gradle-sources-overview.md](./gradle-sources-overview.md).
 
@@ -102,6 +111,8 @@ workflows.
     - **Time**: Use `kotlin.time.*` (`Instant`, `Clock`, `Duration`). `Clock.System.now()` is the standard for current time.
     - **UUID**: Use `kotlin.uuid.*` for UUID operations (e.g., `UUID.parse()`, `UUID.random()`).
     - **Coroutines**: We use Coroutines and Flows extensively. This means AVOID SYNCHRONIZATION whenever possible as it pins and blocks the underlying thread.
+  - **Multi-Lock Acquisition**: Avoid implementing utilities that acquire multiple file locks simultaneously (`withLocks`) in a coroutine environment, especially within tests. This reduces the risk of complex deadlocks and
+    `UncompletedCoroutinesError` in `runTest` while simplifying concurrency management.
 - **Test Naming**: Always name tests using descriptive names in English, wrapped in backticks (e.g., `` `verify build status wait` ``).
 - **Concurrency**: ALWAYS use `runTest` for suspending tests, NEVER `runBlocking`.
 - **Dependency Catalog**: ALWAYS put dependencies in `gradle/libs.versions.toml`. Every version ref MUST have a corresponding entry for automated updates.
@@ -157,6 +168,7 @@ Mock in general needs the specific type args for the `any()` calls to resolve ov
 - **Internal Gradle Progress**: For long-running Gradle tasks in init scripts, explicitly report progress during slow internal operations (e.g., dependency resolution) using the format
   `[gradle-mcp] [PROGRESS] [CATEGORY]: CURRENT/TOTAL: MESSAGE`.
   - **Categories**: Use descriptive categories (e.g., `RESOLUTION`, `VERSION_CHECK`) to provide context about the current phase. These are automatically incorporated into the formatted progress message by the `BuildProgressTracker`.
+  - **Filtering Output**: When filtering dependencies in Gradle init scripts, distinguish between "skipped by filter" and "up-to-date" in the output format to prevent tools from reporting a false sense of security.
 - **Job Management**: When managing background collection jobs (e.g., in `GradleBuildLookupTools`), always use `job.cancelAndJoin()` instead of just `cancel()` to ensure clean termination before proceeding.
 
 ### Async Log Processing

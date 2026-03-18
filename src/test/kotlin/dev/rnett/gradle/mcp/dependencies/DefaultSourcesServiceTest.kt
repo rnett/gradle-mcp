@@ -3,9 +3,10 @@ package dev.rnett.gradle.mcp.dependencies
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
+import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
-import dev.rnett.gradle.mcp.dependencies.search.IndexEntry
 import dev.rnett.gradle.mcp.dependencies.search.IndexService
+import dev.rnett.gradle.mcp.dependencies.search.SearchResponse
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -21,10 +22,8 @@ import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createTempDirectory
-import kotlin.io.path.exists
-import kotlin.io.path.readText
 
-class SourcesServiceTest {
+class DefaultSourcesServiceTest {
 
     private lateinit var depService: GradleDependencyService
     private lateinit var indexService: IndexService
@@ -39,9 +38,13 @@ class SourcesServiceTest {
         environment = GradleMcpEnvironment(tempDir)
         depService = mockk(relaxed = true)
         indexService = mockk()
-        coEvery { with(any<ProgressReporter>()) { indexService.indexFiles(any(), any()) } } returns null
+        coEvery { with(any<ProgressReporter>()) { indexService.indexFiles(any(), any(), any()) } } answers {
+            val reporter = arg<ProgressReporter>(0)
+            reporter.report(1.0, 1.0, "Indexing sources")
+            null
+        }
         coEvery { with(any<ProgressReporter>()) { indexService.index(any(), any()) } } returns null
-        coEvery { indexService.search(any(), any(), any(), any()) } returns dev.rnett.gradle.mcp.dependencies.search.SearchResponse(emptyList())
+        coEvery { indexService.search(any(), any(), any(), any()) } returns SearchResponse(emptyList())
         coEvery { indexService.listPackageContents(any(), any()) } returns null
         coEvery { with(any<ProgressReporter>()) { indexService.mergeIndices(any(), any()) } } returns Unit
 
@@ -61,7 +64,7 @@ class SourcesServiceTest {
             it.closeEntry()
         }
 
-        val mockDep = dev.rnett.gradle.mcp.dependencies.model.GradleDependency(
+        val mockDep = GradleDependency(
             id = "com.example:lib:1.0.0",
             group = "com.example",
             name = "lib",
@@ -105,7 +108,12 @@ class SourcesServiceTest {
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
 
             // Setup existing cache
-            val dir = sourcesService.sourcesDir.resolve(projectRoot.projectRoot.hashCode().toString() + "".hashCode().toString() + "root".hashCode().toString())
+            // storagePath = sourcesDir.resolve("${projectRoot.projectRoot.hashCode()}-${path.hashCode()}-${kind.hashCode()}")
+            // path = "", kind = "root"
+            val pathHash = "".hashCode()
+            val kindHash = "root".hashCode()
+            val projectHash = projectRoot.projectRoot.hashCode()
+            val dir = environment.cacheDir.resolve("sources").resolve("$projectHash-$pathHash-$kindHash")
             val sourcesDir = dir.resolve("sources")
             sourcesDir.createDirectories()
 
@@ -124,7 +132,10 @@ class SourcesServiceTest {
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
 
             // Setup existing cache
-            val dir = sourcesService.sourcesDir.resolve(projectRoot.projectRoot.hashCode().toString() + "".hashCode().toString() + "root".hashCode().toString())
+            val pathHash = "".hashCode()
+            val kindHash = "root".hashCode()
+            val projectHash = projectRoot.projectRoot.hashCode()
+            val dir = environment.cacheDir.resolve("sources").resolve("$projectHash-$pathHash-$kindHash")
             dir.resolve("sources").createDirectories()
 
             coEvery { with(any<ProgressReporter>()) { depService.downloadAllSources(any()) } } returns GradleDependencyReport(emptyList())
@@ -161,9 +172,7 @@ class SourcesServiceTest {
 
             val result = sourcesService.downloadAllSources(projectRoot, fresh = true)
 
-            assertTrue(result.lastRefreshFile.exists())
-            val timestamp = result.lastRefreshFile.readText()
-            assertNotNull(kotlin.time.Instant.parse(timestamp))
+            assertNotNull(result.lastRefresh())
         }
     }
 
@@ -174,7 +183,10 @@ class SourcesServiceTest {
             projectRootPath.createDirectories()
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
 
-            val dir = sourcesService.sourcesDir.resolve(projectRoot.projectRoot.hashCode().toString() + ":app".hashCode().toString() + "project".hashCode().toString())
+            val pathHash = ":app".hashCode()
+            val kindHash = "project".hashCode()
+            val projectHash = projectRoot.projectRoot.hashCode()
+            val dir = environment.cacheDir.resolve("sources").resolve("$projectHash-$pathHash-$kindHash")
             dir.resolve("sources").createDirectories()
 
             sourcesService.downloadProjectSources(projectRoot, ":app", fresh = false)
@@ -193,7 +205,10 @@ class SourcesServiceTest {
             projectRootPath.createDirectories()
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
 
-            val dir = sourcesService.sourcesDir.resolve(projectRoot.projectRoot.hashCode().toString() + ":app:implementation".hashCode().toString() + "configuration".hashCode().toString())
+            val pathHash = ":app:implementation".hashCode()
+            val kindHash = "configuration".hashCode()
+            val projectHash = projectRoot.projectRoot.hashCode()
+            val dir = environment.cacheDir.resolve("sources").resolve("$projectHash-$pathHash-$kindHash")
             dir.resolve("sources").createDirectories()
 
             sourcesService.downloadConfigurationSources(projectRoot, ":app:implementation", fresh = false)
@@ -212,7 +227,10 @@ class SourcesServiceTest {
             projectRootPath.createDirectories()
             val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
 
-            val dir = sourcesService.sourcesDir.resolve(projectRoot.projectRoot.hashCode().toString() + ":app:main".hashCode().toString() + "sourceSet".hashCode().toString())
+            val pathHash = ":app:main".hashCode()
+            val kindHash = "sourceSet".hashCode()
+            val projectHash = projectRoot.projectRoot.hashCode()
+            val dir = environment.cacheDir.resolve("sources").resolve("$projectHash-$pathHash-$kindHash")
             dir.resolve("sources").createDirectories()
 
             sourcesService.downloadSourceSetSources(projectRoot, ":app:main", fresh = false)
@@ -237,7 +255,7 @@ class SourcesServiceTest {
             it.closeEntry()
         }
 
-        val mockDep = dev.rnett.gradle.mcp.dependencies.model.GradleDependency(
+        val mockDep = GradleDependency(
             id = "com.example:lib:1.0.0",
             group = "com.example",
             name = "lib",
@@ -265,7 +283,7 @@ class SourcesServiceTest {
 
         coEvery {
             with(any<ProgressReporter>()) {
-                indexService.indexFiles(any(), any<kotlinx.coroutines.flow.Flow<IndexEntry>>())
+                indexService.indexFiles(any(), any(), any())
             }
         } throws RuntimeException("Indexing failed")
 

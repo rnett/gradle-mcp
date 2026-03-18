@@ -11,6 +11,7 @@ import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.modelcontextprotocol.kotlin.sdk.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.Root
 import io.modelcontextprotocol.kotlin.sdk.TextContent
@@ -88,6 +89,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
                     projectPath = any(),
                     configuration = any(),
                     sourceSet = any(),
+                    dependency = any(),
                     checkUpdates = true,
                     versionFilter = any(),
                     onlyDirect = true
@@ -151,7 +153,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<ProgressReporter>()) {
-                dependencyService.getDependencies(any(), any(), any(), any(), checkUpdates = true, versionFilter = any(), onlyDirect = true)
+                dependencyService.getDependencies(any(), any(), any(), any(), any(), any(), any(), any(), any())
             }
         } returns report
 
@@ -329,7 +331,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<ProgressReporter>()) {
-                dependencyService.getDependencies(any(), any(), any(), any(), checkUpdates = true, any(), any(), any(), any())
+                dependencyService.getDependencies(any(), any(), any(), any(), any(), any(), any(), any(), any())
             }
         } returns report
 
@@ -341,6 +343,51 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
 
         val result = (response.content.first() as TextContent).text
         assertTrue(result!!.contains("[UPDATE AVAILABLE: 2.0.0]"), "Output should contain update message. Result:\n$result")
+    }
+
+    @Test
+    fun `inspect_dependencies with dependency filter calls correct service method`() = runTest {
+        val report = GradleDependencyReport(emptyList())
+
+        coEvery {
+            with(any<ProgressReporter>()) {
+                dependencyService.getDependencies(
+                    projectRoot = any(),
+                    projectPath = any(),
+                    configuration = any(),
+                    sourceSet = any(),
+                    dependency = any(),
+                    checkUpdates = any(),
+                    versionFilter = any(),
+                    stableOnly = any(),
+                    onlyDirect = any(),
+                    downloadSources = any()
+                )
+            }
+        } returns report
+
+        server.client.callTool(
+            ToolNames.INSPECT_DEPENDENCIES, buildJsonObject {
+                put("dependency", "org.example:artifact")
+            }
+        ) as CallToolResult
+
+        coVerify {
+            with(any<ProgressReporter>()) {
+                dependencyService.getDependencies(
+                    projectRoot = any(),
+                    projectPath = any(),
+                    configuration = any(),
+                    sourceSet = any(),
+                    dependency = "org.example:artifact",
+                    checkUpdates = any(),
+                    versionFilter = any(),
+                    stableOnly = any(),
+                    onlyDirect = any(),
+                    downloadSources = any()
+                )
+            }
+        }
     }
 
     @Test
