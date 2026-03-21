@@ -13,6 +13,7 @@ dependencies {
     implementation(project(":repl-shared"))
     implementation(libs.kotlin.scripting.jvm)
     implementation(libs.kotlin.scripting.jvm.host)
+    implementation(libs.kotlin.scripting.compiler.embeddable)
     implementation(libs.kotlin.compiler.embeddable)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)

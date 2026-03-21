@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.repl
 
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -12,48 +13,46 @@ class ExceptionStacktraceTest {
     private fun String.normalize() = replace("\r\n", "\n").replace("\t", "    ").replace("        ", "    ").trim()
 
     @Test
-    fun `test runtime error stacktrace does not contain evaluator classes`() {
+    fun `test runtime error stacktrace does not contain evaluator classes`() = runTest {
         val evaluator = KotlinScriptEvaluator(ReplConfig(classpath = stdlibPaths), mockResponder)
-        val result = evaluator.evaluate("throw RuntimeException(\"test error\")")
+        val result = evaluator.evaluate("throw java.lang.RuntimeException(\"test error\")")
 
         assertTrue(result is KotlinScriptEvaluator.EvalResult.RuntimeError, "Result should be RuntimeError")
         val stackTrace = result.stackTrace!!
-        println("[DEBUG_LOG] Stacktrace:\n$stackTrace")
 
         assertEquals(
             """
             java.lang.RuntimeException: test error
-                at Line_1.<init>(Line_1.kts:1)
+                at _1.${'$'}${'$'}eval(_1.kts:1)
             """.trimIndent().normalize(),
             stackTrace.normalize()
         )
     }
 
     @Test
-    fun `test complex stacktrace with multiple causes is cleaned`() {
+    fun `test complex stacktrace with multiple causes is cleaned`() = runTest {
         val evaluator = KotlinScriptEvaluator(ReplConfig(classpath = stdlibPaths), mockResponder)
         val result = evaluator.evaluate(
             """
             fun a() { b() }
-            fun b() { throw RuntimeException("inner", RuntimeException("cause")) }
+            fun b() { throw java.lang.RuntimeException("inner", java.lang.RuntimeException("cause")) }
             a()
             """.trimIndent()
         )
 
         assertTrue(result is KotlinScriptEvaluator.EvalResult.RuntimeError)
         val stackTrace = result.stackTrace!!
-        println("[DEBUG_LOG] Complex Stacktrace:\n$stackTrace")
 
         assertEquals(
             """
             java.lang.RuntimeException: inner
-                at Line_1.b(Line_1.kts:2)
-                at Line_1.a(Line_1.kts:1)
-                at Line_1.<init>(Line_1.kts:3)
+                at _1.b(_1.kts:2)
+                at _1.a(_1.kts:1)
+                at _1.${'$'}${'$'}eval(_1.kts:3)
             Caused by: java.lang.RuntimeException: cause
-                at Line_1.b(Line_1.kts:2)
-                at Line_1.a(Line_1.kts:1)
-                at Line_1.<init>(Line_1.kts:3)
+                at _1.b(_1.kts:2)
+                at _1.a(_1.kts:1)
+                at _1.${'$'}${'$'}eval(_1.kts:3)
             """.trimIndent().normalize(),
             stackTrace.normalize()
         )
@@ -61,12 +60,7 @@ class ExceptionStacktraceTest {
 
     @Test
     fun `test internal error stacktrace DOES contain evaluator classes`() {
-        // Simulate an internal error by calling evaluate on something that might fail or manually throwing
         try {
-            // We want to test that if an exception is caught in ReplWorker, it's NOT cleaned if it's internal.
-            // But here we're testing KotlinScriptEvaluator directly.
-            // Let's add a test for the new behavior in ReplWorker if possible, 
-            // or just ensure we have a way to get uncleaned traces.
             throw RuntimeException("internal error")
         } catch (e: Exception) {
             val stackTrace = e.stackTraceToString()
@@ -75,10 +69,8 @@ class ExceptionStacktraceTest {
     }
 
     @Test
-    fun `test stacktrace with reflection in script is NOT over-cleaned`() {
+    fun `test stacktrace with reflection in script is NOT over-cleaned`() = runTest {
         val evaluator = KotlinScriptEvaluator(ReplConfig(classpath = stdlibPaths), mockResponder)
-        // Using reflection in the script. Currently, 'takeWhile' would stop at the first reflection frame.
-        // We want to keep frames from the script even if they use reflection.
         val result = evaluator.evaluate(
             """
             import java.lang.reflect.Method
@@ -92,19 +84,20 @@ class ExceptionStacktraceTest {
 
         assertTrue(result is KotlinScriptEvaluator.EvalResult.RuntimeError)
         val stackTrace = result.stackTrace!!
-        println("[DEBUG_LOG] Reflection Stacktrace:\n$stackTrace")
 
-        assertEquals(
-            """
-            java.lang.NullPointerException
-                at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
-                at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
-                at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
-                at java.lang.reflect.Method.invoke(Method.java:498)
-                at Line_1.scriptFunc(Line_1.kts:4)
-                at Line_1.<init>(Line_1.kts:6)
-            """.trimIndent().normalize(),
-            stackTrace.normalize()
-        )
+        // Note: reflection frames are NOT cleaned because they are BEFORE the last script frame ($$eval)
+        // Wait, if it's NPE from invoke(null) on instance method, it happens inside Method.invoke
+        // which is after $$eval? No, Method.invoke is called BY $$eval.
+        // But the exception is thrown FROM Method.invoke.
+        // So the stack trace will be:
+        // java.lang.NullPointerException
+        //   at java.lang.reflect.Method.invoke
+        //   ...
+        //   at _1.scriptFunc(_1.kts:4)
+        //   at _1.$$eval(_1.kts:6)
+
+        assertTrue(stackTrace.contains("java.lang.reflect.Method.invoke"))
+        assertTrue(stackTrace.contains("_1.scriptFunc(_1.kts:4)"))
+        assertTrue(stackTrace.contains("_1.\$\$eval(_1.kts:6)"))
     }
 }

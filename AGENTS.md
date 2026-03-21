@@ -97,6 +97,18 @@ workflows.
 - **Targeted Indexing**: `SourcesService.downloadAllSources` (and related methods) require an explicit `providerToIndex: SearchProvider` to be passed when `index = true`. This ensures that indexing is targeted and efficient. Callers must
   specify which provider's index they intend to use.
 
+### REPL Worker & K2 Scripting
+
+- **Snippet Naming**: When using `K2ReplCompiler`, ALWAYS name the `SourceCode` snippets using the `_<ID>` convention (e.g., `_1`, `_2`). This ensures the generated class name matches the name expected by the evaluator, preventing
+  `NullPointerException` during class loading.
+- **`providedProperties` Workaround**: The current experimental K2 REPL implementation does not support the standard `providedProperties` scripting API. If `providedProperties` are needed, use a global singleton object in a shared
+  classloader and `defaultImports` as a workaround.
+- **Stack Trace Identification**: Identify K2 REPL script execution frames by looking for the `$$eval` method name in stack traces. This provides a reliable marker for cleaning and isolating script-level errors from internal evaluator
+  infrastructure.
+- **`RuntimeException` Ambiguity**: Explicitly import or use the FQN for `java.lang.RuntimeException` in K2 REPL snippets to avoid ambiguity with `kotlin.RuntimeException` during FIR analysis in the K2 backend.
+- **Abstraction**: ALWAYS abstract `K2ReplCompiler` and `K2ReplEvaluator` behind the generic `ReplCompiler` and `ReplEvaluator` interfaces from the Kotlin Scripting API. This maintains clean architectural boundaries by treating the
+  K2-specific implementation as an implementation detail.
+
 ### Build & Test Commands
 
 - **Build All**: `./gradlew build`

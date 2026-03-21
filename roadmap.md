@@ -1,5 +1,8 @@
 Steps are in order, from next to furthest.
 
+- Indexing progress updates still flickers between dependencies as it goes through sources for each, often going back and forth.
+- Searching should de-prioritize imports
+- It looks like search result snippets have line numbers, but it's just the line in the snippet. Probably remove them
 - Single dependency download works for deps that aren't in your project
 - Better ways to search/read dependencies without configuring the whole project
 - Option to include project sources in source index/search
