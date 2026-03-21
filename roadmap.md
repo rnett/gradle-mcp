@@ -1,12 +1,11 @@
 Steps are in order, from next to furthest.
 
-- Inspecting test details should support prefixes, or at least show a message about the tests under the prefix when used by mistake.
 - Single dependency download works for deps that aren't in your project
 - Better ways to search/read dependencies without configuring the whole project
-- There is a `--non-interactive` flag coming in Gradle 9.5: https://github.com/gradle/gradle/pull/36880. Detect the version and add it.  `NONINTERACTIVE` env var might be better.
 - Option to include project sources in source index/search
 - Expose absolute paths of downloaded deps for things like rg or ast-grep
 - Periodic background cleanup of downloaded/cached files
+- There is a `--non-interactive` flag coming in Gradle 9.5: https://github.com/gradle/gradle/pull/36880. Detect the version and add it.  `NONINTERACTIVE` env var might be better.
 - A "Gradle doctor" like skill with best practices embedded in it (via gradle task), or enhance the expert skill.
 - Dedicated "render this compose preview" tool that takes the file+function name or line number
 - More skills in general.

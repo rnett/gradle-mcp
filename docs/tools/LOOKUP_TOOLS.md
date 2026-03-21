@@ -110,7 +110,7 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
         "string",
         "null"
       ],
-      "description": "Filtering task results. In 'summary' mode, a prefix of the task path. In 'details' mode, the full path of the task. Specify this to get task details. DO NOT use this for tests; use testName instead."
+      "description": "Filtering task results. In 'summary' mode, a prefix of the task path. In 'details' mode, providing a full path or unique prefix of the task will return its exhaustive results (outcome, duration, and console output)."
     },
     "taskOutcome": {
       "enum": [
@@ -129,7 +129,7 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
         "string",
         "null"
       ],
-      "description": "Filtering test results. In 'summary' mode, a prefix of the test name. In 'details' mode, the full name of the test. Specify this to get test details. ALWAYS use this with `mode=\"details\"` instead of taskPath to see individual test outputs, metadata, and stack traces. Generic task output lacks test-specific diagnostic information."
+      "description": "Filtering test results. In 'summary' mode, a prefix of the test name. In 'details' mode, providing a full name or unique prefix of the test will return its exhaustive results (status, duration, stack trace, and console output). ALWAYS use this with `mode=\"details\"` to see individual test outputs; generic task output lacks this metadata."
     },
     "testOutcome": {
       "enum": [

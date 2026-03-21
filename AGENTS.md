@@ -56,6 +56,8 @@ workflows.
 - **Why Tooling API?**: It is the official, supported way to interact with Gradle programmatically, providing better stability than parsing CLI output.
 - **MCPs vs Skills**: While using our skills in `./skills` should be encouraged as the primary endpoint, the MCP must work without the tools. This means that the MCP tool descriptions must contain enough information to use the without
   relying on the skills.
+- **Standardized Ambiguity Reporting**: When implementing prefix matching in lookup tools, always use a standardized "exact match -> unique prefix match -> ambiguous prefix match" flow. Ambiguity reports should return a distinct, sorted
+  list of up to 10 matching names/paths with a clear "Please provide a full..." footer. This ensures UX consistency and prevents LLM context bloat.
 
 ---
 
@@ -113,7 +115,7 @@ workflows.
 - **Kotlin 2.3+ Standard Library**: ALWAYS prefer Kotlin's native types over Java-specific ones. Refer to the `kotlin_reference` skill for full details.
     - **Atomics**: Use `kotlin.concurrent.atomics.*` (`AtomicInt`, `AtomicLong`, `AtomicBoolean`, `AtomicReference`). Note: These require `@OptIn(ExperimentalAtomicApi::class)`.
     - **Time**: Use `kotlin.time.*` (`Instant`, `Clock`, `Duration`). `Clock.System.now()` is the standard for current time.
-    - **UUID**: Use `kotlin.uuid.*` for UUID operations (e.g., `UUID.parse()`, `UUID.random()`).
+  - **UUID**: Use `kotlin.uuid.Uuid` for UUID operations (e.g., `Uuid.parse()`, `Uuid.random()`). Note: This requires `@OptIn(ExperimentalUuidApi::class)`.
     - **Coroutines**: We use Coroutines and Flows extensively. This means AVOID SYNCHRONIZATION whenever possible as it pins and blocks the underlying thread.
   - **Multi-Lock Acquisition**: Avoid implementing utilities that acquire multiple file locks simultaneously (`withLocks`) in a coroutine environment, especially within tests. This reduces the risk of complex deadlocks and
     `UncompletedCoroutinesError` in `runTest` while simplifying concurrency management.

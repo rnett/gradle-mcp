@@ -42,6 +42,8 @@ Use `testOutcome="FAILED"` to quickly see which tests failed without being overw
 
 **CRITICAL**: ALWAYS use `mode="details"` and `testName` to see the complete stdout, stderr, and stack trace for a specific test.
 
+- **Unique Prefix Support**: You can provide a unique prefix of the test name (e.g., `testName="com.example.MyTest"` instead of the full FQN). If the prefix is unique, the tool will automatically select the test. If ambiguous, it will
+  return a list of matching names for refinement.
 - **Example**: `inspect_build(buildId="ID", mode="details", testName="com.example.MyTest.myMethod")`
 
 ### 3. Filter by Name (Summary)

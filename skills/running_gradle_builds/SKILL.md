@@ -48,6 +48,8 @@ Provide a `buildId` to get a summary of that specific build, including failures,
 To get exhaustive information, ALWAYS use `mode="details"` combined with a specific target:
 
 - **Individual Tests**: `testName="FullTestName"`, `mode="details"` (REQUIRED for full output/stack trace).
+    - **Prefix Support**: Both `testName` and `taskPath` support **unique prefix matching**. Providing a unique prefix (e.g., `testName="com.example.MyTest"` or `taskPath=":app:compile"`) will automatically select the item if it's
+      unambiguous.
 - **Task Outputs**: `taskPath=":path:to:task"`, `mode="details"`.
 - **Build Failures**: `failureId="ID"`, `mode="details"` (find IDs in the build summary).
 - **Problems/Errors**: `problemId="ID"`, `mode="details"` (find IDs in the build summary).

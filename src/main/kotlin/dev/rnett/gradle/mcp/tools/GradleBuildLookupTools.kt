@@ -10,7 +10,6 @@ import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.gradle.build.TaskOutcome
 import dev.rnett.gradle.mcp.gradle.build.TestOutcome
-import dev.rnett.gradle.mcp.gradle.build.failuresIfFailed
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.coroutines.Dispatchers
@@ -62,12 +61,12 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
 
         val pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS,
 
-        @Description("Filtering task results. In 'summary' mode, a prefix of the task path. In 'details' mode, the full path of the task. Specify this to get task details. DO NOT use this for tests; use testName instead.")
+        @Description("Filtering task results. In 'summary' mode, a prefix of the task path. In 'details' mode, providing a full path or unique prefix of the task will return its exhaustive results (outcome, duration, and console output).")
         val taskPath: String? = null,
         @Description("Filtering task results by outcome (summary mode only).")
         val taskOutcome: TaskOutcome? = null,
 
-        @Description("Filtering test results. In 'summary' mode, a prefix of the test name. In 'details' mode, the full name of the test. Specify this to get test details. ALWAYS use this with `mode=\"details\"` instead of taskPath to see individual test outputs, metadata, and stack traces. Generic task output lacks test-specific diagnostic information.")
+        @Description("Filtering test results. In 'summary' mode, a prefix of the test name. In 'details' mode, providing a full name or unique prefix of the test will return its exhaustive results (status, duration, stack trace, and console output). ALWAYS use this with `mode=\"details\"` to see individual test outputs; generic task output lacks this metadata.")
         val testName: String? = null,
         @Description("Filtering test results by outcome (summary mode only).")
         val testOutcome: TestOutcome? = null,
@@ -84,13 +83,12 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         val consoleTail: Boolean? = null
     )
 
-    @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
     private fun getLatestBuildsOutput(args: InspectBuildArgs, onlyCompleted: Boolean): String {
         val maxBuilds = args.pagination.limit
         val completed = buildResults.latestFinished(maxBuilds)
         val active = if (onlyCompleted) emptyList() else buildResults.listRunningBuilds()
 
-        val all = (completed.map<Build, Pair<Build, Boolean>> { it to false } + active.map<Build, Pair<Build, Boolean>> { it to true })
+        val all = (completed.map { it to false } + active.map { it to true })
             .sortedByDescending { (b, _) -> b.startTime }
             .take(maxBuilds)
 
@@ -99,7 +97,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         }
 
         return buildString {
-            appendLine("BuildId | Command line | Seconds ago | Status | Build failures | Test failures")
+            appendLine("BuildId | Command line | Seconds ago | Status")
             all.forEach { (build, isActive) ->
                 val id = build.id
                 val commandLine = build.args.renderCommandLine()
@@ -111,20 +109,10 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
 
                 if (isActive) {
                     val rb = build as RunningBuild
-                    append(rb.status).append(" | ")
-                    append("-").append(" | ")
-                    appendLine("-")
+                    appendLine(rb.status)
                 } else {
                     val br = build as FinishedBuild
-                    append(if (br.outcome is BuildOutcome.Success) "SUCCESS" else "FAILURE").append(" | ")
-                    append(br.outcome.failuresIfFailed?.size ?: 0).append(" | ")
-                    val failedTests = br.testResults.failed.size
-                    val cancelledTests = br.testResults.cancelled.size
-                    append(failedTests)
-                    if (cancelledTests > 0) {
-                        append(" (+$cancelledTests cancelled)")
-                    }
-                    appendLine()
+                    appendLine(if (br.outcome is BuildOutcome.Success) "SUCCESS" else "FAILURE")
                 }
             }
             appendLine()
@@ -133,28 +121,57 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         }
     }
 
-    private fun getTestsOutput(build: Build, args: InspectBuildArgs): String {
+    internal fun getTestsOutput(build: Build, args: InspectBuildArgs): String {
         if (args.mode == LookupMode.details) {
             require(!args.testName.isNullOrEmpty()) { "testName is required for details mode" }
-            val tests = build.testResults.all.filter { t -> t.testName == args.testName }.toList()
+            val allTests = build.testResults.all.toList()
+            val exactMatches = allTests.filter { it.testName == args.testName }
 
-            if (tests.isEmpty()) {
-                val isRunning = build is RunningBuild || build.isRunning
-                if (isRunning) {
-                    return "Test not found. The build is still running, so it may not have been executed yet."
+            val test = if (exactMatches.isNotEmpty()) {
+                val targetIndex = args.testIndex ?: 0
+                if (exactMatches.size > 1 && targetIndex >= exactMatches.size) {
+                    return "${exactMatches.size} test executions with this name found. Pass a valid `testIndex` (0 to ${exactMatches.size - 1}) to select one."
+                }
+                if (exactMatches.size > 1) exactMatches[targetIndex] else exactMatches.single()
+            } else {
+                val prefixMatches = allTests.filter { it.testName.startsWith(args.testName) }
+                if (prefixMatches.isEmpty()) {
+                    val isRunning = build is RunningBuild || build.isRunning
+                    if (isRunning) {
+                        return "Test not found. The build is still running, so it may not have been executed yet."
+                    } else {
+                        error("Test not found: ${args.testName}")
+                    }
+                }
+
+                if (prefixMatches.size > 1) {
+                    val matches = prefixMatches.map { it.testName }.distinct()
+                    if (matches.size > 1) {
+                        val firstMatches = matches.take(10)
+                        return buildString {
+                            appendLine("Multiple tests match prefix '${args.testName}':")
+                            firstMatches.forEach { appendLine("  - $it") }
+                            if (matches.size > 10) appendLine("  - ... and ${matches.size - 10} more")
+                            appendLine("\nPlease provide a full test name or use `mode=\"summary\"` to see all results.")
+                        }
+                    } else {
+                        // All matches have same name, but multiple executions
+                        val targetIndex = args.testIndex ?: 0
+                        if (prefixMatches.size > 1 && targetIndex >= prefixMatches.size) {
+                            return "${prefixMatches.size} test executions for unique prefix match '${prefixMatches.first().testName}' found. Pass a valid `testIndex` (0 to ${prefixMatches.size - 1}) to select one."
+                        }
+                        prefixMatches[targetIndex]
+                    }
                 } else {
-                    error("Test not found")
+                    prefixMatches.single()
                 }
             }
 
-            val targetIndex = args.testIndex ?: 0
-            if (tests.size > 1 && targetIndex >= tests.size) {
-                return "${tests.size} test executions with this name found. Pass a valid `testIndex` (0 to ${tests.size - 1}) to select one."
-            }
-
-            val test = if (tests.size > 1) tests[targetIndex] else tests.single()
-
             return buildString {
+                if (test.testName != args.testName) {
+                    appendLine("Note: Showing details for unique prefix match: ${test.testName}")
+                    appendLine()
+                }
                 append(test.testName).append(" - ").appendLine(test.status)
                 appendLine("Duration: ${test.executionDuration}")
 
@@ -205,13 +222,36 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         }
     }
 
-    private fun getTasksOutput(result: Build, args: InspectBuildArgs): String {
+    internal fun getTasksOutput(result: Build, args: InspectBuildArgs): String {
         if (args.mode == LookupMode.details) {
             require(!args.taskPath.isNullOrEmpty()) { "taskPath is required for details mode" }
-            val taskResult = result.taskResults[args.taskPath]
-                ?: throw IllegalArgumentException("Task not found in build ${result.id}: ${args.taskPath}")
+            val exactMatch = result.taskResults[args.taskPath]
+
+            val taskResult = if (exactMatch != null) {
+                exactMatch
+            } else {
+                val prefixMatches = result.taskResults.values.filter { it.path.startsWith(args.taskPath) }
+                if (prefixMatches.isEmpty()) {
+                    throw IllegalArgumentException("Task not found in build ${result.id}: ${args.taskPath}")
+                }
+
+                if (prefixMatches.size > 1) {
+                    val matches = prefixMatches.map { it.path }.distinct().take(10)
+                    return buildString {
+                        appendLine("Multiple tasks match prefix '${args.taskPath}':")
+                        matches.forEach { appendLine("  - $it") }
+                        if (prefixMatches.size > 10) appendLine("  - ... and ${prefixMatches.size - 10} more")
+                        appendLine("\nPlease provide a full task path or use `mode=\"summary\"` to see all results.")
+                    }
+                }
+                prefixMatches.single()
+            }
 
             return buildString {
+                if (taskResult.path != args.taskPath) {
+                    appendLine("Note: Showing details for unique prefix match: ${taskResult.path}")
+                    appendLine()
+                }
                 appendLine("Task: ${taskResult.path}")
                 appendLine("Outcome: ${taskResult.outcome}")
                 appendLine("Duration: ${taskResult.duration}")
@@ -257,7 +297,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         }
     }
 
-    private fun getFailuresOutput(build: Build, args: InspectBuildArgs): String {
+    internal fun getFailuresOutput(build: Build, args: InspectBuildArgs): String {
         val allFailures = if (build is FinishedBuild) build.allFailures else build.allTestFailures
 
         if (args.mode == LookupMode.details) {
@@ -284,7 +324,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         }
     }
 
-    private fun getProblemsOutput(build: Build, args: InspectBuildArgs): String {
+    internal fun getProblemsOutput(build: Build, args: InspectBuildArgs): String {
         if (args.mode == LookupMode.details) {
             val problemId = args.problemId ?: error("problemId is required for details mode")
             val problem = build.problems.firstOrNull { p -> p.definition.id == problemId }
@@ -337,7 +377,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         }
     }
 
-    private fun getConsoleOutput(build: Build, args: InspectBuildArgs): String {
+    internal fun getConsoleOutput(build: Build, args: InspectBuildArgs): String {
         return if (args.consoleTail == true) {
             val totalLines = build.consoleOutputLines.size
             val start = (totalLines - args.pagination.offset - args.pagination.limit).coerceAtLeast(0)
