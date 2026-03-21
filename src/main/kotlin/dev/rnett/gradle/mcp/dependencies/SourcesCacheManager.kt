@@ -4,7 +4,6 @@ import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.MergedSourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.SingleDependencySourcesDir
-import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
@@ -72,21 +71,37 @@ class SourcesCacheManager(private val environment: GradleMcpEnvironment) {
         return hashFile.exists() && hashFile.readText() == currentHash
     }
 
-    fun saveCache(dir: MergedSourcesDir, currentHash: String) {
+    fun saveCache(dir: MergedSourcesDir, currentHash: String, indices: Map<Path, java.nio.file.Path>) {
         dir.storagePath.createDirectories()
         dir.metadata.createDirectories()
         dir.storagePath.resolve(".dependencies.hash").writeText(currentHash)
         dir.lastRefreshFile.writeText(kotlin.time.Clock.System.now().toString())
+
+        val metadataFile = dir.storagePath.resolve(".dependencies.json")
+        val metadata = indices.mapKeys { it.key.toString() }.mapValues { it.value.toString() }
+        metadataFile.writeText(kotlinx.serialization.json.Json.encodeToString(metadata))
+    }
+
+    fun loadCachedIndices(dir: MergedSourcesDir): Map<Path, java.nio.file.Path>? {
+        val metadataFile = dir.storagePath.resolve(".dependencies.json")
+        if (!metadataFile.exists()) return null
+        return try {
+            val metadata = kotlinx.serialization.json.Json.decodeFromString<Map<String, String>>(metadataFile.readText())
+            val indices = metadata.map { Path.of(it.key) to Path.of(it.value) }.toMap()
+            if (indices.values.all { it.exists() }) indices else null
+        } catch (e: Exception) {
+            null
+        }
     }
 
     fun tryGetCachedMergedSources(
         dir: MergedSourcesDir,
         fresh: Boolean,
         forceDownload: Boolean
-    ): SourcesDir? {
+    ): MergedSourcesDir? {
         if (fresh || forceDownload) return null
 
-        if (dir.sources.exists()) {
+        if (dir.storagePath.resolve(".dependencies.hash").exists() && dir.sources.exists()) {
             return dir
         }
         return null

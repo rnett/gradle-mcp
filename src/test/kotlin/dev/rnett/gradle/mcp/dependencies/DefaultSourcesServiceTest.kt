@@ -5,6 +5,8 @@ import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
+import dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch
+import dev.rnett.gradle.mcp.dependencies.search.FullTextSearch
 import dev.rnett.gradle.mcp.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.dependencies.search.SearchResponse
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
@@ -22,6 +24,7 @@ import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createTempDirectory
+import kotlin.io.path.writeText
 
 class DefaultSourcesServiceTest {
 
@@ -38,15 +41,18 @@ class DefaultSourcesServiceTest {
         environment = GradleMcpEnvironment(tempDir)
         depService = mockk(relaxed = true)
         indexService = mockk()
-        coEvery { with(any<ProgressReporter>()) { indexService.indexFiles(any(), any(), any()) } } answers {
+        coEvery { with(any<ProgressReporter>()) { indexService.indexFiles(any(), any(), any(), any()) } } answers {
             val reporter = arg<ProgressReporter>(0)
             reporter.report(1.0, 1.0, "Indexing sources")
             null
         }
-        coEvery { with(any<ProgressReporter>()) { indexService.index(any(), any()) } } returns null
+        coEvery { with(any<ProgressReporter>()) { indexService.index(any(), any(), any()) } } returns null
         coEvery { indexService.search(any(), any(), any(), any()) } returns SearchResponse(emptyList())
         coEvery { indexService.listPackageContents(any(), any()) } returns null
-        coEvery { with(any<ProgressReporter>()) { indexService.mergeIndices(any(), any()) } } returns Unit
+        coEvery { indexService.isMergeUpToDate(any(), any(), any()) } returns true
+        coEvery { indexService.isIndexed(any(), any()) } returns false
+        coEvery { indexService.getIndex(any(), any()) } returns null
+        coEvery { with(any<ProgressReporter>()) { indexService.mergeIndices(any(), any(), any(), any()) } } returns Unit
 
         sourcesService = DefaultSourcesService(depService, environment, indexService)
     }
@@ -94,7 +100,7 @@ class DefaultSourcesServiceTest {
         val reporter = ProgressReporter { _, _, msg -> progressMessages.add(msg) }
 
         with(reporter) {
-            sourcesService.downloadAllSources(projectRoot, fresh = true)
+            sourcesService.downloadAllSources(projectRoot, fresh = true, providerToIndex = DeclarationSearch)
         }
 
         assertTrue(progressMessages.any { it?.contains("Indexing sources for com.example:lib:1.0.0") == true }, "Should report indexing")
@@ -114,6 +120,8 @@ class DefaultSourcesServiceTest {
             val kindHash = "root".hashCode()
             val projectHash = projectRoot.projectRoot.hashCode()
             val dir = environment.cacheDir.resolve("sources").resolve("$projectHash-$pathHash-$kindHash")
+            dir.createDirectories()
+            dir.resolve(".dependencies.hash").writeText("any-hash")
             val sourcesDir = dir.resolve("sources")
             sourcesDir.createDirectories()
 
@@ -136,6 +144,8 @@ class DefaultSourcesServiceTest {
             val kindHash = "root".hashCode()
             val projectHash = projectRoot.projectRoot.hashCode()
             val dir = environment.cacheDir.resolve("sources").resolve("$projectHash-$pathHash-$kindHash")
+            dir.createDirectories()
+            dir.resolve(".dependencies.hash").writeText("any-hash")
             dir.resolve("sources").createDirectories()
 
             coEvery { with(any<ProgressReporter>()) { depService.downloadAllSources(any()) } } returns GradleDependencyReport(emptyList())
@@ -187,6 +197,8 @@ class DefaultSourcesServiceTest {
             val kindHash = "project".hashCode()
             val projectHash = projectRoot.projectRoot.hashCode()
             val dir = environment.cacheDir.resolve("sources").resolve("$projectHash-$pathHash-$kindHash")
+            dir.createDirectories()
+            dir.resolve(".dependencies.hash").writeText("any-hash")
             dir.resolve("sources").createDirectories()
 
             sourcesService.downloadProjectSources(projectRoot, ":app", fresh = false)
@@ -209,6 +221,8 @@ class DefaultSourcesServiceTest {
             val kindHash = "configuration".hashCode()
             val projectHash = projectRoot.projectRoot.hashCode()
             val dir = environment.cacheDir.resolve("sources").resolve("$projectHash-$pathHash-$kindHash")
+            dir.createDirectories()
+            dir.resolve(".dependencies.hash").writeText("any-hash")
             dir.resolve("sources").createDirectories()
 
             sourcesService.downloadConfigurationSources(projectRoot, ":app:implementation", fresh = false)
@@ -231,6 +245,8 @@ class DefaultSourcesServiceTest {
             val kindHash = "sourceSet".hashCode()
             val projectHash = projectRoot.projectRoot.hashCode()
             val dir = environment.cacheDir.resolve("sources").resolve("$projectHash-$pathHash-$kindHash")
+            dir.createDirectories()
+            dir.resolve(".dependencies.hash").writeText("any-hash")
             dir.resolve("sources").createDirectories()
 
             sourcesService.downloadSourceSetSources(projectRoot, ":app:main", fresh = false)
@@ -239,6 +255,45 @@ class DefaultSourcesServiceTest {
             coEvery { with(any<ProgressReporter>()) { depService.downloadSourceSetSources(any(), any()) } } returns mockk(relaxed = true)
             sourcesService.downloadSourceSetSources(projectRoot, ":app:main", fresh = true)
             coVerify(exactly = 1) { with(any<ProgressReporter>()) { depService.downloadSourceSetSources(projectRoot, ":app:main") } }
+        }
+    }
+
+    @Test
+    fun `downloadAllSources performs fast re-merge when only provider changes`() = runTest {
+        with(ProgressReporter.PRINTLN) {
+            val projectRootPath = tempDir.resolve("project-remerge")
+            projectRootPath.createDirectories()
+            val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
+
+            val pathHash = "".hashCode()
+            val kindHash = "root".hashCode()
+            val projectHash = projectRoot.projectRoot.hashCode()
+            val dir = environment.cacheDir.resolve("sources").resolve("$projectHash-$pathHash-$kindHash")
+            dir.createDirectories()
+            dir.resolve(".dependencies.hash").writeText("same-hash")
+
+            // Mock cached indices
+            val relPath = tempDir.resolve("rel")
+            val indexDirPath = tempDir.resolve("indexDir")
+            indexDirPath.createDirectories()
+
+            val indices = mapOf(relPath to indexDirPath)
+            val metadataFile = dir.resolve(".dependencies.json")
+            metadataFile.writeText(kotlinx.serialization.json.Json.encodeToString(indices.mapKeys { it.key.toString() }.mapValues { it.value.toString() }))
+            dir.resolve("sources").createDirectories()
+
+            // First call with one provider (already up to date)
+            coEvery { indexService.isMergeUpToDate(any(), any(), any()) } returns true
+            sourcesService.downloadAllSources(projectRoot, fresh = false, providerToIndex = DeclarationSearch)
+            coVerify(exactly = 0) { depService.downloadAllSources(any()) }
+
+            // Second call with different provider (NOT up to date)
+            coEvery { indexService.isMergeUpToDate(any(), any(), any()) } returns false
+            sourcesService.downloadAllSources(projectRoot, fresh = false, providerToIndex = FullTextSearch)
+
+            // Should have triggered mergeIndices but NOT downloadAllSources
+            coVerify(atLeast = 1) { with(any<ProgressReporter>()) { indexService.mergeIndices(any(), any(), any(), any()) } }
+            coVerify(exactly = 0) { depService.downloadAllSources(any()) }
         }
     }
 
@@ -283,7 +338,7 @@ class DefaultSourcesServiceTest {
 
         coEvery {
             with(any<ProgressReporter>()) {
-                indexService.indexFiles(any(), any(), any())
+                indexService.indexFiles(any(), any(), any(), any())
             }
         } throws RuntimeException("Indexing failed")
 

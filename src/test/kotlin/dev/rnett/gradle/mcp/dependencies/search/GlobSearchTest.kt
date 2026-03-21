@@ -72,8 +72,9 @@ class GlobSearchTest {
                     index1Dir to Path.of("lib1"),
                     index2Dir to Path.of("lib2")
                 ),
-                mergedDir
-            )
+                mergedDir,
+                ProgressReporter.NONE
+            ) { _, action -> action() }
 
             val results1 = GlobSearch.search(mergedDir, "lib1/File1.kt").results
             assertEquals(1, results1.size)

@@ -61,7 +61,7 @@ class FullTextSearchIntegrationTest : SearchIntegrationTestBase() {
         )
 
         val sourcesDir = with(ProgressReporter.PRINTLN) {
-            sourcesService.downloadAllSources(projectRoot, index = true)
+            sourcesService.downloadAllSources(projectRoot, index = true, providerToIndex = searchProvider)
         }
 
         // Search for phrase in FileA

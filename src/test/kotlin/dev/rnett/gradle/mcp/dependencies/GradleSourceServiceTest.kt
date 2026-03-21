@@ -4,6 +4,7 @@ import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.GradleVersionService
 import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
+import dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch
 import dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService
 import dev.rnett.gradle.mcp.fixtures.dependencies.MockGradleSourceZip
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
@@ -99,7 +100,7 @@ class GradleSourceServiceTest {
         val root = GradleProjectRoot(projectRoot.toString())
 
         val sources = with(ProgressReporter.PRINTLN) {
-            gradleSourceService.getGradleSources(root)
+            gradleSourceService.getGradleSources(root, providerToIndex = DeclarationSearch)
         }
 
         assertTrue(sources.sources.exists(), "Sources directory should exist")

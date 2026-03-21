@@ -79,7 +79,7 @@ workflows.
     - **Naming**: Explicitly name non-deterministic parallelism utilities (e.g., `unorderedParallelMap`) to signal that input order is not preserved.
   - **Flow Draining**: Always ensure that indexing operations consume the entire file flow, even if the index is already up-to-date, when using a `Channel` based extraction pipeline to prevent deadlocks.
 - **Gradle Source Exploration**: On some machines, the Gradle build tool project is checked out in `./managing-gradle-builds-tool`. Use it as a source of knowledge for Gradle's internal APIs, but be careful not to include it in broad
-  search/build commands unless intended. See [gradle-sources-overview.md](./gradle-sources-overview.md).
+  search/build commands unless intended. See [gradle-sources-overview.md](./openspec/docs/gradle-sources-overview.md).
 
 ### Lucene & Search Conventions
 
@@ -90,6 +90,10 @@ workflows.
 - **Object Pooling**: For heavy, non-thread-safe objects like `TreeSitterDeclarationExtractor`, prefer a `ConcurrentLinkedQueue`-based pool over `ThreadLocal` when using Kotlin Coroutines. This ensures better resource management and
   predictability across diverse threading environments.
 - **Regex Search**: `DeclarationSearch` supports full string regex queries on the FQN field when the query is wrapped in `/` (e.g., `/.*MyClass/`). This should be preferred for complex, precise symbol discovery.
+- **Search Error Handling**: `SourcesService.search` and `IndexService.search` MUST return a `SearchResponse` with an `error` string instead of throwing an `IllegalStateException` when an index is missing. This prevents unexpected crashes
+  in tool handlers and allows for graceful error reporting to the user/LLM.
+- **Targeted Indexing**: `SourcesService.downloadAllSources` (and related methods) require an explicit `providerToIndex: SearchProvider` to be passed when `index = true`. This ensures that indexing is targeted and efficient. Callers must
+  specify which provider's index they intend to use.
 
 ### Build & Test Commands
 
@@ -187,6 +191,6 @@ Mock in general needs the specific type args for the `any()` calls to resolve ov
 
 ## Resource Index
 
-- **Gradle Sources Navigation**: [gradle-sources-overview.md](./gradle-sources-overview.md)
+- **Internal Documentation**: [openspec/docs/](./openspec/docs/)
 - **Tool Definitions**: [ToolNames.kt](src/main/kotlin/dev/rnett/gradle/mcp/tools/ToolNames.kt)
 - **User/Human Facing Skill Docs**: [docs/skills.md](./docs/skills.md)

@@ -2,12 +2,14 @@ package dev.rnett.gradle.mcp.dependencies.search
 
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.tools.PaginationInput
+import dev.rnett.gradle.mcp.utils.unorderedParallelForEach
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import java.nio.file.FileSystems
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentLinkedQueue
+import kotlin.concurrent.atomics.AtomicInt
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.readLines
@@ -108,26 +110,38 @@ object GlobSearch : SearchProvider {
         override fun close() {}
     }
 
-    override suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path, progress: ProgressReporter) = withContext(Dispatchers.IO) {
+    override suspend fun mergeIndices(
+        indexDirs: Map<Path, Path>,
+        outputDir: Path,
+        progress: ProgressReporter,
+        withLock: suspend (Path, suspend () -> Unit) -> Unit
+    ) = withContext(Dispatchers.IO) {
         val totalDocs = indexDirs.keys.sumOf { countDocuments(it) }
-        var completedDocs = 0
+        val completedDocs = AtomicInt(0)
 
         val (fileCount, duration) = measureTimedValue {
             val file = outputDir.resolve(v1FileName)
             outputDir.createDirectories()
 
-            val allPaths = indexDirs.flatMap { (idxDir, relativePrefix) ->
-                val srcFile = idxDir.resolve(v1FileName)
-                if (!srcFile.exists()) return@flatMap emptyList()
-                val paths = srcFile.readLines().map { relativePrefix.resolve(it).toString().replace('\\', '/') }
-                completedDocs += paths.size
-                progress.report(completedDocs.toDouble(), totalDocs.toDouble(), null)
-                paths
+            val allPaths = ConcurrentLinkedQueue<String>()
+            indexDirs.entries.unorderedParallelForEach(context = Dispatchers.IO) { (idxDir, relativePrefix) ->
+                withLock(idxDir) {
+                    val srcFile = idxDir.resolve(v1FileName)
+                    if (srcFile.exists()) {
+                        val paths = srcFile.readLines().map { relativePrefix.resolve(it).toString().replace('\\', '/') }
+                        val updatedDocs = completedDocs.addAndFetch(paths.size)
+                        progress.report(updatedDocs.toDouble(), totalDocs.toDouble(), null)
+                        allPaths.addAll(paths)
+                    } else {
+                        throw IllegalStateException("Glob index does not exist at $idxDir during merge!")
+                    }
+                }
             }
 
-            file.writeLines(allPaths)
-            outputDir.resolve(".count").writeText(allPaths.size.toString())
-            allPaths.size
+            val resultList = allPaths.toList()
+            file.writeLines(resultList)
+            outputDir.resolve(".count").writeText(resultList.size.toString())
+            resultList.size
         }
         LOGGER.info("Glob index merging took $duration ($fileCount files across ${indexDirs.size} indices)")
     }

@@ -7,6 +7,7 @@ import dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch
 import dev.rnett.gradle.mcp.dependencies.search.FullTextSearch
 import dev.rnett.gradle.mcp.dependencies.search.GlobSearch
 import dev.rnett.gradle.mcp.dependencies.search.PackageContents
+import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
 import dev.rnett.gradle.mcp.dependencies.search.SearchResponse
 import dev.rnett.gradle.mcp.dependencies.search.SearchResult
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
@@ -98,7 +99,8 @@ class DependencySourceTools(
                 args.projectPath,
                 args.dependency,
                 args.forceDownload,
-                args.fresh
+                args.fresh,
+                DeclarationSearch
             )
         }
 
@@ -203,6 +205,12 @@ class DependencySourceTools(
             For detailed search strategies, refer to the `searching_dependency_sources` skill.
         """.trimMargin()
     ) { args ->
+        val provider = when (args.searchType) {
+            SearchType.DECLARATION -> DeclarationSearch
+            SearchType.FULL_TEXT -> FullTextSearch
+            SearchType.GLOB -> GlobSearch
+        }
+
         val root = with(server) { args.projectRoot.resolveRoot() }
         val sources = with(progressReporter) {
             resolveSources(
@@ -213,15 +221,11 @@ class DependencySourceTools(
                 args.projectPath,
                 args.dependency,
                 args.forceDownload,
-                args.fresh
+                args.fresh,
+                provider
             )
         }
 
-        val provider = when (args.searchType) {
-            SearchType.DECLARATION -> DeclarationSearch
-            SearchType.FULL_TEXT -> FullTextSearch
-            SearchType.GLOB -> GlobSearch
-        }
         val response = sourcesService.search(sources, provider, args.query, args.pagination)
         val refreshMessage = formatRefreshMessage(sources.lastRefresh())
         if (response.error != null) {
@@ -320,14 +324,15 @@ class DependencySourceTools(
         projectPath: String?,
         dependency: String?,
         forceDownload: Boolean,
-        fresh: Boolean
+        fresh: Boolean,
+        providerToIndex: SearchProvider? = null
     ): SourcesDir {
         return when {
             gradleSource -> gradleSourceService.getGradleSources(root, forceDownload = forceDownload)
-            sourceSetPath != null -> sourcesService.downloadSourceSetSources(root, sourceSetPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh)
-            configurationPath != null -> sourcesService.downloadConfigurationSources(root, configurationPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh)
-            projectPath != null -> sourcesService.downloadProjectSources(root, projectPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh)
-            else -> sourcesService.downloadAllSources(root, dependency = dependency, forceDownload = forceDownload, fresh = fresh)
+            sourceSetPath != null -> sourcesService.downloadSourceSetSources(root, sourceSetPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)
+            configurationPath != null -> sourcesService.downloadConfigurationSources(root, configurationPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)
+            projectPath != null -> sourcesService.downloadProjectSources(root, projectPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)
+            else -> sourcesService.downloadAllSources(root, dependency = dependency, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)
         }
     }
 }

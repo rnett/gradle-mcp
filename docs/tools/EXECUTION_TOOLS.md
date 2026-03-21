@@ -105,6 +105,13 @@ Note: Avoid `--rerun-tasks` (which reruns ALL tasks) unless investigating broad 
           ],
           "description": "Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars. Recommended if Gradle isn't finding environment variables (e.g. for JDKs) that should be present, which can happen if the host process starts before the shell environment is fully loaded.",
           "type": "string"
+        },
+        "javaHome": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The path to the Java home directory to use for the Gradle process. Optional."
         }
       },
       "description": "Applying additional advanced invocation arguments for the Gradle process."

@@ -26,6 +26,7 @@ Provides authoritative guidance and automation for creating, modifying, and audi
 - **ALWAYS** use `gradle_docs` for authoritative documentation lookup instead of generic web searches.
 - **ALWAYS** use `search_dependency_sources` with `gradleSource = true` when researching core Gradle behavior.
 - **ALWAYS** use `inspect_build` with `testName` and `mode="details"` for individual test output instead of generic `taskPath`, `captureTaskOutput`, or shell `grep`.
+- **ALWAYS** use safe navigation (`?.url?.toString()`) and provide fallback values when accessing `ArtifactRepository` URLs in Gradle init scripts or plugins to prevent `NullPointerException`.
 - **STRONGLY PREFERRED**: Use `inspect_build` for all failure diagnostics. It is more token-efficient than reading raw console logs and provides structured access to failures, stack traces, and problems.
 - **NEVER** guess internal API behavior; verify it by reading the source code of the Gradle Build Tool.
 

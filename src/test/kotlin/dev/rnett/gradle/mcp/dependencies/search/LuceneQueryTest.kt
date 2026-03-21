@@ -57,7 +57,7 @@ class LuceneQueryTest : SearchIntegrationTestBase() {
     @Test
     fun `test phrase search`() = runTest {
         with(ProgressReporter.PRINTLN) {
-            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
+            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true, providerToIndex = searchProvider)
             val response = sourcesService.search(sourcesDir, searchProvider, "\"unique phrase for testing\"")
             assertTrue(response.results.isNotEmpty(), "Phrase search failed")
             assertTrue(response.results.any { it.relativePath.endsWith("FileA.kt") })
@@ -67,7 +67,7 @@ class LuceneQueryTest : SearchIntegrationTestBase() {
     @Test
     fun `test wildcard search`() = runTest {
         with(ProgressReporter.PRINTLN) {
-            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
+            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true, providerToIndex = searchProvider)
 
             // Single character wildcard
             val responseSingle = sourcesService.search(sourcesDir, searchProvider, "app?e")
@@ -84,7 +84,7 @@ class LuceneQueryTest : SearchIntegrationTestBase() {
     @Test
     fun `test boolean operators`() = runTest {
         with(ProgressReporter.PRINTLN) {
-            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
+            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true, providerToIndex = searchProvider)
 
             // AND
             val responseAnd = sourcesService.search(sourcesDir, searchProvider, "apple AND banana")
@@ -105,7 +105,7 @@ class LuceneQueryTest : SearchIntegrationTestBase() {
     @Test
     fun `test grouping`() = runTest {
         with(ProgressReporter.PRINTLN) {
-            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
+            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true, providerToIndex = searchProvider)
             val response = sourcesService.search(sourcesDir, searchProvider, "(apple OR banana) AND unique")
             assertTrue(response.results.isNotEmpty(), "Grouping search failed")
             assertTrue(response.results.all { it.relativePath.endsWith("FileA.kt") })
@@ -115,7 +115,7 @@ class LuceneQueryTest : SearchIntegrationTestBase() {
     @Test
     fun `test fuzzy search`() = runTest {
         with(ProgressReporter.PRINTLN) {
-            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
+            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true, providerToIndex = searchProvider)
             val response = sourcesService.search(sourcesDir, searchProvider, "aple~")
             assertTrue(response.results.isNotEmpty(), "Fuzzy search failed")
             assertTrue(response.results.any { it.relativePath.endsWith("FileA.kt") })
@@ -125,7 +125,7 @@ class LuceneQueryTest : SearchIntegrationTestBase() {
     @Test
     fun `test proximity search`() = runTest {
         with(ProgressReporter.PRINTLN) {
-            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
+            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true, providerToIndex = searchProvider)
             // "unique" and "phrase" are close together
             val response = sourcesService.search(sourcesDir, searchProvider, "\"unique phrase\"~5")
             assertTrue(response.results.isNotEmpty(), "Proximity search failed")
@@ -135,7 +135,7 @@ class LuceneQueryTest : SearchIntegrationTestBase() {
     @Test
     fun `test field search`() = runTest {
         with(ProgressReporter.PRINTLN) {
-            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true)
+            val sourcesDir = sourcesService.downloadAllSources(projectRoot, index = true, providerToIndex = searchProvider)
 
             // Match a term to see current paths in index
             val responsePackage = sourcesService.search(sourcesDir, searchProvider, "package")

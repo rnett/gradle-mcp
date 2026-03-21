@@ -133,6 +133,15 @@ class DefaultBuildExecutionService(
         launcher.addJvmArguments(args.additionalJvmArgs + "-Dscan.tag.MCP")
         launcher.withDetailedFailure()
 
+        if (args.javaHome != null) {
+            val file = java.io.File(args.javaHome)
+            if (file.exists() && file.isDirectory) {
+                launcher.setJavaHome(file)
+            } else {
+                LOGGER.warn("Specified javaHome does not exist or is not a directory: ${args.javaHome}")
+            }
+        }
+
         val initScripts = initScriptProvider.extractInitScripts(
             args.requestedInitScripts + if (args.publishScan || args.additionalArguments.contains("--scan")) listOf("scans") else emptyList()
         )

@@ -43,7 +43,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any())
+                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -81,7 +81,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any())
+                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -123,7 +123,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any())
+                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -151,7 +151,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any())
+                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -176,7 +176,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any())
+                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -198,7 +198,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any())
+                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -223,7 +223,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadProjectSources(any(), ":app", any(), any(), any(), any())
+                sourcesService.downloadProjectSources(any(), ":app", any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -241,7 +241,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                gradleSourceService.getGradleSources(any(), any())
+                gradleSourceService.getGradleSources(any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -251,9 +251,9 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
             }
         ) as CallToolResult
 
-        coEvery {
+        coVerify {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                gradleSourceService.getGradleSources(any(), any())
+                gradleSourceService.getGradleSources(any(), any(), any())
             }
         }
     }
@@ -265,7 +265,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                gradleSourceService.getGradleSources(any(), any())
+                gradleSourceService.getGradleSources(any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -280,9 +280,9 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
             }
         ) as CallToolResult
 
-        coEvery {
+        coVerify {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                gradleSourceService.getGradleSources(any(), any())
+                gradleSourceService.getGradleSources(any(), any(), any())
             }
         }
     }
@@ -299,7 +299,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any())
+                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -320,7 +320,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any())
+                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -368,7 +368,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any())
+                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -394,7 +394,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any())
+                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -411,7 +411,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coVerify {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), "org.example:artifact", any(), any(), any())
+                sourcesService.downloadAllSources(any(), "org.example:artifact", any(), any(), any(), any())
             }
         }
     }
@@ -420,7 +420,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
     fun `search_dependency_sources with non-matching dependency filter returns error`() = runTest {
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), "non:existent", any(), any(), any())
+                sourcesService.downloadAllSources(any(), "non:existent", any(), any(), any(), any())
             }
         } throws IllegalArgumentException("Dependency filter 'non:existent' matched zero dependencies.")
 
@@ -443,7 +443,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any())
+                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 

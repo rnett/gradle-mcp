@@ -7,6 +7,7 @@ import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.MergedSourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
 import dev.rnett.gradle.mcp.dependencies.search.IndexService
+import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.tools.GradlePathUtils
 import dev.rnett.gradle.mcp.utils.FileLockManager
@@ -27,8 +28,10 @@ import java.nio.file.Path
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import kotlin.io.path.ExperimentalPathApi
+import kotlin.io.path.copyToRecursively
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createFile
+import kotlin.io.path.createParentDirectories
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
@@ -38,9 +41,10 @@ import kotlin.time.measureTime
 
 interface GradleSourceService {
     context(progress: ProgressReporter)
-    suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean = false): SourcesDir
+    suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean = false, providerToIndex: SearchProvider? = null): SourcesDir
 }
 
+@OptIn(ExperimentalPathApi::class)
 class DefaultGradleSourceService(
     private val environment: GradleMcpEnvironment,
     private val indexService: IndexService,
@@ -60,7 +64,7 @@ class DefaultGradleSourceService(
 
     @OptIn(ExperimentalPathApi::class)
     context(progress: ProgressReporter)
-    override suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean): SourcesDir {
+    override suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean, providerToIndex: SearchProvider?): SourcesDir {
         val rootPath = GradlePathUtils.getRootProjectPath(projectRoot)
         val inputVersion = GradlePathUtils.getGradleVersion(rootPath)
         val version = versionService.resolveVersion(inputVersion)
@@ -72,13 +76,30 @@ class DefaultGradleSourceService(
 
         if (!forceDownload) {
             val cached = FileLockManager.withLock(lockFile, shared = true) {
-                if (markerFile.exists()) targetDir else null
+                if (markerFile.exists()) {
+                    if (providerToIndex == null) {
+                        targetDir
+                    } else {
+                        val upToDate = indexService.isMergeUpToDate(targetDir.index, providerToIndex, version)
+                        if (upToDate) {
+                            targetDir
+                        } else {
+                            null // Need to index this provider
+                        }
+                    }
+                } else null
             }
             if (cached != null) return cached
         }
 
         return FileLockManager.withLock(lockFile, shared = false) {
             if (markerFile.exists() && !forceDownload) {
+                if (providerToIndex != null) {
+                    val upToDate = indexService.isMergeUpToDate(targetDir.index, providerToIndex, version)
+                    if (!upToDate) {
+                        indexInternal(version, null, targetDir, providerToIndex)
+                    }
+                }
                 return@withLock targetDir
             }
 
@@ -96,7 +117,7 @@ class DefaultGradleSourceService(
             }
 
             try {
-                extractAndIndex(version, sourceZip, targetDir)
+                extractAndIndex(version, sourceZip, targetDir, providerToIndex)
                 markerFile.createFile()
                 targetDir
             } catch (e: Exception) {
@@ -146,7 +167,9 @@ class DefaultGradleSourceService(
     }
 
     context(progress: ProgressReporter)
-    private suspend fun indexInternal(version: String, sourceZip: Path?, targetDir: SourcesDir) {
+    private suspend fun indexInternal(version: String, sourceZip: Path?, targetDir: SourcesDir, providerToIndex: SearchProvider? = null) {
+        if (providerToIndex == null) return
+
         val dummyDependency = GradleDependency(
             id = "org.gradle:gradle:$version",
             group = "org.gradle",
@@ -158,18 +181,20 @@ class DefaultGradleSourceService(
         LOGGER.info("Indexing Gradle sources at ${targetDir.sources} for version $version")
         val duration = measureTime {
             val index = with(progress) {
-                indexService.index(dummyDependency, targetDir.sources)
-            } ?: throw IllegalStateException("Failed to index Gradle sources at ${targetDir.sources}")
+                indexService.index(dummyDependency, targetDir.sources, providerToIndex)
+            } ?: throw IllegalStateException("Failed to index Gradle sources at ${targetDir.sources} for provider ${providerToIndex.name}")
 
-            if (index.dir != targetDir.index) {
-                index.dir.toFile().copyRecursively(targetDir.index.toFile(), overwrite = true)
+            val providerIndexDir = targetDir.index.resolve(providerToIndex.name)
+            if (index.dir.resolve(providerToIndex.name) != providerIndexDir) {
+                providerIndexDir.createParentDirectories()
+                index.dir.resolve(providerToIndex.name).copyToRecursively(providerIndexDir, followLinks = false, overwrite = true)
             }
         }
         LOGGER.info("Indexed Gradle sources in $duration for version $version")
     }
 
     context(progress: ProgressReporter)
-    private suspend fun extractAndIndex(version: String, sourceZip: Path, targetDir: SourcesDir) {
+    private suspend fun extractAndIndex(version: String, sourceZip: Path, targetDir: SourcesDir, providerToIndex: SearchProvider? = null) {
         targetDir.sources.createDirectories()
 
         val extractionProgress = progress.withPhase("PROCESSING")
@@ -184,7 +209,7 @@ class DefaultGradleSourceService(
 
         extractionProgress.report(1.0, 1.0, "Extracted Gradle $version sources")
 
-        indexInternal(version, sourceZip, targetDir)
+        indexInternal(version, sourceZip, targetDir, providerToIndex)
     }
 
     @OptIn(ExperimentalPathApi::class)

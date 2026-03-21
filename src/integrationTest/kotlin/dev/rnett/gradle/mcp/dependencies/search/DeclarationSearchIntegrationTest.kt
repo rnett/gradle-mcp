@@ -56,7 +56,7 @@ class DeclarationSearchIntegrationTest : SearchIntegrationTestBase() {
         )
 
         val sourcesDir = with(ProgressReporter.PRINTLN) {
-            sourcesService.downloadAllSources(projectRoot, index = true)
+            sourcesService.downloadAllSources(projectRoot, index = true, providerToIndex = searchProvider)
         }
 
         // Search for Kotlin declaration
@@ -100,7 +100,7 @@ class DeclarationSearchIntegrationTest : SearchIntegrationTestBase() {
         )
 
         val sourcesDir = with(ProgressReporter.PRINTLN) {
-            sourcesService.downloadAllSources(projectRoot, index = true)
+            sourcesService.downloadAllSources(projectRoot, index = true, providerToIndex = searchProvider)
         }
 
         val searchResults = sourcesService.search(sourcesDir, searchProvider, "TestClass").results
@@ -124,7 +124,7 @@ class DeclarationSearchIntegrationTest : SearchIntegrationTestBase() {
             )
         )
         val sourcesDir = with(ProgressReporter.PRINTLN) {
-            sourcesService.downloadAllSources(projectRoot, index = true)
+            sourcesService.downloadAllSources(projectRoot, index = true, providerToIndex = searchProvider)
         }
 
         val result = sourcesService.search(sourcesDir, searchProvider, "[")

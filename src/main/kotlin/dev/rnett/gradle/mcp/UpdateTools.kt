@@ -200,22 +200,22 @@ object UpdateTools {
 
 private object ThrowingSourcesService : SourcesService {
     context(progress: ProgressReporter)
-    override suspend fun downloadAllSources(projectRoot: GradleProjectRoot, dependency: String?, index: Boolean, forceDownload: Boolean, fresh: Boolean): SourcesDir {
+    override suspend fun downloadAllSources(projectRoot: GradleProjectRoot, dependency: String?, index: Boolean, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
         throw UnsupportedOperationException("Not used for tool listing")
     }
 
     context(progress: ProgressReporter)
-    override suspend fun downloadProjectSources(projectRoot: GradleProjectRoot, projectPath: String, dependency: String?, index: Boolean, forceDownload: Boolean, fresh: Boolean): SourcesDir {
+    override suspend fun downloadProjectSources(projectRoot: GradleProjectRoot, projectPath: String, dependency: String?, index: Boolean, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
         throw UnsupportedOperationException("Not used for tool listing")
     }
 
     context(progress: ProgressReporter)
-    override suspend fun downloadConfigurationSources(projectRoot: GradleProjectRoot, configurationPath: String, dependency: String?, index: Boolean, forceDownload: Boolean, fresh: Boolean): SourcesDir {
+    override suspend fun downloadConfigurationSources(projectRoot: GradleProjectRoot, configurationPath: String, dependency: String?, index: Boolean, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
         throw UnsupportedOperationException("Not used for tool listing")
     }
 
     context(progress: ProgressReporter)
-    override suspend fun downloadSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, dependency: String?, index: Boolean, forceDownload: Boolean, fresh: Boolean): SourcesDir {
+    override suspend fun downloadSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, dependency: String?, index: Boolean, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
         throw UnsupportedOperationException("Not used for tool listing")
     }
 
@@ -410,7 +410,7 @@ private object ThrowingMavenCentralService : MavenCentralService {
 
 private object ThrowingGradleSourceService : GradleSourceService {
     context(progress: ProgressReporter)
-    override suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean): SourcesDir =
+    override suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean, providerToIndex: SearchProvider?): SourcesDir =
         throw UnsupportedOperationException("Not supported in tool generator")
 }
 

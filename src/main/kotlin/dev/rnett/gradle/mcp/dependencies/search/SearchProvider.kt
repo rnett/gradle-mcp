@@ -13,6 +13,9 @@ interface Indexer : AutoCloseable {
     val documentCount: Int
 }
 
+val SearchProvider.markerFileName: String
+    get() = ".indexed-$name-$indexVersion"
+
 interface SearchProvider {
     val name: String
     val indexVersion: Int
@@ -24,9 +27,20 @@ interface SearchProvider {
     suspend fun newIndexer(outputDir: Path): Indexer
 
     /**
-     * [indexDirs] a map of index dirs to the relative path of that origin in the combined set
+     * Merges multiple individual dependency indices into a combined index.
+     *
+     * @param indexDirs Map of individual dependency index directories to their relative path prefixes in the merged set.
+     * @param outputDir The directory where the merged index should be written.
+     * @param progress Reporter for tracking merge progress.
+     * @param withLock A callback used to acquire a lock on a source index directory before reading from it.
+     *                 Crucial for ensuring source indices aren't deleted mid-merge.
      */
-    suspend fun mergeIndices(indexDirs: Map<Path, Path>, outputDir: Path, progress: ProgressReporter = ProgressReporter.NONE)
+    suspend fun mergeIndices(
+        indexDirs: Map<Path, Path>,
+        outputDir: Path,
+        progress: ProgressReporter,
+        withLock: suspend (Path, suspend () -> Unit) -> Unit
+    )
 
     suspend fun countDocuments(indexDir: Path): Int
 

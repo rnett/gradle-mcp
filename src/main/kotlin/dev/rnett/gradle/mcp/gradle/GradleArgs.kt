@@ -16,18 +16,53 @@ fun ProjectIdentifier.matches(root: GradleProjectRoot, projectPath: GradleProjec
 @Serializable
 @Description("Additional arguments to configure the Gradle process.")
 data class GradleInvocationArguments(
+    /**
+     * Additional environment variables to set for the Gradle process. 
+     * These will be merged with the inherited environment according to [envSource].
+     */
     @Description("Additional environment variables to set for the Gradle process. Optional.")
     val additionalEnvVars: Map<String, String> = emptyMap(),
+
+    /**
+     * Additional system properties (passed via -D) to set for the Gradle process.
+     */
     @Description("Additional system properties to set for the Gradle process. Optional. No system properties are inherited from the MCP server.")
     val additionalSystemProps: Map<String, String> = emptyMap(),
+
+    /**
+     * Additional JVM arguments to set for the Gradle process.
+     */
     @Description("Additional JVM arguments to set for the Gradle process. Optional.")
     val additionalJvmArgs: List<String> = emptyList(),
+
+    /**
+     * Raw command line arguments to pass to the Gradle process.
+     */
     @Description("Additional arguments for the Gradle process. Optional.")
     val additionalArguments: List<String> = emptyList(),
+
+    /**
+     * Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument.
+     */
     @Description("Whether to attempt to publish a Develocity Build Scan by using the '--scan' argument. Optional, defaults to false. Using Build Scans is the best way to investigate failures, especially if you have access to the Develocity MCP server. Publishing build scans to scans.gradle.com requires the MCP client to support elicitation.")
     val publishScan: Boolean = false,
+
+    /**
+     * Specifies where to inherit base environment variables from.
+     */
     @Description("Where to get the environment variables from to pass to Gradle. Defaults to INHERIT. SHELL starts a new shell process and queries its env vars. Recommended if Gradle isn't finding environment variables (e.g. for JDKs) that should be present, which can happen if the host process starts before the shell environment is fully loaded.")
     val envSource: EnvSource = EnvSource.INHERIT,
+
+    /**
+     * The path to the Java home directory to use for the Gradle process. 
+     * If provided, this overrides the default JDK used to launch Gradle.
+     */
+    @Description("The path to the Java home directory to use for the Gradle process. Optional.")
+    val javaHome: String? = null,
+
+    /**
+     * Internal list of init script names to be loaded.
+     */
     @Description("The names of the init scripts to load. Defaults to empty list.")
     @Transient
     val requestedInitScripts: List<String> = emptyList()
@@ -40,11 +75,15 @@ data class GradleInvocationArguments(
             additionalArguments = additionalArguments + other.additionalArguments,
             publishScan = publishScan || other.publishScan,
             envSource = if (other.envSource != EnvSource.INHERIT) other.envSource else envSource,
+            javaHome = other.javaHome ?: javaHome,
             requestedInitScripts = requestedInitScripts + other.requestedInitScripts
         )
     }
 
     fun renderCommandLine(): String = buildString {
+        if (javaHome != null) {
+            append("JAVA_HOME=$javaHome ")
+        }
         additionalEnvVars.forEach { (k, v) ->
             append("$k=$v ")
         }

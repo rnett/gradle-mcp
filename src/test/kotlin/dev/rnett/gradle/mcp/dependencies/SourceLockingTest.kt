@@ -7,7 +7,6 @@ import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
 import dev.rnett.gradle.mcp.dependencies.model.GradleProjectDependencies
-import dev.rnett.gradle.mcp.dependencies.search.IndexEntry
 import dev.rnett.gradle.mcp.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import io.mockk.coEvery
@@ -95,14 +94,18 @@ class SourceLockingTest {
         }
 
         coEvery {
-            with(any<ProgressReporter>()) { indexService.indexFiles(any<GradleDependency>(), any<kotlinx.coroutines.flow.Flow<IndexEntry>>(), any()) }
+            with(any<ProgressReporter>()) { indexService.indexFiles(any(), any(), any(), any()) }
         } returns null
         coEvery {
-            with(any<ProgressReporter>()) { indexService.index(any<GradleDependency>(), any<Path>()) }
+            with(any<ProgressReporter>()) { indexService.index(any<GradleDependency>(), any<Path>(), any()) }
         } returns null
+        coEvery { indexService.isMergeUpToDate(any(), any(), any()) } returns true
         coEvery {
-            with(any<ProgressReporter>()) { indexService.mergeIndices(any(), any()) }
+            with(any<ProgressReporter>()) { indexService.mergeIndices(any(), any(), any(), any()) }
         } returns Unit
+        coEvery {
+            with(any<ProgressReporter>()) { indexService.indexFiles(any(), any(), any(), any()) }
+        } returns null
 
         // Start multiple concurrent requests
         val jobs = List(3) {
@@ -160,14 +163,18 @@ class SourceLockingTest {
 
         coEvery { with(any<ProgressReporter>()) { depService.downloadAllSources(any()) } } returns report
         coEvery {
-            with(any<ProgressReporter>()) { indexService.indexFiles(any<GradleDependency>(), any<kotlinx.coroutines.flow.Flow<IndexEntry>>(), any()) }
+            with(any<ProgressReporter>()) { indexService.indexFiles(any(), any(), any(), any()) }
         } returns null
         coEvery {
-            with(any<ProgressReporter>()) { indexService.index(any<GradleDependency>(), any<Path>()) }
+            with(any<ProgressReporter>()) { indexService.index(any<GradleDependency>(), any<Path>(), any()) }
         } returns null
+        coEvery { indexService.isMergeUpToDate(any(), any(), any()) } returns true
         coEvery {
-            with(any<ProgressReporter>()) { indexService.mergeIndices(any(), any()) }
+            with(any<ProgressReporter>()) { indexService.mergeIndices(any(), any(), any(), any()) }
         } returns Unit
+        coEvery {
+            with(any<ProgressReporter>()) { indexService.indexFiles(any(), any(), any(), any()) }
+        } returns null
 
         // 1. Initial download to populate cache
         with(ProgressReporter.PRINTLN) {

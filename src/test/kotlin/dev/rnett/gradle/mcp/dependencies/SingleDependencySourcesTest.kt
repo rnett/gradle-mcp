@@ -97,8 +97,9 @@ class SingleDependencySourcesTest {
         )
 
         coEvery { with(any<ProgressReporter>()) { depService.downloadAllSources(any(), any()) } } returns report
-        coEvery { with(any<ProgressReporter>()) { indexService.indexFiles(any(), any(), any()) } } returns null
-        coEvery { with(any<ProgressReporter>()) { indexService.index(any(), any()) } } returns null
+        coEvery { with(any<ProgressReporter>()) { indexService.indexFiles(any(), any(), any(), any()) } } returns null
+        coEvery { indexService.isMergeUpToDate(any(), any(), any()) } returns true
+        coEvery { with(any<ProgressReporter>()) { indexService.mergeIndices(any(), any(), any(), any()) } } returns Unit
 
         val resultDir = with(ProgressReporter.PRINTLN) {
             sourcesService.downloadAllSources(projectRoot, dependency = "test:test:1.0", index = false)
@@ -157,9 +158,10 @@ class SingleDependencySourcesTest {
         )
 
         coEvery { with(any<ProgressReporter>()) { depService.downloadAllSources(any(), any()) } } returns report
-        coEvery { with(any<ProgressReporter>()) { indexService.indexFiles(any(), any(), any()) } } returns null
-        coEvery { with(any<ProgressReporter>()) { indexService.index(any(), any()) } } returns null
-        coEvery { with(any<ProgressReporter>()) { indexService.mergeIndices(any(), any()) } } returns Unit
+        coEvery { with(any<ProgressReporter>()) { indexService.indexFiles(any(), any(), any(), any()) } } returns null
+        coEvery { indexService.isMergeUpToDate(any(), any(), any()) } returns true
+        coEvery { with(any<ProgressReporter>()) { indexService.mergeIndices(any(), any(), any(), any()) } } returns Unit
+        coEvery { with(any<ProgressReporter>()) { indexService.mergeIndices(any(), any(), any(), any()) } } returns Unit
 
         val resultDir = with(ProgressReporter.PRINTLN) {
             sourcesService.downloadAllSources(projectRoot, dependency = "test", index = false)
@@ -218,8 +220,9 @@ class SingleDependencySourcesTest {
         )
 
         coEvery { with(any<ProgressReporter>()) { depService.downloadAllSources(any(), any()) } } returns report
-        coEvery { with(any<ProgressReporter>()) { indexService.indexFiles(any(), any(), any()) } } returns null
-        coEvery { with(any<ProgressReporter>()) { indexService.index(any(), any()) } } returns null
+        coEvery { with(any<ProgressReporter>()) { indexService.indexFiles(any(), any(), any(), any()) } } returns null
+        coEvery { indexService.isMergeUpToDate(any(), any(), any()) } returns true
+        coEvery { with(any<ProgressReporter>()) { indexService.mergeIndices(any(), any(), any(), any()) } } returns Unit
 
         val resultDir = with(ProgressReporter.PRINTLN) {
             sourcesService.downloadAllSources(projectRoot, dependency = "test:main:1.0", index = false)

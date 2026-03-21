@@ -41,6 +41,25 @@ class GradleProviderTest {
     }
 
     @Test
+    fun `can run gradle build with explicit java home`() = runTest(timeout = 120.seconds) {
+        val projectRoot = GradleProjectRoot(javaProject.pathString())
+        val currentJavaHome = System.getProperty("java.home")
+
+        val args = GradleInvocationArguments(
+            additionalArguments = listOf("help"),
+            javaHome = currentJavaHome
+        )
+
+        val runningBuild = provider.runBuild(
+            projectRoot = projectRoot,
+            args = args
+        )
+        val result = runningBuild.awaitFinished()
+
+        assert(result.outcome is BuildOutcome.Success)
+    }
+
+    @Test
     fun `closing provider stops background builds and cancels scope`() = runTest {
         val testProvider = createTestProvider()
         testJavaProject().use { project ->

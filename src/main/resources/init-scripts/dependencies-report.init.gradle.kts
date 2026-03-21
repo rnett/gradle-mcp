@@ -96,7 +96,7 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         val allConfigs = projectConfigs + buildscriptConfigs
 
         // Progress Tracking
-        var totalItems = allConfigs.size.toLong() * 2 // RESOLUTION + RENDERING
+        var totalItems = allConfigs.size.toLong() * 2 // RESOLUTION + COLLECTING
         var completedItems = 0L
 
         fun reportProgress(category: String, detail: String) {
@@ -170,10 +170,10 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         outputSourceSets(project, realProject, mcpRenderer)
         outputKotlinSourceSets(project, realProject, mcpRenderer)
 
-        // Phase 4: Rendering
+        // Phase 4: Collecting
         mcpRenderer.startProject(project)
         projectConfigs.forEach { config ->
-            reportProgress("Rendering", config.name)
+            reportProgress("Collecting", "[${realProject.path}] ${config.name}")
             val details = ConfigurationDetails.of(config)
             mcpRenderer.startConfiguration(details)
             mcpRenderer.render(details)
@@ -182,7 +182,7 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
 
         mcpRenderer.inBuildscript = true
         for (config in buildscriptConfigs) {
-            reportProgress("Rendering", "buildscript:${config.name}")
+            reportProgress("Collecting", "[${realProject.path}] buildscript:${config.name}")
             val details = ConfigurationDetails.of(config)
             mcpRenderer.startConfiguration(details)
             mcpRenderer.render(details)
@@ -314,8 +314,8 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         realProject.repositories.forEach { repo ->
             val name = repo.name
             val url = when (repo) {
-                is MavenArtifactRepository -> repo.url.toString()
-                is IvyArtifactRepository -> repo.url.toString()
+                is MavenArtifactRepository -> repo.url?.toString() ?: "unknown"
+                is IvyArtifactRepository -> repo.url?.toString() ?: "unknown"
                 else -> "unknown"
             }
             mcpRenderer.outputRepository(project, name, url)
@@ -323,8 +323,8 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         realProject.buildscript.repositories.forEach { repo ->
             val name = repo.name
             val url = when (repo) {
-                is MavenArtifactRepository -> repo.url.toString()
-                is IvyArtifactRepository -> repo.url.toString()
+                is MavenArtifactRepository -> repo.url?.toString() ?: "unknown"
+                is IvyArtifactRepository -> repo.url?.toString() ?: "unknown"
                 else -> "unknown"
             }
             mcpRenderer.outputRepository(project, "buildscript:$name", url)

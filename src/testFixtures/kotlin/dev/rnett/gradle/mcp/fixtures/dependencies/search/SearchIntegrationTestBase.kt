@@ -23,7 +23,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.io.path.createDirectories
 import kotlin.io.path.outputStream
-import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 abstract class SearchIntegrationTestBase {
@@ -103,9 +103,9 @@ abstract class SearchIntegrationTestBase {
             sourcesService.downloadAllSources(projectRoot, index = false)
         }
 
-        assertFailsWith<IllegalStateException> {
-            sourcesService.search(sourcesDir, searchProvider, "MyClass")
-        }
+        val response = sourcesService.search(sourcesDir, searchProvider, "MyClass")
+        assertNotNull(response.error, "Search should have failed with an error when indexing is disabled")
+        assertTrue(response.error!!.contains("Index not found") || response.error!!.contains("Index for provider"), "Error message should mention missing index: ${response.error}")
     }
 
     @Test
@@ -130,7 +130,7 @@ abstract class SearchIntegrationTestBase {
         )
 
         val sourcesDir = with(ProgressReporter.NONE) {
-            sourcesService.downloadAllSources(projectRoot, index = true)
+            sourcesService.downloadAllSources(projectRoot, index = true, providerToIndex = searchProvider)
         }
 
         // MyClass should be found (it's .kt)

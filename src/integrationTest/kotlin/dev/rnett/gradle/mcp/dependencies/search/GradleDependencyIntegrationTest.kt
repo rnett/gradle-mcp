@@ -478,13 +478,13 @@ class GradleDependencyIntegrationTest {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
 
         val sourcesDir = with(ProgressReporter.PRINTLN) {
-            sourcesService.downloadConfigurationSources(projectRoot, ":sub-a:runtimeClasspath", index = true)
+            sourcesService.downloadConfigurationSources(projectRoot, ":sub-a:runtimeClasspath", index = true, providerToIndex = DeclarationSearch)
         }
 
         val searchProvider = DeclarationSearch
-        val searchResults = sourcesService.search(sourcesDir, searchProvider, "LoggerFactory").results
+        val searchResults = sourcesService.search(sourcesDir, searchProvider, "fqn:org.slf4j.LoggerFactory").results
 
-        assertTrue(searchResults.isNotEmpty(), "Expected search results for 'LoggerFactory'")
+        assertTrue(searchResults.isNotEmpty(), "Expected search results for 'fqn:org.slf4j.LoggerFactory'")
     }
 
     @Test
@@ -492,7 +492,7 @@ class GradleDependencyIntegrationTest {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
 
         with(ProgressReporter.PRINTLN) {
-            sourcesService.downloadConfigurationSources(projectRoot, ":sub-a:compileClasspath", index = true, forceDownload = false)
+            sourcesService.downloadConfigurationSources(projectRoot, ":sub-a:compileClasspath", index = true, forceDownload = false, providerToIndex = DeclarationSearch)
         }
     }
 
@@ -502,12 +502,41 @@ class GradleDependencyIntegrationTest {
 
         // First download normally
         with(ProgressReporter.PRINTLN) {
-            sourcesService.downloadConfigurationSources(projectRoot, ":sub-a:compileClasspath", index = true, forceDownload = false)
+            sourcesService.downloadConfigurationSources(projectRoot, ":sub-a:compileClasspath", index = true, forceDownload = false, providerToIndex = DeclarationSearch)
         }
 
         // Then force download
         with(ProgressReporter.PRINTLN) {
-            sourcesService.downloadConfigurationSources(projectRoot, ":sub-a:compileClasspath", index = true, forceDownload = true)
+            sourcesService.downloadConfigurationSources(projectRoot, ":sub-a:compileClasspath", index = true, forceDownload = true, providerToIndex = DeclarationSearch)
+        }
+    }
+
+    @Test
+    fun `can handle Ivy repository without URL`() = runTest(timeout = 180.seconds) {
+        val ivyProject = testGradleProject {
+            useKotlinDsl(true)
+            buildScript(
+                """
+                plugins { id("java") }
+                repositories {
+                    ivy {
+                        // No URL, just patterns
+                        artifactPattern("http://repo.example.com/[module]/[artifact]-[revision].[ext]")
+                    }
+                }
+            """.trimIndent()
+            )
+        }
+        try {
+            val projectRoot = GradleProjectRoot(ivyProject.pathString())
+            val report = with(ProgressReporter.PRINTLN) { service.getDependencies(projectRoot) }
+
+            assertNotNull(report)
+            val root = report.projects.find { it.path == ":" }
+            assertNotNull(root)
+            assertTrue(root.repositories.any { it.url == "unknown" }, "Should have an 'unknown' URL for Ivy repo without URL")
+        } finally {
+            ivyProject.close()
         }
     }
 }

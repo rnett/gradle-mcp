@@ -5,6 +5,7 @@ import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.search.Index
 import dev.rnett.gradle.mcp.dependencies.search.IndexEntry
 import dev.rnett.gradle.mcp.dependencies.search.IndexService
+import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
 import dev.rnett.gradle.mcp.utils.FileUtils
 import dev.rnett.gradle.mcp.withMessage
 import kotlinx.coroutines.Dispatchers
@@ -16,6 +17,7 @@ import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import kotlin.io.path.ExperimentalPathApi
+import kotlin.io.path.copyToRecursively
 import kotlin.io.path.createFile
 import kotlin.io.path.createParentDirectories
 import kotlin.io.path.deleteRecursively
@@ -41,7 +43,8 @@ class SourcesProcessor(private val indexService: IndexService) {
         dep: GradleDependency,
         index: Boolean,
         indexingProgress: ProgressReporter,
-        forceDownload: Boolean = false
+        forceDownload: Boolean = false,
+        providerToIndex: SearchProvider? = null
     ) {
         val extractionMarker = dir.resolve(".extracted")
         if (!forceDownload && extractionMarker.exists()) {
@@ -54,7 +57,7 @@ class SourcesProcessor(private val indexService: IndexService) {
 
         try {
             if (index) {
-                extractWithIndexing(dir, dep, indexingProgress, forceDownload)
+                extractWithIndexing(dir, dep, indexingProgress, forceDownload, providerToIndex)
             } else {
                 extractOnly(dir, dep)
             }
@@ -76,25 +79,32 @@ class SourcesProcessor(private val indexService: IndexService) {
         dir: Path,
         dep: GradleDependency,
         indexingProgress: ProgressReporter,
-        forceDownload: Boolean
+        forceDownload: Boolean,
+        providerToIndex: SearchProvider? = null
     ) = coroutineScope {
-        val filesChannel = Channel<IndexEntry>(capacity = 20)
+        if (providerToIndex == null) {
+            extractOnly(dir, dep)
+            return@coroutineScope
+        }
+
+        val channel = Channel<IndexEntry>(capacity = 20)
+
+        val currentIndexingProgress = indexingProgress.withMessage { "Indexing sources for ${dep.id}" }
         val job = launch(Dispatchers.IO) {
-            val flow = filesChannel.consumeAsFlow()
-            val currentIndexingProgress = indexingProgress.withMessage { "Indexing sources for ${dep.id}" }
             with(currentIndexingProgress) {
-                indexService.indexFiles(dep, flow, forceIndex = forceDownload)
+                indexService.indexFiles(dep, channel.consumeAsFlow(), providerToIndex, forceIndex = forceDownload)
             }
         }
 
         try {
             with(ProgressReporter.NONE) {
                 ArchiveExtractor.extractInto(dir, requireNotNull(dep.sourcesFile), skipSingleFirstDir = true, writeFiles = true) { path, contentBytes ->
-                    filesChannel.send(IndexEntry(path, String(contentBytes, Charsets.UTF_8)))
+                    val entry = IndexEntry(path, String(contentBytes, Charsets.UTF_8))
+                    channel.send(entry)
                 }
             }
         } finally {
-            filesChannel.close()
+            channel.close()
         }
         job.join()
     }
@@ -107,16 +117,25 @@ class SourcesProcessor(private val indexService: IndexService) {
     suspend fun ensureIndexed(
         dep: GradleDependency,
         dir: Path,
-        forceDownload: Boolean = false
+        forceDownload: Boolean = false,
+        providerToIndex: SearchProvider? = null
     ): Index? {
+        if (providerToIndex == null) return null
+
+        // Check cache before creating the flow to avoid unnecessary I/O on cache hits
+        if (!forceDownload && indexService.isIndexed(dep, providerToIndex)) {
+            return indexService.getIndex(dep, providerToIndex)
+        }
+
         val currentIndexingProgress = indexingProgress.withMessage { "Indexing sources for ${dep.id}" }
+
         return with(currentIndexingProgress) {
             indexService.indexFiles(dep, flow {
                 dir.walk().filter { it.isRegularFile() && it.fileName.toString() != ".extracted" }.forEach { file ->
                     val rel = file.relativeTo(dir).toString().replace('\\', '/')
                     emit(IndexEntry(rel, file.readText()))
                 }
-            }, forceIndex = forceDownload)
+            }, providerToIndex, forceIndex = forceDownload)
         }
     }
 
@@ -129,7 +148,7 @@ class SourcesProcessor(private val indexService: IndexService) {
         if (!FileUtils.createSymbolicLink(scopeLink, dir)) {
             logger.warn("Failed to create symbolic link for {} to {}. Falling back to recursive copy. This will consume more disk space and time. Consider enabling 'Developer Mode' on Windows.", dep.id, targetSources)
             try {
-                dir.toFile().copyRecursively(scopeLink.toFile(), overwrite = true)
+                dir.copyToRecursively(scopeLink, followLinks = false, overwrite = true)
             } catch (e2: Exception) {
                 logger.error("Failed to sync sources for $dep to $targetSources.", e2)
             }

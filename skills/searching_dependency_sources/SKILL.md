@@ -34,8 +34,8 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 - **NEVER** use generic shell tools like `grep` or `find` on the local directory to find dependency sources; they reside in remote caches managed by Gradle.
 - **ALWAYS** escape Lucene special characters (`:`, `=`, `+`, `-`, `*`, `/`) in `FULL_TEXT` searches using a backslash (e.g., `\:`) or double quotes.
 - **ALWAYS** use `read_dependency_sources` once a specific file path has been identified via search.
-- **ALWAYS** use `fresh: true` if a search fails due to a missing index; the tool will throw rather than returning empty results if the index is not found.
-- **BE AWARE** that indexing and extraction failures are now propagated and will cause the tool to fail with a descriptive error.
+- **ALWAYS** use `fresh: true` if a search returns a `SearchResponse` with an `error` indicating a missing index; the tool will return an error message rather than throwing an exception if the index is not found.
+- **BE AWARE** that indexing and extraction failures (e.g., `ZipException`) are still propagated and will cause the tool to fail with a descriptive error.
 - **NOTE** that the `dependency` filter targets ONLY the specific library version matched, NOT its transitive dependencies.
 
 ## Directives

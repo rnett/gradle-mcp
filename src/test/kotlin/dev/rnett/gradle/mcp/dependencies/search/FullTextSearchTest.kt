@@ -46,8 +46,9 @@ class FullTextSearchTest {
                     index1Dir to Path.of("lib1"),
                     index2Dir to Path.of("lib2")
                 ),
-                mergedIndexDir
-            )
+                mergedIndexDir,
+                ProgressReporter.NONE
+            ) { _, action -> action() }
 
             val finalIndexDir = mergedIndexDir.resolve(FullTextSearch.v4IndexDirName)
             FSDirectory.open(finalIndexDir).use { dir ->
