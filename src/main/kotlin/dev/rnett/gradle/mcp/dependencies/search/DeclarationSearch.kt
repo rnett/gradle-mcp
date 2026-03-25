@@ -84,9 +84,10 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
         }
     }
 
-    override suspend fun listPackageContents(indexDir: Path, packageName: String): PackageContents? = withContext(Dispatchers.IO) {
-        if (!indexDir.exists()) return@withContext null
-        withReader(indexDir) { reader ->
+    override suspend fun listPackageContents(indexDirs: List<Path>, packageName: String): PackageContents? = withContext(Dispatchers.IO) {
+        val existingIndexDirs = indexDirs.filter { it.exists() }
+        if (existingIndexDirs.isEmpty()) return@withContext null
+        withMultiReader(existingIndexDirs) { reader ->
             val searcher = IndexSearcher(reader)
 
             // 1. Direct symbols in this package
@@ -120,19 +121,20 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
                 }
             }
 
-            if (symbols.isEmpty() && subPackages.isEmpty()) return@withReader null
+            if (symbols.isEmpty() && subPackages.isEmpty()) return@withMultiReader null
 
             PackageContents(symbols.sorted(), subPackages.sorted())
         }
     }
 
-    override suspend fun search(indexDir: Path, query: String, pagination: PaginationInput): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
+    override suspend fun search(indexDirs: List<Path>, query: String, pagination: PaginationInput): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (res, duration) = measureTimedValue {
-            if (!indexDir.exists()) {
-                return@withContext SearchResponse(emptyList(), error = "Symbol index dir does not exist: $indexDir")
+            val existingIndexDirs = indexDirs.filter { resolveIndexDir(it).exists() }
+            if (existingIndexDirs.isEmpty()) {
+                return@withContext SearchResponse<RelativeSearchResult>(emptyList(), error = "No Lucene index directories exist among the provided paths.")
             }
 
-            withReader(indexDir) { reader ->
+            withMultiReader(existingIndexDirs) { reader ->
                 val searcher = IndexSearcher(reader)
                 createAnalyzer().use { analyzer ->
                     val q = try {
@@ -142,7 +144,7 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
                     } catch (e: Exception) {
                         val message = e.message ?: "Unknown error"
                         val error = LuceneUtils.formatSyntaxError(message)
-                        return@withReader SearchResponse<RelativeSearchResult>(
+                        return@withMultiReader SearchResponse<RelativeSearchResult>(
                             emptyList(),
                             error = error
                         )
@@ -161,9 +163,9 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
                         )
                     }.toList()
 
-                    SearchResponse(matchedResults, interpretedQuery = q.toString(), totalResults = topDocs.totalHits.value.toInt())
+                    SearchResponse(matchedResults, interpretedQuery = q.toString(), hasMore = topDocs.totalHits.value > pagination.offset + pagination.limit)
                 }
-            }
+            } ?: SearchResponse(emptyList(), error = "Failed to open index readers.")
         }
         logger.info("Symbol search for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) took $duration (${res.results.size} results)")
         return@withContext res

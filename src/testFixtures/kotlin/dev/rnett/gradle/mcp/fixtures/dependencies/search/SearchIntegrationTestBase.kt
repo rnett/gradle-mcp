@@ -46,8 +46,8 @@ abstract class SearchIntegrationTestBase {
         dependencyService = mockk()
         indexService = dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(environment)
         storageService = dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService(environment)
-        sourceIndexService = dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService(indexService, storageService)
-        sourcesService = dev.rnett.gradle.mcp.dependencies.DefaultSourcesService(dependencyService, storageService, sourceIndexService)
+        sourceIndexService = dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService(indexService)
+        sourcesService = dev.rnett.gradle.mcp.dependencies.DefaultSourcesService(dependencyService, storageService, indexService)
     }
 
     protected fun createSourceZip(name: String, content: Map<String, String>): Path {
@@ -84,39 +84,6 @@ abstract class SearchIntegrationTestBase {
     }
 
     @Test
-    open fun `test that search fails if indexing was disabled`() = runTest {
-        val zip = createSourceZip(
-            "test-sources", mapOf(
-                "com/example/MyClass.kt" to "class MyClass"
-            )
-        )
-
-        mockDependencyReport(
-            GradleDependency(
-                id = "com.example:test:1.0",
-                group = "com.example",
-                name = "test",
-                version = "1.0",
-                sourcesFile = zip
-            )
-        )
-
-        val sourcesDir = with(ProgressReporter.NONE) {
-            sourcesService.resolveAndProcessAllSources(projectRoot, index = false)
-        }
-
-        val response = sourceIndexService.search(sourcesDir, searchProvider, "MyClass")
-        assertTrue(response.error != null, "Search should have failed with an error when indexing is disabled")
-        assertTrue(
-            response.error!!.contains("Lucene index directory does not exist") ||
-                    response.error!!.contains("Symbol index dir does not exist") ||
-                    response.error!!.contains("Index for provider") ||
-                    response.error!!.contains("Index not found"),
-            "Error message should mention missing index: ${response.error}"
-        )
-    }
-
-    @Test
     fun `test that only source files are indexed`() = runTest {
         val zip = createSourceZip(
             "test-sources", mapOf(
@@ -138,7 +105,7 @@ abstract class SearchIntegrationTestBase {
         )
 
         val sourcesDir = with(ProgressReporter.NONE) {
-            sourcesService.resolveAndProcessAllSources(projectRoot, index = true, providerToIndex = searchProvider)
+            sourcesService.resolveAndProcessAllSources(projectRoot, providerToIndex = searchProvider)
         }
 
         // MyClass should be found (it's .kt)

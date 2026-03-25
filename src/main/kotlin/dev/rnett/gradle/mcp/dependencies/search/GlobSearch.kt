@@ -1,19 +1,15 @@
 package dev.rnett.gradle.mcp.dependencies.search
 
-import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.tools.PaginationInput
-import dev.rnett.gradle.mcp.utils.unorderedParallelForEach
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import java.nio.file.FileSystems
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentLinkedQueue
-import kotlin.concurrent.atomics.AtomicInt
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
-import kotlin.io.path.readLines
 import kotlin.io.path.readText
 import kotlin.io.path.useLines
 import kotlin.io.path.writeLines
@@ -27,11 +23,11 @@ object GlobSearch : SearchProvider {
 
     private const val v2FileName = "filenames-v2.txt"
 
-    override suspend fun search(indexDir: Path, query: String, pagination: PaginationInput): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
+    override suspend fun search(indexDirs: List<Path>, query: String, pagination: PaginationInput): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (results, duration) = measureTimedValue {
-            val file = indexDir.resolve(v2FileName)
-            if (!file.exists()) {
-                return@withContext SearchResponse(emptyList(), error = "Glob index file does not exist: $file")
+            val existingIndexDirs = indexDirs.filter { it.resolve(v2FileName).exists() }
+            if (existingIndexDirs.isEmpty()) {
+                return@withContext SearchResponse(emptyList(), error = "No valid Glob index files found in provided paths.")
             }
 
             val matcher = try {
@@ -45,40 +41,51 @@ object GlobSearch : SearchProvider {
                 null
             }
 
-            val paths = file.readLines()
+            var hasMore = false
+            var matchesFound = 0
+            val paginatedMatches = mutableListOf<String>()
 
-            val matches = paths.asSequence()
-                .filter {
-                    if (matcher != null) {
-                        try {
-                            // Java's glob matcher on Windows expects the Path object, but it works correctly with the default Path representation.
-                            // However, we should make sure we create the Path correctly.
-                            matcher.matches(Path(it))
-                        } catch (e: Exception) {
-                            it.contains(query, ignoreCase = true)
+            dirLoop@ for (dir in existingIndexDirs) {
+                dir.resolve(v2FileName).useLines { lines ->
+                    for (line in lines) {
+                        val isMatch = if (matcher != null) {
+                            try {
+                                matcher.matches(Path(line))
+                            } catch (e: Exception) {
+                                line.contains(query, ignoreCase = true)
+                            }
+                        } else {
+                            line.contains(query, ignoreCase = true)
                         }
-                    } else {
-                        it.contains(query, ignoreCase = true)
+
+                        if (isMatch) {
+                            matchesFound++
+                            if (matchesFound > pagination.offset) {
+                                if (paginatedMatches.size < pagination.limit) {
+                                    paginatedMatches.add(line)
+                                } else {
+                                    hasMore = true
+                                    break@dirLoop
+                                }
+                            }
+                        }
                     }
                 }
-                .toList()
+            }
 
             SearchResponse(
-                matches.asSequence() 
-                    .drop(pagination.offset)
-                    .take(pagination.limit)
-                    .map {
-                        RelativeSearchResult(
-                            relativePath = it,
-                            offset = 0,
-                            line = null,
-                            score = 1.0f,
-                            snippet = null,
-                            skipBoilerplate = true
-                        )
-                    }.toList(),
+                paginatedMatches.map {
+                    RelativeSearchResult(
+                        relativePath = it,
+                        offset = 0,
+                        line = null,
+                        score = 1.0f,
+                        snippet = null,
+                        skipBoilerplate = true
+                    )
+                },
                 interpretedQuery = if (matcher != null) "glob:$query" else "substring:$query",
-                totalResults = matches.size
+                hasMore = hasMore
             )
         }
         val response = results
@@ -110,42 +117,6 @@ object GlobSearch : SearchProvider {
         }
 
         override fun close() {}
-    }
-
-    context(progress: ProgressReporter)
-    override suspend fun mergeIndices(
-        indexDirs: Map<Path, Path>,
-        outputDir: Path,
-        withLock: suspend (Path, suspend () -> Unit) -> Unit
-    ) = withContext(Dispatchers.IO) {
-        val totalDocs = indexDirs.keys.sumOf { countDocuments(it) }
-        val completedDocs = AtomicInt(0)
-
-        val (fileCount, duration) = measureTimedValue {
-            val file = outputDir.resolve(v2FileName)
-            outputDir.createDirectories()
-
-            val allPaths = ConcurrentLinkedQueue<String>()
-            indexDirs.entries.unorderedParallelForEach(context = Dispatchers.IO) { (idxDir, _) ->
-                withLock(idxDir) {
-                    val srcFile = idxDir.resolve(v2FileName)
-                    if (srcFile.exists()) {
-                        val paths = srcFile.readLines()
-                        val updatedDocs = completedDocs.addAndFetch(paths.size)
-                        progress.report(updatedDocs.toDouble(), totalDocs.toDouble(), null)
-                        allPaths.addAll(paths)
-                    } else {
-                        throw IllegalStateException("Glob index does not exist at $idxDir during merge!")
-                    }
-                }
-            }
-
-            val resultList = allPaths.toList()
-            file.writeLines(resultList)
-            outputDir.resolve(".count").writeText(resultList.size.toString())
-            resultList.size
-        }
-        LOGGER.info("Glob index merging took $duration ($fileCount files across ${indexDirs.size} indices)")
     }
 
     override suspend fun countDocuments(indexDir: Path): Int = withContext(Dispatchers.IO) {

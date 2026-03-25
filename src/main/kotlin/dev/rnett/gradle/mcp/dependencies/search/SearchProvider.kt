@@ -1,6 +1,5 @@
 package dev.rnett.gradle.mcp.dependencies.search
 
-import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import kotlinx.serialization.Serializable
 import java.nio.file.Path
@@ -20,26 +19,17 @@ interface SearchProvider {
     val name: String
     val indexVersion: Int
 
-    suspend fun search(indexDir: Path, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): SearchResponse<RelativeSearchResult>
-
-    suspend fun listPackageContents(indexDir: Path, packageName: String): PackageContents? = null
-
-    suspend fun newIndexer(outputDir: Path): Indexer
+    /**
+     * Performs a search against multiple individual dependency indices.
+     */
+    suspend fun search(indexDirs: List<Path>, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): SearchResponse<RelativeSearchResult>
 
     /**
-     * Merges multiple individual dependency indices into a combined index.
-     *
-     * @param indexDirs Map of individual dependency index directories to their relative path prefixes in the merged set.
-     * @param outputDir The directory where the merged index should be written.
-     * @param withLock A callback used to acquire a lock on a source index directory before reading from it.
-     *                 Crucial for ensuring source indices aren't deleted mid-merge.
+     * Lists package contents across multiple dependency indices.
      */
-    context(progress: ProgressReporter)
-    suspend fun mergeIndices(
-        indexDirs: Map<Path, Path>,
-        outputDir: Path,
-        withLock: suspend (Path, suspend () -> Unit) -> Unit
-    )
+    suspend fun listPackageContents(indexDirs: List<Path>, packageName: String): PackageContents? = null
+
+    suspend fun newIndexer(outputDir: Path): Indexer
 
     suspend fun countDocuments(indexDir: Path): Int
 
@@ -50,7 +40,9 @@ interface SearchProvider {
 
 data class Index(val dir: Path)
 
-data class IndexEntry(val relativePath: String, val content: String)
+class IndexEntry(val relativePath: String, private val contentProvider: () -> String) {
+    val content: String get() = contentProvider()
+}
 
 @Serializable
 /**
@@ -68,7 +60,7 @@ data class SearchResponse<T>(
     val results: List<T>,
     val interpretedQuery: String? = null,
     val error: String? = null,
-    val totalResults: Int? = null
+    val hasMore: Boolean = false
 )
 
 data class RelativeSearchResult(

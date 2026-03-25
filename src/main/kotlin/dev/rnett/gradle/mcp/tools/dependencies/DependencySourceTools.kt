@@ -250,7 +250,7 @@ class DependencySourceTools(
                 appendLine("Interpreted query: `${response.interpretedQuery}`")
             }
             appendLine("Search results for '$query':\n")
-            val paged = paginate(results, pagination, "search results", isAlreadyPaged = true, total = response.totalResults ?: results.size) { result ->
+            val paged = paginate(results, pagination, "search results", isAlreadyPaged = true, hasMore = response.hasMore) { result ->
                 buildString {
                     val scoreStr = if (result.score != null) " (score: ${"%.2f".format(java.util.Locale.US, result.score)})" else ""
                     appendLine("### File: ${result.relativePath}:${result.line}$scoreStr")

@@ -7,6 +7,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import kotlin.io.path.absolutePathString
+import kotlin.io.path.deleteIfExists
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
@@ -33,6 +34,7 @@ object FileUtils {
     fun createJunction(link: Path, target: Path): Boolean {
         if (!OS.isWindows) return false
         return try {
+            link.deleteIfExists()
             val process = ProcessBuilder("cmd.exe", "/c", "mklink", "/j", link.absolutePathString(), target.absolutePathString())
                 .start()
             val exitCode = process.waitFor()
@@ -46,6 +48,48 @@ object FileUtils {
         } catch (e: Exception) {
             LOGGER.error("Failed to create junction from $link to $target", e)
             false
+        }
+    }
+
+    /**
+     * Atomically moves [source] to [target] ONLY if [target] does not exist.
+     * Returns true if moved, false if [target] already existed.
+     * Discards [source] if [target] already exists (as per CAS protocol).
+     */
+    @OptIn(kotlin.io.path.ExperimentalPathApi::class)
+    suspend fun atomicMoveIfAbsent(source: Path, target: Path): Boolean = withContext(Dispatchers.IO) {
+        if (target.exists()) {
+            try {
+                source.deleteRecursively()
+            } catch (e: Exception) {
+                LOGGER.warn("Failed to delete redundant source $source after CAS collision", e)
+            }
+            return@withContext false
+        }
+
+        try {
+            Files.move(source, target, StandardCopyOption.ATOMIC_MOVE)
+            true
+        } catch (e: java.nio.file.FileAlreadyExistsException) {
+            // Another process beat us to it
+            try {
+                source.deleteRecursively()
+            } catch (e2: Exception) {
+                LOGGER.warn("Failed to delete redundant source $source after CAS collision (FileAlreadyExistsException)", e2)
+            }
+            false
+        } catch (e: Exception) {
+            // Check if it exists now, maybe another process moved it while we were trying
+            if (target.exists()) {
+                try {
+                    source.deleteRecursively()
+                } catch (e2: Exception) {
+                    LOGGER.warn("Failed to delete redundant source $source after CAS collision (catch Exception)", e2)
+                }
+                false
+            } else {
+                throw e
+            }
         }
     }
 

@@ -31,63 +31,24 @@ class GlobSearchTest {
             GlobSearch.index(dependencyDir, outputDir)
         }
 
-        val results = GlobSearch.search(outputDir, "**/MyClass.kt").results
+        val results = GlobSearch.search(listOf(outputDir), "**/MyClass.kt").results
         assertEquals(1, results.size)
         assertEquals("src/main/kotlin/MyClass.kt", results[0].relativePath)
 
-        val xmlResults = GlobSearch.search(outputDir, "**/*.xml").results
+        val xmlResults = GlobSearch.search(listOf(outputDir), "**/*.xml").results
         assertEquals(1, xmlResults.size)
         assertEquals("src/main/resources/config.xml", xmlResults[0].relativePath)
 
-        val licenseResults = GlobSearch.search(outputDir, "LICENSE").results
+        val licenseResults = GlobSearch.search(listOf(outputDir), "LICENSE").results
         assertEquals(1, licenseResults.size)
         assertEquals("LICENSE", licenseResults[0].relativePath)
 
-        val noResults = GlobSearch.search(outputDir, "NON_EXISTENT").results
+        val noResults = GlobSearch.search(listOf(outputDir), "NON_EXISTENT").results
         assertTrue(noResults.isEmpty())
 
-        val substringResults = GlobSearch.search(outputDir, "config").results
+        val substringResults = GlobSearch.search(listOf(outputDir), "config").results
         assertEquals(1, substringResults.size)
         assertEquals("src/main/resources/config.xml", substringResults[0].relativePath)
-    }
-
-    @Test
-    fun `test merging indices`() = runTest {
-        val dep1Dir = tempDir.resolve("dep1")
-        dep1Dir.createDirectories()
-        dep1Dir.resolve("File1.kt").createFile()
-        val index1Dir = tempDir.resolve("index1")
-        with(ProgressReporter.PRINTLN) {
-            GlobSearch.index(dep1Dir, index1Dir, kotlin.io.path.Path("lib1"))
-
-            val dep2Dir = tempDir.resolve("dep2")
-            dep2Dir.createDirectories()
-            dep2Dir.resolve("File2.kt").createFile()
-            val index2Dir = tempDir.resolve("index2")
-            GlobSearch.index(dep2Dir, index2Dir, kotlin.io.path.Path("lib2"))
-
-            val mergedDir = tempDir.resolve("merged")
-            with(ProgressReporter.NONE) {
-                GlobSearch.mergeIndices(
-                    mapOf(
-                        index1Dir to kotlin.io.path.Path("lib1"),
-                        index2Dir to kotlin.io.path.Path("lib2")
-                    ),
-                    mergedDir
-                ) { _, action -> action() }
-            }
-
-            val results1 = GlobSearch.search(mergedDir, "lib1/File1.kt").results
-            assertEquals(1, results1.size)
-            assertEquals("lib1/File1.kt", results1[0].relativePath)
-
-            val results2 = GlobSearch.search(mergedDir, "lib2/File2.kt").results
-            assertEquals(1, results2.size)
-            assertEquals("lib2/File2.kt", results2[0].relativePath)
-
-            val allResults = GlobSearch.search(mergedDir, "**/*.kt").results
-            assertEquals(2, allResults.size)
-        }
     }
 
     @Test

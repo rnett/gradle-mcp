@@ -52,8 +52,8 @@ class GradleDependencyIntegrationTest {
         service = DefaultGradleDependencyService(provider)
         indexService = DefaultIndexService(environment)
         val storageService = dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService(environment)
-        sourceIndexService = dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService(indexService, storageService)
-        sourcesService = dev.rnett.gradle.mcp.dependencies.DefaultSourcesService(service, storageService, sourceIndexService)
+        sourceIndexService = dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService(indexService)
+        sourcesService = dev.rnett.gradle.mcp.dependencies.DefaultSourcesService(service, storageService, indexService)
 
         // A single complex project to cover all test cases
         complexProject = testGradleProject {
@@ -481,7 +481,7 @@ class GradleDependencyIntegrationTest {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
 
         val sourcesDir = with(ProgressReporter.PRINTLN) {
-            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:runtimeClasspath", index = true, providerToIndex = DeclarationSearch)
+            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:runtimeClasspath", providerToIndex = DeclarationSearch)
         }
 
         val searchProvider = DeclarationSearch
@@ -495,7 +495,7 @@ class GradleDependencyIntegrationTest {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
 
         with(ProgressReporter.PRINTLN) {
-            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", index = true, forceDownload = false, providerToIndex = DeclarationSearch)
+            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", forceDownload = false, providerToIndex = DeclarationSearch)
         }
     }
 
@@ -505,12 +505,12 @@ class GradleDependencyIntegrationTest {
 
         // First download normally
         with(ProgressReporter.PRINTLN) {
-            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", index = true, forceDownload = false, providerToIndex = DeclarationSearch)
+            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", forceDownload = false, providerToIndex = DeclarationSearch)
         }
 
         // Then force download
         with(ProgressReporter.PRINTLN) {
-            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", index = true, forceDownload = true, providerToIndex = DeclarationSearch)
+            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", forceDownload = true, providerToIndex = DeclarationSearch)
         }
     }
 

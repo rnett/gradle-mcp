@@ -8,14 +8,10 @@ import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsSearchResponse
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsSectionSummary
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
 import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
-import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
 import dev.rnett.gradle.mcp.dependencies.model.GradleProjectDependencies
 import dev.rnett.gradle.mcp.dependencies.model.GradleSourceSetDependencyReport
-import dev.rnett.gradle.mcp.dependencies.model.MergedSourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
-import dev.rnett.gradle.mcp.dependencies.search.Index
-import dev.rnett.gradle.mcp.dependencies.search.IndexEntry
 import dev.rnett.gradle.mcp.dependencies.search.PackageContents
 import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
 import dev.rnett.gradle.mcp.dependencies.search.SearchResponse
@@ -205,51 +201,27 @@ object UpdateTools {
 
 private object ThrowingSourcesService : SourcesService {
     context(progress: ProgressReporter)
-    override suspend fun resolveAndProcessAllSources(projectRoot: GradleProjectRoot, dependency: String?, index: Boolean, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
+    override suspend fun resolveAndProcessAllSources(projectRoot: GradleProjectRoot, dependency: String?, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
         throw UnsupportedOperationException("Not used for tool listing")
     }
 
     context(progress: ProgressReporter)
-    override suspend fun resolveAndProcessProjectSources(projectRoot: GradleProjectRoot, projectPath: String, dependency: String?, index: Boolean, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
+    override suspend fun resolveAndProcessProjectSources(projectRoot: GradleProjectRoot, projectPath: String, dependency: String?, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
         throw UnsupportedOperationException("Not used for tool listing")
     }
 
     context(progress: ProgressReporter)
-    override suspend fun resolveAndProcessConfigurationSources(projectRoot: GradleProjectRoot, configurationPath: String, dependency: String?, index: Boolean, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
+    override suspend fun resolveAndProcessConfigurationSources(projectRoot: GradleProjectRoot, configurationPath: String, dependency: String?, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
         throw UnsupportedOperationException("Not used for tool listing")
     }
 
     context(progress: ProgressReporter)
-    override suspend fun resolveAndProcessSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, dependency: String?, index: Boolean, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
+    override suspend fun resolveAndProcessSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, dependency: String?, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
         throw UnsupportedOperationException("Not used for tool listing")
     }
 }
 
 private object ThrowingSourceIndexService : dev.rnett.gradle.mcp.dependencies.SourceIndexService {
-    context(progress: ProgressReporter)
-    override suspend fun indexDependency(dep: GradleDependency, entries: Flow<IndexEntry>, providerToIndex: SearchProvider, forceIndex: Boolean): Index? {
-        throw UnsupportedOperationException("Not used for tool listing")
-    }
-
-    context(progress: ProgressReporter)
-    override suspend fun ensureIndexed(dep: GradleDependency, dir: Path, forceDownload: Boolean, providerToIndex: SearchProvider?): Index? {
-        throw UnsupportedOperationException("Not used for tool listing")
-    }
-
-    context(progress: ProgressReporter)
-    override suspend fun mergeIndices(target: MergedSourcesDir, indices: List<Pair<Path, Index>>, providerToIndex: SearchProvider, currentHash: String) {
-        throw UnsupportedOperationException("Not used for tool listing")
-    }
-
-    override suspend fun isMergeUpToDate(sourcesDir: SourcesDir, providerToIndex: SearchProvider, currentHash: String): Boolean {
-        throw UnsupportedOperationException("Not used for tool listing")
-    }
-
-    context(progress: ProgressReporter)
-    override suspend fun ensureMergeUpToDate(target: MergedSourcesDir, providerToIndex: SearchProvider, currentHash: String): Boolean {
-        throw UnsupportedOperationException("Not used for tool listing")
-    }
-
     override suspend fun search(sources: SourcesDir, provider: SearchProvider, query: String, pagination: PaginationInput): SearchResponse<SearchResult> {
         throw UnsupportedOperationException("Not used for tool listing")
     }

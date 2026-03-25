@@ -130,7 +130,7 @@ object DI {
         single<IndexService> { DefaultIndexService(get()) }
         single<SourceStorageService> { DefaultSourceStorageService(get()) }
         single<CoroutineDispatcher> { Dispatchers.IO }
-        single<SourceIndexService> { DefaultSourceIndexService(get(), get(), get()) }
+        single<SourceIndexService> { DefaultSourceIndexService(get()) }
         single<SourcesService> { DefaultSourcesService(get(), get(), get(), get()) }
         single<GradleSourceService> { DefaultGradleSourceService(get(), get(), get(), get(), get()) }
         single { BuildManager() }

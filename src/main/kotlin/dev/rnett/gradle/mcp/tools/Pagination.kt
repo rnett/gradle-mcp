@@ -66,34 +66,37 @@ fun <T> McpServerComponent.paginate(
     items: List<T>,
     pagination: PaginationInput,
     itemName: String = "items",
-    total: Int = items.size,
+    total: Int? = null,
     isAlreadyPaged: Boolean = false,
+    hasMore: Boolean? = null,
     formatter: (T) -> String = { it.toString() }
 ): String {
     val offset = pagination.offset
     val limit = pagination.limit
 
-    McpToolHelper.logger.debug("Paginating {}: offset={}, limit={}, total={}", itemName, offset, limit, total)
+    McpToolHelper.logger.debug("Paginating {}: offset={}, limit={}, total={}, hasMore={}", itemName, offset, limit, total, hasMore)
 
     val paged = if (isAlreadyPaged) items else items.drop(offset).take(limit)
-    val end = (offset + paged.size).coerceAtMost(total)
+    val calculatedTotal = total ?: if (isAlreadyPaged) null else items.size
+    val end = offset + paged.size
 
-    val content = if (paged.isEmpty() && total > 0 && offset >= total) {
-        "No $itemName found at the requested offset. Total $itemName: $total."
+    val content = if (paged.isEmpty() && calculatedTotal != null && calculatedTotal > 0 && offset >= calculatedTotal) {
+        "No $itemName found at the requested offset. Total $itemName: $calculatedTotal."
     } else if (paged.isEmpty()) {
         "No $itemName found."
     } else {
         paged.joinToString("\n") { formatter(it) }
     }
 
-    val metadata = if (total > 0 && (end < total || offset > 0)) {
-        val suffix = if (end >= total) " (End of list)" else ""
+    val actualHasMore = hasMore ?: (calculatedTotal != null && end < calculatedTotal)
+    val metadata = if (actualHasMore || offset > 0) {
+        val suffix = if (!actualHasMore) " (End of list)" else ""
+        val totalSuffix = if (calculatedTotal != null) " of $calculatedTotal" else ""
         """
 
 ---
-Pagination: Showing $itemName ${offset + 1} to $end of $total$suffix.
-To see more results, use: `offset=${end}`, `limit=$limit`.
----
+Pagination: Showing $itemName ${offset + 1} to $end$totalSuffix$suffix.
+${if (actualHasMore) "To see more results, use: `offset=${end}`, `limit=$limit`.\n" else ""}---
 """.trimIndent()
     } else ""
 

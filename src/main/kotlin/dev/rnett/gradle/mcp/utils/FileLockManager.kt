@@ -78,7 +78,7 @@ object FileLockManager {
                             lastLog = timeSource.markNow()
                         }
 
-                        delay(100)
+                        delay(500)
                     }
                 }
 
@@ -91,5 +91,55 @@ object FileLockManager {
             }
         }
     }
+
+    /**
+     * Attempts to acquire a non-blocking advisory lock on [lockFile].
+     * Returns an [AdvisoryLock] if successful, or null if denied.
+     * The lock is released when [AdvisoryLock.close] is called.
+     */
+    fun tryLockAdvisory(lockFile: Path): AdvisoryLock? {
+        val absolutePath = lockFile.toAbsolutePath()
+        try {
+            absolutePath.parent.createDirectories()
+            val channel = FileChannel.open(
+                absolutePath,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.READ,
+                StandardOpenOption.WRITE
+            )
+            val lock = try {
+                channel.tryLock()
+            } catch (e: OverlappingFileLockException) {
+                null
+            } catch (e: Exception) {
+                null
+            }
+
+            return if (lock != null) {
+                AdvisoryLock(channel, lock)
+            } else {
+                channel.close()
+                null
+            }
+        } catch (e: Exception) {
+            return null
+        }
+    }
 }
+
+/**
+ * A wrapper for a [FileLock] and its associated [FileChannel] that implements [AutoCloseable].
+ */
+class AdvisoryLock(private val channel: FileChannel, private val lock: FileLock) : AutoCloseable {
+    override fun close() {
+        try {
+            lock.release()
+        } catch (e: Exception) {
+            // Ignored on close
+        } finally {
+            channel.close()
+        }
+    }
+}
+
 

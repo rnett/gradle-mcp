@@ -1,24 +1,22 @@
 package dev.rnett.gradle.mcp.dependencies.search
 
 import com.github.benmanes.caffeine.cache.Caffeine
-import dev.rnett.gradle.mcp.ProgressReporter
-import dev.rnett.gradle.mcp.lucene.LuceneUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.index.DirectoryReader
+import org.apache.lucene.index.IndexReader
 import org.apache.lucene.index.IndexWriter
 import org.apache.lucene.index.IndexWriterConfig
+import org.apache.lucene.index.MultiReader
 import org.apache.lucene.store.FSDirectory
 import org.slf4j.Logger
 import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
-import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
-import kotlin.time.measureTime
 
 abstract class LuceneBaseSearchProvider : SearchProvider {
     protected abstract val logger: Logger
@@ -28,7 +26,7 @@ abstract class LuceneBaseSearchProvider : SearchProvider {
     protected abstract fun createAnalyzer(): Analyzer
 
     protected val readerCache = Caffeine.newBuilder()
-        .maximumSize(50)
+        .maximumSize(1000)
         .expireAfterAccess(30, TimeUnit.MINUTES)
         .removalListener<Path, DirectoryReader> { _, reader, _ ->
             reader?.close()
@@ -53,6 +51,33 @@ abstract class LuceneBaseSearchProvider : SearchProvider {
             return action(reader)
         } finally {
             reader.decRef()
+        }
+    }
+
+    protected inline fun <T> withMultiReader(indexDirs: List<Path>, action: (IndexReader) -> T): T? {
+        val readers = mutableListOf<DirectoryReader>()
+        try {
+            for (dir in indexDirs) {
+                val resolved = resolveIndexDir(dir)
+                if (!resolved.exists()) continue
+                val reader = readerCache.get(resolved)
+                reader.incRef()
+                readers.add(reader)
+            }
+        } catch (e: Exception) {
+            readers.forEach { it.decRef() }
+            throw e
+        }
+
+        if (readers.isEmpty()) {
+            return null
+        }
+
+        return try {
+            val multiReader = if (readers.size == 1) readers.first() else MultiReader(*readers.toTypedArray())
+            action(multiReader)
+        } finally {
+            readers.forEach { it.decRef() }
         }
     }
 
@@ -85,50 +110,6 @@ abstract class LuceneBaseSearchProvider : SearchProvider {
             directory.close()
             analyzer.close()
         }
-    }
-
-    context(progress: ProgressReporter)
-    override suspend fun mergeIndices(
-        indexDirs: Map<Path, Path>,
-        outputDir: Path,
-        withLock: suspend (Path, suspend () -> Unit) -> Unit
-    ) = withContext(Dispatchers.IO) {
-        val total = indexDirs.size.toDouble()
-        var completed = 0
-
-        val duration = measureTime {
-            val resolvedOutputDir = resolveIndexDir(outputDir)
-            resolvedOutputDir.createDirectories()
-
-            createAnalyzer().use { analyzer ->
-                LuceneUtils.writeIndex(resolvedOutputDir, analyzer) { writer ->
-                    indexDirs.entries.forEach { (idxDir, _) ->
-                        withLock(idxDir) {
-                            val resolvedIdxDir = resolveIndexDir(idxDir)
-
-                            FSDirectory.open(resolvedIdxDir).use { directory ->
-                                if (DirectoryReader.indexExists(directory)) {
-                                    writer.addIndexes(directory)
-                                    completed++
-                                    progress.report(completed.toDouble(), total, null)
-                                } else {
-                                    val files = try {
-                                        resolvedIdxDir.listDirectoryEntries().map { it.fileName.toString() }
-                                    } catch (e: Exception) {
-                                        "error listing files"
-                                    }
-                                    throw IllegalStateException("Lucene index does not exist at $resolvedIdxDir during merge! Files in dir: $files")
-                                }
-                            }
-                        }
-                    }
-                    writer.forceMerge(1)
-                    resolvedOutputDir.resolve(".count").writeText(writer.docStats.numDocs.toString())
-                }
-            }
-            invalidateCache(resolvedOutputDir)
-        }
-        logger.info("$name index merging took $duration (${indexDirs.size} indices)")
     }
 
     override suspend fun countDocuments(indexDir: Path): Int = withContext(Dispatchers.IO) {

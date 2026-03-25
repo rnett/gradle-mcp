@@ -3,10 +3,11 @@ package dev.rnett.gradle.mcp.dependencies
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.GradleVersionService
 import dev.rnett.gradle.mcp.ProgressReporter
-import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.MergedSourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
+import dev.rnett.gradle.mcp.dependencies.search.IndexEntry
 import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
+import dev.rnett.gradle.mcp.dependencies.search.markerFileName
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.tools.GradlePathUtils
 import dev.rnett.gradle.mcp.utils.FileLockManager
@@ -18,6 +19,10 @@ import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import java.nio.file.FileSystems
@@ -34,6 +39,7 @@ import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
 import kotlin.io.path.name
 import kotlin.io.path.outputStream
+import kotlin.io.path.readText
 import kotlin.time.measureTime
 
 interface GradleSourceService {
@@ -45,7 +51,7 @@ interface GradleSourceService {
 class DefaultGradleSourceService(
     private val environment: GradleMcpEnvironment,
     private val storageService: SourceStorageService,
-    private val sourceIndexService: SourceIndexService,
+    private val indexService: dev.rnett.gradle.mcp.dependencies.search.IndexService,
     private val httpClient: HttpClient,
     private val versionService: GradleVersionService
 ) : GradleSourceService {
@@ -69,7 +75,7 @@ class DefaultGradleSourceService(
 
         val storagePath = gradleSourcesDir.resolve(version)
         val lockFile = storageService.getLockFile(storagePath)
-        val targetDir = MergedSourcesDir(storagePath, lockFile, storagePath.resolve("sources"))
+        val targetDir = MergedSourcesDir(storagePath, storagePath.resolve("sources"), storagePath.resolve("metadata"))
         val markerFile = storagePath.resolve(".completed")
 
         if (!forceDownload) {
@@ -78,12 +84,9 @@ class DefaultGradleSourceService(
                     if (providerToIndex == null) {
                         targetDir
                     } else {
-                        val upToDate = sourceIndexService.isMergeUpToDate(targetDir, providerToIndex, version)
-                        if (upToDate) {
+                        if (targetDir.index.resolve(providerToIndex.markerFileName).exists()) {
                             targetDir
-                        } else {
-                            null // Need to index this provider
-                        }
+                        } else null
                     }
                 } else null
             }
@@ -92,8 +95,8 @@ class DefaultGradleSourceService(
 
         return@withContext FileLockManager.withLock(lockFile, shared = false) {
             if (markerFile.exists() && !forceDownload) {
-                if (providerToIndex != null) {
-                    sourceIndexService.ensureMergeUpToDate(targetDir, providerToIndex, version)
+                if (providerToIndex != null && !targetDir.index.resolve(providerToIndex.markerFileName).exists()) {
+                    indexInternal(version, null, targetDir, providerToIndex)
                 }
                 return@withLock targetDir
             }
@@ -124,6 +127,7 @@ class DefaultGradleSourceService(
             }
         }
     }
+
 
     context(progress: ProgressReporter)
     private suspend fun downloadGradleSources(version: String): Path {
@@ -161,20 +165,42 @@ class DefaultGradleSourceService(
     private suspend fun indexInternal(version: String, sourceZip: Path?, targetDir: MergedSourcesDir, providerToIndex: SearchProvider? = null) {
         if (providerToIndex == null) return
 
-        val dummyDependency = GradleDependency(
-            id = "org.gradle:gradle:$version",
-            group = "org.gradle",
-            name = "gradle",
-            version = version,
-            sourcesFile = sourceZip
-        )
-
         LOGGER.info("Indexing Gradle sources at ${targetDir.sources} for version $version")
         val duration = measureTime {
-            val index = sourceIndexService.ensureIndexed(dummyDependency, targetDir.sources, forceDownload = false, providerToIndex)
-                ?: throw IllegalStateException("Failed to index Gradle sources at ${targetDir.sources} for provider ${providerToIndex.name}")
+            coroutineScope {
+                val channel = Channel<IndexEntry>(capacity = 20)
 
-            sourceIndexService.mergeIndices(targetDir, listOf(kotlin.io.path.Path("") to index), providerToIndex, version)
+                val indexJob = launch(Dispatchers.IO) {
+                    try {
+                        indexService.indexFiles(targetDir.metadataPath, channel.consumeAsFlow(), providerToIndex)
+                    } finally {
+                        for (entry in channel) {
+                        }
+                    }
+                }
+
+                try {
+                    val rootDir = targetDir.sources
+                    Files.walk(rootDir).use { stream ->
+                        for (file in stream) {
+                            if (Files.isRegularFile(file)) {
+                                val ext = file.fileName.toString().substringAfterLast('.', "")
+                                if (ext in SearchProvider.SOURCE_EXTENSIONS) {
+                                    val relativePath = rootDir.relativize(file).toString().replace('\\', '/')
+                                    channel.send(IndexEntry(relativePath) { file.readText() })
+                                }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    indexJob.cancel()
+                    throw e
+                } finally {
+                    channel.close()
+                }
+
+                indexJob.join()
+            }
         }
         LOGGER.info("Indexed Gradle sources in $duration for version $version")
     }

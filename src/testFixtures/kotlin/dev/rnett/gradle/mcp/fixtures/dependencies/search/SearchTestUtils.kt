@@ -19,7 +19,7 @@ suspend fun SearchProvider.index(dependencyDir: Path, outputDir: Path, prefix: P
         .map { file ->
             val relativePath = file.relativeTo(dependencyDir)
             val fullRelativePath = if (prefix != null) prefix.resolve(relativePath) else relativePath
-            IndexEntry(fullRelativePath.toString().replace('\\', '/'), file.readText())
+            IndexEntry(fullRelativePath.toString().replace('\\', '/')) { file.readText() }
         }
     index(entries, outputDir)
 }

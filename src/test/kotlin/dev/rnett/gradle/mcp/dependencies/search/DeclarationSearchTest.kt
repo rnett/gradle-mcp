@@ -66,7 +66,7 @@ class DeclarationSearchTest {
         }
 
         suspend fun assertFound(query: String, expectedPath: String, expectedLine: Int) {
-            val response = DeclarationSearch.search(indexDir, query)
+            val response = DeclarationSearch.search(listOf(indexDir), query)
             val results = response.results
             println("Searched for: $query. Interpreted: ${response.interpretedQuery}. Error: ${response.error}. Results: $results")
             assertTrue(
@@ -91,7 +91,7 @@ class DeclarationSearchTest {
         assertFound("MyJavaRecord", "MyJavaClass.java", 17)
 
         // Case-sensitive search
-        assertTrue(DeclarationSearch.search(indexDir, "mykotlinclass").results.isEmpty(), "Should not find lowercase MyKotlinClass")
+        assertTrue(DeclarationSearch.search(listOf(indexDir), "mykotlinclass").results.isEmpty(), "Should not find lowercase MyKotlinClass")
         assertFound("MyKotlinClass", "MyKotlinClass.kt", 3)
 
         // FQN search
@@ -99,7 +99,7 @@ class DeclarationSearchTest {
         assertFound("com.example.MyKotlinClass.myVal", "MyKotlinClass.kt", 4)
 
         // Partial FQN without wildcards should NOT match anymore (Case 3 eliminated)
-        assertTrue(DeclarationSearch.search(indexDir, "example.MyKotlinClass").results.isEmpty(), "Partial FQN without wildcard should not match")
+        assertTrue(DeclarationSearch.search(listOf(indexDir), "example.MyKotlinClass").results.isEmpty(), "Partial FQN without wildcard should not match")
 
         // Unqualified wildcard matching name
         assertFound("MyKotlin*", "MyKotlinClass.kt", 3)
@@ -146,16 +146,16 @@ class DeclarationSearchTest {
         assertFound("/.*[Mm]yKotlin.*/", "MyKotlinClass.kt", 3)
 
         // Package exploration
-        val packageContents = DeclarationSearch.listPackageContents(indexDir, "com.example")
+        val packageContents = DeclarationSearch.listPackageContents(listOf(indexDir), "com.example")
         assertNotNull(packageContents)
         assertTrue(packageContents.symbols.contains("MyKotlinClass"), "Package should contain MyKotlinClass")
         assertTrue(packageContents.symbols.contains("MyJavaClass"), "Package should contain MyJavaClass")
 
-        val rootPackageContents = DeclarationSearch.listPackageContents(indexDir, "")
+        val rootPackageContents = DeclarationSearch.listPackageContents(listOf(indexDir), "")
         assertNotNull(rootPackageContents)
         assertTrue(rootPackageContents.subPackages.contains("com"), "Root should contain 'com' subpackage")
 
-        val comPackageContents = DeclarationSearch.listPackageContents(indexDir, "com")
+        val comPackageContents = DeclarationSearch.listPackageContents(listOf(indexDir), "com")
         assertNotNull(comPackageContents)
         assertTrue(comPackageContents.subPackages.contains("example"), "com should contain 'example' subpackage")
     }

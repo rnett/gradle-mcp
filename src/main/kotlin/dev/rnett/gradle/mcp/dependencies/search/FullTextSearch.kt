@@ -88,14 +88,14 @@ object FullTextSearch : LuceneBaseSearchProvider() {
         )
     }
 
-    override suspend fun search(indexDir: Path, query: String, pagination: PaginationInput): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
+    override suspend fun search(indexDirs: List<Path>, query: String, pagination: PaginationInput): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (response, duration) = measureTimedValue {
-            val idxDir = resolveIndexDir(indexDir)
-            if (!idxDir.exists()) {
-                return@withContext SearchResponse(emptyList(), error = "Lucene index directory does not exist: $idxDir")
+            val existingIndexDirs = indexDirs.filter { resolveIndexDir(it).exists() }
+            if (existingIndexDirs.isEmpty()) {
+                return@withContext SearchResponse<RelativeSearchResult>(emptyList(), error = "No Lucene index directories exist among the provided paths.")
             }
 
-            withReader(idxDir) { reader ->
+            withMultiReader(existingIndexDirs) { reader ->
                 val indexSearcher = IndexSearcher(reader)
                 val q = try {
                     LuceneUtils.parseBoostedQuery(
@@ -107,7 +107,7 @@ object FullTextSearch : LuceneBaseSearchProvider() {
                         extraBoosts = mapOf(arrayOf(CODE) to BOOST_CODE)
                     )
                 } catch (e: Exception) {
-                    return@withReader SearchResponse(emptyList(), error = LuceneUtils.formatSyntaxError(e.message))
+                    return@withMultiReader SearchResponse<RelativeSearchResult>(emptyList(), error = LuceneUtils.formatSyntaxError(e.message))
                 }
 
                 // Request enough files to likely satisfy the limit after expanding matches.
@@ -138,7 +138,7 @@ object FullTextSearch : LuceneBaseSearchProvider() {
                         val contentsMatches = matches.getMatches(CONTENTS)
                         val codeMatches = matches.getMatches(CODE)
 
-                        fun collectMatches(it: org.apache.lucene.search.MatchesIterator?) {
+                        fun collectMatches(it: org.apache.lucene.search.MatchesIterator?, matchBoost: Float) {
                             if (it == null) return
                             while (it.next()) {
                                 val start = it.startOffset()
@@ -152,7 +152,7 @@ object FullTextSearch : LuceneBaseSearchProvider() {
                                                     relativePath = path,
                                                     offset = start,
                                                     line = lineNum,
-                                                    score = hit.score
+                                                    score = hit.score + matchBoost
                                                 )
                                             )
                                         }
@@ -168,13 +168,15 @@ object FullTextSearch : LuceneBaseSearchProvider() {
                             }
                         }
 
-                        collectMatches(contentsMatches)
-                        collectMatches(codeMatches)
+                        collectMatches(codeMatches, 1000f)
+                        collectMatches(contentsMatches, 0f)
                     }
                 }
 
-                SearchResponse(results, interpretedQuery = q.toString(), totalResults = topDocs.totalHits.value.toInt())
-            }
+                results.sortByDescending { it.score }
+
+                SearchResponse(results, interpretedQuery = q.toString(), hasMore = topDocs.totalHits.value > pagination.offset + pagination.limit)
+            } ?: SearchResponse(emptyList(), error = "Failed to open index readers.")
         }
         logger.info("Full-text search for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) took $duration (${response.results.size} results)")
         return@withContext response
@@ -190,10 +192,10 @@ object FullTextSearch : LuceneBaseSearchProvider() {
             val doc = Document()
             doc.add(StringField(PATH, path, Field.Store.YES))
             doc.add(Field(CONTENTS, content, contentsFieldType))
-            doc.add(TextField(CONTENTS_EXACT, content, Field.Store.NO))
+            doc.add(Field(CONTENTS_EXACT, content, contentsFieldType))
 
             val codeContent = stripBoilerplate(content)
-            doc.add(TextField(CODE, codeContent, Field.Store.NO))
+            doc.add(Field(CODE, codeContent, contentsFieldType))
 
             writer.addDocument(doc)
         }
