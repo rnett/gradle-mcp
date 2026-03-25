@@ -30,7 +30,8 @@ import kotlin.io.path.readText
 
 class DependencySourceTools(
     private val sourcesService: SourcesService,
-    private val gradleSourceService: GradleSourceService
+    private val gradleSourceService: GradleSourceService,
+    private val indexService: dev.rnett.gradle.mcp.dependencies.SourceIndexService
 ) : McpServerComponent("Project Dependency Source Tools", "Tools for searching and inspecting source code of Gradle dependencies.") {
 
     companion object {
@@ -116,7 +117,7 @@ class DependencySourceTools(
 
             if (!targetPath.exists()) {
                 val packageContents = try {
-                    sourcesService.listPackageContents(sources, args.path)
+                    indexService.listPackageContents(sources, args.path)
                 } catch (e: Exception) {
                     return@tool "Path not found: ${args.path} (Error exploring package: ${e.message})"
                 }
@@ -226,7 +227,7 @@ class DependencySourceTools(
             )
         }
 
-        val response = sourcesService.search(sources, provider, args.query, args.pagination)
+        val response = indexService.search(sources, provider, args.query, args.pagination)
         val refreshMessage = formatRefreshMessage(sources.lastRefresh())
         if (response.error != null) {
             isError = true
@@ -249,16 +250,14 @@ class DependencySourceTools(
                 appendLine("Interpreted query: `${response.interpretedQuery}`")
             }
             appendLine("Search results for '$query':\n")
-            val paged = paginate(results, pagination, "search results", isAlreadyPaged = false) { result ->
+            val paged = paginate(results, pagination, "search results", isAlreadyPaged = true, total = response.totalResults ?: results.size) { result ->
                 buildString {
-                    appendLine("File: ${result.relativePath}:${result.line}")
-                    if (result.score != null) {
-                        appendLine("Score: ${result.score}")
-                    }
+                    val scoreStr = if (result.score != null) " (score: ${"%.2f".format(java.util.Locale.US, result.score)})" else ""
+                    appendLine("### File: ${result.relativePath}:${result.line}$scoreStr")
                     appendLine("```")
-                    appendLine(result.snippet)
+                    appendLine(result.snippet.trim())
                     appendLine("```")
-                }.trim()
+                }
             }
             append(paged)
         }.trim()
@@ -329,10 +328,10 @@ class DependencySourceTools(
     ): SourcesDir {
         return when {
             gradleSource -> gradleSourceService.getGradleSources(root, forceDownload = forceDownload)
-            sourceSetPath != null -> sourcesService.downloadSourceSetSources(root, sourceSetPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)
-            configurationPath != null -> sourcesService.downloadConfigurationSources(root, configurationPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)
-            projectPath != null -> sourcesService.downloadProjectSources(root, projectPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)
-            else -> sourcesService.downloadAllSources(root, dependency = dependency, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)
+            sourceSetPath != null -> sourcesService.resolveAndProcessSourceSetSources(root, sourceSetPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)
+            configurationPath != null -> sourcesService.resolveAndProcessConfigurationSources(root, configurationPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)
+            projectPath != null -> sourcesService.resolveAndProcessProjectSources(root, projectPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)
+            else -> sourcesService.resolveAndProcessAllSources(root, dependency = dependency, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)
         }
     }
 }

@@ -69,9 +69,11 @@ class GradleSourceServiceTest {
             }
         }
         val indexService = DefaultIndexService(environment)
+        val storageService = DefaultSourceStorageService(environment)
+        val sourceIndexService = DefaultSourceIndexService(indexService, storageService)
         val versionService = mockk<GradleVersionService>()
         coEvery { versionService.resolveVersion(any()) } answers { it.invocation.args[0] as? String ?: "8.5" }
-        gradleSourceService = DefaultGradleSourceService(environment, indexService, httpClient, versionService)
+        gradleSourceService = DefaultGradleSourceService(environment, storageService, sourceIndexService, httpClient, versionService)
     }
 
     @AfterEach

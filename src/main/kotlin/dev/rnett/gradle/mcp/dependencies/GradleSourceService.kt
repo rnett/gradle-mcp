@@ -6,7 +6,6 @@ import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.MergedSourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
-import dev.rnett.gradle.mcp.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.tools.GradlePathUtils
@@ -28,10 +27,8 @@ import java.nio.file.Path
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import kotlin.io.path.ExperimentalPathApi
-import kotlin.io.path.copyToRecursively
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createFile
-import kotlin.io.path.createParentDirectories
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
@@ -47,7 +44,8 @@ interface GradleSourceService {
 @OptIn(ExperimentalPathApi::class)
 class DefaultGradleSourceService(
     private val environment: GradleMcpEnvironment,
-    private val indexService: IndexService,
+    private val storageService: SourceStorageService,
+    private val sourceIndexService: SourceIndexService,
     private val httpClient: HttpClient,
     private val versionService: GradleVersionService
 ) : GradleSourceService {
@@ -64,13 +62,13 @@ class DefaultGradleSourceService(
 
     @OptIn(ExperimentalPathApi::class)
     context(progress: ProgressReporter)
-    override suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean, providerToIndex: SearchProvider?): SourcesDir {
+    override suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean, providerToIndex: SearchProvider?): SourcesDir = withContext(Dispatchers.IO) {
         val rootPath = GradlePathUtils.getRootProjectPath(projectRoot)
         val inputVersion = GradlePathUtils.getGradleVersion(rootPath)
         val version = versionService.resolveVersion(inputVersion)
 
         val storagePath = gradleSourcesDir.resolve(version)
-        val lockFile = lockFile(projectRoot, version, "gradle")
+        val lockFile = storageService.getLockFile(storagePath)
         val targetDir = MergedSourcesDir(storagePath, lockFile, storagePath.resolve("sources"))
         val markerFile = storagePath.resolve(".completed")
 
@@ -80,7 +78,7 @@ class DefaultGradleSourceService(
                     if (providerToIndex == null) {
                         targetDir
                     } else {
-                        val upToDate = indexService.isMergeUpToDate(targetDir.index, providerToIndex, version)
+                        val upToDate = sourceIndexService.isMergeUpToDate(targetDir, providerToIndex, version)
                         if (upToDate) {
                             targetDir
                         } else {
@@ -89,16 +87,13 @@ class DefaultGradleSourceService(
                     }
                 } else null
             }
-            if (cached != null) return cached
+            if (cached != null) return@withContext cached
         }
 
-        return FileLockManager.withLock(lockFile, shared = false) {
+        return@withContext FileLockManager.withLock(lockFile, shared = false) {
             if (markerFile.exists() && !forceDownload) {
                 if (providerToIndex != null) {
-                    val upToDate = indexService.isMergeUpToDate(targetDir.index, providerToIndex, version)
-                    if (!upToDate) {
-                        indexInternal(version, null, targetDir, providerToIndex)
-                    }
+                    sourceIndexService.ensureMergeUpToDate(targetDir, providerToIndex, version)
                 }
                 return@withLock targetDir
             }
@@ -128,10 +123,6 @@ class DefaultGradleSourceService(
                 sourceZip.deleteIfExists()
             }
         }
-    }
-
-    private fun lockFile(projectRoot: GradleProjectRoot, path: String, kind: String): Path {
-        return environment.lockFile(projectRoot.projectRoot, path, kind, "sources")
     }
 
     context(progress: ProgressReporter)
@@ -167,7 +158,7 @@ class DefaultGradleSourceService(
     }
 
     context(progress: ProgressReporter)
-    private suspend fun indexInternal(version: String, sourceZip: Path?, targetDir: SourcesDir, providerToIndex: SearchProvider? = null) {
+    private suspend fun indexInternal(version: String, sourceZip: Path?, targetDir: MergedSourcesDir, providerToIndex: SearchProvider? = null) {
         if (providerToIndex == null) return
 
         val dummyDependency = GradleDependency(
@@ -180,21 +171,16 @@ class DefaultGradleSourceService(
 
         LOGGER.info("Indexing Gradle sources at ${targetDir.sources} for version $version")
         val duration = measureTime {
-            val index = with(progress) {
-                indexService.index(dummyDependency, targetDir.sources, providerToIndex)
-            } ?: throw IllegalStateException("Failed to index Gradle sources at ${targetDir.sources} for provider ${providerToIndex.name}")
+            val index = sourceIndexService.ensureIndexed(dummyDependency, targetDir.sources, forceDownload = false, providerToIndex)
+                ?: throw IllegalStateException("Failed to index Gradle sources at ${targetDir.sources} for provider ${providerToIndex.name}")
 
-            val providerIndexDir = targetDir.index.resolve(providerToIndex.name)
-            if (index.dir.resolve(providerToIndex.name) != providerIndexDir) {
-                providerIndexDir.createParentDirectories()
-                index.dir.resolve(providerToIndex.name).copyToRecursively(providerIndexDir, followLinks = false, overwrite = true)
-            }
+            sourceIndexService.mergeIndices(targetDir, listOf(kotlin.io.path.Path("") to index), providerToIndex, version)
         }
         LOGGER.info("Indexed Gradle sources in $duration for version $version")
     }
 
     context(progress: ProgressReporter)
-    private suspend fun extractAndIndex(version: String, sourceZip: Path, targetDir: SourcesDir, providerToIndex: SearchProvider? = null) {
+    private suspend fun extractAndIndex(version: String, sourceZip: Path, targetDir: MergedSourcesDir, providerToIndex: SearchProvider? = null) {
         targetDir.sources.createDirectories()
 
         val extractionProgress = progress.withPhase("PROCESSING")
@@ -205,7 +191,9 @@ class DefaultGradleSourceService(
             ArchiveExtractor.extractInto(targetDir.sources, sourceZip, skipSingleFirstDir = true)
         }
 
-        cleanupGradleSources(targetDir.sources)
+        withContext(Dispatchers.IO) {
+            cleanupGradleSources(targetDir.sources)
+        }
 
         extractionProgress.report(1.0, 1.0, "Extracted Gradle $version sources")
 
@@ -225,7 +213,7 @@ class DefaultGradleSourceService(
 
                 // Root-level exclusions
                 if (relative.parent == null) {
-                    if (buildLogicMatcher.matches(Path.of(fileName)) || fileName in excludedRootDirs) {
+                    if (buildLogicMatcher.matches(kotlin.io.path.Path(fileName)) || fileName in excludedRootDirs) {
                         LOGGER.trace("Deleting excluded root directory: $relative")
                         dir.deleteRecursively()
                         return FileVisitResult.SKIP_SUBTREE

@@ -6,9 +6,13 @@ import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.GradleVersionService
 import dev.rnett.gradle.mcp.dependencies.DefaultGradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.DefaultGradleSourceService
+import dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService
+import dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourcesService
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.GradleSourceService
+import dev.rnett.gradle.mcp.dependencies.SourceIndexService
+import dev.rnett.gradle.mcp.dependencies.SourceStorageService
 import dev.rnett.gradle.mcp.dependencies.SourcesService
 import dev.rnett.gradle.mcp.dependencies.gradle.DefaultDistributionDownloaderService
 import dev.rnett.gradle.mcp.dependencies.gradle.DistributionDownloaderService
@@ -29,21 +33,30 @@ import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.BundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultBundledJarProvider
+import dev.rnett.gradle.mcp.gradle.DefaultGradleConnectionService
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
 import dev.rnett.gradle.mcp.gradle.GradleConfiguration
+import dev.rnett.gradle.mcp.gradle.GradleConnectionService
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
+import dev.rnett.gradle.mcp.gradle.build.BuildExecutionService
+import dev.rnett.gradle.mcp.gradle.build.DefaultBuildExecutionService
 import dev.rnett.gradle.mcp.lucene.LuceneReaderCache
 import dev.rnett.gradle.mcp.maven.DefaultMavenCentralService
 import dev.rnett.gradle.mcp.maven.DefaultMavenRepoService
 import dev.rnett.gradle.mcp.maven.MavenCentralService
 import dev.rnett.gradle.mcp.maven.MavenRepoService
+import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.tools.ToolNames
+import dev.rnett.gradle.mcp.utils.DefaultEnvProvider
+import dev.rnett.gradle.mcp.utils.EnvProvider
 import io.modelcontextprotocol.kotlin.sdk.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.ImageContent
 import io.modelcontextprotocol.kotlin.sdk.Root
 import io.modelcontextprotocol.kotlin.sdk.TextContent
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
@@ -123,11 +136,14 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single { GradleConfiguration() }
         single { DefaultInitScriptProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("init-scripts")) } bind InitScriptProvider::class
         single { DefaultBundledJarProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("jars")) } bind BundledJarProvider::class
-        single<BuildManager> { BuildManager() }
+        single { BuildManager() }
+        single<EnvProvider> { DefaultEnvProvider }
+        single<GradleConnectionService> { DefaultGradleConnectionService() }
+        single<BuildExecutionService> { DefaultBuildExecutionService(envProvider = get()) }
         single<ReplManager> { DefaultReplManager(get()) }
         single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
         single { GradleMcpEnvironment(SharedTestInfrastructure.sharedMcpWorkingDir) }
-        single<MarkdownService> { DefaultMarkdownService() }
+        single<MarkdownService> { DefaultMarkdownService(get()) }
         single { HtmlConverter(get()) }
         single { LuceneReaderCache() }
         single<DistributionDownloaderService> { DefaultDistributionDownloaderService(get(), get()) }
@@ -139,19 +155,25 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single<MavenRepoService> { DefaultMavenRepoService(get()) }
         single<MavenCentralService> { DefaultMavenCentralService(get()) }
         single<IndexService> { DefaultIndexService(get()) }
-        single<SourcesService> { DefaultSourcesService(get(), get(), get()) }
-        single<GradleSourceService> { DefaultGradleSourceService(get(), get(), get(), get()) }
+        single<SourceStorageService> { DefaultSourceStorageService(get()) }
+        single<CoroutineDispatcher> { Dispatchers.IO }
+        single<SourceIndexService> { DefaultSourceIndexService(get(), get(), get()) }
+        single<SourcesService> { DefaultSourcesService(get(), get(), get(), get()) }
+        single<GradleSourceService> { DefaultGradleSourceService(get(), get(), get(), get(), get()) }
         single<GradleProvider> {
             DefaultGradleProvider(
                 get(),
+                connectionService = get(),
+                executionService = get(),
                 buildManager = get()
             )
         }
         single {
-            DI.components(get(), get(), get(), get(), get(), get(), get(), get(), get(), get())
+            DI.components(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get())
         }
         single {
-            DI.createServer(get(), get())
+            val components: List<McpServerComponent> = get()
+            DI.createServer(get(), components)
         }
     }
 

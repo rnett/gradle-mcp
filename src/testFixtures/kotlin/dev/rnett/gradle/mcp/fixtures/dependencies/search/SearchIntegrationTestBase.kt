@@ -8,7 +8,6 @@ import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
 import dev.rnett.gradle.mcp.dependencies.model.GradleProjectDependencies
-import dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService
 import dev.rnett.gradle.mcp.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
@@ -23,7 +22,6 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.io.path.createDirectories
 import kotlin.io.path.outputStream
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 abstract class SearchIntegrationTestBase {
@@ -34,6 +32,8 @@ abstract class SearchIntegrationTestBase {
     lateinit var environment: GradleMcpEnvironment
     lateinit var dependencyService: GradleDependencyService
     lateinit var indexService: IndexService
+    lateinit var storageService: dev.rnett.gradle.mcp.dependencies.SourceStorageService
+    lateinit var sourceIndexService: dev.rnett.gradle.mcp.dependencies.SourceIndexService
     lateinit var sourcesService: DefaultSourcesService
     val projectRoot: GradleProjectRoot get() = GradleProjectRoot(tempDir.resolve("project").toString())
 
@@ -44,8 +44,10 @@ abstract class SearchIntegrationTestBase {
         tempDir.resolve("project").createDirectories()
         environment = GradleMcpEnvironment(tempDir.resolve("mcp"))
         dependencyService = mockk()
-        indexService = DefaultIndexService(environment)
-        sourcesService = DefaultSourcesService(dependencyService, environment, indexService)
+        indexService = dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(environment)
+        storageService = dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService(environment)
+        sourceIndexService = dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService(indexService, storageService)
+        sourcesService = dev.rnett.gradle.mcp.dependencies.DefaultSourcesService(dependencyService, storageService, sourceIndexService)
     }
 
     protected fun createSourceZip(name: String, content: Map<String, String>): Path {
@@ -82,7 +84,7 @@ abstract class SearchIntegrationTestBase {
     }
 
     @Test
-    fun `test that search fails if indexing was disabled`() = runTest {
+    open fun `test that search fails if indexing was disabled`() = runTest {
         val zip = createSourceZip(
             "test-sources", mapOf(
                 "com/example/MyClass.kt" to "class MyClass"
@@ -100,12 +102,18 @@ abstract class SearchIntegrationTestBase {
         )
 
         val sourcesDir = with(ProgressReporter.NONE) {
-            sourcesService.downloadAllSources(projectRoot, index = false)
+            sourcesService.resolveAndProcessAllSources(projectRoot, index = false)
         }
 
-        val response = sourcesService.search(sourcesDir, searchProvider, "MyClass")
-        assertNotNull(response.error, "Search should have failed with an error when indexing is disabled")
-        assertTrue(response.error!!.contains("Index not found") || response.error!!.contains("Index for provider"), "Error message should mention missing index: ${response.error}")
+        val response = sourceIndexService.search(sourcesDir, searchProvider, "MyClass")
+        assertTrue(response.error != null, "Search should have failed with an error when indexing is disabled")
+        assertTrue(
+            response.error!!.contains("Lucene index directory does not exist") ||
+                    response.error!!.contains("Symbol index dir does not exist") ||
+                    response.error!!.contains("Index for provider") ||
+                    response.error!!.contains("Index not found"),
+            "Error message should mention missing index: ${response.error}"
+        )
     }
 
     @Test
@@ -130,21 +138,21 @@ abstract class SearchIntegrationTestBase {
         )
 
         val sourcesDir = with(ProgressReporter.NONE) {
-            sourcesService.downloadAllSources(projectRoot, index = true, providerToIndex = searchProvider)
+            sourcesService.resolveAndProcessAllSources(projectRoot, index = true, providerToIndex = searchProvider)
         }
 
         // MyClass should be found (it's .kt)
-        val resultsKt = sourcesService.search(sourcesDir, searchProvider, "MyClass")
+        val resultsKt = sourceIndexService.search(sourcesDir, searchProvider, "MyClass")
         assertTrue(resultsKt.results.isNotEmpty(), "Kotlin file should be indexed")
 
         // Others should NOT be found
-        val resultsXml = sourcesService.search(sourcesDir, searchProvider, "config")
+        val resultsXml = sourceIndexService.search(sourcesDir, searchProvider, "config")
         assertTrue(resultsXml.results.isEmpty(), "XML file should NOT be indexed, but found: ${resultsXml.results}")
 
-        val resultsTxt = sourcesService.search(sourcesDir, searchProvider, "readme")
+        val resultsTxt = sourceIndexService.search(sourcesDir, searchProvider, "readme")
         assertTrue(resultsTxt.results.isEmpty(), "TXT file should NOT be indexed, but found: ${resultsTxt.results}")
 
-        val resultsGradle = sourcesService.search(sourcesDir, searchProvider, "plugin")
+        val resultsGradle = sourceIndexService.search(sourcesDir, searchProvider, "plugin")
         assertTrue(resultsGradle.results.isEmpty(), "Gradle file should NOT be indexed, but found: ${resultsGradle.results}")
     }
 }

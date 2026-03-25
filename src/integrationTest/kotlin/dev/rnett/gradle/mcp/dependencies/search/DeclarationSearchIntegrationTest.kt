@@ -56,26 +56,26 @@ class DeclarationSearchIntegrationTest : SearchIntegrationTestBase() {
         )
 
         val sourcesDir = with(ProgressReporter.PRINTLN) {
-            sourcesService.downloadAllSources(projectRoot, index = true, providerToIndex = searchProvider)
+            sourcesService.resolveAndProcessAllSources(projectRoot, index = true, providerToIndex = searchProvider)
         }
 
         // Search for Kotlin declaration
-        val results1 = sourcesService.search(sourcesDir, searchProvider, "MyClass").results
+        val results1 = sourceIndexService.search(sourcesDir, searchProvider, "MyClass").results
         assertTrue(results1.isNotEmpty(), "MyClass not found")
-        assertTrue(results1.any { it.relativePath == "com.example/dep1-sources/example/MyClass.kt" && it.line == 3 }, "MyClass missing at line 3: ${results1}")
+        assertTrue(results1.any { it.relativePath == "com/example/dep1-sources/example/MyClass.kt" && it.line == 3 }, "MyClass missing at line 3: ${results1}")
 
-        val resultsField = sourcesService.search(sourcesDir, searchProvider, "myField").results
+        val resultsField = sourceIndexService.search(sourcesDir, searchProvider, "myField").results
         assertTrue(resultsField.isNotEmpty(), "myField not found")
-        assertTrue(resultsField.any { it.relativePath == "com.example/dep1-sources/example/MyClass.kt" && it.line == 4 }, "myField missing at line 4: ${resultsField}")
+        assertTrue(resultsField.any { it.relativePath == "com/example/dep1-sources/example/MyClass.kt" && it.line == 4 }, "myField missing at line 4: ${resultsField}")
 
         // Search for Java declaration
-        val results2 = sourcesService.search(sourcesDir, searchProvider, "OtherClass").results
+        val results2 = sourceIndexService.search(sourcesDir, searchProvider, "OtherClass").results
         assertTrue(results2.isNotEmpty(), "OtherClass not found")
-        assertTrue(results2.any { it.relativePath == "com.other/dep2-sources/other/OtherClass.java" && it.line == 3 }, "OtherClass missing at line 3: ${results2}")
+        assertTrue(results2.any { it.relativePath == "com/other/dep2-sources/other/OtherClass.java" && it.line == 3 }, "OtherClass missing at line 3: ${results2}")
 
-        val resultsMethod = sourcesService.search(sourcesDir, searchProvider, "myMethod").results
+        val resultsMethod = sourceIndexService.search(sourcesDir, searchProvider, "myMethod").results
         assertTrue(resultsMethod.isNotEmpty(), "myMethod not found")
-        assertTrue(resultsMethod.any { it.relativePath == "com.other/dep2-sources/other/OtherClass.java" && it.line == 4 }, "myMethod missing at line 4: ${resultsMethod}")
+        assertTrue(resultsMethod.any { it.relativePath == "com/other/dep2-sources/other/OtherClass.java" && it.line == 4 }, "myMethod missing at line 4: ${resultsMethod}")
     }
 
     @Test
@@ -100,10 +100,10 @@ class DeclarationSearchIntegrationTest : SearchIntegrationTestBase() {
         )
 
         val sourcesDir = with(ProgressReporter.PRINTLN) {
-            sourcesService.downloadAllSources(projectRoot, index = true, providerToIndex = searchProvider)
+            sourcesService.resolveAndProcessAllSources(projectRoot, index = true, providerToIndex = searchProvider)
         }
 
-        val searchResults = sourcesService.search(sourcesDir, searchProvider, "TestClass").results
+        val searchResults = sourceIndexService.search(sourcesDir, searchProvider, "TestClass").results
         assertTrue(searchResults.isNotEmpty(), "Expected results for TestClass")
     }
 
@@ -124,10 +124,10 @@ class DeclarationSearchIntegrationTest : SearchIntegrationTestBase() {
             )
         )
         val sourcesDir = with(ProgressReporter.PRINTLN) {
-            sourcesService.downloadAllSources(projectRoot, index = true, providerToIndex = searchProvider)
+            sourcesService.resolveAndProcessAllSources(projectRoot, index = true, providerToIndex = searchProvider)
         }
 
-        val result = sourcesService.search(sourcesDir, searchProvider, "[")
+        val result = sourceIndexService.search(sourcesDir, searchProvider, "[")
 
         assertTrue(result.error != null, "Expected error for invalid regex")
     }

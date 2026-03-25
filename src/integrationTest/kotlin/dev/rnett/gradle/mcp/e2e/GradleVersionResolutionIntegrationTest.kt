@@ -4,8 +4,14 @@ import dev.rnett.gradle.mcp.DI
 import dev.rnett.gradle.mcp.DefaultGradleVersionService
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.GradleVersionService
+import dev.rnett.gradle.mcp.dependencies.DefaultGradleSourceService
+import dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService
+import dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService
+import dev.rnett.gradle.mcp.dependencies.DefaultSourcesService
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.GradleSourceService
+import dev.rnett.gradle.mcp.dependencies.SourceIndexService
+import dev.rnett.gradle.mcp.dependencies.SourceStorageService
 import dev.rnett.gradle.mcp.dependencies.SourcesService
 import dev.rnett.gradle.mcp.dependencies.gradle.DefaultDistributionDownloaderService
 import dev.rnett.gradle.mcp.dependencies.gradle.DistributionDownloaderService
@@ -18,6 +24,8 @@ import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsIndexService
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.HtmlConverter
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.MarkdownService
+import dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService
+import dev.rnett.gradle.mcp.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.fixtures.SharedTestInfrastructure
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.gradle.BundledJarProvider
@@ -44,6 +52,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.koin.dsl.module
@@ -101,7 +111,7 @@ class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
         single<ReplManager> { DefaultReplManager(get()) }
         single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
         single { GradleMcpEnvironment(SharedTestInfrastructure.sharedMcpWorkingDir) }
-        single<MarkdownService> { DefaultMarkdownService() }
+        single<MarkdownService> { DefaultMarkdownService(get()) }
         single<GradleVersionService> { DefaultGradleVersionService(get()) }
 
         single { HtmlConverter(get()) }
@@ -115,8 +125,13 @@ class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
         single<GradleDependencyService> { mockk<GradleDependencyService>(relaxed = true) }
         single<MavenRepoService> { mockk<MavenRepoService>(relaxed = true) }
         single<MavenCentralService> { mockk<MavenCentralService>(relaxed = true) }
-        single<SourcesService> { mockk<SourcesService>(relaxed = true) }
-        single<GradleSourceService> { mockk<GradleSourceService>(relaxed = true) }
+
+        single<IndexService> { DefaultIndexService(get()) }
+        single<SourceStorageService> { DefaultSourceStorageService(get()) }
+        single<CoroutineDispatcher> { Dispatchers.IO }
+        single<SourceIndexService> { DefaultSourceIndexService(get(), get(), get()) }
+        single<SourcesService> { DefaultSourcesService(get(), get(), get(), get()) }
+        single<GradleSourceService> { DefaultGradleSourceService(get(), get(), get(), get(), get()) }
 
         single<GradleProvider> {
             createProvider()
@@ -133,7 +148,20 @@ class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
             val mavenCentralService: MavenCentralService = get()
             val sourcesService: SourcesService = get()
             val gradleSourceService: GradleSourceService = get()
-            DI.components(provider, replManager, replEnvironmentService, gradleDocsService, gradleVersionService, gradleDependencyService, mavenRepoService, mavenCentralService, sourcesService, gradleSourceService)
+            val indexService: SourceIndexService = get()
+            DI.components(
+                provider,
+                replManager,
+                replEnvironmentService,
+                gradleDocsService,
+                gradleVersionService,
+                gradleDependencyService,
+                mavenRepoService,
+                mavenCentralService,
+                sourcesService,
+                gradleSourceService,
+                indexService
+            )
         }
 
         single {

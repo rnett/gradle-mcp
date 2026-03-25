@@ -1,8 +1,10 @@
 package dev.rnett.gradle.mcp.gradle
 
 import java.io.Writer
-import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
+@OptIn(ExperimentalAtomicApi::class)
 open class LineEmittingWriter(val lineLogger: (String) -> Unit) : Writer() {
     private val buf = StringBuffer()
     private val lastWasCR = AtomicBoolean(false)
@@ -23,7 +25,7 @@ open class LineEmittingWriter(val lineLogger: (String) -> Unit) : Writer() {
         for (i in off..<off + len) {
             val c = cbuf[i]
 
-            if (lastWasCR.compareAndSet(true, false)) {
+            if (lastWasCR.compareAndExchange(true, false)) {
                 if (c == '\n') {
                     emitInternal()
                     continue
@@ -33,7 +35,7 @@ open class LineEmittingWriter(val lineLogger: (String) -> Unit) : Writer() {
             }
 
             if (c == '\r') {
-                lastWasCR.set(true)
+                lastWasCR.store(true)
             } else if (c == '\n') {
                 emitInternal()
             } else {

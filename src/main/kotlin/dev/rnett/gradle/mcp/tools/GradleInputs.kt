@@ -69,7 +69,7 @@ fun GradleProjectRootInput.resolveRoot(): GradleProjectRoot {
                     ?: throw IllegalArgumentException("Configured root ${named.nameOrUrl} could not be converted to a file")
             )
 
-        val rootFile = Path.of(expandedProjectRoot).absolute()
+        val rootFile = kotlin.io.path.Path(expandedProjectRoot).absolute()
 
         val isInRoot = roots.any {
             val file = it.fileOrNull ?: return@any false

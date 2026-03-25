@@ -1,14 +1,15 @@
 package dev.rnett.gradle.mcp.repl
 
+@OptIn(kotlin.concurrent.atomics.ExperimentalAtomicApi::class)
 object GlobalResponder {
-    private var instance: Any? = null
+    private val instance = kotlin.concurrent.atomics.AtomicReference<Any?>(null)
 
     @JvmStatic
     fun setInstance(value: Any?) {
-        instance = value
+        instance.store(value)
     }
 
     @JvmStatic
     val responder: Responder
-        get() = instance as Responder
+        get() = instance.load() as Responder
 }

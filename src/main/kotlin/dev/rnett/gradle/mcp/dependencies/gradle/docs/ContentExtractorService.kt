@@ -9,6 +9,7 @@ import dev.rnett.gradle.mcp.withMessage
 import dev.rnett.gradle.mcp.withPhase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import java.nio.file.Path
@@ -136,7 +137,7 @@ class DefaultContentExtractorService(
     }
 
     context(progress: ProgressReporter)
-    private fun processSampleZip(outerZip: ZipFile, entry: ZipEntry): Flow<Pair<String, ByteArray>> = flow {
+    private fun processSampleZip(outerZip: ZipFile, entry: ZipEntry): Flow<Pair<String, ByteArray>> = channelFlow {
         val fullFileName = entry.name.substringAfterLast('/')
         val fileName = fullFileName.removeSuffix(".zip")
 
@@ -149,7 +150,7 @@ class DefaultContentExtractorService(
 
         ZipInputStream(outerZip.getInputStream(entry).buffered()).use { zis ->
             ArchiveExtractor.extract(zis, skipSingleFirstDir = false) { path, bytes ->
-                emit("samples/$baseName/$variant/$path" to bytes)
+                send("samples/$baseName/$variant/$path" to bytes)
             }
         }
     }.flowOn(Dispatchers.IO)

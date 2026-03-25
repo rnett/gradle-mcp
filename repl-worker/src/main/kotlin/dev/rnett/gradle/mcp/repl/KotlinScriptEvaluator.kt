@@ -10,6 +10,8 @@ import java.io.File
 import java.net.URL
 import java.net.URLClassLoader
 import java.util.Enumeration
+import kotlin.concurrent.atomics.AtomicInt
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.script.experimental.api.CompiledSnippet
 import kotlin.script.experimental.api.ReplCompiler
 import kotlin.script.experimental.api.ReplEvaluator
@@ -91,10 +93,12 @@ class KotlinScriptEvaluator(val config: ReplConfig, val responseSender: (ReplRes
     )
     private val evaluator: ReplEvaluator<CompiledSnippet, *> = K2ReplEvaluator()
 
-    private var lastSnippetId = 0
+    @OptIn(ExperimentalAtomicApi::class)
+    private val lastSnippetId = AtomicInt(0)
 
+    @OptIn(ExperimentalAtomicApi::class)
     suspend fun evaluate(code: String): EvalResult {
-        val snippetId = ++lastSnippetId
+        val snippetId = lastSnippetId.addAndFetch(1)
 
         val snippet = object : SourceCode {
             override val text: String = code

@@ -44,6 +44,8 @@ workflows.
 ### Testing & Assertions
 
 - **Why Power Assert?**: It eliminates the need for complex assertion libraries by providing rich, contextual failure messages from simple `assert` calls.
+- **Power-Assert Conflict**: Avoid deeply nested or extremely complex assertions when using the `kotlin-power-assert` plugin to prevent Internal Compiler Errors during compilation. The IR generation phase of the plugin can crash on overly
+  complex expressions.
 - **Why Class-Level Test Resources?**: Creating Gradle projects and daemon environments is expensive; we reuse them across tests to maintain a fast feedback loop.
 - **Rule**: NEVER use reflection hacks for tests. ALWAYS close and clean up any resources or services they create.
 - **Integration test split**: **slow** integration tests, or other slow tests, may be placed in `integrationTest`. This is a PERFORMANCE concern, NOT an architectural one. The integration tests are also ran sequentially within a JVM, and
@@ -94,8 +96,18 @@ workflows.
 - **Regex Search**: `DeclarationSearch` supports full string regex queries on the FQN field when the query is wrapped in `/` (e.g., `/.*MyClass/`). This should be preferred for complex, precise symbol discovery.
 - **Search Error Handling**: `SourcesService.search` and `IndexService.search` MUST return a `SearchResponse` with an `error` string instead of throwing an `IllegalStateException` when an index is missing. This prevents unexpected crashes
   in tool handlers and allows for graceful error reporting to the user/LLM.
-- **Targeted Indexing**: `SourcesService.downloadAllSources` (and related methods) require an explicit `providerToIndex: SearchProvider` to be passed when `index = true`. This ensures that indexing is targeted and efficient. Callers must
+- **Targeted Indexing**: `SourcesService.resolveAndProcessAllSources` (and related methods) require an explicit `providerToIndex: SearchProvider` to be passed when `index = true`. This ensures that indexing is targeted and efficient.
+  Callers must
   specify which provider's index they intend to use.
+- **Index Versioning**: When updating Lucene index versions and directory constants in search providers (like `FullTextSearch`), ALWAYS grep the codebase for the old directory constant name (e.g., `v6IndexDirName`) to ensure hardcoded
+  references in unit tests are updated.
+- **Boilerplate Scoring Penalties**: When implementing boilerplate/structural scoring penalties in Lucene where multi-line phrase search support requires exact offset preservation, use parallel fields (e.g., `contents` and `contents_code`).
+  Replace the penalized lines in the specialized field with exact-length whitespace, and search across both using `parseBoostedQuery`. This maintains exact offset parity for multi-line phrase searches while still allowing native Lucene BM25
+  boosting, eliminating the need for manual string inspection and re-scoring during the search phase.
+- **Match Expansion**: When using file-level indexing in Lucene, always use the `Matches` API to iterate through multiple hits within a single document to ensure granular match reporting (offsets and line numbers). This ensures search
+  precision remains high despite moving to a more efficient indexing granularity.
+- **Match Deduplication**: Always deduplicate match offsets within a single document when searching across multiple Lucene fields (e.g., `CONTENTS` and `CODE`) using a `Set`. This prevents duplicate results for the same term matching in
+  different analyzer fields.
 
 ### REPL Worker & K2 Scripting
 
@@ -108,6 +120,11 @@ workflows.
 - **`RuntimeException` Ambiguity**: Explicitly import or use the FQN for `java.lang.RuntimeException` in K2 REPL snippets to avoid ambiguity with `kotlin.RuntimeException` during FIR analysis in the K2 backend.
 - **Abstraction**: ALWAYS abstract `K2ReplCompiler` and `K2ReplEvaluator` behind the generic `ReplCompiler` and `ReplEvaluator` interfaces from the Kotlin Scripting API. This maintains clean architectural boundaries by treating the
   K2-specific implementation as an implementation detail.
+
+### Service Boundaries
+
+- **Indexing vs Storage**: Maintain strict separation between indexing and storage services by removing extraction fallbacks from `SourceIndexService`. This prevents storage concern leaks into indexing logic and simplifies the dependency
+  graph by centralizing filesystem operations in `SourceStorageService`.
 
 ### Build & Test Commands
 
@@ -156,6 +173,14 @@ Skills in this project guide other agents. They will be installed in users' skil
 ---
 
 ## Concurrency and Testing Patterns
+
+### Locking & Re-entrancy
+
+- **Coroutine Re-entrancy**: Use an immutable linked-list of held locks in `CoroutineContext.Element` for thread-safe coroutine re-entrancy. This ensures child coroutines safely inherit held locks while maintaining strict isolation between
+  parallel siblings, preventing mutual exclusion breaches and data corruption. When implementing re-entrant locks for coroutines, ensure the `currentJob` is correctly tracked through `withContext` calls, as every `withContext` creates a new
+  `Job` which can break simple `currentJob == ownerJob` checks.
+- **Lock Upgrades**: Explicitly detect and fail Shared-to-Exclusive lock upgrade attempts in `FileLockManager`. NIO `FileLock` does not support upgrades within the same JVM process and will trigger an `OverlappingFileLockException`, leading
+  to indefinite spin-lock hangs if not handled.
 
 ### Context parameters
 

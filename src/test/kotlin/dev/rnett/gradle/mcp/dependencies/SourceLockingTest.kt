@@ -12,10 +12,10 @@ import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -25,16 +25,18 @@ import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createTempDirectory
-import kotlin.io.path.deleteRecursively
 
 @OptIn(ExperimentalPathApi::class)
 class SourceLockingTest {
 
     private lateinit var depService: GradleDependencyService
     private lateinit var indexService: IndexService
+    private lateinit var storageService: SourceStorageService
+    private lateinit var sourceIndexService: SourceIndexService
     private lateinit var environment: GradleMcpEnvironment
     private lateinit var sourcesService: DefaultSourcesService
     private lateinit var tempDir: Path
+    private val testDispatcher = UnconfinedTestDispatcher()
 
     @BeforeEach
     fun setup() {
@@ -42,16 +44,29 @@ class SourceLockingTest {
         environment = GradleMcpEnvironment(tempDir)
         depService = mockk()
         indexService = mockk()
-        sourcesService = DefaultSourcesService(depService, environment, indexService)
+        storageService = DefaultSourceStorageService(environment)
+        sourceIndexService = DefaultSourceIndexService(indexService, storageService, testDispatcher)
+        sourcesService = DefaultSourcesService(depService, storageService, sourceIndexService, testDispatcher)
     }
 
     @AfterEach
     fun cleanup() {
-        tempDir.deleteRecursively()
+        var retries = 5
+        while (retries > 0) {
+            try {
+                // Use a custom walk to handle links correctly during deletion if needed, 
+                // though deleteRecursively should handle it. The main issue is often file locks.
+                tempDir.toFile().deleteRecursively()
+                if (!tempDir.toFile().exists()) return
+            } catch (e: Exception) {
+                retries--
+                Thread.sleep(200)
+            }
+        }
     }
 
     @Test
-    fun `downloadAllSources prevents concurrent extraction`() = runTest {
+    fun `resolveAndProcessAllSources prevents concurrent extraction`() = runTest(testDispatcher) {
         val projectRootPath = tempDir.resolve("project")
         projectRootPath.createDirectories()
         val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
@@ -96,22 +111,16 @@ class SourceLockingTest {
         coEvery {
             with(any<ProgressReporter>()) { indexService.indexFiles(any(), any(), any(), any()) }
         } returns null
-        coEvery {
-            with(any<ProgressReporter>()) { indexService.index(any<GradleDependency>(), any<Path>(), any()) }
-        } returns null
         coEvery { indexService.isMergeUpToDate(any(), any(), any()) } returns true
         coEvery {
             with(any<ProgressReporter>()) { indexService.mergeIndices(any(), any(), any(), any()) }
         } returns Unit
-        coEvery {
-            with(any<ProgressReporter>()) { indexService.indexFiles(any(), any(), any(), any()) }
-        } returns null
 
         // Start multiple concurrent requests
         val jobs = List(3) {
-            async(Dispatchers.IO) {
+            async {
                 with(ProgressReporter.PRINTLN) {
-                    sourcesService.downloadAllSources(projectRoot, fresh = false)
+                    sourcesService.resolveAndProcessAllSources(projectRoot, fresh = false)
                 }
             }
         }
@@ -122,7 +131,7 @@ class SourceLockingTest {
     }
 
     @Test
-    fun `downloadAllSources allows parallel readers when cached`() = runTest {
+    fun `resolveAndProcessAllSources allows parallel readers when cached`() = runTest(testDispatcher) {
         val projectRootPath = tempDir.resolve("project-parallel")
         projectRootPath.createDirectories()
         val projectRoot = GradleProjectRoot(projectRootPath.absolutePathString())
@@ -165,29 +174,23 @@ class SourceLockingTest {
         coEvery {
             with(any<ProgressReporter>()) { indexService.indexFiles(any(), any(), any(), any()) }
         } returns null
-        coEvery {
-            with(any<ProgressReporter>()) { indexService.index(any<GradleDependency>(), any<Path>(), any()) }
-        } returns null
         coEvery { indexService.isMergeUpToDate(any(), any(), any()) } returns true
         coEvery {
             with(any<ProgressReporter>()) { indexService.mergeIndices(any(), any(), any(), any()) }
         } returns Unit
-        coEvery {
-            with(any<ProgressReporter>()) { indexService.indexFiles(any(), any(), any(), any()) }
-        } returns null
 
         // 1. Initial download to populate cache
         with(ProgressReporter.PRINTLN) {
-            sourcesService.downloadAllSources(projectRoot, fresh = true)
+            sourcesService.resolveAndProcessAllSources(projectRoot, fresh = true)
         }
         coVerify(exactly = 1) { with(any<ProgressReporter>()) { depService.downloadAllSources(projectRoot) } }
 
         // 2. Start multiple parallel readers (fresh = false)
         // They should all acquire shared lock and return immediately without blocking each other
         val jobs = List(5) {
-            async(Dispatchers.IO) {
+            async {
                 with(ProgressReporter.PRINTLN) {
-                    sourcesService.downloadAllSources(projectRoot, fresh = false)
+                    sourcesService.resolveAndProcessAllSources(projectRoot, fresh = false)
                 }
             }
         }

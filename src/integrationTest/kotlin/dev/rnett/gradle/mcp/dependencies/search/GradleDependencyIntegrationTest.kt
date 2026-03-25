@@ -34,6 +34,7 @@ class GradleDependencyIntegrationTest {
     private lateinit var provider: DefaultGradleProvider
     private lateinit var service: GradleDependencyService
     private lateinit var indexService: DefaultIndexService
+    private lateinit var sourceIndexService: dev.rnett.gradle.mcp.dependencies.SourceIndexService
     private lateinit var sourcesService: DefaultSourcesService
     private lateinit var environment: GradleMcpEnvironment
     private lateinit var tempDir: Path
@@ -50,7 +51,9 @@ class GradleDependencyIntegrationTest {
         )
         service = DefaultGradleDependencyService(provider)
         indexService = DefaultIndexService(environment)
-        sourcesService = DefaultSourcesService(service, environment, indexService)
+        val storageService = dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService(environment)
+        sourceIndexService = dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService(indexService, storageService)
+        sourcesService = dev.rnett.gradle.mcp.dependencies.DefaultSourcesService(service, storageService, sourceIndexService)
 
         // A single complex project to cover all test cases
         complexProject = testGradleProject {
@@ -478,11 +481,11 @@ class GradleDependencyIntegrationTest {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
 
         val sourcesDir = with(ProgressReporter.PRINTLN) {
-            sourcesService.downloadConfigurationSources(projectRoot, ":sub-a:runtimeClasspath", index = true, providerToIndex = DeclarationSearch)
+            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:runtimeClasspath", index = true, providerToIndex = DeclarationSearch)
         }
 
         val searchProvider = DeclarationSearch
-        val searchResults = sourcesService.search(sourcesDir, searchProvider, "fqn:org.slf4j.LoggerFactory").results
+        val searchResults = sourceIndexService.search(sourcesDir, searchProvider, "fqn:org.slf4j.LoggerFactory").results
 
         assertTrue(searchResults.isNotEmpty(), "Expected search results for 'fqn:org.slf4j.LoggerFactory'")
     }
@@ -492,7 +495,7 @@ class GradleDependencyIntegrationTest {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
 
         with(ProgressReporter.PRINTLN) {
-            sourcesService.downloadConfigurationSources(projectRoot, ":sub-a:compileClasspath", index = true, forceDownload = false, providerToIndex = DeclarationSearch)
+            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", index = true, forceDownload = false, providerToIndex = DeclarationSearch)
         }
     }
 
@@ -502,12 +505,12 @@ class GradleDependencyIntegrationTest {
 
         // First download normally
         with(ProgressReporter.PRINTLN) {
-            sourcesService.downloadConfigurationSources(projectRoot, ":sub-a:compileClasspath", index = true, forceDownload = false, providerToIndex = DeclarationSearch)
+            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", index = true, forceDownload = false, providerToIndex = DeclarationSearch)
         }
 
         // Then force download
         with(ProgressReporter.PRINTLN) {
-            sourcesService.downloadConfigurationSources(projectRoot, ":sub-a:compileClasspath", index = true, forceDownload = true, providerToIndex = DeclarationSearch)
+            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", index = true, forceDownload = true, providerToIndex = DeclarationSearch)
         }
     }
 

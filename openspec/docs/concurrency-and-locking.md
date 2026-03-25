@@ -4,66 +4,50 @@ This document outlines the multi-layered locking and caching strategy used to ma
 
 ## Overview
 
-The system manages three distinct levels of storage, each with its own locking requirements to ensure consistency across multiple Gradle projects and parallel tool calls.
+The system manages storage at two primary levels, each with its own locking requirements to ensure consistency across multiple Gradle projects and parallel tool calls.
 
-1. **Global Extraction Cache** (`extracted-sources/`): Stores raw source files for a specific dependency (e.g., `org.slf4j:slf4j-api:2.0.17`).
-2. **Global Index Cache** (`source-indices/`): Stores Lucene indices per provider for each extracted dependency.
-3. **Project Merged Index** (`sources/PROJECT_HASH/.../metadata/index`): A single, merged index containing documents from all dependencies in a specific project scope.
+1. **Global Dependency Cache**: Stores raw source files and Lucene indices for a specific dependency (e.g., `org.slf4j:slf4j-api:2.0.17`).
+2. **Project Merged Index**: Stores a single, merged index containing documents from all dependencies in a specific project scope.
 
 ## Locking Hierarchy
 
 To prevent deadlocks and ensure data integrity, the following locking order must be respected:
-`Project Lock` -> `Global Extraction Lock` -> `Global Index Lock` -> `Metadata Lock`.
+`Project Lock` -> `Dependency Lock`.
+
+The system uses a **reentrant locking mechanism** in `FileLockManager`, allowing nested locks on the same file in the same coroutine to succeed without deadlocking.
 
 ### 1. Project Merged Sources Lock
 
 * **Path**: `sources/PROJECT_ID/.lock`
-* **Usage**: Orchestrated in `SourcesService.withSources`.
+* **Usage**: Orchestrated in `SourcesService.withSources` and `SourceIndexService.ensureMergeUpToDate`.
 * **Shared Lock**: Acquired during cache hits to read the merged index or perform searches.
-* **Exclusive Lock**: Acquired when the project-level cache is missing, stale, or requires a merge of a new provider.
+* **Exclusive Lock**: Acquired when the project-level cache is missing, stale, or requires a merge.
 
-### 2. Global Extraction Lock
+### 2. Dependency Lock
 
-* **Path**: `.locks/extracted-sources/GROUP-ARTIFACT-VERSION.lock`
-* **Usage**: Orchestrated in `SourcesService.processSingleDependencyTask`.
-* **Exclusive Lock**: Acquired during the extraction of a JAR into the global cache. This ensures only one process extracts a specific dependency at a time.
-
-### 3. Global Index Lock
-
-* **Path**: `.locks/source-indices/GROUP/NAME-PROVIDER.lock`
-* **Usage**: Orchestrated in `DefaultIndexService.indexFiles` and `DefaultIndexService.mergeIndices`.
-* **Exclusive Lock**: Acquired when indexing a specific provider for a specific dependency.
+* **Path**: `.locks/dependencies/RELATIVE_PREFIX_HASH.lock`
+* **Usage**: Orchestrated in `SourceStorageService.extractSources`, `DefaultIndexService.indexFiles`, and `DefaultIndexService.mergeIndices` (shared).
+* **Relative Prefix**: A stable identifier derived from the dependency group and sources filename (e.g., `org/slf4j/slf4j-api-2.0.17-sources`).
+* **Exclusive Lock**: Acquired during extraction or indexing of a specific dependency.
 * **Shared Lock**: Acquired during `mergeIndices` to ensure the source index isn't deleted or modified while its documents are being copied into the project-level index.
-
-### 4. Metadata Lock
-
-* **Path**: `.locks/source-indices/GROUP/NAME-metadata.lock`
-* **Usage**: Orchestrated in `DefaultIndexService.indexFiles` and `DefaultIndexService.loadDependencyMetadata`.
-* **Exclusive Lock**: Acquired when updating the `.metadata.json` file (which stores document counts per provider).
-* **Shared Lock**: Acquired when reading document counts during the "PREPARING" phase of a merge.
 
 ## Cache Integrity & Invalidation
 
-### Marker Files
+### Atomic Operations
 
-Each provider index uses a marker file (e.g., `.indexed-declarations-7`).
+The system relies on atomic operations to ensure cache stability without excessive locking:
 
-* **Creation**: Created only at the *end* of a successful `indexFiles` run.
-* **Invalidation**: When a re-index is triggered (e.g., `forceDownload=true`), the marker file is **immediately deleted** after acquiring the exclusive lock. This prevents "poisoned cache" scenarios where an interrupted run leaves an empty
-  directory but a valid-looking marker.
+* **Atomic Directory Replacement**: `FileUtils.atomicReplaceDirectory` uses a rename-to-temp, move-source-to-target, delete-temp sequence. This ensures that readers holding shared locks on the target directory don't block the update (though
+  they might see an "empty" directory for a tiny fraction of a second if the rename succeeds but the next move hasn't happened yet, but `FileLock` usually prevents this on Windows anyway).
+* **Metadata**: Dependency-level document counts are stored in a single `.metadata.json` within the index directory, updated atomically under the Dependency Lock.
 
-### Merge Hash Verification
+### Marker Files & Hash Verification
 
-Merged indices use a `.merged.hash` file to verify they are up-to-date.
-
-* **Content**: `provider.indexVersion + "\n" + dependencyHash`.
-* **Verification**: `isMergeUpToDate` performs a two-stage check:
-    1. **Shared Lock Check**: Fast check to see if the hash matches.
-    2. **Exclusive Lock Check**: If shared check passes, briefly acquire an exclusive lock to ensure no `ATOMIC_MOVE` is currently replacing the directory.
+* **Marker Files**: Each provider index uses a marker file (e.g., `.indexed-declarations-7`). Created only at the end of a successful run.
+* **Merge Hash Verification**: Merged indices use a `.merged.hash` file. Verified under a shared lock for performance.
 
 ## Best Practices for Developers
 
 1. **Always use `FileLockManager`**: Never manually manipulate `.lock` files.
-2. **Lock Scope**: Keep lock durations as short as possible, but ensure they cover the entire duration of I/O operations (especially Lucene merges).
-3. **Atomic Moves**: Always write to temporary directories/files and use `StandardCopyOption.ATOMIC_MOVE` to update the final cache location.
-4. **Flow Consumption**: In `indexFiles`, always consume the `fileFlow` (even on cache hits) to prevent deadlocks in the producer-consumer pipeline.
+2. **Lock Scope**: Keep lock durations as short as possible.
+3. **Flow Consumption**: In `indexFiles`, always consume the `fileFlow` (even on cache hits) to prevent deadlocks in the producer-consumer pipeline.

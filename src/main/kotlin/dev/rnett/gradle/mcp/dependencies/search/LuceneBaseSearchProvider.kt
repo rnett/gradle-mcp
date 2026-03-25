@@ -3,11 +3,9 @@ package dev.rnett.gradle.mcp.dependencies.search
 import com.github.benmanes.caffeine.cache.Caffeine
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.lucene.LuceneUtils
-import dev.rnett.gradle.mcp.utils.unorderedParallelForEach
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.lucene.analysis.Analyzer
-import org.apache.lucene.document.Document
 import org.apache.lucene.index.DirectoryReader
 import org.apache.lucene.index.IndexWriter
 import org.apache.lucene.index.IndexWriterConfig
@@ -29,10 +27,8 @@ abstract class LuceneBaseSearchProvider : SearchProvider {
 
     protected abstract fun createAnalyzer(): Analyzer
 
-    protected abstract fun copyDocument(oldDoc: Document, newPath: String): Document
-
     protected val readerCache = Caffeine.newBuilder()
-        .maximumSize(10)
+        .maximumSize(50)
         .expireAfterAccess(30, TimeUnit.MINUTES)
         .removalListener<Path, DirectoryReader> { _, reader, _ ->
             reader?.close()
@@ -91,14 +87,14 @@ abstract class LuceneBaseSearchProvider : SearchProvider {
         }
     }
 
+    context(progress: ProgressReporter)
     override suspend fun mergeIndices(
         indexDirs: Map<Path, Path>,
         outputDir: Path,
-        progress: ProgressReporter,
         withLock: suspend (Path, suspend () -> Unit) -> Unit
     ) = withContext(Dispatchers.IO) {
-        val totalDocs = indexDirs.keys.sumOf { countDocuments(it) }
-        val completedDocs = kotlin.concurrent.atomics.AtomicInt(0)
+        val total = indexDirs.size.toDouble()
+        var completed = 0
 
         val duration = measureTime {
             val resolvedOutputDir = resolveIndexDir(outputDir)
@@ -106,31 +102,15 @@ abstract class LuceneBaseSearchProvider : SearchProvider {
 
             createAnalyzer().use { analyzer ->
                 LuceneUtils.writeIndex(resolvedOutputDir, analyzer) { writer ->
-                    indexDirs.entries.unorderedParallelForEach(context = Dispatchers.IO) { (idxDir, relativePrefix) ->
+                    indexDirs.entries.forEach { (idxDir, _) ->
                         withLock(idxDir) {
                             val resolvedIdxDir = resolveIndexDir(idxDir)
 
                             FSDirectory.open(resolvedIdxDir).use { directory ->
-                                val indexExists = DirectoryReader.indexExists(directory)
-                                if (indexExists) {
-                                    DirectoryReader.open(directory).use { reader ->
-                                        val storedFields = reader.storedFields()
-                                        val count = reader.numDocs()
-                                        for (i in 0 until reader.maxDoc()) {
-                                            val oldDoc = try {
-                                                storedFields.document(i)
-                                            } catch (e: Exception) {
-                                                continue
-                                            }
-                                            val oldPath = oldDoc.get("path")
-                                            val newPath = relativePrefix.resolve(oldPath).toString().replace('\\', '/')
-
-                                            val newDoc = copyDocument(oldDoc, newPath)
-                                            writer.addDocument(newDoc)
-                                        }
-                                        val updatedDocs = completedDocs.addAndFetch(count)
-                                        progress.report(updatedDocs.toDouble(), totalDocs.toDouble(), null)
-                                    }
+                                if (DirectoryReader.indexExists(directory)) {
+                                    writer.addIndexes(directory)
+                                    completed++
+                                    progress.report(completed.toDouble(), total, null)
                                 } else {
                                     val files = try {
                                         resolvedIdxDir.listDirectoryEntries().map { it.fileName.toString() }

@@ -1,21 +1,24 @@
 package dev.rnett.gradle.mcp.dependencies
 
 import dev.rnett.gradle.mcp.ProgressReporter
+import dev.rnett.gradle.mcp.utils.FileUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import java.io.InputStream
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createDirectories
+import kotlin.io.path.createParentDirectories
 import kotlin.io.path.deleteRecursively
-import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
 import kotlin.io.path.listDirectoryEntries
-import kotlin.io.path.moveTo
 import kotlin.io.path.name
 import kotlin.io.path.outputStream
 
@@ -30,7 +33,7 @@ object ArchiveExtractor {
         skipSingleFirstDir: Boolean = true,
         writeFiles: Boolean = true,
         onFileExtracted: (suspend (String, ByteArray) -> Unit)? = null
-    ) {
+    ) = withContext(Dispatchers.IO) {
         ZipFile(archivePath.toFile()).use { zip ->
             val total = zip.size().toDouble()
 
@@ -59,7 +62,7 @@ object ArchiveExtractor {
         skipSingleFirstDir: Boolean = true,
         writeFiles: Boolean = true,
         onFileExtracted: (suspend (String, ByteArray) -> Unit)? = null
-    ) {
+    ) = withContext(Dispatchers.IO) {
         if (skipSingleFirstDir && onFileExtracted != null) {
             LOGGER.warn("extractInto called with ZipInputStream, skipSingleFirstDir=true, and a callback. Paths passed to the callback will NOT be shifted.")
         }
@@ -78,7 +81,7 @@ object ArchiveExtractor {
         archivePath: Path,
         skipSingleFirstDir: Boolean = true,
         onFileExtracted: suspend (String, ByteArray) -> Unit
-    ) {
+    ) = withContext(Dispatchers.IO) {
         ZipFile(archivePath.toFile()).use { zip ->
             val total = zip.size().toDouble()
 
@@ -105,7 +108,7 @@ object ArchiveExtractor {
         archiveStream: ZipInputStream,
         skipSingleFirstDir: Boolean = true,
         onFileExtracted: suspend (String, ByteArray) -> Unit
-    ) {
+    ) = withContext(Dispatchers.IO) {
         if (skipSingleFirstDir) {
             LOGGER.warn("extract called with ZipInputStream, skipSingleFirstDir=true. Paths passed to the callback will NOT be shifted.")
         }
@@ -152,15 +155,16 @@ object ArchiveExtractor {
     ) {
         var tempTarget: Path? = null
         if (writeFiles) {
-            @Suppress("BlockingMethodInNonBlockingContext")
             tempTarget = Files.createTempDirectory("gradle-mcp-extract-")
         }
 
         try {
             var entryCount = 0
             entriesProcessor { entry, input ->
+                currentCoroutineContext().ensureActive()
                 entryCount++
-                progress.report(entryCount.toDouble(), total, "Extracting ${entry.name}")
+                // Progress reporting is intentionally omitted here to avoid UI jitter with indexing, 
+                // and because per-file extraction progress is not particularly valuable to the user.
 
                 val finalPath = if (singleFirstDirPrefix != null && entry.name.startsWith(singleFirstDirPrefix)) {
                     entry.name.substring(singleFirstDirPrefix.length)
@@ -197,27 +201,17 @@ object ArchiveExtractor {
 
             if (writeFiles) {
                 val finalTarget = requireNotNull(target)
-                finalTarget.toFile().parentFile.mkdirs()
+                finalTarget.createParentDirectories()
 
-                if (finalTarget.exists()) {
-                    finalTarget.deleteRecursively()
-                }
-
-                if (skipSingleFirstDir) {
+                val sourceToMove = if (skipSingleFirstDir) {
                     val targetDir = requireNotNull(tempTarget)
                     val child = targetDir.listDirectoryEntries().filter { !it.name.startsWith(".") }.singleOrNull()
-                    if (child != null && child.isDirectory()) {
-                        child.moveTo(finalTarget, StandardCopyOption.REPLACE_EXISTING)
-                    } else {
-                        targetDir.moveTo(finalTarget, StandardCopyOption.REPLACE_EXISTING)
-                    }
+                    if (child != null && child.isDirectory()) child else targetDir
                 } else {
-                    requireNotNull(tempTarget).moveTo(finalTarget, StandardCopyOption.REPLACE_EXISTING)
+                    requireNotNull(tempTarget)
                 }
 
-                if (tempTarget.exists()) {
-                    check(tempTarget.listDirectoryEntries().filter { !it.name.startsWith(".") }.isEmpty())
-                }
+                FileUtils.atomicReplaceDirectory(sourceToMove, finalTarget)
             }
         } finally {
             if (tempTarget != null) {

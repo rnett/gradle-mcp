@@ -2,9 +2,13 @@ package dev.rnett.gradle.mcp
 
 import dev.rnett.gradle.mcp.dependencies.DefaultGradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.DefaultGradleSourceService
+import dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService
+import dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourcesService
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.GradleSourceService
+import dev.rnett.gradle.mcp.dependencies.SourceIndexService
+import dev.rnett.gradle.mcp.dependencies.SourceStorageService
 import dev.rnett.gradle.mcp.dependencies.SourcesService
 import dev.rnett.gradle.mcp.dependencies.gradle.DefaultDistributionDownloaderService
 import dev.rnett.gradle.mcp.dependencies.gradle.DistributionDownloaderService
@@ -53,16 +57,19 @@ import dev.rnett.gradle.mcp.tools.dependencies.GradleDependencyTools
 import dev.rnett.gradle.mcp.tools.skills.SkillTools
 import dev.rnett.gradle.mcp.utils.DefaultEnvProvider
 import dev.rnett.gradle.mcp.utils.EnvProvider
-import io.ktor.client.*
-import io.ktor.client.plugins.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.serialization.kotlinx.json.*
-import io.ktor.serialization.kotlinx.xml.*
-import io.ktor.server.config.*
+import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.serialization.kotlinx.xml.xml
+import io.ktor.server.config.ApplicationConfig
+import io.ktor.server.config.getAs
 import io.modelcontextprotocol.kotlin.sdk.EmptyJsonObject
 import io.modelcontextprotocol.kotlin.sdk.Implementation
 import io.modelcontextprotocol.kotlin.sdk.ServerCapabilities
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.Json
 import nl.adaptivity.xmlutil.serialization.XML
 import org.koin.core.module.Module
@@ -121,8 +128,11 @@ object DI {
         single<MavenRepoService> { DefaultMavenRepoService(get()) }
         single<MavenCentralService> { DefaultMavenCentralService(get()) }
         single<IndexService> { DefaultIndexService(get()) }
-        single<SourcesService> { DefaultSourcesService(get(), get(), get()) }
-        single<GradleSourceService> { DefaultGradleSourceService(get(), get(), get(), get()) }
+        single<SourceStorageService> { DefaultSourceStorageService(get()) }
+        single<CoroutineDispatcher> { Dispatchers.IO }
+        single<SourceIndexService> { DefaultSourceIndexService(get(), get(), get()) }
+        single<SourcesService> { DefaultSourcesService(get(), get(), get(), get()) }
+        single<GradleSourceService> { DefaultGradleSourceService(get(), get(), get(), get(), get()) }
         single { BuildManager() }
         single<GradleConnectionService> { DefaultGradleConnectionService() }
         single<BuildExecutionService> { DefaultBuildExecutionService(envProvider = get()) }
@@ -146,6 +156,7 @@ object DI {
             val mavenCentralService: MavenCentralService = get()
             val sourcesService: SourcesService = get()
             val gradleSourceService: GradleSourceService = get()
+            val indexService: SourceIndexService = get()
             components(
                 provider,
                 replManager,
@@ -156,7 +167,8 @@ object DI {
                 mavenRepoService,
                 mavenCentralService,
                 sourcesService,
-                gradleSourceService
+                gradleSourceService,
+                indexService
             )
         }
 
@@ -193,7 +205,8 @@ object DI {
         mavenRepoService: MavenRepoService,
         mavenCentralService: MavenCentralService,
         sourcesService: SourcesService,
-        gradleSourceService: GradleSourceService
+        gradleSourceService: GradleSourceService,
+        indexService: SourceIndexService
     ): List<McpServerComponent> = listOf(
         GradleExecutionTools(provider),
         ReplTools(provider, replManager, replEnvironmentService),
@@ -201,7 +214,7 @@ object DI {
         GradleDocsTools(gradleDocsService, gradleVersionService),
         GradleDependencyTools(gradleDependencyService),
         DependencySearchTools(mavenRepoService, mavenCentralService),
-        DependencySourceTools(sourcesService, gradleSourceService),
+        DependencySourceTools(sourcesService, gradleSourceService, indexService),
         SkillTools()
     )
 

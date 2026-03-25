@@ -13,12 +13,13 @@ import kotlin.io.path.walk
 
 @OptIn(ExperimentalPathApi::class)
 context(progress: ProgressReporter)
-suspend fun SearchProvider.index(dependencyDir: Path, outputDir: Path) {
+suspend fun SearchProvider.index(dependencyDir: Path, outputDir: Path, prefix: Path? = null) {
     val entries = dependencyDir.walk()
         .filter { it.isRegularFile() }
         .map { file ->
-            val relativePath = file.relativeTo(dependencyDir).toString().replace('\\', '/')
-            IndexEntry(relativePath, file.readText())
+            val relativePath = file.relativeTo(dependencyDir)
+            val fullRelativePath = if (prefix != null) prefix.resolve(relativePath) else relativePath
+            IndexEntry(fullRelativePath.toString().replace('\\', '/'), file.readText())
         }
     index(entries, outputDir)
 }

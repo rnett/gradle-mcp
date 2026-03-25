@@ -58,23 +58,24 @@ class GlobSearchTest {
         dep1Dir.resolve("File1.kt").createFile()
         val index1Dir = tempDir.resolve("index1")
         with(ProgressReporter.PRINTLN) {
-            GlobSearch.index(dep1Dir, index1Dir)
+            GlobSearch.index(dep1Dir, index1Dir, kotlin.io.path.Path("lib1"))
 
             val dep2Dir = tempDir.resolve("dep2")
             dep2Dir.createDirectories()
             dep2Dir.resolve("File2.kt").createFile()
             val index2Dir = tempDir.resolve("index2")
-            GlobSearch.index(dep2Dir, index2Dir)
+            GlobSearch.index(dep2Dir, index2Dir, kotlin.io.path.Path("lib2"))
 
             val mergedDir = tempDir.resolve("merged")
-            GlobSearch.mergeIndices(
-                mapOf(
-                    index1Dir to Path.of("lib1"),
-                    index2Dir to Path.of("lib2")
-                ),
-                mergedDir,
-                ProgressReporter.NONE
-            ) { _, action -> action() }
+            with(ProgressReporter.NONE) {
+                GlobSearch.mergeIndices(
+                    mapOf(
+                        index1Dir to kotlin.io.path.Path("lib1"),
+                        index2Dir to kotlin.io.path.Path("lib2")
+                    ),
+                    mergedDir
+                ) { _, action -> action() }
+            }
 
             val results1 = GlobSearch.search(mergedDir, "lib1/File1.kt").results
             assertEquals(1, results1.size)

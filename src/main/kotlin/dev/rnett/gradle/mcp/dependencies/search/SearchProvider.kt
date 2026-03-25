@@ -31,14 +31,13 @@ interface SearchProvider {
      *
      * @param indexDirs Map of individual dependency index directories to their relative path prefixes in the merged set.
      * @param outputDir The directory where the merged index should be written.
-     * @param progress Reporter for tracking merge progress.
      * @param withLock A callback used to acquire a lock on a source index directory before reading from it.
      *                 Crucial for ensuring source indices aren't deleted mid-merge.
      */
+    context(progress: ProgressReporter)
     suspend fun mergeIndices(
         indexDirs: Map<Path, Path>,
         outputDir: Path,
-        progress: ProgressReporter,
         withLock: suspend (Path, suspend () -> Unit) -> Unit
     )
 
@@ -48,6 +47,8 @@ interface SearchProvider {
         val SOURCE_EXTENSIONS = setOf("kt", "kts", "java", "groovy")
     }
 }
+
+data class Index(val dir: Path)
 
 data class IndexEntry(val relativePath: String, val content: String)
 
@@ -66,7 +67,8 @@ data class PackageContents(
 data class SearchResponse<T>(
     val results: List<T>,
     val interpretedQuery: String? = null,
-    val error: String? = null
+    val error: String? = null,
+    val totalResults: Int? = null
 )
 
 data class RelativeSearchResult(
@@ -95,9 +97,14 @@ fun Collection<RelativeSearchResult>.toSearchResults(sourcesRoot: Path): List<Se
                 val (actualLine, snippet) = findHighSignalSnippet(content)
                 return@map SearchResult(relativePath, file, actualLine, snippet, res.score)
             }
-            val actualLine = res.line ?: (content.substring(0, res.offset).count { it == '\n' } + 1)
-            val startLine = (actualLine - 1 - SearchResult.DEFAULT_SNIPPET_RANGE).coerceAtLeast(0)
-            val endLine = (actualLine - 1 + SearchResult.DEFAULT_SNIPPET_RANGE).coerceAtMost(lines.size - 1)
+            val actualLine = if (res.offset in 0..content.length) {
+                content.substring(0, res.offset).count { it == '\n' } + 1
+            } else {
+                res.line ?: 1
+            }
+            val lineIndex = (actualLine - 1).coerceIn(lines.indices)
+            val startLine = (lineIndex - SearchResult.DEFAULT_SNIPPET_RANGE).coerceAtLeast(0)
+            val endLine = (lineIndex + SearchResult.DEFAULT_SNIPPET_RANGE).coerceAtMost(lines.size - 1)
             val snippet = lines.subList(startLine, endLine + 1).joinToString("\n")
             SearchResult(relativePath, file, actualLine, snippet, res.score)
         }.distinctBy { it.line }
@@ -162,6 +169,6 @@ data class SearchResult(
     val score: Float?
 ) {
     companion object {
-        const val DEFAULT_SNIPPET_RANGE = 1
+        const val DEFAULT_SNIPPET_RANGE = 2
     }
 }

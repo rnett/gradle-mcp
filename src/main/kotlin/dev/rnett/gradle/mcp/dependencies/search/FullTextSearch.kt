@@ -14,6 +14,8 @@ import org.apache.lucene.analysis.standard.StandardTokenizer
 import org.apache.lucene.document.Document
 import org.apache.lucene.document.Field
 import org.apache.lucene.document.FieldType
+import org.apache.lucene.document.StringField
+import org.apache.lucene.document.TextField
 import org.apache.lucene.index.IndexOptions
 import org.apache.lucene.index.ReaderUtil
 import org.apache.lucene.search.IndexSearcher
@@ -23,36 +25,39 @@ import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.time.measureTimedValue
 
+/**
+ * A full-text search provider using file-level indexing.
+ * This enables multi-line phrase searches and reduces index bloat.
+ */
 object FullTextSearch : LuceneBaseSearchProvider() {
     override val logger = LoggerFactory.getLogger(FullTextSearch::class.java)
     override val name: String = "full-text"
-    override val indexVersion: Int = 4
+    override val indexVersion: Int = 14
 
     private const val CONTENTS = "contents"
     private const val CONTENTS_EXACT = "contents_exact"
+    private const val CODE = "contents_code"
     private const val PATH = "path"
 
-    internal const val v4IndexDirName = "lucene-full-text-index-v4"
+    private const val BOOST_EXACT = 5.0f
+    private const val BOOST_CODE = 10.0f
 
-    override fun resolveIndexDir(baseDir: Path): Path = baseDir.resolve(v4IndexDirName)
+    internal const val v14IndexDirName = "lucene-full-text-index-v14"
+    internal const val v12IndexDirName = v14IndexDirName // For compatibility with existing test references
 
-    private val contentFieldType = FieldType().apply {
-        setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS)
-        setTokenized(true)
-        setStored(true)
-        freeze()
-    }
+    override fun resolveIndexDir(baseDir: Path): Path = baseDir.resolve(v14IndexDirName)
 
-    private val pathFieldType = FieldType().apply {
-        setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS)
-        setTokenized(true)
-        setStored(true)
-        setOmitNorms(true)
-        freeze()
+    private val reusableAnalyzer by lazy { createAnalyzer() }
+
+    private val contentsFieldType by lazy {
+        val type = FieldType(TextField.TYPE_STORED)
+        type.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS)
+        type.freeze()
+        type
     }
 
     override fun createAnalyzer(): Analyzer {
-        val standardWithWordDelimiter = object : Analyzer() {
+        val splitAnalyzer = object : Analyzer() {
             override fun createComponents(fieldName: String): TokenStreamComponents {
                 val source = StandardTokenizer()
                 var filter: TokenStream = WordDelimiterGraphFilter(
@@ -70,105 +75,109 @@ object FullTextSearch : LuceneBaseSearchProvider() {
             }
         }
 
-        val keywordLowercaseAnalyzer = object : Analyzer() {
-            override fun createComponents(fieldName: String): TokenStreamComponents {
-                val source = KeywordTokenizer()
-                val filter = LowerCaseFilter(source)
-                return TokenStreamComponents(source, filter)
-            }
-        }
-
         return PerFieldAnalyzerWrapper(
-            standardWithWordDelimiter, mapOf(
-                PATH to keywordLowercaseAnalyzer,
+            splitAnalyzer, mapOf(
+                PATH to object : Analyzer() {
+                    override fun createComponents(fieldName: String): TokenStreamComponents {
+                        val source = KeywordTokenizer()
+                        return TokenStreamComponents(source, LowerCaseFilter(source))
+                    }
+                },
                 CONTENTS_EXACT to LuceneUtils.exactAnalyzer
             )
         )
     }
 
-    override fun copyDocument(oldDoc: Document, newPath: String): Document {
-        val newDoc = Document()
-        newDoc.add(Field(PATH, newPath, pathFieldType))
-        newDoc.addContents(oldDoc.get(CONTENTS))
-        return newDoc
-    }
-
-    private fun Document.addContents(content: String) {
-        add(Field(CONTENTS, content, contentFieldType))
-        add(Field(CONTENTS_EXACT, content, contentFieldType))
-    }
-
     override suspend fun search(indexDir: Path, query: String, pagination: PaginationInput): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (response, duration) = measureTimedValue {
-            val idxDir = indexDir.resolve(v4IndexDirName)
+            val idxDir = resolveIndexDir(indexDir)
             if (!idxDir.exists()) {
-                throw IllegalStateException("Lucene index directory does not exist: $idxDir")
+                return@withContext SearchResponse(emptyList(), error = "Lucene index directory does not exist: $idxDir")
             }
 
             withReader(idxDir) { reader ->
                 val indexSearcher = IndexSearcher(reader)
-                createAnalyzer().use { analyzer ->
-                    val q = try {
-                        LuceneUtils.parseBoostedQuery(query, arrayOf(CONTENTS), arrayOf(CONTENTS_EXACT), analyzer)
-                    } catch (e: Exception) {
-                        return@withReader SearchResponse(
-                            emptyList(),
-                            error = LuceneUtils.formatSyntaxError(e.message)
-                        )
-                    }
+                val q = try {
+                    LuceneUtils.parseBoostedQuery(
+                        query = query,
+                        fields = arrayOf(CONTENTS),
+                        exactFields = arrayOf(CONTENTS_EXACT),
+                        analyzer = reusableAnalyzer,
+                        exactBoost = BOOST_EXACT,
+                        extraBoosts = mapOf(arrayOf(CODE) to BOOST_CODE)
+                    )
+                } catch (e: Exception) {
+                    return@withReader SearchResponse(emptyList(), error = LuceneUtils.formatSyntaxError(e.message))
+                }
 
-                    val topDocs = LuceneUtils.searchPaginated(indexSearcher, q, pagination)
-                    val weight = indexSearcher.createWeight(indexSearcher.rewrite(q), ScoreMode.COMPLETE_NO_SCORES, 1.0f)
-                    val stored = indexSearcher.storedFields()
+                // Request enough files to likely satisfy the limit after expanding matches.
+                val topDocs = indexSearcher.search(q, pagination.offset + pagination.limit)
+                val hits = topDocs.scoreDocs
+                val stored = indexSearcher.storedFields()
 
-                    val leaves = reader.leaves()
+                val results = mutableListOf<RelativeSearchResult>()
+                var totalMatchesInRequestedFiles = 0
 
-                    val offset = pagination.offset
-                    val limit = pagination.limit
+                val weight = indexSearcher.createWeight(indexSearcher.rewrite(q), ScoreMode.COMPLETE, 1.0f)
+                val leaves = reader.leaves()
 
-                    val pagedScoreDocs = topDocs.scoreDocs.drop(offset).take(limit)
+                for (hit in hits) {
+                    val docId = hit.doc
+                    val leafIndex = ReaderUtil.subIndex(docId, leaves)
+                    val leafContext = leaves[leafIndex]
+                    val localDocId = docId - leafContext.docBase
 
-                    val results = pagedScoreDocs.flatMap { r ->
-                        val leafContext = leaves[ReaderUtil.subIndex(r.doc, leaves)]
-                        val localDocId = r.doc - leafContext.docBase
-                        val matches = weight.matches(leafContext, localDocId) ?: return@flatMap emptyList()
-
-                        val doc = stored.document(r.doc)
+                    val matches = weight.matches(leafContext, localDocId)
+                    if (matches != null) {
+                        val doc = stored.document(docId)
                         val path = doc.get(PATH)
+                        val content = doc.get(CONTENTS) ?: ""
+                        val seenOffsets = mutableSetOf<Int>()
 
+                        // Check both fields because some terms might be stripped from CODE
                         val contentsMatches = matches.getMatches(CONTENTS)
-                        val exactMatches = matches.getMatches(CONTENTS_EXACT)
+                        val codeMatches = matches.getMatches(CODE)
 
-                        val matchResults = mutableListOf<RelativeSearchResult>()
-
-                        if (contentsMatches != null) {
-                            while (contentsMatches.next()) {
-                                matchResults.add(RelativeSearchResult(path, offset = contentsMatches.startOffset(), score = r.score))
-                            }
-                        }
-
-                        if (exactMatches != null) {
-                            while (exactMatches.next()) {
-                                // Avoid duplicates if both fields match at the same offset
-                                if (matchResults.none { it.offset == exactMatches.startOffset() }) {
-                                    matchResults.add(RelativeSearchResult(path, offset = exactMatches.startOffset(), score = r.score))
+                        fun collectMatches(it: org.apache.lucene.search.MatchesIterator?) {
+                            if (it == null) return
+                            while (it.next()) {
+                                val start = it.startOffset()
+                                if (seenOffsets.add(start)) {
+                                    if (totalMatchesInRequestedFiles >= pagination.offset && results.size < pagination.limit) {
+                                        if (start in 0..content.length) {
+                                            // Calculate line number (1-based)
+                                            val lineNum = content.substring(0, start).count { c -> c == '\n' } + 1
+                                            results.add(
+                                                RelativeSearchResult(
+                                                    relativePath = path,
+                                                    offset = start,
+                                                    line = lineNum,
+                                                    score = hit.score
+                                                )
+                                            )
+                                        }
+                                    }
+                                    if (start in 0..content.length || start == -1) {
+                                        // Still count invalid/unprocessed matches for total results consistency if needed, 
+                                        // but for this task we just want to avoid the -1 result.
+                                        if (start != -1) {
+                                            totalMatchesInRequestedFiles++
+                                        }
+                                    }
                                 }
                             }
                         }
 
-                        if (matchResults.isEmpty()) {
-                            listOf(RelativeSearchResult(path, offset = 0, line = null, score = r.score, skipBoilerplate = true))
-                        } else {
-                            matchResults
-                        }
+                        collectMatches(contentsMatches)
+                        collectMatches(codeMatches)
                     }
-                    SearchResponse(results, interpretedQuery = q.toString())
                 }
+
+                SearchResponse(results, interpretedQuery = q.toString(), totalResults = topDocs.totalHits.value.toInt())
             }
         }
-        val res = response
-        logger.info("Full-text search for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) took $duration (${res.results.size} results)")
-        return@withContext res
+        logger.info("Full-text search for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) took $duration (${response.results.size} results)")
+        return@withContext response
     }
 
     override suspend fun newIndexer(outputDir: Path): Indexer = object : LuceneBaseIndexer(outputDir) {
@@ -176,13 +185,54 @@ object FullTextSearch : LuceneBaseSearchProvider() {
         override suspend fun indexFile(path: String, content: String) {
             val ext = path.substringAfterLast('.', "")
             if (ext !in SearchProvider.SOURCE_EXTENSIONS) return
+            if (content.isBlank()) return
 
             val doc = Document()
-            doc.add(Field(PATH, path, pathFieldType))
-            doc.addContents(content)
+            doc.add(StringField(PATH, path, Field.Store.YES))
+            doc.add(Field(CONTENTS, content, contentsFieldType))
+            doc.add(TextField(CONTENTS_EXACT, content, Field.Store.NO))
+
+            val codeContent = stripBoilerplate(content)
+            doc.add(TextField(CODE, codeContent, Field.Store.NO))
+
             writer.addDocument(doc)
         }
     }
 
+    private fun stripBoilerplate(content: String): String {
+        val chars = content.toCharArray()
+        var lineStart = 0
+        while (lineStart < chars.size) {
+            var lineEnd = -1
+            for (i in lineStart until chars.size) {
+                if (chars[i] == '\n') {
+                    lineEnd = i
+                    break
+                }
+            }
+            if (lineEnd == -1) lineEnd = chars.size
 
+            var firstNonSpace = lineStart
+            while (firstNonSpace < lineEnd && chars[firstNonSpace].isWhitespace()) {
+                firstNonSpace++
+            }
+
+            val isBoilerplate = if (firstNonSpace < lineEnd) {
+                val remaining = lineEnd - firstNonSpace
+                val isImport = remaining >= 7 && String(chars, firstNonSpace, 7) == "import "
+                val isPackage = remaining >= 8 && String(chars, firstNonSpace, 8) == "package "
+                isImport || isPackage
+            } else false
+
+            if (isBoilerplate) {
+                for (i in lineStart until lineEnd) {
+                    if (chars[i] != '\r' && chars[i] != '\n') {
+                        chars[i] = ' '
+                    }
+                }
+            }
+            lineStart = lineEnd + 1
+        }
+        return String(chars)
+    }
 }

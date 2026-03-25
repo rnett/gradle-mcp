@@ -5,23 +5,22 @@ import dev.rnett.gradle.mcp.mcp.McpServer
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Test
-import java.nio.file.Path
 
 class GradleInputsTest {
 
     @Test
     fun `expandPath expands tilde to home directory`() {
         val home = System.getProperty("user.home")
-        assert(Path.of(home).toAbsolutePath().normalize().toString() == "~".expandPath())
-        assert(Path.of(home, "test").toAbsolutePath().normalize().toString() == "~/test".expandPath())
+        assert(kotlin.io.path.Path(home).toAbsolutePath().normalize().toString() == "~".expandPath())
+        assert(kotlin.io.path.Path(home, "test").toAbsolutePath().normalize().toString() == "~/test".expandPath())
     }
 
     @Test
     fun `expandPath expands dot and double dot`() {
-        val current = Path.of(".").toAbsolutePath().normalize().toString()
+        val current = kotlin.io.path.Path(".").toAbsolutePath().normalize().toString()
         assert(current == ".".expandPath())
 
-        val parent = Path.of("..").toAbsolutePath().normalize().toString()
+        val parent = kotlin.io.path.Path("..").toAbsolutePath().normalize().toString()
         assert(parent == "..".expandPath())
     }
 
@@ -33,7 +32,7 @@ class GradleInputsTest {
         val input = GradleProjectRootInput("..")
         val resolved = with(server) { input.resolveRoot() }
 
-        assert(Path.of("..").toAbsolutePath().normalize().toString() == resolved.projectRoot)
+        assert(kotlin.io.path.Path("..").toAbsolutePath().normalize().toString() == resolved.projectRoot)
     }
 
     @Test

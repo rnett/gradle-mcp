@@ -1,67 +1,52 @@
 package dev.rnett.gradle.mcp.dependencies
 
-import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.MergedSourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.SingleDependencySourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
-import dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch
-import dev.rnett.gradle.mcp.dependencies.search.FullTextSearch
-import dev.rnett.gradle.mcp.dependencies.search.GlobSearch
 import dev.rnett.gradle.mcp.dependencies.search.Index
-import dev.rnett.gradle.mcp.dependencies.search.IndexService
-import dev.rnett.gradle.mcp.dependencies.search.PackageContents
+import dev.rnett.gradle.mcp.dependencies.search.IndexEntry
 import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
-import dev.rnett.gradle.mcp.dependencies.search.SearchResponse
-import dev.rnett.gradle.mcp.dependencies.search.SearchResult
-import dev.rnett.gradle.mcp.dependencies.search.toSearchResults
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
-import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.utils.FileLockManager
 import dev.rnett.gradle.mcp.utils.unorderedParallelMap
 import dev.rnett.gradle.mcp.withPhase
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import kotlin.io.path.ExperimentalPathApi
-import kotlin.io.path.createDirectories
-import kotlin.io.path.deleteRecursively
-import kotlin.io.path.exists
-import kotlin.io.path.nameWithoutExtension
-import kotlin.io.path.readText
 
+/**
+ * High-level service for managing and searching dependency sources.
+ * Acts as the primary entry point for tool handlers.
+ */
 interface SourcesService {
-
     /**
-     * Downloads and extracts sources for all dependencies in the project.
-     *
-     * @param projectRoot The root of the Gradle project.
-     * @param dependency Optional filter for a specific dependency.
-     * @param index If true, ensures that the sources are indexed after extraction.
-     * @param forceDownload If true, bypasses caches and forces a fresh download/extraction.
-     * @param fresh If true, requests a fresh dependency list from Gradle.
-     * @param providerToIndex Optional: Specific search provider to index. If indexing is enabled, this specifies
-     * which provider's index should be prioritized or created.
-     * @return A [SourcesDir] pointing to the local source and index directories.
+     * Resolves and processes sources for all dependencies in the specified [projectRoot].
+     * If [dependency] is provided, filters the result to only include that dependency.
+     * Optionally indexes the sources and manages cache freshness.
      */
     context(progress: ProgressReporter)
-    suspend fun downloadAllSources(projectRoot: GradleProjectRoot, dependency: String? = null, index: Boolean = true, forceDownload: Boolean = false, fresh: Boolean = false, providerToIndex: SearchProvider? = null): SourcesDir
+    suspend fun resolveAndProcessAllSources(
+        projectRoot: GradleProjectRoot,
+        dependency: String? = null,
+        index: Boolean = true,
+        forceDownload: Boolean = false,
+        fresh: Boolean = false,
+        providerToIndex: SearchProvider? = null
+    ): SourcesDir
 
     /**
-     * Downloads and extracts sources for all dependencies in a specific project.
-     *
-     * @param projectRoot The root of the Gradle project.
-     * @param projectPath The Gradle path of the project (e.g., ':app').
-     * @param dependency Optional filter for a specific dependency.
-     * @param index If true, ensures that the sources are indexed after extraction.
-     * @param forceDownload If true, bypasses caches and forces a fresh download/extraction.
-     * @param fresh If true, requests a fresh dependency list from Gradle.
-     * @param providerToIndex Optional: Specific search provider to index.
-     * @return A [SourcesDir] pointing to the local source and index directories.
+     * Resolves and processes sources for dependencies within a specific Gradle project.
      */
     context(progress: ProgressReporter)
-    suspend fun downloadProjectSources(
+    suspend fun resolveAndProcessProjectSources(
         projectRoot: GradleProjectRoot,
         projectPath: String,
         dependency: String? = null,
@@ -72,19 +57,10 @@ interface SourcesService {
     ): SourcesDir
 
     /**
-     * Downloads and extracts sources for all dependencies in a specific configuration.
-     *
-     * @param projectRoot The root of the Gradle project.
-     * @param configurationPath The Gradle path of the configuration (e.g., ':app:implementation').
-     * @param dependency Optional filter for a specific dependency.
-     * @param index If true, ensures that the sources are indexed after extraction.
-     * @param forceDownload If true, bypasses caches and forces a fresh download/extraction.
-     * @param fresh If true, requests a fresh dependency list from Gradle.
-     * @param providerToIndex Optional: Specific search provider to index.
-     * @return A [SourcesDir] pointing to the local source and index directories.
+     * Resolves and processes sources for dependencies within a specific Gradle configuration.
      */
     context(progress: ProgressReporter)
-    suspend fun downloadConfigurationSources(
+    suspend fun resolveAndProcessConfigurationSources(
         projectRoot: GradleProjectRoot,
         configurationPath: String,
         dependency: String? = null,
@@ -95,19 +71,10 @@ interface SourcesService {
     ): SourcesDir
 
     /**
-     * Downloads and extracts sources for all dependencies in a specific source set.
-     *
-     * @param projectRoot The root of the Gradle project.
-     * @param sourceSetPath The Gradle path of the source set (e.g., ':app:main').
-     * @param dependency Optional filter for a specific dependency.
-     * @param index If true, ensures that the sources are indexed after extraction.
-     * @param forceDownload If true, bypasses caches and forces a fresh download/extraction.
-     * @param fresh If true, requests a fresh dependency list from Gradle.
-     * @param providerToIndex Optional: Specific search provider to index.
-     * @return A [SourcesDir] pointing to the local source and index directories.
+     * Resolves and processes sources for dependencies within a specific Gradle source set.
      */
     context(progress: ProgressReporter)
-    suspend fun downloadSourceSetSources(
+    suspend fun resolveAndProcessSourceSetSources(
         projectRoot: GradleProjectRoot,
         sourceSetPath: String,
         dependency: String? = null,
@@ -116,37 +83,19 @@ interface SourcesService {
         fresh: Boolean = false,
         providerToIndex: SearchProvider? = null
     ): SourcesDir
-
-    /**
-     * Performs a search across the extracted sources using the specified provider.
-     *
-     * @param sources The sources directory to search.
-     * @param provider The search provider to use (e.g., [DeclarationSearch], [FullTextSearch], [GlobSearch]).
-     * @param query The search query.
-     * @param pagination Optional pagination parameters.
-     * @return A [SearchResponse] containing the search results and optional interpreted query/error.
-     */
-    suspend fun search(sources: SourcesDir, provider: SearchProvider, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): SearchResponse<SearchResult>
-
-    /**
-     * Lists the contents of a specific package in the extracted sources.
-     *
-     * @param sources The sources directory to list from.
-     * @param packageName The fully qualified package name.
-     * @return [PackageContents] if found, null otherwise.
-     */
-    suspend fun listPackageContents(sources: SourcesDir, packageName: String): PackageContents?
 }
 
 @OptIn(ExperimentalPathApi::class)
-class DefaultSourcesService(private val depService: GradleDependencyService, private val environment: GradleMcpEnvironment, private val indexService: IndexService) : SourcesService {
+class DefaultSourcesService(
+    private val depService: GradleDependencyService,
+    private val storageService: SourceStorageService,
+    private val indexService: SourceIndexService,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+) : SourcesService {
     private val logger = LoggerFactory.getLogger(DefaultSourcesService::class.java)
 
-    private val cacheManager = SourcesCacheManager(environment)
-    private val processor = SourcesProcessor(indexService)
-
     context(progress: ProgressReporter)
-    private suspend fun resolveAndProcessSources(
+    private suspend fun resolveAndProcessSourcesInternal(
         dir: MergedSourcesDir,
         index: Boolean,
         forceDownload: Boolean,
@@ -154,51 +103,61 @@ class DefaultSourcesService(private val depService: GradleDependencyService, pri
         providerToIndex: SearchProvider? = null,
         resolve: suspend () -> Sequence<GradleDependency>
     ): SourcesDir {
-        val allDeps = resolve().toList()
-        val filteredDeps = if (matcher.filter != null) {
-            val filtered = allDeps.filter { matcher.matches(it) }
-            if (filtered.isEmpty() && allDeps.isNotEmpty()) {
-                throw IllegalArgumentException("Dependency filter '${matcher.filter}' matched zero dependencies out of ${allDeps.size} in scope.")
-            }
-            filtered
-        } else allDeps
+        val allDepsSeq = resolve()
+        val filteredDepsSeq = if (matcher.filter != null) {
+            allDepsSeq.filter { matcher.matches(it) }
+        } else allDepsSeq
+
+        val filteredDeps = filteredDepsSeq.toList()
+
+        if (filteredDeps.isEmpty() && matcher.filter != null) {
+            throw IllegalArgumentException("Dependency filter '${matcher.filter}' matched zero dependencies in scope.")
+        }
 
         if (filteredDeps.size == 1 && matcher.filter != null) {
             return processSingleDependency(filteredDeps.first(), index, forceDownload, providerToIndex)
         }
 
-        val currentHash = cacheManager.dependencyHash(filteredDeps.asSequence())
-        if (cacheManager.checkCached(dir, currentHash, forceDownload)) {
+        val currentHash = storageService.calculateDependencyHash(filteredDeps.asSequence())
+        if (storageService.isMergedSourcesCached(dir, currentHash, forceDownload)) {
             if (index && providerToIndex != null) {
-                val upToDate = indexService.isMergeUpToDate(dir.index, providerToIndex, currentHash)
-
-                if (!upToDate) {
-                    val cachedIndices = cacheManager.loadCachedIndices(dir)
-                    if (cachedIndices != null) {
-                        indexService.mergeIndices(dir, cachedIndices.mapValues { Index(it.value) }, providerToIndex, currentHash)
-                    } else {
-                        processDependencies(filteredDeps.asSequence(), dir, index, forceDownload, providerToIndex)
-                    }
+                // If we cannot ensure the merge is up to date (e.g. corrupt cache), re-process
+                if (indexService.ensureMergeUpToDate(dir, providerToIndex, currentHash)) {
+                    return dir
                 }
+            } else {
+                return dir
             }
-            return dir
         }
 
         processDependencies(filteredDeps.asSequence(), dir, index, forceDownload, providerToIndex)
         return dir
     }
 
-    /**
-     * Orchestrates the extraction, indexing, and merging of sources for a set of dependencies.
-     *
-     * This method manages the high-level project lock. It uses a two-stage approach:
-     * 1. Acquire a shared lock to check for a valid project-level cache hit.
-     * 2. If a cache miss occurs, release the shared lock and acquire an exclusive lock to
-     *    perform extraction and indexing.
-     *
-     * Individual dependency extraction and indexing are further protected by granular locks
-     * inside the resolution chain.
-     */
+    context(progress: ProgressReporter)
+    private suspend fun tryGetValidCachedSources(
+        dir: MergedSourcesDir,
+        matcher: DependencyFilterMatcher,
+        fresh: Boolean,
+        forceDownload: Boolean,
+        index: Boolean,
+        providerToIndex: SearchProvider?
+    ): MergedSourcesDir? {
+        if (matcher.isVersionLess) return null
+
+        val cached = storageService.tryGetCachedMergedSources(dir, fresh, forceDownload) ?: return null
+
+        if (!index || providerToIndex == null) return cached
+
+        val currentHash = storageService.getDependencyHash(cached) ?: return null
+
+        if (indexService.ensureMergeUpToDate(cached, providerToIndex, currentHash)) {
+            return cached
+        }
+
+        return null
+    }
+
     context(progress: ProgressReporter)
     private suspend fun withSources(
         projectRoot: GradleProjectRoot,
@@ -211,100 +170,57 @@ class DefaultSourcesService(private val depService: GradleDependencyService, pri
         providerToIndex: SearchProvider? = null,
         resolve: suspend () -> Sequence<GradleDependency>
     ): SourcesDir {
-        val dir = cacheManager.sourcesDirectory(projectRoot, path + (dependency ?: ""), kind)
+        val dir = storageService.getMergedSourcesDir(projectRoot, path + (dependency ?: ""), kind)
         val lockFile = dir.lockFile
         val matcher = DependencyFilterMatcher(dependency)
 
-        // 1. Try shared lock first (cache hit)
-        val cached = if (!matcher.isVersionLess) {
-            FileLockManager.withLock(lockFile, shared = true) {
-                cacheManager.tryGetCachedMergedSources(dir, fresh, forceDownload)
-            }
-        } else null
-
-        if (cached != null) {
-            if (index && providerToIndex != null) {
-                val expectedHash = try {
-                    dir.storagePath.resolve(".dependencies.hash").readText()
-                } catch (e: Exception) {
-                    ""
-                }
-                val upToDate = indexService.isMergeUpToDate(dir.index, providerToIndex, expectedHash)
-
-                if (!upToDate) {
-                    // Cache hit but index needs merging.
-                    val cachedIndices = FileLockManager.withLock(lockFile, shared = true) {
-                        cacheManager.loadCachedIndices(dir)
-                    }
-                    if (cachedIndices != null) {
-                        FileLockManager.withLock(lockFile, shared = false) {
-                            indexService.mergeIndices(dir, cachedIndices.mapValues { Index(it.value) }, providerToIndex, expectedHash)
-                        }
-                        return cached
-                    }
-                } else {
-                    return cached
-                }
-            } else {
-                return cached
-            }
+        // 1. Try cache hit first
+        tryGetValidCachedSources(dir, matcher, fresh, forceDownload, index, providerToIndex)?.let {
+            return it
         }
 
         // 2. Exclusive lock for update (cache miss or explicit refresh)
         return FileLockManager.withLock(lockFile, shared = false) {
             // Re-check cache under exclusive lock
-            if (!matcher.isVersionLess) {
-                cacheManager.tryGetCachedMergedSources(dir, fresh, forceDownload)?.let { mergedDir ->
-                    if (index && providerToIndex != null) {
-                        val expectedHash = try {
-                            mergedDir.storagePath.resolve(".dependencies.hash").readText()
-                        } catch (e: Exception) {
-                            ""
-                        }
-                        val upToDate = indexService.isMergeUpToDate(mergedDir.index, providerToIndex, expectedHash)
-
-                        if (upToDate) {
-                            return@withLock mergedDir
-                        }
-
-                        val cachedIndices = cacheManager.loadCachedIndices(mergedDir)
-                        if (cachedIndices != null) {
-                            indexService.mergeIndices(mergedDir, cachedIndices.mapValues { Index(it.value) }, providerToIndex, expectedHash)
-                            return@withLock mergedDir
-                        }
-                    } else {
-                        return@withLock mergedDir
-                    }
-                }
+            tryGetValidCachedSources(dir, matcher, fresh, forceDownload, index, providerToIndex)?.let {
+                return@withLock it
             }
 
-            resolveAndProcessSources(dir, index, forceDownload, matcher, providerToIndex, resolve)
+            resolveAndProcessSourcesInternal(dir, index, forceDownload, matcher, providerToIndex, resolve)
         }
     }
 
     context(progress: ProgressReporter)
-    override suspend fun downloadAllSources(projectRoot: GradleProjectRoot, dependency: String?, index: Boolean, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
+    override suspend fun resolveAndProcessAllSources(projectRoot: GradleProjectRoot, dependency: String?, index: Boolean, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
         return withSources(projectRoot, "", "root", dependency, index, forceDownload, fresh, providerToIndex) {
             depService.downloadAllSources(projectRoot, dependency).projects.asSequence().flatMap { it.allDependencies() }
         }
     }
 
     context(progress: ProgressReporter)
-    override suspend fun downloadProjectSources(projectRoot: GradleProjectRoot, projectPath: String, dependency: String?, index: Boolean, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
+    override suspend fun resolveAndProcessProjectSources(projectRoot: GradleProjectRoot, projectPath: String, dependency: String?, index: Boolean, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
         return withSources(projectRoot, projectPath, "project", dependency, index, forceDownload, fresh, providerToIndex) {
             depService.downloadProjectSources(projectRoot, projectPath, dependency).allDependencies()
         }
     }
 
     context(progress: ProgressReporter)
-    override suspend fun downloadConfigurationSources(projectRoot: GradleProjectRoot, configurationPath: String, dependency: String?, index: Boolean, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
+    override suspend fun resolveAndProcessConfigurationSources(
+        projectRoot: GradleProjectRoot,
+        configurationPath: String,
+        dependency: String?,
+        index: Boolean,
+        forceDownload: Boolean,
+        fresh: Boolean,
+        providerToIndex: SearchProvider?
+    ): SourcesDir {
         return withSources(projectRoot, configurationPath, "configuration", dependency, index, forceDownload, fresh, providerToIndex) {
             depService.downloadConfigurationSources(projectRoot, configurationPath, dependency).allDependencies()
         }
     }
 
     context(progress: ProgressReporter)
-    override suspend fun downloadSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, dependency: String?, index: Boolean, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
+    override suspend fun resolveAndProcessSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, dependency: String?, index: Boolean, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
         return withSources(projectRoot, sourceSetPath, "sourceSet", dependency, index, forceDownload, fresh, providerToIndex) {
             depService.downloadSourceSetSources(projectRoot, sourceSetPath, dependency).configurations.asSequence().flatMap { it.allDependencies() }
         }
@@ -316,52 +232,68 @@ class DefaultSourcesService(private val depService: GradleDependencyService, pri
             throw IllegalArgumentException("Targeted dependency ${dep.id} does not have sources available.")
         }
 
-        val dirModel = cacheManager.singleDependencyDirectory(dep)
+        val dirModel = storageService.getSingleDependencySourcesDir(dep)
         val dir = dirModel.sources
         val lockFile = dirModel.lockFile
 
-        FileLockManager.withLock(lockFile) {
-            with(progress) {
-                processor.extractAndIndex(dir, dep, index, progress, forceDownload, providerToIndex)
+        val indexInfo = FileLockManager.withLock(lockFile) {
+            if (providerToIndex != null) {
+                if (!forceDownload && storageService.isExtracted(dir)) {
+                    indexService.ensureIndexed(dep, dir, forceDownload, providerToIndex)
+                } else {
+                    orchestrateExtractionAndIndexing(dep, dir, forceDownload, providerToIndex)
+                }
+            } else {
+                storageService.extractSources(dir, dep, forceDownload)
+                null
             }
         }
 
-        val indexDir = if (index) {
-            val indexInfo = FileLockManager.withLock(lockFile, shared = true) {
-                with(progress) {
-                    processor.ensureIndexed(dep, dir, forceDownload, providerToIndex)
-                }
-            }
+        val indexDir = if (index && providerToIndex != null) {
             indexInfo?.dir ?: throw IllegalStateException("Indexing failed to return an index directory for ${dep.id}.")
         } else {
-            java.nio.file.Path.of("")
+            kotlin.io.path.Path("")
         }
 
         return dirModel.copy(index = indexDir)
     }
 
-    override suspend fun search(
-        sources: SourcesDir,
-        provider: SearchProvider,
-        query: String,
-        pagination: PaginationInput
-    ): SearchResponse<SearchResult> {
-        val lockFile = sources.lockFile
-        return FileLockManager.withLock(lockFile, shared = true) {
-            val response = indexService.search(sources, provider, query, pagination)
-            SearchResponse(
-                results = response.results.toSearchResults(sources.rootForSearch),
-                interpretedQuery = response.interpretedQuery,
-                error = response.error
-            )
-        }
-    }
+    context(progress: ProgressReporter)
+    private suspend fun orchestrateExtractionAndIndexing(
+        dep: GradleDependency,
+        dir: Path,
+        forceDownload: Boolean,
+        providerToIndex: SearchProvider
+    ): Index? = coroutineScope {
+        val relativePrefix = dep.relativePrefix?.let { kotlin.io.path.Path(it) } ?: return@coroutineScope null
+        val channel = Channel<IndexEntry>(capacity = 20)
 
-    override suspend fun listPackageContents(sources: SourcesDir, packageName: String): PackageContents? {
-        val lockFile = sources.lockFile
-        return FileLockManager.withLock(lockFile, shared = true) {
-            indexService.listPackageContents(sources, packageName)
+        val indexJob = launch(dispatcher) {
+            try {
+                indexService.indexDependency(dep, channel.consumeAsFlow(), providerToIndex, forceIndex = forceDownload)
+            } finally {
+                for (entry in channel) {
+                }
+            }
         }
+
+        try {
+            storageService.extractSources(dir, dep, forceDownload) { path, contentBytes ->
+                val fullRelativePath = storageService.normalizeRelativePath(relativePrefix, path)
+                val ext = fullRelativePath.substringAfterLast('.', "")
+                if (ext in SearchProvider.SOURCE_EXTENSIONS) {
+                    channel.send(IndexEntry(fullRelativePath, contentBytes.decodeToString()))
+                }
+            }
+        } catch (e: Exception) {
+            indexJob.cancel()
+            throw e
+        } finally {
+            channel.close()
+        }
+
+        indexJob.join()
+        indexService.ensureIndexed(dep, dir, false, providerToIndex)
     }
 
     context(progress: ProgressReporter)
@@ -376,12 +308,12 @@ class DefaultSourcesService(private val depService: GradleDependencyService, pri
             extractAndIndexDependencies(validDeps, target, index, forceDownload, providerToIndex)
         }
 
-        val currentHash = cacheManager.dependencyHash(depsList.asSequence())
+        val currentHash = storageService.calculateDependencyHash(depsList.asSequence())
         if (index && providerToIndex != null) {
-            indexService.mergeIndices(target as MergedSourcesDir, indices.toMap(), providerToIndex, currentHash)
+            indexService.mergeIndices(target as MergedSourcesDir, indices, providerToIndex, currentHash)
         }
 
-        cacheManager.saveCache(target as MergedSourcesDir, currentHash, indices.associate { it.first to it.second.dir })
+        storageService.saveMergedSourcesCache(target as MergedSourcesDir, currentHash, indices.associate { it.first to it.second.dir })
     }
 
     context(progress: ProgressReporter)
@@ -404,23 +336,21 @@ class DefaultSourcesService(private val depService: GradleDependencyService, pri
         progress.report(0.0, 1.0, "[DETECTING] Finding dependencies with sources")
         logger.info("Extracting sources for ${validDeps.size} dependencies")
 
-        val targetSources = target.sources
-        if (targetSources.exists()) {
-            targetSources.deleteRecursively()
-        }
-        targetSources.createDirectories()
+        storageService.prepareTargetSources(target)
         progress.report(1.0, 1.0, "[DETECTING] Found ${validDeps.size} dependencies")
 
         val processingProgress = progress.withPhase("PROCESSING")
 
         // Group dependencies by extraction directory to avoid redundant extractions
         val depsByDir = validDeps.groupBy { dep ->
-            cacheManager.globalSourcesDir.resolve(java.nio.file.Path.of(requireNotNull(dep.group)).resolve(requireNotNull(dep.sourcesFile).nameWithoutExtension))
+            val relativePrefix = requireNotNull(dep.relativePrefix)
+            storageService.globalSourcesDir.resolve(relativePrefix)
         }
 
-        val tracker = ParallelProgressTracker(processingProgress, depsByDir.size.toDouble())
+        val tracker = ParallelProgressTracker(processingProgress, validDeps.size.toDouble())
+        val targetSources = target.sources
 
-        return depsByDir.entries.unorderedParallelMap(context = Dispatchers.IO) { entry ->
+        return depsByDir.entries.unorderedParallelMap(context = dispatcher) { entry ->
             val (dir, depsForDir) = entry
             processSingleDependencyTask(
                 dir = dir,
@@ -444,42 +374,43 @@ class DefaultSourcesService(private val depService: GradleDependencyService, pri
         providerToIndex: SearchProvider? = null
     ): List<Pair<Path, Index>> {
         val dep = depsForDir.first()
-        val depId = dep.id
-        tracker.onStart(depId)
+        // Use a combined ID for the tracker to represent the directory-level task
+        val taskId = if (depsForDir.size > 1) "${dep.id} (+${depsForDir.size - 1} more)" else dep.id
 
-        val subProgress = ProgressReporter { _, _, m ->
-            if (m != null) {
-                tracker.reportMessage(m)
-            }
+        val subProgress = ProgressReporter { p, t, m ->
+            tracker.reportProgress(taskId, p, t, m)
         }
 
         try {
-            val lockFile = cacheManager.globalLockFile(dir)
-            FileLockManager.withLock(lockFile) {
-                with(subProgress) {
-                    processor.extractAndIndex(dir, dep, index, subProgress, forceDownload, providerToIndex)
+            val lockFile = storageService.getGlobalLockFile(dir)
+            return FileLockManager.withLock(lockFile) {
+                tracker.onStart(taskId)
+                val indexInfo = with(subProgress) {
+                    if (providerToIndex != null) {
+                        if (!forceDownload && storageService.isExtracted(dir)) {
+                            indexService.ensureIndexed(dep, dir, forceDownload, providerToIndex)
+                        } else {
+                            orchestrateExtractionAndIndexing(dep, dir, forceDownload, providerToIndex)
+                        }
+                    } else {
+                        storageService.extractSources(dir, dep, forceDownload)
+                        null
+                    }
                 }
-            }
 
-            // Use shared lock for read sync operations
-            return FileLockManager.withLock(lockFile, shared = true) {
-                val group = requireNotNull(dep.group)
-                val sourcesFile = requireNotNull(dep.sourcesFile)
-                val relativePath = java.nio.file.Path.of(group).resolve(sourcesFile.nameWithoutExtension)
+                val relativePath = requireNotNull(dep.relativePrefix)
                 val scopeLink = targetSources.resolve(relativePath)
 
-                processor.syncTo(scopeLink, dir, dep, targetSources)
+                storageService.syncTo(scopeLink, dir, dep, targetSources)
 
                 if (index) {
-                    with(subProgress) {
-                        processor.ensureIndexed(dep, dir, forceDownload, providerToIndex)?.let { index ->
-                            listOf(relativePath to index)
-                        } ?: emptyList()
-                    }
+                    indexInfo?.let { index ->
+                        listOf(kotlin.io.path.Path(relativePath) to index)
+                    } ?: emptyList()
                 } else emptyList()
             }
         } finally {
-            tracker.onComplete(depId)
+            tracker.onComplete(taskId, count = depsForDir.size)
         }
     }
 }

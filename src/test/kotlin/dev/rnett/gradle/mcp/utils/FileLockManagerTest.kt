@@ -1,8 +1,8 @@
 package dev.rnett.gradle.mcp.utils
 
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
@@ -76,28 +76,71 @@ class FileLockManagerTest {
     }
 
     @Test
-    fun `withLock fails after timeout`() = runTest {
-        val lockFile = tempDir.resolve("timeout.lock")
+    fun `withLock supports re-entrancy for nested calls`() = runTest {
+        val lockFile = tempDir.resolve("reentrant.lock")
+        val timeSource = TestTimeSource(testScheduler)
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        var nestedExecuted = false
+
+        FileLockManager.withLock(lockFile, timeSource = timeSource, dispatcher = dispatcher) {
+            // Nested call should succeed immediately without re-acquiring the file lock
+            FileLockManager.withLock(lockFile, timeSource = timeSource, dispatcher = dispatcher) {
+                nestedExecuted = true
+            }
+        }
+
+        assertEquals(true, nestedExecuted)
+    }
+
+    @Test
+    fun `withLock re-entrancy respects hierarchy and isolation`() = runTest {
+        val lockFile = tempDir.resolve("hierarchy.lock")
+        val timeSource = TestTimeSource(testScheduler)
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        var counter = 0
+
+        // Parent doesn't hold the lock
+        coroutineScope {
+            val child1 = async(dispatcher) {
+                FileLockManager.withLock(lockFile, timeSource = timeSource, dispatcher = dispatcher) {
+                    delay(100)
+                    counter++
+                    // Nested re-entrant call
+                    FileLockManager.withLock(lockFile, timeSource = timeSource, dispatcher = dispatcher) {
+                        delay(100)
+                        counter++
+                    }
+                }
+            }
+
+            val child2 = async(dispatcher) {
+                // Child 2 should wait for Child 1 to release the lock, because Parent didn't hold it
+                delay(50) // Ensure Child 1 starts first
+                FileLockManager.withLock(lockFile, timeSource = timeSource, dispatcher = dispatcher) {
+                    counter++
+                }
+            }
+
+            child1.await()
+            child2.await()
+        }
+
+        assertEquals(3, counter)
+    }
+
+    @Test
+    fun `withLock fails on lock upgrade`() = runTest {
+        val lockFile = tempDir.resolve("upgrade.lock")
         val timeSource = TestTimeSource(testScheduler)
         val dispatcher = StandardTestDispatcher(testScheduler)
 
-        val lockAcquired = CompletableDeferred<Unit>()
-        val job = async(dispatcher) {
-            FileLockManager.withLock(lockFile, timeSource = timeSource, dispatcher = dispatcher) {
-                lockAcquired.complete(Unit)
-                delay(500)
+        FileLockManager.withLock(lockFile, shared = true, timeSource = timeSource, dispatcher = dispatcher) {
+            // Attempting to upgrade to exclusive should fail
+            assertFailsWith<IOException> {
+                FileLockManager.withLock(lockFile, shared = false, timeSource = timeSource, dispatcher = dispatcher) {
+                    // Should not reach here
+                }
             }
         }
-
-        // Wait for job to start and acquire lock
-        lockAcquired.await()
-
-        assertFailsWith<IOException> {
-            FileLockManager.withLock(lockFile, timeout = 100.milliseconds, timeSource = timeSource, dispatcher = dispatcher) {
-                // Should not reach here
-            }
-        }
-
-        job.await() // Wait for first job to finish
     }
 }

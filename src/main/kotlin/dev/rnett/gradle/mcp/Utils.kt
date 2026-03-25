@@ -11,6 +11,7 @@ import java.security.MessageDigest
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.io.path.Path
 
 
 inline fun <R> runCatchingExceptCancellation(block: () -> R): Result<R> = runCatching {
@@ -43,7 +44,7 @@ fun String.expandPath(): String {
     } else {
         this
     }
-    return Path.of(path).toAbsolutePath().normalize().toString()
+    return Path(path).toAbsolutePath().normalize().toString()
 }
 
 fun ByteArray.hash(): String {
@@ -71,10 +72,19 @@ data class GradleMcpEnvironment(val workingDir: Path) {
         return cacheDir.resolve(".locks").resolve(subDir).resolve(filename)
     }
 
+    fun dependencyLockFile(relativePrefix: String): Path {
+        val safePath = relativePrefix.replace(Regex("[^a-zA-Z0-9]"), "_")
+        return cacheDir.resolve(".locks").resolve("dependencies").resolve("$safePath.lock")
+    }
+
+    fun projectLockFile(storagePath: Path): Path {
+        return lockFile(storagePath, "projects")
+    }
+
     companion object {
         fun fromEnv(): GradleMcpEnvironment {
             val workingDir = System.getenv("GRADLE_MCP_WORKING_DIR") ?: "${System.getProperty("user.home")}/.gradle-mcp"
-            return GradleMcpEnvironment(Path.of(workingDir).toAbsolutePath().normalize())
+            return GradleMcpEnvironment(Path(workingDir).toAbsolutePath().normalize())
         }
     }
 }

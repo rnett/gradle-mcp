@@ -37,20 +37,21 @@ class FullTextSearchTest {
         val index2Dir = tempDir.resolve("index2")
 
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(dep1Dir, index1Dir)
-            FullTextSearch.index(dep2Dir, index2Dir)
+            FullTextSearch.index(dep1Dir, index1Dir, kotlin.io.path.Path("lib1"))
+            FullTextSearch.index(dep2Dir, index2Dir, kotlin.io.path.Path("lib2"))
 
             val mergedIndexDir = tempDir.resolve("merged")
-            FullTextSearch.mergeIndices(
-                mapOf(
-                    index1Dir to Path.of("lib1"),
-                    index2Dir to Path.of("lib2")
-                ),
-                mergedIndexDir,
-                ProgressReporter.NONE
-            ) { _, action -> action() }
+            with(ProgressReporter.NONE) {
+                FullTextSearch.mergeIndices(
+                    mapOf(
+                        index1Dir to kotlin.io.path.Path("lib1"),
+                        index2Dir to kotlin.io.path.Path("lib2")
+                    ),
+                    mergedIndexDir
+                ) { _, action -> action() }
+            }
 
-            val finalIndexDir = mergedIndexDir.resolve(FullTextSearch.v4IndexDirName)
+            val finalIndexDir = mergedIndexDir.resolve(FullTextSearch.v12IndexDirName)
             FSDirectory.open(finalIndexDir).use { dir ->
                 DirectoryReader.open(dir).use { reader ->
                     assertEquals(3, reader.numDocs())
@@ -154,7 +155,8 @@ class FullTextSearchTest {
         }
 
         val results = FullTextSearch.search(indexDir, "match").results
-        assertEquals(3, results.size, "Lucene should find 3 raw matches")
+        // With offsets enabled, we get all occurrences
+        assertEquals(3, results.size, "Should find all occurrences of 'match'")
 
         val searchResults = results.toSearchResults(depDir)
         assertEquals(1, searchResults.size, "toSearchResults should group matches on same line")
@@ -205,11 +207,11 @@ class FullTextSearchTest {
         // Verify that we can at least find the non-empty one
         assertEquals(1, FullTextSearch.search(indexDir, "content").results.size)
 
-        // To verify both are indexed, we can check the index reader directly
-        val finalIndexDir = indexDir.resolve(FullTextSearch.v4IndexDirName)
+        // To verify only non-empty lines are indexed, we check the index reader directly
+        val finalIndexDir = indexDir.resolve(FullTextSearch.v12IndexDirName)
         FSDirectory.open(finalIndexDir).use { dir ->
             DirectoryReader.open(dir).use { reader ->
-                assertEquals(2, reader.numDocs(), "Should have 2 documents in index")
+                assertEquals(1, reader.numDocs(), "Should have 1 document in index (the 'content' line)")
             }
         }
     }
@@ -253,9 +255,11 @@ class FullTextSearchTest {
         assertEquals(5, result.line)
 
         val expectedSnippet = """
+            line 3 uniqueTerm
             line 4 uniqueTerm
             line 5 uniqueTerm
             line 6 uniqueTerm
+            line 7 uniqueTerm
         """.trimIndent()
         assertEquals(expectedSnippet, result.snippet.trim())
     }
@@ -345,5 +349,30 @@ class FullTextSearchTest {
         val response = FullTextSearch.search(indexDir, "content")
         assertTrue(response.interpretedQuery != null, "Response should include interpreted query")
         assertTrue(response.interpretedQuery.contains("content"), "Interpreted query should contain 'content'")
+    }
+
+    @Test
+    fun `search prioritizes code over boilerplate`() = runTest {
+        val depDir = depDir()
+
+        val file1 = depDir.resolve("File1.kt")
+        file1.writeText("import com.example.TargetType\n\nclass Other { }")
+
+        val file2 = depDir.resolve("File2.kt")
+        file2.writeText("package com.example\n\nclass TargetType { }")
+
+        val indexDir = tempDir.resolve("index-" + Uuid.random())
+        with(ProgressReporter.PRINTLN) {
+            FullTextSearch.index(depDir, indexDir, kotlin.io.path.Path("lib"))
+        }
+
+        val results = FullTextSearch.search(indexDir, "\"TargetType\"").results
+        println("Results: ${results.map { "${it.relativePath} at ${it.offset}" }}")
+
+        assertEquals(2, results.size)
+        // File2.kt has the match in code, so it should rank higher
+        assertEquals("lib/File2.kt", results[0].relativePath)
+        assertEquals("lib/File1.kt", results[1].relativePath)
+        assertTrue(results[0].score!! > results[1].score!!)
     }
 }

@@ -10,7 +10,6 @@ import io.modelcontextprotocol.kotlin.sdk.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.ImageContent
 import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.serialization.Serializable
-import java.nio.file.Path
 
 class GradleDocsTools(
     private val gradleDocsService: GradleDocsService,
@@ -115,7 +114,7 @@ class GradleDocsTools(
         }
 
         if (root != null) {
-            val detected = GradlePathUtils.getGradleVersion(Path.of(root.projectRoot))
+            val detected = GradlePathUtils.getGradleVersion(kotlin.io.path.Path(root.projectRoot))
             if (detected != null) return detected
         }
 

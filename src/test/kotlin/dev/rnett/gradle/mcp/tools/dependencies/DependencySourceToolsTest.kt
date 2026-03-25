@@ -27,11 +27,13 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
     private lateinit var sourcesService: SourcesService
     private lateinit var gradleSourceService: GradleSourceService
+    private lateinit var indexService: dev.rnett.gradle.mcp.dependencies.SourceIndexService
 
     @BeforeEach
     fun setupTest() {
         sourcesService = server.koin.get()
         gradleSourceService = server.koin.get()
+        indexService = server.koin.get()
         server.setServerRoots(io.modelcontextprotocol.kotlin.sdk.Root(tempDir.toUri().toString(), "root"))
     }
 
@@ -43,12 +45,12 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
+                sourcesService.resolveAndProcessAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
         coEvery {
-            sourcesService.search(any(), GlobSearch, "**/Test.kt", any())
+            indexService.search(any(), GlobSearch, "**/Test.kt", any())
         } returns SearchResponse(
             listOf(
                 SearchResult(
@@ -70,7 +72,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         val result = (response.content.first() as TextContent).text
         assertTrue(result!!.contains("Search results for '**/Test.kt':"))
-        assertTrue(result.contains("File: com/example/Test.kt:1"))
+        assertTrue(result.contains("### File: com/example/Test.kt:1"))
     }
 
     @Test
@@ -81,12 +83,12 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
+                sourcesService.resolveAndProcessAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
         coEvery {
-            sourcesService.search(any(), FullTextSearch, "test-query", any())
+            indexService.search(any(), FullTextSearch, "test-query", any())
         } returns SearchResponse(
             listOf(
                 SearchResult(
@@ -108,8 +110,56 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         val result = (response.content.first() as TextContent).text
         assertTrue(result!!.contains("Search results for 'test-query':"))
-        assertTrue(result.contains("File: com/example/Test.kt:10"))
+        assertTrue(result.contains("### File: com/example/Test.kt:10 (score: 1.00)"))
         assertTrue(result.contains("class Test { }"))
+    }
+
+    @Test
+    fun `search_dependency_sources verify final formatted tool output`() = runTest {
+        val sourcesDir = tempDir.resolve("sources-root-format")
+        val sources = sourcesDir.resolve("sources")
+        sources.createDirectories()
+
+        coEvery {
+            with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
+                sourcesService.resolveAndProcessAllSources(any(), any(), any(), any(), any(), any())
+            }
+        } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
+
+        coEvery {
+            indexService.search(any(), any(), "query", any())
+        } returns SearchResponse(
+            listOf(
+                SearchResult(
+                    relativePath = "File.kt",
+                    file = sources.resolve("File.kt"),
+                    line = 5,
+                    snippet = "  some snippet  ",
+                    score = 0.85f
+                )
+            )
+        )
+
+        val response = server.client.callTool(
+            ToolNames.SEARCH_DEPENDENCY_SOURCES, buildJsonObject {
+                put("query", "query")
+            }
+        ) as CallToolResult
+
+        val result = (response.content.first() as TextContent).text
+        val expected = """
+            Search results for 'query':
+
+            Showing search results 1 to 1 of 1:
+
+            ### File: File.kt:5 (score: 0.85)
+            ```
+            some snippet
+            ```
+        """.trimIndent()
+
+        assertTrue(result!!.contains("### File: File.kt:5 (score: 0.85)"))
+        assertTrue(result.contains("```\nsome snippet\n```"))
     }
 
     @Test
@@ -123,7 +173,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
+                sourcesService.resolveAndProcessAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -151,7 +201,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
+                sourcesService.resolveAndProcessAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -176,7 +226,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
+                sourcesService.resolveAndProcessAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -198,12 +248,12 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
+                sourcesService.resolveAndProcessAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
         coEvery {
-            sourcesService.listPackageContents(any(), any())
+            indexService.listPackageContents(any(), any())
         } returns null
 
         val response = server.client.callTool(
@@ -223,7 +273,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadProjectSources(any(), ":app", any(), any(), any(), any(), any())
+                sourcesService.resolveAndProcessProjectSources(any(), ":app", any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -270,7 +320,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
         coEvery {
-            sourcesService.search(any(), any(), any(), any())
+            indexService.search(any(), any(), any(), any())
         } returns SearchResponse(emptyList())
 
         server.client.callTool(
@@ -299,7 +349,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
+                sourcesService.resolveAndProcessAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -320,7 +370,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
+                sourcesService.resolveAndProcessAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -335,8 +385,12 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         }
 
         coEvery {
-            sourcesService.search(any(), any(), "test", any())
-        } returns SearchResponse(searchResults)
+            indexService.search(any(), any(), "test", any())
+        } answers {
+            val pagination = arg<dev.rnett.gradle.mcp.tools.PaginationInput>(3)
+            val paged = searchResults.drop(pagination.offset).take(pagination.limit)
+            SearchResponse(paged, totalResults = searchResults.size)
+        }
 
         val response = server.client.callTool(
             ToolNames.SEARCH_DEPENDENCY_SOURCES, buildJsonObject {
@@ -349,9 +403,9 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         ) as CallToolResult
 
         val result = (response.content.first() as TextContent).text
-        assertTrue(result!!.contains("File: com/example/Test2.kt:1"))
-        assertTrue(result.contains("File: com/example/Test3.kt:1"))
-        assertTrue(!result.contains("File: com/example/Test1.kt:1"))
+        assertTrue(result!!.contains("### File: com/example/Test2.kt:1"))
+        assertTrue(result.contains("### File: com/example/Test3.kt:1"))
+        assertTrue(!result.contains("### File: com/example/Test1.kt:1"))
         assertTrue(result.contains("Showing search results 2 to 3 of 5"))
     }
 
@@ -368,7 +422,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
+                sourcesService.resolveAndProcessAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
@@ -394,12 +448,12 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
+                sourcesService.resolveAndProcessAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
         coEvery {
-            sourcesService.search(any(), any(), any(), any())
+            indexService.search(any(), any(), any(), any())
         } returns SearchResponse(emptyList())
 
         server.client.callTool(
@@ -411,7 +465,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coVerify {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), "org.example:artifact", any(), any(), any(), any())
+                sourcesService.resolveAndProcessAllSources(any(), "org.example:artifact", any(), any(), any(), any())
             }
         }
     }
@@ -420,7 +474,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
     fun `search_dependency_sources with non-matching dependency filter returns error`() = runTest {
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), "non:existent", any(), any(), any(), any())
+                sourcesService.resolveAndProcessAllSources(any(), "non:existent", any(), any(), any(), any())
             }
         } throws IllegalArgumentException("Dependency filter 'non:existent' matched zero dependencies.")
 
@@ -443,12 +497,12 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
-                sourcesService.downloadAllSources(any(), any(), any(), any(), any(), any())
+                sourcesService.resolveAndProcessAllSources(any(), any(), any(), any(), any(), any())
             }
         } returns MergedSourcesDir(sourcesDir, sourcesDir.resolve(".lock"), sourcesDir)
 
         coEvery {
-            sourcesService.search(any(), FullTextSearch, "invalid query", any())
+            indexService.search(any(), FullTextSearch, "invalid query", any())
         } returns SearchResponse(emptyList(), error = "Lucene Syntax Error")
 
         val response = server.client.callTool(

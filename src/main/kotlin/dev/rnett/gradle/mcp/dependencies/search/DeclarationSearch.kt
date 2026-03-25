@@ -33,7 +33,7 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
 
     override val logger = LoggerFactory.getLogger(DeclarationSearch::class.java)
     override val name: String = "declarations"
-    override val indexVersion: Int = 7
+    override val indexVersion: Int = 8
 
     override fun createAnalyzer() = org.apache.lucene.analysis.miscellaneous.PerFieldAnalyzerWrapper(
         LuceneUtils.createCaseSensitiveAnalyzer(),
@@ -43,17 +43,6 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
             Fields.PATH to org.apache.lucene.analysis.core.KeywordAnalyzer()
         )
     )
-
-    override fun copyDocument(oldDoc: Document, newPath: String): Document {
-        return Document().apply {
-            add(TextField(Fields.NAME, oldDoc.get(Fields.NAME), org.apache.lucene.document.Field.Store.YES))
-            add(StringField(Fields.FQN, oldDoc.get(Fields.FQN), org.apache.lucene.document.Field.Store.YES))
-            add(StringField(Fields.PACKAGE_NAME, oldDoc.get(Fields.PACKAGE_NAME), org.apache.lucene.document.Field.Store.YES))
-            add(StringField(Fields.PATH, newPath, org.apache.lucene.document.Field.Store.YES))
-            add(StoredField(Fields.LINE, oldDoc.getField(Fields.LINE).numericValue().toInt()))
-            add(StoredField(Fields.OFFSET, oldDoc.getField(Fields.OFFSET).numericValue().toInt()))
-        }
-    }
 
     override suspend fun newIndexer(outputDir: Path): Indexer = object : LuceneBaseIndexer(outputDir) {
         private val pool = ConcurrentLinkedQueue<TreeSitterDeclarationExtractor>()
@@ -140,7 +129,7 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
     override suspend fun search(indexDir: Path, query: String, pagination: PaginationInput): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (res, duration) = measureTimedValue {
             if (!indexDir.exists()) {
-                throw IllegalStateException("Symbol index dir does not exist: $indexDir")
+                return@withContext SearchResponse(emptyList(), error = "Symbol index dir does not exist: $indexDir")
             }
 
             withReader(indexDir) { reader ->
@@ -172,7 +161,7 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
                         )
                     }.toList()
 
-                    SearchResponse<RelativeSearchResult>(matchedResults, interpretedQuery = q.toString())
+                    SearchResponse(matchedResults, interpretedQuery = q.toString(), totalResults = topDocs.totalHits.value.toInt())
                 }
             }
         }

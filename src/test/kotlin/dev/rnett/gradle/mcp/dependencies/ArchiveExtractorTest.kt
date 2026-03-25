@@ -52,15 +52,7 @@ class ArchiveExtractorTest {
             assertTrue(target.resolve("dir/file2.txt").exists())
             assertEquals("content2", target.resolve("dir/file2.txt").readText())
 
-            // It might be 3 if "dir/" is also an entry, let's see.
-            // In my case I only put file1.txt and dir/file2.txt.
-            // ZipOutputStream might not create "dir/" entry automatically if I don't ask for it, 
-            // but nextEntry will find dir/file2.txt.
-
-            // Actually, if I didn't add "dir/", it might only be 2.
-            assertTrue(progressUpdates.size >= 2, "Expected at least 2 progress updates, got ${progressUpdates.size}")
-            assertTrue(progressUpdates.any { it.first == 1.0 && it.second!!.contains("file1.txt") }, "Missing update for file1.txt")
-            assertTrue(progressUpdates.any { it.first == 2.0 && it.second!!.contains("dir/file2.txt") }, "Missing update for dir/file2.txt")
+            assertTrue(progressUpdates.isEmpty(), "Expected NO progress updates from ArchiveExtractor, got ${progressUpdates.size}")
         } finally {
             tempDir.deleteRecursively()
         }

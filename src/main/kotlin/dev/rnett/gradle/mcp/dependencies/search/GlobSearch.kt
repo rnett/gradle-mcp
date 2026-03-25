@@ -10,6 +10,7 @@ import java.nio.file.FileSystems
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.concurrent.atomics.AtomicInt
+import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.readLines
@@ -22,15 +23,15 @@ import kotlin.time.measureTimedValue
 object GlobSearch : SearchProvider {
     private val LOGGER = LoggerFactory.getLogger(GlobSearch::class.java)
     override val name: String = "glob"
-    override val indexVersion: Int = 1
+    override val indexVersion: Int = 2
 
-    private const val v1FileName = "filenames-v1.txt"
+    private const val v2FileName = "filenames-v2.txt"
 
     override suspend fun search(indexDir: Path, query: String, pagination: PaginationInput): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (results, duration) = measureTimedValue {
-            val file = indexDir.resolve(v1FileName)
+            val file = indexDir.resolve(v2FileName)
             if (!file.exists()) {
-                throw IllegalStateException("Glob index file does not exist: $file")
+                return@withContext SearchResponse(emptyList(), error = "Glob index file does not exist: $file")
             }
 
             val matcher = try {
@@ -52,7 +53,7 @@ object GlobSearch : SearchProvider {
                         try {
                             // Java's glob matcher on Windows expects the Path object, but it works correctly with the default Path representation.
                             // However, we should make sure we create the Path correctly.
-                            matcher.matches(Path.of(it))
+                            matcher.matches(Path(it))
                         } catch (e: Exception) {
                             it.contains(query, ignoreCase = true)
                         }
@@ -76,7 +77,8 @@ object GlobSearch : SearchProvider {
                             skipBoilerplate = true
                         )
                     }.toList(),
-                interpretedQuery = if (matcher != null) "glob:$query" else "substring:$query"
+                interpretedQuery = if (matcher != null) "glob:$query" else "substring:$query",
+                totalResults = matches.size
             )
         }
         val response = results
@@ -87,7 +89,7 @@ object GlobSearch : SearchProvider {
     override suspend fun newIndexer(outputDir: Path): Indexer = GlobIndexer(outputDir)
 
     class GlobIndexer(private val outputDir: Path) : Indexer {
-        private val file = outputDir.resolve(v1FileName)
+        private val file = outputDir.resolve(v2FileName)
         private val paths = ConcurrentLinkedQueue<String>()
 
         init {
@@ -110,25 +112,25 @@ object GlobSearch : SearchProvider {
         override fun close() {}
     }
 
+    context(progress: ProgressReporter)
     override suspend fun mergeIndices(
         indexDirs: Map<Path, Path>,
         outputDir: Path,
-        progress: ProgressReporter,
         withLock: suspend (Path, suspend () -> Unit) -> Unit
     ) = withContext(Dispatchers.IO) {
         val totalDocs = indexDirs.keys.sumOf { countDocuments(it) }
         val completedDocs = AtomicInt(0)
 
         val (fileCount, duration) = measureTimedValue {
-            val file = outputDir.resolve(v1FileName)
+            val file = outputDir.resolve(v2FileName)
             outputDir.createDirectories()
 
             val allPaths = ConcurrentLinkedQueue<String>()
-            indexDirs.entries.unorderedParallelForEach(context = Dispatchers.IO) { (idxDir, relativePrefix) ->
+            indexDirs.entries.unorderedParallelForEach(context = Dispatchers.IO) { (idxDir, _) ->
                 withLock(idxDir) {
-                    val srcFile = idxDir.resolve(v1FileName)
+                    val srcFile = idxDir.resolve(v2FileName)
                     if (srcFile.exists()) {
-                        val paths = srcFile.readLines().map { relativePrefix.resolve(it).toString().replace('\\', '/') }
+                        val paths = srcFile.readLines()
                         val updatedDocs = completedDocs.addAndFetch(paths.size)
                         progress.report(updatedDocs.toDouble(), totalDocs.toDouble(), null)
                         allPaths.addAll(paths)
@@ -152,7 +154,7 @@ object GlobSearch : SearchProvider {
             return@withContext countFile.readText().toIntOrNull() ?: 0
         }
 
-        val file = indexDir.resolve(v1FileName)
+        val file = indexDir.resolve(v2FileName)
         if (!file.exists()) return@withContext 0
         file.useLines { it.count() }.also { count ->
             countFile.writeText(count.toString())
