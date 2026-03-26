@@ -22,7 +22,9 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 - **ALWAYS** use the `dependency` parameter to target a single library (e.g., `dependency="org.mongodb:mongodb-driver-sync"`) when the target is known. This is significantly faster and more focused than searching the entire project graph.
   Note that when `dependency` is used in `search_dependency_sources` or `read_dependency_sources`, the `path` and all results are relative to the library root (omitting the `<group>/<artifact>...` prefix).
 - **NEVER** use `gradleSource: true` in this skill; use `researching_gradle_internals` for Gradle's internal implementation.
-- **NEVER** use generic shell tools like `grep` or `find` on the local directory to find dependency sources; they reside in remote caches managed by Gradle.
+- **NEVER** use generic shell tools like `grep` or `find` to *locate* dependency sources; they reside in remote caches whose paths are not predictable in advance.
+- **MAY** use shell tools like `rg` or `ast-grep` to *operate on* a sources root path explicitly returned by `read_dependency_sources` or `search_dependency_sources` in the `Sources root: <path>` header line. Dependency directories inside
+  the sources root are symlinks; always pass `--follow` to `rg` (e.g., `rg --follow <pattern> <sources-root>`).
 - **ALWAYS** escape Lucene special characters (`:`, `=`, `+`, `-`, `*`, `/`) in `FULL_TEXT` searches using a backslash (e.g., `\:`) or double quotes.
 - **ALWAYS** use `read_dependency_sources` once a specific file path has been identified via search.
 - **ALWAYS** use `fresh: true` if a search returns a `SearchResponse` with an `error` indicating a missing index; the tool will return an error message rather than throwing an exception if the index is not found.
@@ -44,6 +46,8 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 - **Troubleshoot Targeted Searches**: If a targeted search using the `dependency` parameter fails or returns no matches, use `inspect_dependencies` first to verify the exact coordinates (group, name, version, variant) of the dependency as
   resolved by Gradle.
 - **Refresh Indices**: Use `fresh: true` if project dependencies have recently changed to ensure the index is up-to-date.
+- **Use Returned Sources Root**: Every response from `read_dependency_sources` and `search_dependency_sources` includes a `Sources root: <absolute-path>` header. Use this path with `rg`, `ast-grep`, or other shell tools for operations not
+  covered by the MCP tools (e.g., regex-heavy searches). Because dependency directories are symlinks, always pass `--follow` to `rg`: `rg --follow <pattern> <sources-root>`.
 - **Explore Packages Authoritatively**: Use `read_dependency_sources` with a dot-separated package path (e.g., `org.gradle.api`) to list its direct symbols and sub-packages. This is backed by the symbol index and is more reliable than
   directory-based exploration for Kotlin projects.
 - **Analyze Implementation**: Use `read_dependency_sources` to retrieve the implementation logic. If the file is large, use `pagination` to read specific sections. You can target plugins by passing

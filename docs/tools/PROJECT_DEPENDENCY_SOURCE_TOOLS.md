@@ -11,6 +11,7 @@ Supports dot-separated package paths via the symbol index. Use `search_dependenc
 `path` without `dependency`: must include group/artifact prefix. With `dependency`: relative to library root.
 Sources are CAS-cached (immutable). Use `fresh=true` for dependency changes; `forceDownload=true` only to recover corrupt/missing files.
 ALWAYS scope with `dependency`, `projectPath`, `configurationPath`, or `sourceSetPath` — unscoped access indexes ALL dependencies and is VERY EXPENSIVE on large projects.
+Returns the absolute path of the sources root. Dependency directories are symlinked; pass `--follow` to `rg` (e.g., `rg --follow <pattern> <path>`).
 
 ### Examples
 - Browse all deps: `{}`
@@ -111,9 +112,10 @@ ALWAYS scope with `dependency`, `projectPath`, `configurationPath`, or `sourceSe
 Searches for symbols or text across the source code of ALL external library dependencies, plugins, or Gradle's internal engine; use instead of shell grep which cannot find remote dependency sources.
 Sources are CAS-cached (immutable). Use `fresh=true` for dependency changes; `forceDownload=true` only to recover corrupt/missing files.
 ALWAYS scope with `dependency`, `projectPath`, `configurationPath`, or `sourceSetPath` — unscoped search indexes ALL dependencies and is VERY EXPENSIVE on large projects.
+Returns the absolute path of the sources root. Dependency directories are symlinked; pass `--follow` to `rg` (e.g., `rg --follow <pattern> <path>`).
 
 ### Search Modes
-- `DECLARATION`: class/method/interface names. Case-sensitive; use `name:X` or `fqn:x.y.*`. No keywords like `class`.
+- `DECLARATION`: class/method/interface names or FQNs. Case-sensitive; supports exact names, globs, and regexes (e.g., `fqn:/.*\.internal.*/`); use `name:X` or `fqn:x.y.*` prefix syntax.
 - `FULL_TEXT` (default): Lucene query, case-insensitive. Escape special chars like `:` `=` `+`.
 - `GLOB`: file paths, case-insensitive (e.g., `**/AndroidManifest.xml`).
 
@@ -173,7 +175,7 @@ Once found, read content with `read_dependency_sources`.
     },
     "query": {
       "type": "string",
-      "description": "Search query: regex (DECLARATION), Lucene query (FULL_TEXT), or glob (GLOB, e.g., '**/Job.kt')."
+      "description": "Search query: name/FQN/glob/regex (DECLARATION), Lucene query (FULL_TEXT), or glob (GLOB, e.g., '**/Job.kt')."
     },
     "searchType": {
       "enum": [

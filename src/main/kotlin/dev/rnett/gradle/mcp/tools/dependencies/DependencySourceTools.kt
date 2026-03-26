@@ -27,6 +27,8 @@ import kotlin.io.path.isRegularFile
 import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.name
 import kotlin.io.path.readText
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 class DependencySourceTools(
     private val sourcesService: SourcesService,
@@ -80,6 +82,7 @@ class DependencySourceTools(
             |`path` without `dependency`: must include group/artifact prefix. With `dependency`: relative to library root.
             |Sources are CAS-cached (immutable). Use `fresh=true` for dependency changes; `forceDownload=true` only to recover corrupt/missing files.
             |ALWAYS scope with `dependency`, `projectPath`, `configurationPath`, or `sourceSetPath` — unscoped access indexes ALL dependencies and is VERY EXPENSIVE on large projects.
+            |Returns the absolute path of the sources root. Dependency directories are symlinked; pass `--follow` to `rg` (e.g., `rg --follow <pattern> <path>`).
             |
             |### Examples
             |- Browse all deps: `{}`
@@ -106,37 +109,37 @@ class DependencySourceTools(
         }
 
         val baseDir = sources.sources.normalize()
-        val refreshMessage = formatRefreshMessage(sources.lastRefresh())
+        val sourcesHeader = formatSourcesHeader(sources)
 
         if (args.path != null) {
             val targetPath = baseDir.resolve(args.path).normalize()
 
             if (!targetPath.startsWith(baseDir)) {
-                return@tool "Invalid path: ${args.path}"
+                return@tool "$sourcesHeader\n\nInvalid path: ${args.path}"
             }
 
             if (!targetPath.exists()) {
                 val packageContents = try {
                     indexService.listPackageContents(sources, args.path)
                 } catch (e: Exception) {
-                    return@tool "Path not found: ${args.path} (Error exploring package: ${e.message})"
+                    return@tool "$sourcesHeader\n\nPath not found: ${args.path} (Error exploring package: ${e.message})"
                 }
 
                 if (packageContents != null) {
-                    return@tool "${refreshMessage}\n\nPackage: ${args.path}\n\n" + paginateText(formatPackageContents(packageContents), args.pagination)
+                    return@tool "$sourcesHeader\n\nPackage: ${args.path}\n\n" + paginateText(formatPackageContents(packageContents), args.pagination)
                 }
-                return@tool "Path not found: ${args.path}"
+                return@tool "$sourcesHeader\n\nPath not found: ${args.path}"
             }
 
             if (targetPath.isRegularFile()) {
-                return@tool "${refreshMessage}\n\nFile: ${args.path}\n```\n${targetPath.readText()}\n```"
+                return@tool "$sourcesHeader\n\nFile: ${args.path}\n```\n${targetPath.readText()}\n```"
             } else if (targetPath.isDirectory()) {
-                return@tool "${refreshMessage}\n\n" + paginateText(walkDirectory(targetPath, 2), args.pagination)
+                return@tool "$sourcesHeader\n\n" + paginateText(walkDirectory(targetPath, 2), args.pagination)
             } else {
-                return@tool "Path is neither a file nor a directory: ${args.path}"
+                return@tool "$sourcesHeader\n\nPath is neither a file nor a directory: ${args.path}"
             }
         } else {
-            "${refreshMessage}\n\n" + paginateText(walkDirectory(baseDir, 2), args.pagination)
+            "$sourcesHeader\n\n" + paginateText(walkDirectory(baseDir, 2), args.pagination)
         }
 
     }
@@ -154,7 +157,7 @@ class DependencySourceTools(
         val dependency: String? = null,
         @Description("Search Gradle Build Tool's own source code.")
         val gradleSource: Boolean = false,
-        @Description("Search query: regex (DECLARATION), Lucene query (FULL_TEXT), or glob (GLOB, e.g., '**/Job.kt').")
+        @Description("Search query: name/FQN/glob/regex (DECLARATION), Lucene query (FULL_TEXT), or glob (GLOB, e.g., '**/Job.kt').")
         val query: String,
         @Description("Search mode: FULL_TEXT (default), DECLARATION (symbol names), or GLOB (file paths).")
         val searchType: SearchType = SearchType.FULL_TEXT,
@@ -171,9 +174,10 @@ class DependencySourceTools(
             |Searches for symbols or text across the source code of ALL external library dependencies, plugins, or Gradle's internal engine; use instead of shell grep which cannot find remote dependency sources.
             |Sources are CAS-cached (immutable). Use `fresh=true` for dependency changes; `forceDownload=true` only to recover corrupt/missing files.
             |ALWAYS scope with `dependency`, `projectPath`, `configurationPath`, or `sourceSetPath` — unscoped search indexes ALL dependencies and is VERY EXPENSIVE on large projects.
+            |Returns the absolute path of the sources root. Dependency directories are symlinked; pass `--follow` to `rg` (e.g., `rg --follow <pattern> <path>`).
             |
             |### Search Modes
-            |- `DECLARATION`: class/method/interface names. Case-sensitive; use `name:X` or `fqn:x.y.*`. No keywords like `class`.
+            |- `DECLARATION`: class/method/interface names or FQNs. Case-sensitive; supports exact names, globs, and regexes (e.g., `fqn:/.*\.internal.*/`); use `name:X` or `fqn:x.y.*` prefix syntax.
             |- `FULL_TEXT` (default): Lucene query, case-insensitive. Escape special chars like `:` `=` `+`.
             |- `GLOB`: file paths, case-insensitive (e.g., `**/AndroidManifest.xml`).
             |
@@ -210,18 +214,15 @@ class DependencySourceTools(
         }
 
         val response = indexService.search(sources, provider, args.query, args.pagination)
-        val refreshMessage = formatRefreshMessage(sources.lastRefresh())
+        val sourcesHeader = formatSourcesHeader(sources)
         if (response.error != null) {
             isError = true
-            return@tool response.error
+            return@tool "$sourcesHeader\n\n${response.error}"
         }
-        refreshMessage + "\n\n" + formatSearchResults(response, args.query, args.pagination)
+        "$sourcesHeader\n\n${formatSearchResults(response, args.query, args.pagination)}"
     }
 
-    private fun formatSearchResults(response: SearchResponse<SearchResult>, query: String, pagination: PaginationInput): String? {
-        if (response.error != null) {
-            return response.error
-        }
+    private fun formatSearchResults(response: SearchResponse<SearchResult>, query: String, pagination: PaginationInput): String {
         val results = response.results
         if (results.isEmpty() && pagination.offset == 0) {
             return "No results found for '$query'."
@@ -266,16 +267,19 @@ class DependencySourceTools(
         }
     }
 
-    private fun formatRefreshMessage(lastRefresh: kotlin.time.Instant?): String {
+    private fun formatSourcesHeader(sources: SourcesDir): String =
+        "Sources root: ${sources.sources.normalize()}\n${formatRefreshMessage(sources.lastRefresh())}"
+
+    private fun formatRefreshMessage(lastRefresh: Instant?): String {
         if (lastRefresh == null) return "Sources have not been refreshed yet."
-        val now = kotlin.time.Clock.System.now()
+        val now = Clock.System.now()
         val duration = now - lastRefresh
         val timestamp = lastRefresh.toString().substringBefore('.').replace('T', ' ') + " UTC"
 
         val ago = when {
-            duration.inWholeDays > 0 -> "${duration.inWholeDays} day(s) ago"
-            duration.inWholeHours > 0 -> "${duration.inWholeHours} hour(s) ago"
-            duration.inWholeMinutes > 0 -> "${duration.inWholeMinutes} minute(s) ago"
+            duration.inWholeDays > 0 -> "${duration.inWholeDays} ${if (duration.inWholeDays == 1L) "day" else "days"} ago"
+            duration.inWholeHours > 0 -> "${duration.inWholeHours} ${if (duration.inWholeHours == 1L) "hour" else "hours"} ago"
+            duration.inWholeMinutes > 0 -> "${duration.inWholeMinutes} ${if (duration.inWholeMinutes == 1L) "minute" else "minutes"} ago"
             else -> "just now"
         }
 

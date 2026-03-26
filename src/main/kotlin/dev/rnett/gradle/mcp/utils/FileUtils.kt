@@ -16,16 +16,20 @@ object FileUtils {
     private val LOGGER = LoggerFactory.getLogger(FileUtils::class.java)
 
     fun createSymbolicLink(link: Path, target: Path): Boolean {
+        // On Windows, prefer junctions over NTFS symlinks for directory targets.
+        // Junctions require no special privileges and are followed transparently by rg,
+        // walkdir, and all Win32-aware tools without --follow.  NTFS directory symlinks
+        // (created by Files.createSymbolicLink on Developer Mode builds) look identical
+        // on disk but are NOT followed by default, breaking shell tool usage.
+        if (OS.isWindows && target.isDirectory()) {
+            if (createJunction(link, target)) return true
+            LOGGER.debug("Junction creation failed for $link -> $target, falling back to symbolic link.")
+        }
         return try {
             Files.createSymbolicLink(link, target)
             LOGGER.trace("Created symbolic link from $link to $target")
             true
         } catch (e: Exception) {
-            if (OS.isWindows && target.isDirectory()) {
-                if (createJunction(link, target)) return true
-                LOGGER.debug("Failed to create junction from $link to $target on Windows.")
-                // Junction creation already logged error if it truly failed
-            }
             LOGGER.error("Failed to create symbolic link from $link to $target", e)
             false
         }
