@@ -6,15 +6,11 @@ Tools for querying maven repositories for dependency information.
 
 ## search_maven_central
 
-ALWAYS use this tool to search Maven Central for library coordinates and version histories instead of relying on hallucinated versions or web searches.
-It provides direct, paginated access to the authoritative artifact repository.
+Searches Maven Central for library coordinates and version histories; use instead of hallucinated versions or generic web searches.
 
-### Discovery Best Practices
-
-1.  **Coordinate Discovery**: Search by name, group, or a snippet of the artifact ID.
-2.  **Version Research**: Set `versions=true` and provide a `group:artifact` query to list ALL released versions. This is the professionally recommended way to find stable versions.
-3.  **Auditing Project Usage**: Once identified, use `inspect_dependencies` to check if the project already uses the library.
-4.  **Pagination**: Use `offset` and `limit` to browse numerous matches for large queries.
+- **Coordinate Discovery**: Search by name, group, or artifact ID snippet.
+- **Version Research**: Set `versions=true` with `group:artifact` query to list all released versions.
+- Once identified, use `inspect_dependencies` to check if the project already uses the library.
 
 <details>
 
@@ -26,11 +22,11 @@ It provides direct, paginated access to the authoritative artifact repository.
   "properties": {
     "query": {
       "type": "string",
-      "description": "Searching for artifacts by name, group, or coordinates. If `versions=true`, MUST be exactly 'group:artifact' (e.g. 'org.jetbrains.kotlinx:kotlinx-serialization-json')."
+      "description": "Artifact name, group, or coordinates. If versions=true, MUST be exactly 'group:artifact'."
     },
     "versions": {
       "type": "boolean",
-      "description": "Setting to true retrieves all available versions for a 'group:artifact'. Ideal for researching release history."
+      "description": "Retrieve all versions for a 'group:artifact'. Ideal for researching release history."
     },
     "offset": {
       "type": [
@@ -39,7 +35,7 @@ It provides direct, paginated access to the authoritative artifact repository.
       ],
       "minimum": -2147483648,
       "maximum": 2147483647,
-      "description": "Specifying an offset for large results to enable efficient pagination."
+      "description": "Offset for pagination over large result sets."
     },
     "limit": {
       "type": [
@@ -48,7 +44,7 @@ It provides direct, paginated access to the authoritative artifact repository.
       ],
       "minimum": -2147483648,
       "maximum": 2147483647,
-      "description": "Limiting the number of results to maintain token efficiency and reduce noise. Default is 10."
+      "description": "Max results to return. Default is 10."
     }
   },
   "required": [

@@ -6,33 +6,22 @@ Tools for looking up detailed information about past Gradle builds ran by this M
 
 ## inspect_build
 
-Surgically inspects detailed build information, monitors progress, and performs post-mortem diagnostics.
-ALWAYS use this tool to investigate test failures, task outputs, and build-level errors instead of reading raw console logs.
+Inspects build information, monitors progress, and performs post-mortem diagnostics; ALWAYS use instead of raw console logs for test failures, task outputs, and build errors.
 
-### Surgical Lookup Modes
-
-1.  **Summary Mode (`mode="summary"`)**
-    -   **Best for**: Finding BuildIds, TaskPaths, TestNames, and FailureIds.
-    -   **Default behaviour**: Shows a high-level dashboard of recent builds if `buildId` is omitted.
-
-2.  **Details Mode (`mode="details"`)**
-    -   **Best for**: Exhaustive analysis of a specific item (requires `testName`, `taskPath`, `failureId`, or `problemId`).
-    -   **Crucial for Tests**: ALWAYS use `mode="details"` with `testName` to see the individual test case's console output, metadata, and stack trace. THIS IS THE ONLY WAY TO SEE THE TEST'S CONSOLE OUTPUT.
+### Lookup Modes
+- **`mode="summary"`** (default): Dashboard/overview; best for finding BuildIds, TestNames, FailureIds.
+- **`mode="details"`**: Exhaustive analysis; requires `testName`, `taskPath`, `failureId`, or `problemId`.
 
 ### How to Inspect Details
-
-- **Individual Tests (INCLUDING TEST CONSOLE OUTPUT)**:  `testName="FullTestName"`, `mode="details"` (REQUIRED for full output/stack trace).
-- **Task Outputs**:      `taskPath=":path:to:task"`, `mode="details"`.
-- **Build Failures**:    `failureId="ID"`, `mode="details"` (use summary mode first to find IDs).
-- **Problems/Errors**:   `problemId="ID"`, `mode="details"` (use summary mode first to find IDs).
-- **Full Console (EXCEPT TESTS)**:      `consoleTail=true` (tail) or `consoleTail=false` (head).
+- Tests (incl. console output): `testName="FullTestName"`, `mode="details"` — REQUIRED for stack traces and test output.
+- Task outputs: `taskPath=":path:to:task"`, `mode="details"`.
+- Build failures: `failureId="ID"`, `mode="details"` (use summary first to find IDs).
+- Full console: `consoleTail=true` (tail) or `consoleTail=false` (head).
 
 ### Wait & Progress Monitoring
-- Use `timeout` (seconds) with `waitFor` (regex), `waitForTask` (path), or `waitForFinished` (boolean) to monitor active builds and real-time test progress (e.g., pass/fail counts).
-- If `timeout` is omitted, the tool returns immediately with the current build status.
-- If `timeout` is provided but `waitFor` and `waitForTask` are omitted, the tool defaults to waiting for the build to finish (equivalent to `waitForFinished=true`).
-- If the build finishes before the requested regex or task is found, the tool returns an error.
-- Set `afterCall=true` to only look for events emitted after the tool is called.
+Use `timeout` (seconds) with `waitFor` (regex), `waitForTask` (path), or `waitForFinished=true` to monitor active builds.
+If `timeout` is set but no wait condition is specified, defaults to waiting for the build to finish.
+Set `afterCall=true` to only match events emitted after this call.
 
 <details>
 
@@ -47,14 +36,14 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
         "string",
         "null"
       ],
-      "description": "Providing the managed BuildId to inspect authoritatively. If omitted, returns the high-level build dashboard showing active and recently completed builds."
+      "description": "BuildId to inspect. If omitted, shows the active/recent builds dashboard."
     },
     "mode": {
       "enum": [
         "summary",
         "details"
       ],
-      "description": "Applying a surgical lookup mode: 'summary' (default) or 'details'. Use 'details' for exhaustive, deep-dive information.",
+      "description": "'summary' (default) or 'details'. Use 'details' with testName/taskPath for full output.",
       "type": "string"
     },
     "timeout": {
@@ -64,29 +53,29 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
       ],
       "minimum": -1.7976931348623157E308,
       "maximum": 1.7976931348623157E308,
-      "description": "Specifying the maximum number of seconds to wait for the requested condition(s). If omitted, the tool returns immediately with the current build status."
+      "description": "Max seconds to wait for a condition. If omitted, returns immediately with current status."
     },
     "waitForFinished": {
       "type": "boolean",
-      "description": "Waiting for the build to finish authoritatively. This is the default behavior if 'timeout' is provided but no other wait conditions are specified."
+      "description": "Wait for the build to finish. Default if 'timeout' is set and no other wait condition is provided."
     },
     "waitFor": {
       "type": [
         "string",
         "null"
       ],
-      "description": "Providing a regex pattern to wait for in the build logs authoritatively. Ideal for detecting when a server has started or a specific event has occurred. Uses 'timeout' for the maximum wait duration."
+      "description": "Regex to wait for in build logs (e.g., server started). Requires 'timeout'."
     },
     "waitForTask": {
       "type": [
         "string",
         "null"
       ],
-      "description": "Providing a task path to wait for completion authoritatively. The most surgical way to monitor specific task progress. Uses 'timeout' for the maximum wait duration."
+      "description": "Task path to wait for completion. Requires 'timeout'."
     },
     "afterCall": {
       "type": "boolean",
-      "description": "Setting to true only looks for matches emitted after this call. Only applies if 'timeout' and a wait condition ('waitFor', 'waitForTask', or 'waitForFinished') are provided."
+      "description": "Only match events emitted after this call. Requires 'timeout' and a wait condition."
     },
     "pagination": {
       "type": "object",
@@ -103,14 +92,14 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
           "maximum": 2147483647
         }
       },
-      "description": "Pagination parameters. Offset is the zero-based starting index (defaults to 0). Limit is the maximum number of items/lines to return."
+      "description": "Pagination. offset = zero-based start index (default 0); limit = max items/lines to return."
     },
     "taskPath": {
       "type": [
         "string",
         "null"
       ],
-      "description": "Filtering task results. In 'summary' mode, a prefix of the task path. In 'details' mode, providing a full path or unique prefix of the task will return its exhaustive results (outcome, duration, and console output)."
+      "description": "Task path prefix (summary) or full/unique-prefix path (details) for task output and outcome."
     },
     "taskOutcome": {
       "enum": [
@@ -121,7 +110,7 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
         "FROM_CACHE",
         "NO_SOURCE"
       ],
-      "description": "Filtering task results by outcome (summary mode only).",
+      "description": "Filter task results by outcome (summary mode only).",
       "type": "string"
     },
     "testName": {
@@ -129,7 +118,7 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
         "string",
         "null"
       ],
-      "description": "Filtering test results. In 'summary' mode, a prefix of the test name. In 'details' mode, providing a full name or unique prefix of the test will return its exhaustive results (status, duration, stack trace, and console output). ALWAYS use this with `mode=\"details\"` to see individual test outputs; generic task output lacks this metadata."
+      "description": "Test name prefix (summary) or full/unique prefix (details). Use mode='details' for stack traces."
     },
     "testOutcome": {
       "enum": [
@@ -139,7 +128,7 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
         "CANCELLED",
         "IN_PROGRESS"
       ],
-      "description": "Filtering test results by outcome (summary mode only).",
+      "description": "Filter test results by outcome (summary mode only).",
       "type": "string"
     },
     "testIndex": {
@@ -149,28 +138,28 @@ ALWAYS use this tool to investigate test failures, task outputs, and build-level
       ],
       "minimum": -2147483648,
       "maximum": 2147483647,
-      "description": "Specifying the index of the test to show if multiple tests have the same name (details mode only)."
+      "description": "Index of test to show when multiple tests share the same name (details mode only)."
     },
     "failureId": {
       "type": [
         "string",
         "null"
       ],
-      "description": "Providing the failure ID to get details for (details mode only). Use this for surgical analysis of build-level failures."
+      "description": "Failure ID to get details for (details mode only)."
     },
     "problemId": {
       "type": [
         "string",
         "null"
       ],
-      "description": "Providing the ProblemId of the problem to look up (details mode only)."
+      "description": "ProblemId to look up (details mode only)."
     },
     "consoleTail": {
       "type": [
         "boolean",
         "null"
       ],
-      "description": "Returning the last 'limit' lines of the console output instead of the first. Useful for checking the end of long logs. Specify this to get raw console output."
+      "description": "true = tail raw console output; false = head. Specify to get raw console output."
     }
   },
   "required": [],

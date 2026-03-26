@@ -1,13 +1,9 @@
 ---
 name: managing_gradle_dependencies
 description: >
-  The ONLY authoritative way to audit and manage project dependency graphs, including build script dependencies (plugins). 
-  Provides high-resolution update checks, surgical tree analysis, and 
-  precise Maven Central discovery. Manual build file parsing and generic 
-  shell commands like `grep` or `cat` are UNRELIABLE and DISCOURAGED 
-  as they miss transitive dependencies, version resolution, and 
-  dynamic configuration. Use it for auditing dependencies, identifying 
-  stable updates, and finding GAV coordinates.
+  Audits and manages Gradle dependency graphs with high-resolution update checks, transitive tree analysis, and Maven Central discovery;
+  use for dependency auditing, finding stable updates, and resolving GAV coordinates.
+  Do NOT use for exploring dependency source code (use `searching_dependency_sources`) or running builds.
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
@@ -39,9 +35,6 @@ Audits project dependencies, performs high-resolution update checks, and discove
 - **Discover libraries surgically**: ALWAYS use `search_maven_central` to find new libraries or check the version history of an existing artifact.
 - **Use `gradle` for diagnostics**: For built-in tasks like `dependencyInsight`, ALWAYS use the `gradle` tool with `captureTaskOutput`.
 - **Audit full trees**: ALWAYS use `onlyDirect: false` in `inspect_dependencies` when you need to visualize the complete transitive dependency graph.
-- **Use `envSource: SHELL` if environment variables are missing**: If Gradle fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
-  fully loaded. Set `invocationArguments: { envSource: "SHELL" }` to force a new shell process to query the environment.
-- **Resolve `{baseDir}` manually**: If your environment does not automatically resolve the `{baseDir}` placeholder in reference links, treat it as the absolute path to the directory containing this `SKILL.md` file.
 
 ## When to Use
 
@@ -130,3 +123,4 @@ Audits project dependencies, performs high-resolution update checks, and discove
 - **Dependency Not Found**: Verify the `projectPath` using the `projects` task in the `introspecting_gradle_projects` skill.
 - **Update Not Showing**: If a known update is missing, ensure `stableOnly` is set correctly and check if a `versionFilter` is active.
 - **Maven Search No Results**: Use broader search terms or verify the `group:artifact` format for version searches.
+- **Missing environment variables**: Set `invocationArguments: { envSource: "SHELL" }` if Gradle cannot find expected env vars (e.g., `JAVA_HOME`).

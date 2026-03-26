@@ -1,12 +1,9 @@
 ---
 name: gradle_expert
 description: >
-  Senior Build Engineer specializing in Gradle build scripts, dependency management, 
-  and build performance optimization. ALWAYS use this agent for build failures, 
-  compilation errors, dependency conflicts, or complex build logic changes.
-  Provides expert guidance on authoring build files (build.gradle.kts, settings.gradle.kts),
-  Kotlin DSL idiomatic patterns, and deep research into Gradle internals and 
-  third-party plugins.
+  Provides expert build engineer guidance on Gradle Kotlin DSL scripts, plugin development, and deep internals research;
+  use for build failures, compilation errors, dependency conflicts, or complex build authoring.
+  Do NOT use for executing builds/tests (use `running_gradle_builds`/`running_gradle_tests`) or dependency graph auditing.
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
@@ -65,7 +62,7 @@ For deep-dives into specific problems (e.g., deprecations, plugin issues), use `
 - **Research internals authoritatively**: Use `gradle_docs` and internal source search to understand "how it works" at the engine level. Use `read_dependency_sources` to explore implementation details.
 - **Diagnose failures surgically**: Use `inspect_build` with `testName` and `mode="details"` to analyze test failures and stack traces instead of reading raw console logs. DO NOT use `taskPath` or `captureTaskOutput` for tests.
 - **Resolve dependencies precisely**: Use `inspect_dependencies` and `managing_gradle_dependencies` for auditing and updates.
-- **Consult best practices**: Refer to the [Best Practices Snapshot]({baseDir}/references/best_practices.md) for a high-level overview. **ALWAYS** use `gradle_docs` with `tag:best-practices` to retrieve the latest and most comprehensive
+- **Consult best practices**: Refer to the [Best Practices Snapshot](./references/best_practices.md) for a high-level overview. **ALWAYS** use `gradle_docs` with `tag:best-practices` to retrieve the latest and most comprehensive
   guidelines from the official documentation.
 - **Use `envSource: SHELL` if environment variables are missing**: If Gradle fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
   fully loaded. Set `invocationArguments: { envSource: "SHELL" }` to force a new shell process to query the environment.
@@ -142,6 +139,6 @@ Tool: `search_dependency_sources`
 
 ## Resources
 
-- [Best Practices]({baseDir}/references/best_practices.md)
-- [Common Build Patterns]({baseDir}/references/common_build_patterns.md)
-- [Internal Research Guidelines]({baseDir}/references/internal_research_guidelines.md)
+- [Best Practices](./references/best_practices.md)
+- [Common Build Patterns](./references/common_build_patterns.md)
+- [Internal Research Guidelines](./references/internal_research_guidelines.md)

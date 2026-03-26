@@ -1,11 +1,9 @@
 ---
 name: verifying_compose_ui
 description: >
-  Visually verifies Compose UI components and previews authoritatively by instantly 
-  rendering them to high-quality images directly from the project's JVM runtime. 
-  This skill is the STRONGLY PREFERRED way to iterate on UI designs, offering surgical 
-  visual feedback for any @Composable or @Preview. Do NOT use for general build 
-  lifecycle tasks or dependency auditing.
+  Visually verifies Compose UI components by rendering @Composable/@Preview functions to images from the project's JVM runtime;
+  STRONGLY PREFERRED for rapid UI iteration and visual feedback on any composable.
+  Do NOT use for build lifecycle tasks or dependency auditing.
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
@@ -23,7 +21,7 @@ Visually verifies and renders any @Composable or @Preview directly to high-quali
 - **ALWAYS** use `node.captureToImage()` and `responder.render(bitmap)` to return the visual output.
 - **ALWAYS** ensure the correct Compose UI testing dependencies are on the classpath, using `additionalDependencies` if necessary.
 - **NEVER** assume a UI component renders correctly without visual verification.
-- **ALWAYS** search for existing `@Preview` functions in your project's source code before creating new ones.
+- **ALWAYS** search for existing `@Preview` functions in the project source code before creating new ones.
 
 ## Directives
 
@@ -32,9 +30,7 @@ Visually verifies and renders any @Composable or @Preview directly to high-quali
 - **Note on versions**: ALWAYS check your project's version catalog and existing tests for the correct imports for `runComposeUiTest`.
 - **Render as image**: ALWAYS use `node.captureToImage()` and `responder.render(bitmap)` to return the visual output.
 - **Kotlin Multiplatform (KMP) Note**: The `kotlin_repl` currently only supports **JVM-based** source sets. ALWAYS select a JVM or Desktop target source set for visual checks.
-- **Use `envSource: SHELL` if environment variables are missing**: If Gradle or the REPL fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell
-  environment was fully loaded. Set `env: { envSource: "SHELL" }` (for REPL start) or `invocationArguments: { envSource: "SHELL" }` (for Gradle tasks) to force a new shell process to query the environment.
-- **Resolve `{baseDir}` manually**: If your environment does not automatically resolve the `{baseDir}` placeholder in reference links, treat it as the absolute path to the directory containing this `SKILL.md` file.
+- **Use `envSource: SHELL` if environment variables are missing**: Set `env: { envSource: "SHELL" }` (REPL start) or `invocationArguments: { envSource: "SHELL" }` (Gradle tasks) if expected env vars (e.g., `JAVA_HOME`) are not found.
 
 ## When to Use
 

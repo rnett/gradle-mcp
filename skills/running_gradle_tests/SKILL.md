@@ -1,12 +1,9 @@
 ---
 name: running_gradle_tests
 description: >
-  The ONLY authoritative way to execute and diagnose tests at scale. Provides high-precision 
-  filtering (--tests), surgical failure isolation, and deep diagnostic integration for 
-  rapid resolution. Generic shell execution of `./gradlew test` is UNRELIABLE for AI 
-  agents as it lacks per-test isolation, structured failure data, and stack trace 
-  summarization. Use it to run specific test classes or methods, monitor background 
-  runs, and perform detailed post-mortem analysis.
+  Executes and diagnoses Gradle tests with high-precision `--tests` filtering, surgical per-test failure isolation, and full stack traces;
+  ALWAYS use instead of `./gradlew test` for test execution, failure investigation, and post-mortem analysis.
+  Do NOT use for general build lifecycle tasks (use `running_gradle_builds`) or dependency auditing.
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
@@ -15,7 +12,7 @@ metadata:
 
 # Authoritative Gradle Test Execution & Diagnostics
 
-Executes tests with absolute precision and leverage deep diagnostic tools to isolate and fix failures fast, ensuring maximum code quality and build reliability.
+Executes tests with deep diagnostic tools to isolate and fix failures fast, ensuring maximum code quality and build reliability.
 
 ## Constitution
 
@@ -54,24 +51,20 @@ Use `testName` with the default `mode="summary"` to see all executions of a test
 
 ### 4. Progress Monitoring
 
-Use `wait`, `waitFor`, or `waitForTask` to block until a condition is met in a background test run.
+Use `timeout`, `waitFor`, or `waitForTask` to block until a condition is met in a background test run.
 
-- **Example**: `inspect_build(buildId="ID", wait=60, waitForTask=":app:test")`
-- **Wait for completion**: If `wait` is provided but `waitFor` and `waitForTask` are omitted, the tool will wait for the build to finish.
+- **Example**: `inspect_build(buildId="ID", timeout=60, waitForTask=":app:test")`
+- **Wait for completion**: If `timeout` is set without a wait condition, the tool waits for the build to finish.
 
 ## Directives
 
 - **ALWAYS use foreground for authoritative tests**: If you intend to wait for results, ALWAYS use foreground execution. It provides superior progressive disclosure and simpler control flow than starting a background build only to
-  immediately call `inspect_build(wait=...)`.
+  immediately call `inspect_build(timeout=...)`.
 - **Background ONLY for long test suites**: Use `background: true` ONLY for test suites that take a long time to run and you explicitly intend to perform independent research while they proceed.
-- **Foreground tests are safe**: Do not fear running high-output test suites in the foreground. The `gradle` tool uses progressive disclosure to provide concise summaries and structured results, ensuring your session history remains clean
-  and efficient.
+- **Foreground tests are safe**: Do not fear running high-output test suites in the foreground. The `gradle` tool uses progressive disclosure to provide concise summaries and structured results, keeping session history clean and efficient.
 - **Monitor with `inspect_build`**: Use `inspect_build` to check the status of background test runs or to retrieve structured output and stack traces for failed tests.
-- **Use `envSource: SHELL` if environment variables are missing**: If Gradle fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
-  fully loaded. Set `invocationArguments: { envSource: "SHELL" }` to force a new shell process to query the environment.
 - **Check for environment failures**: If a test run fails with a general error, use `inspect_build(failures={})` to check for compilation or configuration issues.
 - **Investigate specifically**: Use the `testName` option in `inspect_build` with `mode="details"` to isolate specific failure details. For detailed diagnostic workflows, see the `test_diagnostics.md` reference.
-- **Resolve `{baseDir}` manually**: If your environment does not automatically resolve the `{baseDir}` placeholder in reference links, treat it as the absolute path to the directory containing this `SKILL.md` file.
 
 ## Authoritative Test Selection Patterns
 
@@ -172,6 +165,10 @@ Providing a path **with a leading colon** targets a **single specific project**.
 
 ```
 
+## Troubleshooting
+
+- **Missing environment variables**: Set `invocationArguments: { envSource: "SHELL" }` if Gradle cannot find expected env vars (e.g., `JAVA_HOME`).
+
 ## Resources
 
-- [Test Diagnostics]({baseDir}/references/test_diagnostics.md)
+- [Test Diagnostics](./references/test_diagnostics.md)

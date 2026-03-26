@@ -1,10 +1,4 @@
-# Capability: skill-metadata
-
-## Purpose
-
-Defines standards for how MCP skills and tools present themselves to AI agents, ensuring effective discovery and selection through persuasive descriptions, explicit "When to Use" sections, and authoritative documentation.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Persuasive and Technically Grounded Skill Descriptions
 

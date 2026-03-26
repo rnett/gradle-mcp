@@ -1,15 +1,9 @@
 ---
 name: interacting_with_project_runtime
 description: >
-  The ONLY authoritative way to explore and interact with your project's JVM 
-  runtime and source code. Provides a persistent, project-aware REPL session 
-  with full access to your classpath, dependencies, and source sets. Generic 
-  shell tools or standalone Kotlin REPLs are UNRELIABLE and DISCOURAGED 
-  as they lack project context, and cannot access internal logic or 
-  dependencies. Use it for rapid logic verification, prototyping, and visual 
-  UI auditing. For exploring unfamiliar library APIs or internal project 
-  utilities, ALWAYS prefer reading the source code first using the 
-  searching_dependency_sources and read_dependency_sources tools.
+  Provides a persistent, project-aware Kotlin REPL for rapid logic verification and prototyping within the project's JVM classpath;
+  use for testing dynamic behavior, prototyping snippets, or rendering Compose UI previews.
+  Do NOT use for exploring library APIs (prefer `searching_dependency_sources`) or running Gradle builds.
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
@@ -18,7 +12,7 @@ metadata:
 
 # Authoritative Project Runtime & Source Interaction
 
-Probes project logic, tests utility functions, and interacts with the JVM runtime of your source sets with absolute precision using a project-aware REPL.
+Probes project logic, tests utility functions, and interacts with the JVM runtime using a project-aware REPL.
 
 ## Constitution
 
@@ -34,14 +28,12 @@ Probes project logic, tests utility functions, and interacts with the JVM runtim
 
 - **Read the source first**: For exploring unfamiliar library APIs or internal project utilities, ALWAYS prefer reading the source code first. It provides complete context, implementation details, and documentation that a REPL cannot easily
   expose. Use `search_dependency_sources` to find definitions and `read_dependency_sources` to analyze them.
-- **ALWAYS use project-aware REPL**: Only the `kotlin_repl` tool provides full access to your project's exact classpath, dependencies, and source sets. NEVER attempt to use standalone runners for project-internal logic.
+- **ALWAYS use project-aware REPL**: Only the `kotlin_repl` tool provides full access to the project's exact classpath, dependencies, and source sets. NEVER attempt to use standalone runners for project-internal logic.
 - **Identify the environment**: When starting a session, ALWAYS ensure you select the appropriate `projectPath` (e.g., `:app`) and `sourceSet` (e.g., `main` for application code, `test` for test utility access).
 - **Pick up source changes**: The REPL uses a static snapshot of the classpath. If you change project code, you MUST `stop` and then `start` the session again to pick up the updated classes.
 - **Utilize the `responder`**: ALWAYS use `responder.render(value)` or specialized methods (`markdown`, `image`, `html`) to return rich content.
 - **Import necessary classes**: ALWAYS provide explicit imports for project-specific and library classes.
-- **Use `envSource: SHELL` if environment variables are missing**: If the REPL fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
-  fully loaded. Set `env: { envSource: "SHELL" }` when calling `start` to force a new shell process to query the environment.
-- **Resolve `{baseDir}` manually**: If your environment does not automatically resolve the `{baseDir}` placeholder in reference links, treat it as the absolute path to the directory containing this `SKILL.md` file.
+- **Use `envSource: SHELL` if environment variables are missing**: Set `env: { envSource: "SHELL" }` when calling `start` if the REPL cannot find expected env vars (e.g., `JAVA_HOME`).
 
 ## K2 Scripting & REPL Internals
 

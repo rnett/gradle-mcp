@@ -1,13 +1,9 @@
 ---
 name: researching_gradle_internals
 description: >
-  The ONLY authoritative way to research Gradle's internal implementation and 
-  official documentation. Provides high-performance search and surgical source 
-  code retrieval for the entire Gradle User Guide, DSL Reference, and internal 
-  engine. Generic web searches and shell commands like `grep` are UNRELIABLE 
-  and DISCOURAGED as they miss version-specific details and Gradle's remote 
-  internal sources. Use it for researching core features, verifying 
-  behavior, and deep-dives.
+  Searches and retrieves official Gradle User Guide, DSL Reference, and internal engine source code authoritatively;
+  use for researching core Gradle features, verifying behavior, and deep-diving into internals.
+  Do NOT use for project dependency source exploration (use `searching_dependency_sources`) or running builds.
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
@@ -42,10 +38,7 @@ Researches official documentation and probes Gradle's internal source code with 
     - Supports full **Lucene query syntax** (e.g., `name:Project AND fqn:org.gradle.api.*`).
     - Use `FULL_TEXT` to find internal usage patterns, constants, or behavior described in the source. `FULL_TEXT` searches are **case-insensitive**.
     - Use `GLOB` to locate Gradle's internal resource files or build scripts. `GLOB` searches are **case-insensitive**.
-- **Use `envSource: SHELL` if environment variables are missing**: If Gradle fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
-  fully loaded. Set `invocationArguments: { envSource: "SHELL" }` to force a new shell process to query the environment.
 - **Verify against the local version**: The tools automatically target the Gradle version used by the current project. ALWAYS use the `version` argument for `gradle_docs` when researching other releases.
-- **Resolve `{baseDir}` manually**: If your environment does not automatically resolve the `{baseDir}` placeholder in reference links, treat it as the absolute path to the directory containing this `SKILL.md` file.
 
 ## Available Documentation Tags
 

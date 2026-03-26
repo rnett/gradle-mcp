@@ -40,13 +40,13 @@ class DependencySourceTools(
 
     @Serializable
     enum class SearchType {
-        @Description("Best for finding precise declarations (classes, methods, interfaces). Matches against the 'name' (tokenized for CamelCase) and 'fqn' (exact literal path) fields. Case-sensitive. Supports glob wildcards (*, **) and regular expressions. Note: Searching for a simple name like 'MyClass' will find all declarations with that name. Searching for a path like 'com.example.MyClass' requires an exact match or wildcards (e.g., '*.MyClass'). You can target specific fields using prefixes like 'name:MyClass' (discovery-oriented) or 'fqn:com.example.*' (precision-oriented). Do NOT include keywords like 'class', 'interface', or 'fun' in the query.")
+        @Description("Finds declarations (class/method/interface). Case-sensitive; use 'name:X' or 'fqn:x.y.*'.")
         DECLARATION,
 
-        @Description("Best for exhaustive searching of literal strings, constants, or code patterns. Case-insensitive. Uses high-performance Lucene indexing. Supports complex queries (e.g., '\"val x =\" AND NOT internal'). Remember to escape special characters like ':' or '='.")
+        @Description("Exhaustive full-text search. Case-insensitive Lucene query. Escape special chars like ':' or '='.")
         FULL_TEXT,
 
-        @Description("Best for locating specific files by name or extension (e.g., '**/AndroidManifest.xml', '**/*.proto'). Case-insensitive. Uses standard Java glob syntax.")
+        @Description("Locates files by name/extension (e.g., '**/AndroidManifest.xml'). Case-insensitive Java glob syntax.")
         GLOB
     }
 
@@ -59,35 +59,35 @@ class DependencySourceTools(
         val configurationPath: String? = null,
         @Description("Authoritatively targeting a source set (e.g., ':app:main'). Highest project precedence.")
         val sourceSetPath: String? = null,
-        @Description("Authoritatively targeting a single dependency by its coordinates (e.g., 'org.jetbrains.kotlinx:kotlinx-coroutines-core'). Supports 'group:name:version:variant', 'group:name:version', 'group:name', or just 'group'. Targets ONLY the specific library, NOT its transitive dependencies.")
+        @Description("Single dependency filter by GAV (e.g., 'group:name'). Excludes transitive dependencies.")
         val dependency: String? = null,
-        @Description("Setting to true authoritatively targets Gradle's own source code. This has HIGHEST overall precedence.")
+        @Description("Targets Gradle's own source code; HIGHEST overall precedence.")
         val gradleSource: Boolean = false,
-        @Description("Reading a specific file, directory, or package. If 'dependency' is NOT provided, this is relative to the combined source root and file paths MUST include the first- and second-level \"library directories\" (e.g., 'group/artifact...'). If 'dependency' IS provided, file paths are relative to the library root and the prefix MUST be omitted. Note: Dot-separated package paths (e.g., 'org.mongodb.client') are logically absolute within the library namespace and do not change relativity.")
+        @Description("File, dir, or package path. Requires group/artifact prefix unless 'dependency' is set.")
         val path: String? = null,
-        @Description("Setting to true forces authoritative re-download and re-indexing of targeted sources.")
+        @Description("Force re-download and re-indexing. EXPENSIVE — only use when sources are corrupt or missing, not for version changes.")
         val forceDownload: Boolean = false,
-        @Description("Setting to true retrieves a fresh dependency list from Gradle. STRONGLY RECOMMENDED if dependencies changed.")
+        @Description("Retrieve a fresh dependency list from Gradle. Use this (not forceDownload) when dependencies change.")
         val fresh: Boolean = false,
         val pagination: PaginationInput = PaginationInput.DEFAULT_LINES
     )
 
     val readDependencySources by tool<ReadDependencySourcesArgs, String>(
         ToolNames.READ_DEPENDENCY_SOURCES,
-        """|
-            ALWAYS use this tool to read source files and explore directory structures of external library dependencies, plugins (via `buildscript:` configurations), or Gradle's internal engine.
-            External dependency sources are NOT stored in your local project directory; generic shell tools like `cat`, `grep`, or `find` WILL FAIL to locate them.
-            This tool provides high-performance, cached access to the exact source code your project compiles against, which is VASTLY superior and more reliable than generic web searches, external repository browsing, or interactive REPL exploration.
-            Reading the source is the professionally recommended way to understand how to use an API, discover its available methods, and see its exact implementation logic.
-            This tool supports dot-separated package paths (e.g., `org.gradle.api`) by querying the symbol index, which is more reliable than directory-based resolution in some cases (e.g., Kotlin). This allows exploring package contents even if they don't match the directory structure.
-            To read sources for a plugin, pass `configurationPath=\":buildscript:classpath\"`.
-            To read the sources of a particular library, the `path` MUST include the first- and second-level "library directories". 
-            It typically looks like `<group>/<artifact>[-<variant>]-<version>-sources`. You can see all libraries by reading the root dir or group dirs.
-            To find specific classes or methods across all dependencies first, use the `${ToolNames.SEARCH_DEPENDENCY_SOURCES}` tool (supports DECLARATION, FULL_TEXT, and GLOB search modes).
-            
-            ### Targeted Exploration
-            Use the `dependency` parameter to target a single library (e.g., `dependency="org.mongodb:mongodb-driver-sync"`). This is significantly faster and avoids project-wide index creation.
-            **Note:** When `dependency` is used, the `path` is relative to the library root, so the `<group>/<artifact>...` prefix MUST be omitted. All returned paths will be relative to the targeted library root.
+        """
+            |Reads source files and explores directory structures of external library dependencies, plugins, or Gradle's internal engine; use instead of shell tools which cannot locate remote dependency sources.
+            |Supports dot-separated package paths via the symbol index. Use `${ToolNames.SEARCH_DEPENDENCY_SOURCES}` to find paths first.
+            |`path` without `dependency`: must include group/artifact prefix. With `dependency`: relative to library root.
+            |Sources are CAS-cached (immutable). Use `fresh=true` for dependency changes; `forceDownload=true` only to recover corrupt/missing files.
+            |ALWAYS scope with `dependency`, `projectPath`, `configurationPath`, or `sourceSetPath` — unscoped access indexes ALL dependencies and is VERY EXPENSIVE on large projects.
+            |
+            |### Examples
+            |- Browse all deps: `{}`
+            |- Browse single dep: `{ dependency: "org.jetbrains.kotlin:kotlin-stdlib" }`
+            |- Read file: `{ dependency: "org.jetbrains.kotlin:kotlin-stdlib", path: "kotlin/collections/List.kt" }`
+            |- Read package: `{ dependency: "org.jetbrains.kotlin:kotlin-stdlib", path: "kotlin.collections" }`
+            |- Plugin sources: `{ configurationPath: ":buildscript:classpath" }`
+            |- Gradle internals: `{ gradleSource: true }`
         """.trimMargin()
     ) { args ->
         val root = with(server) { args.projectRoot.resolveRoot() }
@@ -150,60 +150,42 @@ class DependencySourceTools(
         val configurationPath: String? = null,
         @Description("Authoritatively targeting a source set (e.g., ':app:main'). Highest project precedence.")
         val sourceSetPath: String? = null,
-        @Description("Authoritatively targeting a single dependency by its coordinates (e.g., 'org.jetbrains.kotlinx:kotlinx-coroutines-core'). Supports 'group:name:version:variant', 'group:name:version', 'group:name', or just 'group'. Targets ONLY the specific library, NOT its transitive dependencies.")
+        @Description("Single dependency filter by GAV (e.g., 'group:name'). Excludes transitive dependencies.")
         val dependency: String? = null,
-        @Description("Setting to true authoritatively searches Gradle Build Tool's own source code.")
+        @Description("Search Gradle Build Tool's own source code.")
         val gradleSource: Boolean = false,
-        @Description("Performing an authoritative search with a regex (DECLARATION), Lucene query (FULL_TEXT), or glob (GLOB, e.g., '**/Job.kt'). Note: If 'dependency' is used, GLOB patterns are relative to the library root.")
+        @Description("Search query: regex (DECLARATION), Lucene query (FULL_TEXT), or glob (GLOB, e.g., '**/Job.kt').")
         val query: String,
-        @Description("Selecting the search mode: FULL_TEXT (default, exhaustive strings), DECLARATION (full string regex match on declaration name), or GLOB (file paths).")
+        @Description("Search mode: FULL_TEXT (default), DECLARATION (symbol names), or GLOB (file paths).")
         val searchType: SearchType = SearchType.FULL_TEXT,
-        @Description("Setting to true forces authoritative re-download and re-indexing of targeted sources.")
+        @Description("Force re-download and re-indexing. EXPENSIVE — only use when sources are corrupt or missing, not for version changes.")
         val forceDownload: Boolean = false,
-        @Description("Setting to true retrieves a fresh dependency list from Gradle before searching.")
+        @Description("Retrieve a fresh dependency list from Gradle. Use this (not forceDownload) when dependencies change.")
         val fresh: Boolean = false,
         val pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS
     )
 
     val searchDependencySources by tool<SearchDependencySourcesArgs, String>(
         ToolNames.SEARCH_DEPENDENCY_SOURCES,
-        """|
-            ALWAYS use this tool to search for symbols or text within the combined source code of ALL external library dependencies, plugins, or Gradle's internal engine authoritatively.
-            Generic shell tools like `grep` or `find` on the local directory WILL NOT find these external sources as they reside in remote Gradle caches.
-            This tool provides high-performance, indexed search capabilities that far exceed basic grep-based exploration, offering surgical precision across the entire dependency graph.
-            Searching the source code is the PROFESSIONALLY RECOMMENDED way to understand how to use an API, discover its available methods, and see its exact implementation logic.
-            It is vastly superior and more reliable than interactive REPL exploration or external repository browsing.
-            
-            ### Supported Search Modes
-            
-            1.  **`DECLARATION` (Declaration Search)**
-                -   **Best for**: Finding precise declarations of classes, interfaces, or methods.
-                -   **How to invoke**: Set `searchType="DECLARATION"`. The `query` is **case-sensitive**. Do NOT include keywords like `class`, `interface`, or `fun` (e.g., use `MyClass`, not `class MyClass`).
-                -   **Examples**: `query="Project"` (matches by simple name), `query="org.gradle.api.Project"` (matches by FQN), `query="fqn:org.gradle.*.Project"` (glob wildcard), `query="name:.*Configuration"` (regex match).
-            
-            2.  **`FULL_TEXT` (Default Mode)**
-                -   **Best for**: Exhaustive searching of literal strings, constants, or code patterns.
-                -   **How to invoke**: Set `searchType="FULL_TEXT"`. The `query` is **case-insensitive**.
-                -   **Special Characters**: Characters like `:`, `=`, `+`, `-`, `*`, `/` are special operators and MUST be escaped with a backslash (e.g., `\:`) or enclosed in quotes for literal searches.
-                -   **Examples**: `query="\"val x =\""`, `query="TIMEOUT_MS"`, `query="org.gradle.api.internal.artifacts"` (requires escaping or quotes for dots if you want exact literal matches, but generally works fine).
-            
-            3.  **`GLOB` (File Path Search)**
-                -   **Best for**: Locating specific files by name or extension.
-                -   **How to invoke**: Set `searchType="GLOB"`. The `query` is **case-insensitive**.
-                -   **Examples**: `query="**/AndroidManifest.xml"` (find any file by name), `query="**/*.proto"` (find all files by extension).
-            
-            ### Authoritative Features
-            - **Locating Declarations Precisely**: Use `DECLARATION` to jump directly to a declaration's definition across the entire dependency graph.
-            - **Performing Exhaustive Full-Text Searches**: Use `FULL_TEXT` for broad discovery of constants or usage patterns.
-            - **Managing Search Scopes**: Narrow searches to specific projects, configurations (including `buildscript:` configurations for plugins), or source sets to maintain token efficiency.
-            - **Accessing Gradle Engine Internals**: Set `gradleSource=true` to search the authoritative source code of the Gradle Build Tool itself.
-            
-            ### Targeted Exploration
-            Use the `dependency` parameter to target a single library (e.g., `dependency="org.mongodb:mongodb-driver-sync"`). This is significantly faster and avoids project-wide index creation.
-            
-            Once identified, use the `${ToolNames.READ_DEPENDENCY_SOURCES}` tool to read the full content.
-            Note: All returned paths are relative to the search root (either the combined source root or the targeted library root if `dependency` is used).
-            For detailed search strategies, refer to the `searching_dependency_sources` skill.
+        """
+            |Searches for symbols or text across the source code of ALL external library dependencies, plugins, or Gradle's internal engine; use instead of shell grep which cannot find remote dependency sources.
+            |Sources are CAS-cached (immutable). Use `fresh=true` for dependency changes; `forceDownload=true` only to recover corrupt/missing files.
+            |ALWAYS scope with `dependency`, `projectPath`, `configurationPath`, or `sourceSetPath` — unscoped search indexes ALL dependencies and is VERY EXPENSIVE on large projects.
+            |
+            |### Search Modes
+            |- `DECLARATION`: class/method/interface names. Case-sensitive; use `name:X` or `fqn:x.y.*`. No keywords like `class`.
+            |- `FULL_TEXT` (default): Lucene query, case-insensitive. Escape special chars like `:` `=` `+`.
+            |- `GLOB`: file paths, case-insensitive (e.g., `**/AndroidManifest.xml`).
+            |
+            |### Examples
+            |- All deps: `{ query: "CoroutineScope", searchType: "DECLARATION" }`
+            |- Full-text: `{ query: "TIMEOUT_MS" }`
+            |- Single dep: `{ dependency: "org.jetbrains.kotlinx:kotlinx-coroutines-core", query: "launch", searchType: "DECLARATION" }`
+            |- Gradle internals: `{ gradleSource: true, query: "DefaultProject", searchType: "DECLARATION" }`
+            |- Plugins: `{ configurationPath: ":buildscript:classpath", query: "MyPlugin", searchType: "DECLARATION" }`
+            |- Files: `{ query: "**/plugin.properties", searchType: "GLOB" }`
+            |
+            |Once found, read content with `${ToolNames.READ_DEPENDENCY_SOURCES}`.
         """.trimMargin()
     ) { args ->
         val provider = when (args.searchType) {

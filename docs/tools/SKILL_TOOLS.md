@@ -6,21 +6,10 @@ Tools for managing Gradle MCP skills.
 
 ## install_gradle_skills
 
-ALWAYS use this tool to install or update the official Gradle MCP skills into your agent's skill directory.
-These skills provide expert-level workflows, specialized instructions, and deep diagnostic patterns that are essential for mastering Gradle tasks.
+Installs or updates the official Gradle MCP skills into the agent's skill directory; provides expert-level workflows for Gradle builds, tests, and dependency management.
 
-### Authoritative Installation
-
-1.  **Target Directory**: Provide the absolute path to your agent's skill directory (e.g., `~/.agents/skills`).
-2.  **Unpack & Configure**: The tool automatically extracts the latest skill definitions (`SKILL.md` and associated references) into the target directory.
-
-### Upgrade Protocols
-
-1.  **Surgical Replacement**: Set `replaceOld=true` (default) to replace existing skills authored by this MCP server. This ensures you always have the latest expert guidance.
-2.  **Persistence**: The tool maintains a clean installation by removing old skill versions before unpacking the new ones.
-
-### Post-Installation
-Once installed, the skills become available to the agent for specialized tasks like `researching_gradle_internals`, `running_gradle_tests`, and `managing_gradle_dependencies`.
+Provide the absolute path to your agent's skill directory (e.g., `~/.agents/skills`). Skills are extracted as `SKILL.md` files into named subdirectories.
+Set `replaceOld=true` (default) to replace existing skills from this server and ensure the latest guidance is active.
 
 <details>
 
@@ -36,7 +25,7 @@ Once installed, the skills become available to the agent for specialized tasks l
     },
     "replaceOld": {
       "type": "boolean",
-      "description": "Setting to true replaces existing skills in the target directory that were authored by this MCP server."
+      "description": "Replaces existing skills from this MCP server in the target directory."
     }
   },
   "required": [

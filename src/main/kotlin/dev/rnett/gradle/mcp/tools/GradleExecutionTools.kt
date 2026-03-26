@@ -20,15 +20,15 @@ class GradleExecutionTools(
     @Serializable
     data class GradleExecuteArgs(
         val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
-        @Description("Providing the arguments for gradle. Syntax: ':task' (root only), 'task' (all projects), or ':app:task'. Required if not stopping a build.")
+        @Description("Gradle CLI args. ':task' (root), 'task' (all projects), ':app:task'. Required if not stopping.")
         val commandLine: List<String>? = null,
-        @Description("Setting to true starts the build in the background and returns a managed BuildId immediately. Use ONLY for persistent tasks (e.g., servers) or when you explicitly intend to perform other tasks in parallel. Foreground is STRONGLY PREFERRED for most tasks as it provides superior progressive disclosure.")
+        @Description("Start build in background; returns BuildId. Use only for servers or parallel work.")
         val background: Boolean = false,
-        @Description("Terminating an active background build by providing its BuildId. If provided, all other arguments are ignored.")
+        @Description("Stop an active background build by BuildId; all other args are ignored.")
         val stopBuildId: BuildId? = null,
-        @Description("Capturing and returning output for a specific task path (e.g., ':app:dependencies') exclusively. This is highly token-efficient as it eliminates all non-task console noise. Output over 100 lines will be truncated; use `inspect_build` for full logs. DO NOT use this for tests; ALWAYS use `inspect_build` with `testName` and `mode=\"details\"` for isolated, untruncated individual test output and stack traces.")
+        @Description("Isolated output for a specific task path. DO NOT use for tests; use inspect_build with testName.")
         val captureTaskOutput: String? = null,
-        @Description("Applying additional advanced invocation arguments for the Gradle process.")
+        @Description("Additional advanced invocation arguments for the Gradle process.")
         val invocationArguments: GradleInvocationArguments = GradleInvocationArguments.DEFAULT
     )
 
@@ -36,20 +36,16 @@ class GradleExecutionTools(
     val gradle by tool<GradleExecuteArgs, String>(
         ToolNames.GRADLE,
         """
-            |ALWAYS use this tool to execute Gradle builds, tasks, and tests instead of raw shell commands.
-            |This tool provides a managed environment with high-resolution feedback, authoritative background orchestration, and surgical task output capturing.
+            |Executes Gradle builds and tasks with background orchestration, task output capturing, and progressive feedback; ALWAYS use instead of raw shell `./gradlew`.
             |
-            |### Task Execution Best Practices
+            |### Task Execution
+            |- **Foreground** (default): STRONGLY PREFERRED; provides progressive output.
+            |- **Background** (`background=true`): Use only for persistent tasks (servers) or parallel work.
+            |- **Task Output Capturing** (`captureTaskOutput=":path:to:task"`): Returns clean task-specific output.
+            |   - **DO NOT use Task Output Capturing for tests**: Use `${ToolNames.INSPECT_BUILD}` with `testName` and `mode="details"`.
             |
-            |1.  **Foreground is Preferred**: Foreground execution is STRONGLY PREFERRED for most tasks as it provides superior progressive disclosure.
-            |2.  **Use Background Surgically**: Use `background=true` for long-running servers or when you explicitly intend to perform other tasks in parallel.
-            |3.  **Task Output Capturing**: Use `captureTaskOutput=":path:to:task"` for a clean, task-specific view of the console output.
-            |4.  **DO NOT use for individual tests**: For individual test failures and stack traces, ALWAYS use `${ToolNames.INSPECT_BUILD}` with `testName` and `mode="details"`. `captureTaskOutput` will be incomplete and lack test-specific diagnostics.
-            |
-            |### Wait & Progress Monitoring
-            |After starting a build, use `${ToolNames.INSPECT_BUILD}` with the returned `BuildId` to monitor progress or perform deep-dive failure diagnostics.
-            |
-            |Note: Avoid `--rerun-tasks` (which reruns ALL tasks) unless investigating broad cache issues. Prefer `--rerun` for individual tasks. Use `invocationArguments: { envSource: "SHELL" }` if Gradle isn't finding expected environment variables (e.g., JDKs).
+            |After starting a build, use `${ToolNames.INSPECT_BUILD}` with the returned `BuildId` to monitor progress or diagnose failures.
+            |Note: Prefer `--rerun` (single task) over `--rerun-tasks` (all tasks, even included builds). Use `invocationArguments: { envSource: "SHELL" }` if env vars (e.g., JDKs) aren't found.
         """.trimMargin()
     ) {
         if (it.stopBuildId != null) {

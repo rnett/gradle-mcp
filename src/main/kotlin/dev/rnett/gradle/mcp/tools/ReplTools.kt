@@ -13,7 +13,7 @@ import io.modelcontextprotocol.kotlin.sdk.PromptMessageContent
 import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.serialization.Serializable
 import org.slf4j.LoggerFactory
-import java.util.*
+import java.util.UUID
 import kotlin.time.ExperimentalTime
 
 class ReplTools(
@@ -27,30 +27,29 @@ class ReplTools(
 
     @Serializable
     enum class ReplCommand {
-        @Description("Starts (or replaces) a persistent REPL session. Requires 'projectPath' and 'sourceSet'.")
+        @Description("Start (or replace) a session. Requires 'projectPath' and 'sourceSet'.")
         start,
 
-        @Description("Terminates the current REPL session and releases resources.")
+        @Description("Terminate the session and release resources.")
         stop,
 
-        @Description("Executes a Kotlin code snippet within the active REPL session. Requires 'code'.")
+        @Description("Execute a Kotlin snippet in the active session. Requires 'code'.")
         run
     }
 
     @Serializable
     data class ReplArgs(
-        @Description("Executing an authoritative command: 'start', 'stop', or 'run'.")
         val command: ReplCommand,
         val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
-        @Description("Specifying the Gradle project path (e.g., ':app', ':library'). Required for 'start'.")
+        @Description("Gradle project path (e.g., ':app'). Required for 'start'.")
         val projectPath: String? = null,
-        @Description("Specifying the source set (e.g., 'main', 'test'). Required for 'start'. Must be JVM-compatible.")
+        @Description("Source set (e.g., 'main', 'test'). Required for 'start'. Must be JVM-compatible.")
         val sourceSet: String? = null,
-        @Description("Adding additional dependencies to the REPL classpath via authoritative notation (e.g., 'group:artifact:version').")
+        @Description("Additional classpath dependencies (e.g., 'group:artifact:version').")
         val additionalDependencies: List<String> = emptyList(),
-        @Description("Setting environment variables in the REPL worker process.")
+        @Description("Environment variables for the REPL worker process.")
         val env: Map<String, String> = emptyMap(),
-        @Description("Executing a Kotlin code snippet within the active session. Required for 'run'.")
+        @Description("Kotlin snippet to execute. Required for 'run'.")
         val code: String? = null
     )
 
@@ -60,26 +59,15 @@ class ReplTools(
     val repl by tool<ReplArgs, CallToolResult>(
         ToolNames.REPL,
         """
-            |ALWAYS use this tool to interactively prototype Kotlin code, explore APIs, or verify UI components directly within the project's runtime context.
-            |It provides a persistent session with full access to project classes and dependencies, saving you the overhead of writing and running temporary test files.
+            |Provides a persistent, project-aware Kotlin REPL for prototyping, logic verification, and UI rendering within the project's JVM classpath.
             |
-            |### Prototyping & Exploration Best Practices
+            |Prefer reading sources via `${ToolNames.SEARCH_DEPENDENCY_SOURCES}` / `${ToolNames.READ_DEPENDENCY_SOURCES}` for exploring APIs — the REPL is for dynamic behavior and prototyping.
+            |After modifying project source code, `stop` then `start` to pick up classpath changes and the new compiled sources.
             |
-            |1.  **Prefer Reading Sources**: For exploring unfamiliar library APIs or internal project utilities, ALWAYS prefer reading the source code first using `${ToolNames.SEARCH_DEPENDENCY_SOURCES}` and `${ToolNames.READ_DEPENDENCY_SOURCES}`. Reading the source provides complete context, implementation details, and documentation that a REPL cannot easily expose.
-            |2.  **Use REPL for Prototyping**: Only use the REPL when you need to verify dynamic behavior, test small snippets of logic, or prototype a new feature before implementing it.
-            |3.  **Iterative Development**: Use `run` for rapid experimentation. If you modify project source code, you MUST `stop` and `start` the REPL again to pick up the new classes.
-            |4.  **UI Verification**: The REPL can render and return UI components (e.g., Compose previews) as images.
-            |
-            |### Authoritative Commands
-            |
-            |1.  **`start`**: Initializes (or replaces) a persistent REPL session. Requires `projectPath` and `sourceSet`.
-            |2.  **`run`**: Executes a Kotlin code snippet within the active session. The session state (variables, imports) persists between calls.
-            |3.  **`stop`**: Terminates the session and releases JVM resources.
-            |
-            |### Advanced Configuration
-            |
-            |1.  **Dependencies**: Use `additionalDependencies` (group:artifact:version) to pull in external libraries not already in the project.
-            |2.  **Environment**: Use `env` to set specific system properties or environment variables for the REPL worker.
+            |### Commands
+            |- **`start`**: Initialize a session. Requires `projectPath` and `sourceSet`.
+            |- **`run`**: Execute a snippet. Session state (variables, imports) persists between calls.
+            |- **`stop`**: Terminate the session and release JVM resources.
         """.trimMargin()
     ) {
         when (it.command) {

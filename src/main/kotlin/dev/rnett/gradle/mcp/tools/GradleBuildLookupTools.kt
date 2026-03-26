@@ -33,53 +33,53 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
 
     @Serializable
     enum class LookupMode {
-        @Description("Return a summary list of items. Ideal for high-level overviews.")
+        @Description("Summary list of items. Ideal for high-level overviews and finding IDs.")
         summary,
 
-        @Description("Return authoritative, exhaustive information about a specific item. This is the professionally recommended way to get full test failures, stack traces, and console logs.")
+        @Description("Exhaustive info for a specific item. Required for full test output, stack traces, and console logs.")
         details
     }
 
     @Serializable
     data class InspectBuildArgs(
-        @Description("Providing the managed BuildId to inspect authoritatively. If omitted, returns the high-level build dashboard showing active and recently completed builds.")
+        @Description("BuildId to inspect. If omitted, shows the active/recent builds dashboard.")
         val buildId: BuildId? = null,
 
-        @Description("Applying a surgical lookup mode: 'summary' (default) or 'details'. Use 'details' for exhaustive, deep-dive information.")
+        @Description("'summary' (default) or 'details'. Use 'details' with testName/taskPath for full output.")
         val mode: LookupMode = LookupMode.summary,
 
-        @Description("Specifying the maximum number of seconds to wait for the requested condition(s). If omitted, the tool returns immediately with the current build status.")
+        @Description("Max seconds to wait for a condition. If omitted, returns immediately with current status.")
         val timeout: Double? = null,
-        @Description("Waiting for the build to finish authoritatively. This is the default behavior if 'timeout' is provided but no other wait conditions are specified.")
+        @Description("Wait for the build to finish. Default if 'timeout' is set and no other wait condition is provided.")
         val waitForFinished: Boolean = false,
-        @Description("Providing a regex pattern to wait for in the build logs authoritatively. Ideal for detecting when a server has started or a specific event has occurred. Uses 'timeout' for the maximum wait duration.")
+        @Description("Regex to wait for in build logs (e.g., server started). Requires 'timeout'.")
         val waitFor: String? = null,
-        @Description("Providing a task path to wait for completion authoritatively. The most surgical way to monitor specific task progress. Uses 'timeout' for the maximum wait duration.")
+        @Description("Task path to wait for completion. Requires 'timeout'.")
         val waitForTask: String? = null,
-        @Description("Setting to true only looks for matches emitted after this call. Only applies if 'timeout' and a wait condition ('waitFor', 'waitForTask', or 'waitForFinished') are provided.")
+        @Description("Only match events emitted after this call. Requires 'timeout' and a wait condition.")
         val afterCall: Boolean = false,
 
         val pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS,
 
-        @Description("Filtering task results. In 'summary' mode, a prefix of the task path. In 'details' mode, providing a full path or unique prefix of the task will return its exhaustive results (outcome, duration, and console output).")
+        @Description("Task path prefix (summary) or full/unique-prefix path (details) for task output and outcome.")
         val taskPath: String? = null,
-        @Description("Filtering task results by outcome (summary mode only).")
+        @Description("Filter task results by outcome (summary mode only).")
         val taskOutcome: TaskOutcome? = null,
 
-        @Description("Filtering test results. In 'summary' mode, a prefix of the test name. In 'details' mode, providing a full name or unique prefix of the test will return its exhaustive results (status, duration, stack trace, and console output). ALWAYS use this with `mode=\"details\"` to see individual test outputs; generic task output lacks this metadata.")
+        @Description("Test name prefix (summary) or full/unique prefix (details). Use mode='details' for stack traces.")
         val testName: String? = null,
-        @Description("Filtering test results by outcome (summary mode only).")
+        @Description("Filter test results by outcome (summary mode only).")
         val testOutcome: TestOutcome? = null,
-        @Description("Specifying the index of the test to show if multiple tests have the same name (details mode only).")
+        @Description("Index of test to show when multiple tests share the same name (details mode only).")
         val testIndex: Int? = null,
 
-        @Description("Providing the failure ID to get details for (details mode only). Use this for surgical analysis of build-level failures.")
+        @Description("Failure ID to get details for (details mode only).")
         val failureId: FailureId? = null,
 
-        @Description("Providing the ProblemId of the problem to look up (details mode only).")
+        @Description("ProblemId to look up (details mode only).")
         val problemId: ProblemId? = null,
 
-        @Description("Returning the last 'limit' lines of the console output instead of the first. Useful for checking the end of long logs. Specify this to get raw console output.")
+        @Description("true = tail raw console output; false = head. Specify to get raw console output.")
         val consoleTail: Boolean? = null
     )
 
@@ -403,33 +403,22 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
     val inspectBuild by tool<InspectBuildArgs, String>(
         ToolNames.INSPECT_BUILD,
         """
-            |Surgically inspects detailed build information, monitors progress, and performs post-mortem diagnostics.
-            |ALWAYS use this tool to investigate test failures, task outputs, and build-level errors instead of reading raw console logs.
+            |Inspects build information, monitors progress, and performs post-mortem diagnostics; ALWAYS use instead of raw console logs for test failures, task outputs, and build errors.
             |
-            |### Surgical Lookup Modes
-            |
-            |1.  **Summary Mode (`mode="summary"`)**
-            |    -   **Best for**: Finding BuildIds, TaskPaths, TestNames, and FailureIds.
-            |    -   **Default behaviour**: Shows a high-level dashboard of recent builds if `buildId` is omitted.
-            |
-            |2.  **Details Mode (`mode="details"`)**
-            |    -   **Best for**: Exhaustive analysis of a specific item (requires `testName`, `taskPath`, `failureId`, or `problemId`).
-            |    -   **Crucial for Tests**: ALWAYS use `mode="details"` with `testName` to see the individual test case's console output, metadata, and stack trace. THIS IS THE ONLY WAY TO SEE THE TEST'S CONSOLE OUTPUT.
+            |### Lookup Modes
+            |- **`mode="summary"`** (default): Dashboard/overview; best for finding BuildIds, TestNames, FailureIds.
+            |- **`mode="details"`**: Exhaustive analysis; requires `testName`, `taskPath`, `failureId`, or `problemId`.
             |
             |### How to Inspect Details
-            |
-            |- **Individual Tests (INCLUDING TEST CONSOLE OUTPUT)**:  `testName="FullTestName"`, `mode="details"` (REQUIRED for full output/stack trace).
-            |- **Task Outputs**:      `taskPath=":path:to:task"`, `mode="details"`.
-            |- **Build Failures**:    `failureId="ID"`, `mode="details"` (use summary mode first to find IDs).
-            |- **Problems/Errors**:   `problemId="ID"`, `mode="details"` (use summary mode first to find IDs).
-            |- **Full Console (EXCEPT TESTS)**:      `consoleTail=true` (tail) or `consoleTail=false` (head).
+            |- Tests (incl. console output): `testName="FullTestName"`, `mode="details"` — REQUIRED for stack traces and test output.
+            |- Task outputs: `taskPath=":path:to:task"`, `mode="details"`.
+            |- Build failures: `failureId="ID"`, `mode="details"` (use summary first to find IDs).
+            |- Full console: `consoleTail=true` (tail) or `consoleTail=false` (head).
             |
             |### Wait & Progress Monitoring
-            |- Use `timeout` (seconds) with `waitFor` (regex), `waitForTask` (path), or `waitForFinished` (boolean) to monitor active builds and real-time test progress (e.g., pass/fail counts).
-            |- If `timeout` is omitted, the tool returns immediately with the current build status.
-            |- If `timeout` is provided but `waitFor` and `waitForTask` are omitted, the tool defaults to waiting for the build to finish (equivalent to `waitForFinished=true`).
-            |- If the build finishes before the requested regex or task is found, the tool returns an error.
-            |- Set `afterCall=true` to only look for events emitted after the tool is called.
+            |Use `timeout` (seconds) with `waitFor` (regex), `waitForTask` (path), or `waitForFinished=true` to monitor active builds.
+            |If `timeout` is set but no wait condition is specified, defaults to waiting for the build to finish.
+            |Set `afterCall=true` to only match events emitted after this call.
         """.trimMargin()
     ) { args ->
         if (args.buildId == null) {

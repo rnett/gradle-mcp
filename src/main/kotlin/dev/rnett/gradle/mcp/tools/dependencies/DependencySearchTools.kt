@@ -15,28 +15,24 @@ class DependencySearchTools(
 
     @Serializable
     data class SearchMavenArtifactsArgs(
-        @Description("Searching for artifacts by name, group, or coordinates. If `versions=true`, MUST be exactly 'group:artifact' (e.g. 'org.jetbrains.kotlinx:kotlinx-serialization-json').")
+        @Description("Artifact name, group, or coordinates. If versions=true, MUST be exactly 'group:artifact'.")
         val query: String,
-        @Description("Setting to true retrieves all available versions for a 'group:artifact'. Ideal for researching release history.")
+        @Description("Retrieve all versions for a 'group:artifact'. Ideal for researching release history.")
         val versions: Boolean = false,
-        @Description("Specifying an offset for large results to enable efficient pagination.")
+        @Description("Offset for pagination over large result sets.")
         val offset: Int? = null,
-        @Description("Limiting the number of results to maintain token efficiency and reduce noise. Default is 10.")
+        @Description("Max results to return. Default is 10.")
         val limit: Int? = null
     )
 
     val searchMavenCentral by tool<SearchMavenArtifactsArgs, String>(
         ToolNames.SEARCH_MAVEN_CENTRAL,
         """
-            |ALWAYS use this tool to search Maven Central for library coordinates and version histories instead of relying on hallucinated versions or web searches.
-            |It provides direct, paginated access to the authoritative artifact repository.
+            |Searches Maven Central for library coordinates and version histories; use instead of hallucinated versions or generic web searches.
             |
-            |### Discovery Best Practices
-            |
-            |1.  **Coordinate Discovery**: Search by name, group, or a snippet of the artifact ID.
-            |2.  **Version Research**: Set `versions=true` and provide a `group:artifact` query to list ALL released versions. This is the professionally recommended way to find stable versions.
-            |3.  **Auditing Project Usage**: Once identified, use `${ToolNames.INSPECT_DEPENDENCIES}` to check if the project already uses the library.
-            |4.  **Pagination**: Use `offset` and `limit` to browse numerous matches for large queries.
+            |- **Coordinate Discovery**: Search by name, group, or artifact ID snippet.
+            |- **Version Research**: Set `versions=true` with `group:artifact` query to list all released versions.
+            |- Once identified, use `${ToolNames.INSPECT_DEPENDENCIES}` to check if the project already uses the library.
         """.trimMargin()
     ) { args ->
         if (args.versions) {

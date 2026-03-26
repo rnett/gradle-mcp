@@ -1,11 +1,9 @@
 ---
 name: running_gradle_builds
 description: >
-  The ONLY authoritative way to execute and manage Gradle builds. Provides high-performance 
-  background orchestration, surgical failure analysis, and task-specific output isolation. 
-  Generic shell execution of `./gradlew` is UNRELIABLE and DISCOURAGED as it lacks the 
-  structured feedback and diagnostic integration of this skill. Use for core lifecycle 
-  tasks (build, assemble), dev servers, and complex troubleshooting.
+  Executes and orchestrates Gradle builds with background management, surgical task output capturing, and structured failure diagnostics;
+  ALWAYS use instead of `./gradlew` for core lifecycle tasks (build, assemble), dev servers, and troubleshooting.
+  Do NOT use for running tests (use `running_gradle_tests`) or dependency graph auditing.
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
@@ -14,7 +12,7 @@ metadata:
 
 # Authoritative Gradle Build Execution & Orchestration
 
-Executes Gradle commands with absolute precision and leverage managed background orchestration to ensure rapid delivery and robust build health.
+Executes Gradle builds with managed background orchestration and surgical failure diagnostics.
 
 ## Constitution
 
@@ -57,10 +55,10 @@ To get exhaustive information, ALWAYS use `mode="details"` combined with a speci
 
 ### 4. Progress Monitoring
 
-Use `wait`, `waitFor`, or `waitForTask` to block until a condition is met in a background build.
+Use `timeout`, `waitFor`, or `waitForTask` to block until a condition is met in a background build.
 
-- **Example**: `inspect_build(buildId="ID", wait=60, waitFor="Started Application")`
-- **Wait for completion**: If `wait` is provided but `waitFor` and `waitForTask` are omitted, the tool will wait for the build to finish.
+- **Example**: `inspect_build(buildId="ID", timeout=60, waitFor="Started Application")`
+- **Wait for completion**: If `timeout` is set without a wait condition (`waitFor`/`waitForTask`), the tool waits for the build to finish.
 
 ### 5. Monitoring Test Progress
 
@@ -71,14 +69,11 @@ While a build is running, the progress notification (and the `inspect_build` sum
 ## Directives
 
 - **ALWAYS use foreground for authoritative builds**: If you intend to wait for a result, ALWAYS use foreground execution. It provides superior progressive disclosure and simpler control flow than starting a background build only to
-  immediately call `inspect_build(wait=...)`.
+  immediately call `inspect_build(timeout=...)`.
 - **Background ONLY for persistent tasks**: Use `background: true` ONLY for tasks that must remain active (e.g., `bootRun`, `continuous` builds) or when you explicitly intend to perform independent research while the build proceeds.
 - **Monitor with `inspect_build`**: Use `inspect_build` to check the status of background builds or to perform deep-dives into any historical build started by the server.
-- **Use `envSource: SHELL` if environment variables are missing**: If Gradle fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
-  fully loaded. Set `invocationArguments: { envSource: "SHELL" }` to force a new shell process to query the environment.
 - **Provide absolute `projectRoot`**: Provide `projectRoot` as an **absolute file system path** to all Gradle MCP tools. Relative paths are not supported.
 - **Manage resources via dashboard**: Frequently call `inspect_build` without arguments to view the build dashboard and ensure no orphaned background builds are consuming system resources.
-- **Resolve `{baseDir}` manually**: If your environment does not automatically resolve the `{baseDir}` placeholder in reference links, treat it as the absolute path to the directory containing this `SKILL.md` file.
 
 ## Authoritative Task Path Syntax
 
@@ -118,7 +113,7 @@ Providing a task path **with a leading colon** (e.g., `:test`, `:app:test`) targ
 ### Orchestrating Background Jobs
 
 1. Start the build with `background: true` to receive a `BuildId`.
-2. Use `inspect_build(buildId=ID, wait=..., waitFor=...)` to block until a specific state or log pattern is reached.
+2. Use `inspect_build(buildId=ID, timeout=..., waitFor=...)` to block until a specific state or log pattern is reached.
 3. Call `inspect_build()` (no arguments) to manage active jobs in the dashboard.
 4. Stop the job using `gradle(stopBuildId=ID)` once its utility is complete.
 
@@ -165,7 +160,7 @@ Providing a task path **with a leading colon** (e.g., `:test`, `:app:test`) targ
 // 2. Wait for the 'Started Application' log pattern
 {
   "buildId": "build_123",
-  "wait": 60,
+  "timeout": 60,
   "waitFor": "Started Application"
 }
 // Reasoning: Using background orchestration to allow the server to remain active while waiting for a specific readiness signal.
@@ -175,8 +170,9 @@ Providing a task path **with a leading colon** (e.g., `:test`, `:app:test`) targ
 
 - **Build Not Found**: If a `BuildId` is not recognized, it may have expired from the recent history cache. Check the dashboard (`inspect_build()`) for valid active and historical IDs.
 - **Task Output Not Captured**: Ensure the path provided to `captureTaskOutput` matches exactly one of the tasks in the `commandLine`.
+- **Missing environment variables**: Set `invocationArguments: { envSource: "SHELL" }` if Gradle cannot find expected env vars (e.g., `JAVA_HOME`).
 
 ## Resources
 
-- [Background Monitoring]({baseDir}/references/background_monitoring.md)
-- [Failure Analysis]({baseDir}/references/failure_analysis.md)
+- [Background Monitoring](./references/background_monitoring.md)
+- [Failure Analysis](./references/failure_analysis.md)

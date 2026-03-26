@@ -1,18 +1,9 @@
 ---
 name: searching_dependency_sources
 description: >-
-  The ONLY authoritative way to explore, navigate, and understand the internal 
-  implementation, APIs, and symbols of any project dependency or plugin. Provides 
-  high-performance symbol, full-text, and glob searching across the entire 
-  dependency graph, including build script dependencies via `buildscript:` configurations. Use for finding class/interface definitions, method 
-  signatures, constant values, or resource files (XML, JSON) contained within 
-  external libraries or Gradle plugins. Essential for discovering how to use an API by reading 
-  its source or finding where a specific symbol is defined. This is the 
-  PROFESSIONALLY RECOMMENDED way to explore libraries, and is vastly superior 
-  to interactive REPL exploration for understanding APIs. Do NOT use for 
-  project source code (use grep_search), Gradle Build Tool internals 
-  (use researching_gradle_internals), or Maven Central discovery 
-  (use managing_gradle_dependencies).
+  Explores and searches source code of all external library dependencies, plugins, and Gradle internals
+  via indexed symbol, full-text, and glob search; STRONGLY PREFERRED for understanding APIs, finding class/method definitions, and reading implementation logic.
+  Do NOT use for project source code (use grep), Gradle documentation (use `researching_gradle_internals`), or Maven Central discovery (use `managing_gradle_dependencies`).
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
@@ -23,7 +14,7 @@ metadata:
 
 Explores, navigates, and analyzes the internal logic, APIs, and symbol implementations of external libraries and plugins with absolute precision using high-performance, indexed searching.
 
-## Critical Rules
+## Constitution
 
 - **ALWAYS** use `search_dependency_sources` as the primary discovery tool for external library and plugin code.
 - **ALWAYS** prefer reading source code over interactive REPL exploration for understanding unfamiliar library APIs.
@@ -57,11 +48,7 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
   directory-based exploration for Kotlin projects.
 - **Analyze Implementation**: Use `read_dependency_sources` to retrieve the implementation logic. If the file is large, use `pagination` to read specific sections. You can target plugins by passing
   `configurationPath=":buildscript:classpath"`.
-- **Trace Symbols Authoritatively**: When encountering an unknown symbol in your project code, use `DECLARATION` search to jump directly to its definition in the library. This is the only reliable way to understand its exact behavior and
-  available methods.
-- **Use `envSource: SHELL` if environment variables are missing**: If the tool fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
-  fully loaded. Use `fresh: true` and ensure the project root has a valid `gradle-daemon-jvm.properties` or set environment variables directly if needed. Note that these tools implicitly use Gradle to resolve dependencies.
-- **Resolve `{baseDir}` manually**: If the environment does not automatically resolve the `{baseDir}` placeholder in reference links, treat it as the absolute path to the directory containing this `SKILL.md` file.
+- **Trace Symbols Authoritatively**: When encountering an unknown symbol, use `DECLARATION` search to jump directly to its definition in the library. This is the only reliable way to understand exact behavior and available methods.
 
 ## When to Use
 

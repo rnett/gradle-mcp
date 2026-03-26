@@ -6,26 +6,12 @@ Tools for querying Gradle dependencies and checking for updates.
 
 ## inspect_dependencies
 
-ALWAYS use this tool to inspect project dependencies, plugins (via `buildscript:` configurations), and check for updates instead of manually parsing build files.
-Manual parsing is HIGHLY UNRELIABLE as it misses transitive dependencies, version resolution, and dynamic version updates.
-This tool provides the ONLY authoritative, searchable view of the project's exact resolved dependency graph.
+Inspects the project's resolved dependency graph, checks for updates, and audits plugins; use instead of manually parsing build files which misses transitive deps and dynamic versions.
 
-### Dependency Intelligence Features
-
-1.  **Auditing the Graph**: Get a searchable, paginated view of direct and transitive dependencies.
-2.  **Checking Updates**: Use `checkUpdates=true` (default) to detect newer versions in all repositories.
-3.  **Update Summaries**: Use `updatesOnly=true` to return only a summary of dependencies that have available updates.
-4.  **Plugin Auditing**: Use `configuration="buildscript:classpath"` to audit build script dependencies (plugins).
-
-### Targeted Auditing
-Use the `dependency` parameter to target a single library (e.g., `dependency="org.mongodb:mongodb-driver-sync"`). This is significantly faster as it avoids resolving the entire project graph.
-**Note:** When a dependency filter is applied, update checks are skipped for non-matching transitive dependencies to improve performance. These will be marked with `[UPDATE CHECK SKIPPED]` in the output.
-
-### Discovery Best Practices
-- **Searching Maven Central**: Use `search_maven_central` to find coordinates or version histories.
-- **Dependency Insight**: Use `gradle` for built-in Gradle tasks like `dependencyInsight`.
-- **Stability Filtering**: Use `stableOnly=true` to ignore pre-release versions (alpha, beta, rc) in update checks.
-- **Precision Slicing**: Use `versionFilter` (regex) for surgical control over considered update versions.
+- **Update Check**: `checkUpdates=true` (default) detects newer versions; use `updatesOnly=true` for a summary of available updates.
+- **Plugin Auditing**: Use `configuration="buildscript:classpath"` to audit plugins.
+- **Targeted**: Use `dependency="org:artifact"` to target a single library — significantly faster.
+- Use `search_maven_central` to find GAV coordinates; `gradle` for `dependencyInsight`.
 
 <details>
 
@@ -37,7 +23,7 @@ Use the `dependency` parameter to target a single library (e.g., `dependency="or
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "The file system path of the Gradle project's root directory (containing gradlew script and settings.gradle). Providing this ensures the tool executes in the correct project context and avoids ambiguities in multi-root or environment-dependent workspaces. If omitted, the tool will attempt to auto-detect the root from the current MCP roots or the GRADLE_MCP_PROJECT_ROOT environment variable. **It MUST be an absolute path.**"
+      "description": "Absolute path to Gradle project root. Auto-detected from MCP roots or GRADLE_MCP_PROJECT_ROOT when present, must be specified otherwise (usually)."
     },
     "projectPath": {
       "type": "string",
@@ -67,7 +53,7 @@ Use the `dependency` parameter to target a single library (e.g., `dependency="or
         "string",
         "null"
       ],
-      "description": "Authoritatively targeting a single dependency by its coordinates (e.g., 'org.jetbrains.kotlinx:kotlinx-coroutines-core'). Supports 'group:name:version:variant', 'group:name:version', 'group:name', or just 'group'. Targets ONLY the specific library, NOT its transitive dependencies."
+      "description": "Single dependency filter by GAV (e.g., 'group:name'). Excludes transitive dependencies."
     },
     "checkUpdates": {
       "type": "boolean",
@@ -90,7 +76,7 @@ Use the `dependency` parameter to target a single library (e.g., `dependency="or
         "string",
         "null"
       ],
-      "description": "Applying a regex pattern for surgical control over considered update versions. This is a regex search (e.g., use ^1\\. to match versions starting with 1.)."
+      "description": "Regex filter for considered update versions (e.g., '^1\\.' to match versions starting with 1)."
     },
     "pagination": {
       "type": "object",
@@ -107,7 +93,7 @@ Use the `dependency` parameter to target a single library (e.g., `dependency="or
           "maximum": 2147483647
         }
       },
-      "description": "Pagination parameters. Offset is the zero-based starting index (defaults to 0). Limit is the maximum number of items/lines to return."
+      "description": "Pagination. offset = zero-based start index (default 0); limit = max items/lines to return."
     }
   },
   "required": [],

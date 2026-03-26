@@ -12,7 +12,7 @@ import kotlinx.serialization.Serializable
  * the maximum number of items returned in a single call.
  */
 @Serializable
-@Description("Pagination parameters. Offset is the zero-based starting index (defaults to 0). Limit is the maximum number of items/lines to return.")
+@Description("Pagination. offset = zero-based start index (default 0); limit = max items/lines to return.")
 data class PaginationInput(
     val offset: Int = 0,
     val limit: Int = 20

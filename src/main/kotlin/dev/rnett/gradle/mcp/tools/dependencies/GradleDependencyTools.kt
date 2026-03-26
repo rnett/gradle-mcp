@@ -33,7 +33,7 @@ class GradleDependencyTools(
         val configuration: String? = null,
         @Description("Filtering the report by a specific source set (e.g., 'test').")
         val sourceSet: String? = null,
-        @Description("Authoritatively targeting a single dependency by its coordinates (e.g., 'org.jetbrains.kotlinx:kotlinx-coroutines-core'). Supports 'group:name:version:variant', 'group:name:version', 'group:name', or just 'group'. Targets ONLY the specific library, NOT its transitive dependencies.")
+        @Description("Single dependency filter by GAV (e.g., 'group:name'). Excludes transitive dependencies.")
         val dependency: String? = null,
         @Description("Checking project repositories for newer versions of all dependencies authoritatively.")
         val checkUpdates: Boolean = true,
@@ -43,7 +43,7 @@ class GradleDependencyTools(
         val updatesOnly: Boolean = false,
         @Description("Ignoring pre-release versions (alpha, beta, rc, etc.) when checking for updates.")
         val stableOnly: Boolean = false,
-        @Description("Applying a regex pattern for surgical control over considered update versions. This is a regex search (e.g., use ^1\\. to match versions starting with 1.).")
+        @Description("Regex filter for considered update versions (e.g., '^1\\.' to match versions starting with 1).")
         val versionFilter: String? = null,
         val pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS
     )
@@ -51,26 +51,12 @@ class GradleDependencyTools(
     val inspectDependencies by tool<InspectDependenciesArgs, String>(
         ToolNames.INSPECT_DEPENDENCIES,
         """
-            |ALWAYS use this tool to inspect project dependencies, plugins (via `buildscript:` configurations), and check for updates instead of manually parsing build files.
-            |Manual parsing is HIGHLY UNRELIABLE as it misses transitive dependencies, version resolution, and dynamic version updates.
-            |This tool provides the ONLY authoritative, searchable view of the project's exact resolved dependency graph.
+            |Inspects the project's resolved dependency graph, checks for updates, and audits plugins; use instead of manually parsing build files which misses transitive deps and dynamic versions.
             |
-            |### Dependency Intelligence Features
-            |
-            |1.  **Auditing the Graph**: Get a searchable, paginated view of direct and transitive dependencies.
-            |2.  **Checking Updates**: Use `checkUpdates=true` (default) to detect newer versions in all repositories.
-            |3.  **Update Summaries**: Use `updatesOnly=true` to return only a summary of dependencies that have available updates.
-            |4.  **Plugin Auditing**: Use `configuration="buildscript:classpath"` to audit build script dependencies (plugins).
-            |
-            |### Targeted Auditing
-            |Use the `dependency` parameter to target a single library (e.g., `dependency="org.mongodb:mongodb-driver-sync"`). This is significantly faster as it avoids resolving the entire project graph.
-            |**Note:** When a dependency filter is applied, update checks are skipped for non-matching transitive dependencies to improve performance. These will be marked with `[UPDATE CHECK SKIPPED]` in the output.
-            |
-            |### Discovery Best Practices
-            |- **Searching Maven Central**: Use `${ToolNames.SEARCH_MAVEN_CENTRAL}` to find coordinates or version histories.
-            |- **Dependency Insight**: Use `${ToolNames.GRADLE}` for built-in Gradle tasks like `dependencyInsight`.
-            |- **Stability Filtering**: Use `stableOnly=true` to ignore pre-release versions (alpha, beta, rc) in update checks.
-            |- **Precision Slicing**: Use `versionFilter` (regex) for surgical control over considered update versions.
+            |- **Update Check**: `checkUpdates=true` (default) detects newer versions; use `updatesOnly=true` for a summary of available updates.
+            |- **Plugin Auditing**: Use `configuration="buildscript:classpath"` to audit plugins.
+            |- **Targeted**: Use `dependency="org:artifact"` to target a single library — significantly faster.
+            |- Use `${ToolNames.SEARCH_MAVEN_CENTRAL}` to find GAV coordinates; `${ToolNames.GRADLE}` for `dependencyInsight`.
         """.trimMargin()
     ) {
         val root = with(server) { it.projectRoot.resolveRoot() }

@@ -1,10 +1,4 @@
-# Capability: skill-and-tool-descriptions
-
-## Purpose
-
-Establishes structural and terminology standards for MCP skill and tool descriptions, ensuring consistent, authoritative, and discoverable interfaces for AI agents.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Authoritative Skill Descriptions
 

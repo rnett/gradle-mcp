@@ -1,13 +1,9 @@
 ---
 name: introspecting_gradle_projects
 description: >
-  The ONLY authoritative way to uncover the full structure of any Gradle project. 
-  Provides surgical visibility into multi-project hierarchies, task-specific help, 
-  and detailed property reports. Generic shell tools like `ls`, `grep`, or 
-  manual build file parsing are UNRELIABLE and DISCOURAGED as they miss 
-  dynamic configuration, plugin-contributed tasks, and resolved properties. 
-  Use it for mapping modules, identifying runnable tasks via '--help', 
-  and deep-dive property analysis.
+  Uncovers Gradle project structure, task hierarchies, and resolved property values using core Gradle diagnostic tools;
+  use for mapping modules, listing runnable tasks, and auditing build configuration.
+  Do NOT use for running builds/tests or source code exploration.
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
@@ -16,7 +12,7 @@ metadata:
 
 # Deep Project Structure & Environment Introspection
 
-Uncovers project modules, discovers runnable tasks, and gain total visibility into your build configuration using core Gradle diagnostic tools and authoritative dependency auditing.
+Uncovers project modules, discovers runnable tasks, and gains total visibility into build configuration using core Gradle diagnostic tools and authoritative dependency auditing.
 
 ## Constitution
 
@@ -34,10 +30,7 @@ Uncovers project modules, discovers runnable tasks, and gain total visibility in
 - **Query task metadata**: ALWAYS use `help --task <name>` to retrieve descriptions, types, and available command-line options for any task.
 - **Extract properties precisely**: ALWAYS use the `properties` task with the `--property` flag to isolate a single value and avoid massive console output.
 - **Audit dependencies**: Use `inspect_dependencies` for a searchable tree and update check. For low-level variant or transformation analysis, use the built-in diagnostic tasks.
-- **Use `envSource: SHELL` if environment variables are missing**: If Gradle fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
-  fully loaded. Set `invocationArguments: { envSource: "SHELL" }` to force a new shell process to query the environment.
-- **Refer to diagnostic guides**: For a complete list of introspection commands, see the [Diagnostic Tasks]({baseDir}/references/diagnostic_tasks.md) reference.
-- **Resolve `{baseDir}` manually**: If your environment does not automatically resolve the `{baseDir}` placeholder in reference links, treat it as the absolute path to the directory containing this `SKILL.md` file.
+- **Refer to diagnostic guides**: For a complete list of introspection commands, see the [Diagnostic Tasks](./references/diagnostic_tasks.md) reference.
 
 ## Authoritative Task Path Syntax
 
@@ -109,7 +102,10 @@ To inspect a **single specific project**, always use a leading colon.
 // Reasoning: Using dependencyInsight to isolate the resolution path for a specific artifact.
 ```
 
+## Troubleshooting
+
+- **Missing environment variables**: Set `invocationArguments: { envSource: "SHELL" }` if Gradle cannot find expected env vars (e.g., `JAVA_HOME`).
+
 ## Resources
 
-- [Diagnostic Tasks]({baseDir}/references/diagnostic_tasks.md)
-- [Test Review Skill](test_review)
+- [Diagnostic Tasks](./references/diagnostic_tasks.md)
