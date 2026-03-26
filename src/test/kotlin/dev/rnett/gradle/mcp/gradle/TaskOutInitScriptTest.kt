@@ -9,6 +9,7 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -136,6 +137,84 @@ class TaskOutInitScriptTest {
             assert(!result.taskOutputCapturingFailed)
             assert(result.consoleOutput.contains(":execTask OUT Hello from external process"))
             assert(result.getTaskOutput(":execTask") == "Hello from external process")
+        }
+    }
+
+    @Test
+    fun `task output is not duplicated with one included build`() = runTest(timeout = 3.minutes) {
+        testGradleProject {
+            buildScript(
+                """
+                tasks.register("printMessage") {
+                    doLast {
+                        println("Hello from root task")
+                    }
+                }
+                """.trimIndent()
+            )
+            includeBuild("included-lib") {
+                settings("rootProject.name = \"included-lib\"")
+                buildScript("")
+            }
+        }.use { project ->
+            val projectRoot = GradleProjectRoot(project.pathString())
+            val args = GradleInvocationArguments(
+                additionalArguments = listOf("printMessage"),
+                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
+            ).withInitScript("task-out")
+
+            val runningBuild = provider.runBuild(projectRoot = projectRoot, args = args)
+            val result = runningBuild.awaitFinished()
+
+            assert(result.outcome is BuildOutcome.Success)
+            assert(!result.taskOutputCapturingFailed)
+
+            val prefixedLines = result.consoleOutput.lines()
+                .filter { it.contains(":printMessage") && it.contains("Hello from root task") }
+            assert(prefixedLines.size == 1) {
+                "Expected exactly 1 prefixed output line but got ${prefixedLines.size}. Console output:\n${result.consoleOutput}"
+            }
+        }
+    }
+
+    @Test
+    fun `task output is not duplicated with two included builds`() = runTest(timeout = 3.minutes) {
+        testGradleProject {
+            buildScript(
+                """
+                tasks.register("printMessage") {
+                    doLast {
+                        println("Hello from root task")
+                    }
+                }
+                """.trimIndent()
+            )
+            includeBuild("included-lib-a") {
+                settings("rootProject.name = \"included-lib-a\"")
+                buildScript("")
+            }
+            includeBuild("included-lib-b") {
+                settings("rootProject.name = \"included-lib-b\"")
+                buildScript("")
+            }
+        }.use { project ->
+            val projectRoot = GradleProjectRoot(project.pathString())
+            val args = GradleInvocationArguments(
+                additionalArguments = listOf("printMessage"),
+                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
+            ).withInitScript("task-out")
+
+            val runningBuild = provider.runBuild(projectRoot = projectRoot, args = args)
+            val result = runningBuild.awaitFinished()
+
+            assert(result.outcome is BuildOutcome.Success)
+            assert(!result.taskOutputCapturingFailed)
+
+            val prefixedLines = result.consoleOutput.lines()
+                .filter { it.contains(":printMessage") && it.contains("Hello from root task") }
+            assert(prefixedLines.size == 1) {
+                "Expected exactly 1 prefixed output line but got ${prefixedLines.size}. Console output:\n${result.consoleOutput}"
+            }
         }
     }
 

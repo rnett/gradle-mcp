@@ -1,8 +1,7 @@
 Steps are in order, from next to furthest.
 
-- Fix https://github.com/rnett/gradle-mcp/issues/129
 - Polish skill and tool descriptions to minimize unnecessary context use
-- Full text search should prioritize declarations based on a cheap heuristic
+- Full text search should somewhat prioritize declarations based on a cheap heuristic
 - Single dependency download works for deps that aren't in your project
 - Better ways to search/read dependencies without configuring the whole project
 - Option to include project sources in source index/search

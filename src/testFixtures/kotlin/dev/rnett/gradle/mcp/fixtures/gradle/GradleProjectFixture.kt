@@ -76,11 +76,18 @@ class GradleProjectBuilder {
     private val subprojects = mutableListOf<SubprojectConfig>()
     private val files = mutableMapOf<String, String>()
     private var useKotlinDsl: Boolean = true
+    private val includedBuilds = mutableListOf<IncludedBuildConfig>()
 
     data class SubprojectConfig(
         val name: String,
         val buildScript: String? = null,
         val files: Map<String, String> = emptyMap()
+    )
+
+    data class IncludedBuildConfig(
+        val dir: String,
+        val settingsContent: String,
+        val buildScript: String? = null
     )
 
     fun computeHash(): String {
@@ -98,6 +105,12 @@ class GradleProjectBuilder {
             sp.files.toSortedMap().forEach { (k, v) ->
                 "subproject.file=$k:$v\n".update()
             }
+        }
+
+        includedBuilds.sortedBy { it.dir }.forEach { ib ->
+            "includedBuild=${ib.dir}\n".update()
+            "includedBuild.settings=${ib.settingsContent}\n".update()
+            "includedBuild.buildScript=${ib.buildScript ?: "null"}\n".update()
         }
 
         files.toSortedMap().forEach { (k, v) ->
@@ -150,6 +163,31 @@ class GradleProjectBuilder {
     }
 
     /**
+     * Adds an included build (composite build) under the given subdirectory.
+     * Appends `includeBuild("<dir>")` to the root settings file.
+     */
+    fun includeBuild(dir: String, builder: IncludedBuildBuilder.() -> Unit) {
+        val b = IncludedBuildBuilder(dir)
+        b.builder()
+        includedBuilds.add(b.build())
+    }
+
+    class IncludedBuildBuilder(private val dir: String) {
+        private var settingsContent: String = "rootProject.name = \"$dir\""
+        private var buildScript: String? = null
+
+        fun settings(content: String) {
+            settingsContent = content
+        }
+
+        fun buildScript(content: String) {
+            buildScript = content
+        }
+
+        fun build() = IncludedBuildConfig(dir, settingsContent, buildScript)
+    }
+
+    /**
      * Builds the project structure on disk.
      */
     fun build(projectDir: Path) {
@@ -177,7 +215,19 @@ class GradleProjectBuilder {
                 }
             }
         }
-        projectDir.resolve(settingsFile).writeText(settingsContent ?: defaultSettings)
+        val baseSettings = settingsContent ?: defaultSettings
+        val finalSettings = if (includedBuilds.isEmpty()) {
+            baseSettings
+        } else {
+            buildString {
+                append(baseSettings)
+                appendLine()
+                includedBuilds.forEach { ib ->
+                    appendLine("includeBuild(\"${ib.dir}\")")
+                }
+            }
+        }
+        projectDir.resolve(settingsFile).writeText(finalSettings)
 
         // Create root build script if provided
         if (buildScriptContent != null) {
@@ -216,6 +266,16 @@ class GradleProjectBuilder {
             val file = projectDir.resolve(path)
             Files.createDirectories(file.parent)
             file.writeText(content)
+        }
+
+        // Create included builds
+        includedBuilds.forEach { ib ->
+            val ibDir = projectDir.resolve(ib.dir)
+            Files.createDirectories(ibDir)
+            ibDir.resolve("settings.gradle.kts").writeText(ib.settingsContent)
+            if (ib.buildScript != null) {
+                ibDir.resolve("build.gradle.kts").writeText(ib.buildScript)
+            }
         }
     }
 
