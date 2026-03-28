@@ -19,6 +19,7 @@ sealed interface Build {
     val taskResults: Map<String, TaskResult>
     val taskOutputs: Map<String, String>
     val taskOutputCapturingFailed: Boolean
+    val activeOperations: List<String> get() = emptyList()
 
     val hasBuildFinished: Boolean get() = status is BuildOutcome
     val isRunning: Boolean get() = status is BuildStatus.Running

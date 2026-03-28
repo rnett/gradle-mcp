@@ -21,6 +21,33 @@ object OutputFormatter {
             }
         }
     }
+
+    fun listGroupedTests(tests: Collection<dev.rnett.gradle.mcp.gradle.build.TestResult>, limit: Int, indent: String = ""): String {
+        if (tests.isEmpty()) return ""
+        val grouped = tests.groupBy { it.suiteName }
+        return buildString {
+            var count = 0
+            val sortedSuites = grouped.keys.sortedWith(nullsFirst(naturalOrder()))
+            for (suite in sortedSuites) {
+                if (count >= limit) break
+                val suiteTests = grouped[suite]!!
+                append(indent)
+                append("- ")
+                appendLine(suite ?: "Unknown Suite")
+                for (test in suiteTests) {
+                    if (count >= limit) break
+                    append(indent)
+                    append("  - ")
+                    appendLine(test.testName)
+                    count++
+                }
+            }
+            if (tests.size > limit) {
+                append(indent)
+                appendLine("... ${tests.size - limit} more not shown.")
+            }
+        }
+    }
 }
 
 
@@ -38,10 +65,19 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
                 if (this@toOutputString is FinishedBuild) {
                     if (this@toOutputString.outcome is BuildOutcome.Success) "Success" else "Failure"
                 } else {
-                    "Running (still running, some information may be incomplete)"
+                    val failures = testResults.failed.size + (problems.count { it.definition.severity == ProblemSeverity.ERROR })
+                    if (failures > 0) {
+                        "Running (with $failures errors/test failures reported so far)"
+                    } else {
+                        "Running (still running, some information may be incomplete)"
+                    }
                 }
             }"
         )
+
+        if (activeOperations.isNotEmpty()) {
+            appendLine("Active Tasks: ${activeOperations.joinToString(", ")}")
+        }
 
         appendLine()
         val buildFailures = if (this@toOutputString is FinishedBuild) {
@@ -51,7 +87,15 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
         }
 
         if (buildFailures.isNotEmpty()) {
-            appendLine("Failures: ${buildFailures.size}")
+            appendLine("Recent Error Context:")
+            buildFailures.take(3).forEach { failure ->
+                appendLine("  Failure ${failure.id.id}: ${failure.message?.lines()?.firstOrNull() ?: "No message"}")
+                failure.description?.lines()?.take(5)?.forEach { appendLine("    $it") }
+                if ((failure.description?.lines()?.size ?: 0) > 5) appendLine("    ...")
+            }
+            appendLine()
+
+            appendLine("Failures Summary: ${buildFailures.size}")
             appendLine("  To see all build-level failures, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"summary\")`.")
             appendLine("  To see details for a specific failure, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"details\", failureId=\"ID\")`.")
             appendLine(OutputFormatter.listResults(buildFailures, 10) {
@@ -106,13 +150,9 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
                 appendLine("  In Progress: ${testResults.cancelled.size}")
             }
         }
-        appendLine(OutputFormatter.listResults(testResults.failed, 20, "  ") {
-            it.testName
-        })
+        append(OutputFormatter.listGroupedTests(testResults.failed, 20, "  "))
         if (this@toOutputString is FinishedBuild) {
-            appendLine(OutputFormatter.listResults(testResults.cancelled, 20, "  ") {
-                it.testName
-            })
+            append(OutputFormatter.listGroupedTests(testResults.cancelled, 20, "  "))
         }
 
         val consoleLines = consoleOutput.lines()

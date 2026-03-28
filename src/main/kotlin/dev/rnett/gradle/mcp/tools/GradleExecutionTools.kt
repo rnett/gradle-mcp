@@ -7,7 +7,9 @@ import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
 class GradleExecutionTools(
@@ -76,7 +78,21 @@ class GradleExecutionTools(
                 invocationArgs
             )
 
-            val finished = result.build.awaitFinished()
+            val finished = if (it.captureTaskOutput != null) {
+                withTimeoutOrNull(10.seconds) {
+                    result.build.awaitFinished()
+                } ?: run {
+                    progressReporter.report(
+                        0.0,
+                        1.0,
+                        "Build is taking a while to complete. Note that `captureTaskOutput` will only return results AFTER the build finishes. For long-running tasks like `run`, consider using `background=true` instead."
+                    )
+                    result.build.awaitFinished()
+                }
+            } else {
+                result.build.awaitFinished()
+            }
+
             val isSpecial = finished.args.isHelp || finished.args.isVersion
             if (finished.outcome !is BuildOutcome.Success && !isSpecial) {
                 isError = true
@@ -102,7 +118,19 @@ class GradleExecutionTools(
                             append(taskOut)
                         }
                     } else {
-                        append("Task output for ${it.captureTaskOutput} not found in console output. Build result:\n${finished.toOutputString()}")
+                        val executedTasks = finished.taskResults.keys + finished.taskOutputs.keys
+                        val status = if (finished.activeOperations.contains(it.captureTaskOutput)) "currently running"
+                        else if (executedTasks.contains(it.captureTaskOutput)) "executed but output not captured"
+                        else "not found in executed tasks"
+
+                        appendLine("Task output for ${it.captureTaskOutput} $status.")
+                        val captureTaskOutput = it.captureTaskOutput!!
+                        if (status == "currently running" || (status == "not found in executed tasks" && (it.commandLine?.contains(captureTaskOutput) == true || it.commandLine?.any { it.endsWith(captureTaskOutput) } == true))) {
+                            appendLine("If this is a long-running task like `run`, it will not appear in the finished task list as it never completes.")
+                        }
+                        appendLine()
+                        appendLine("Build result summary:")
+                        append(finished.toOutputString())
                     }
                 }
             }

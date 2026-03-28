@@ -115,14 +115,14 @@ class FinishedBuildTest {
     @Test
     fun `test results tracks counts correctly`() {
         val passed = setOf(
-            TestResult("test1", null, 100.milliseconds, null, TestOutcome.PASSED, emptyMap(), emptyList()),
-            TestResult("test2", null, 200.milliseconds, null, TestOutcome.PASSED, emptyMap(), emptyList())
+            TestResult("test1", null, null, 100.milliseconds, null, TestOutcome.PASSED, emptyMap(), emptyList()),
+            TestResult("test2", null, null, 200.milliseconds, null, TestOutcome.PASSED, emptyMap(), emptyList())
         )
         val skipped = setOf(
-            TestResult("test3", null, 0.milliseconds, null, TestOutcome.SKIPPED, emptyMap(), emptyList())
+            TestResult("test3", null, null, 0.milliseconds, null, TestOutcome.SKIPPED, emptyMap(), emptyList())
         )
         val failed = setOf(
-            TestResult("test4", "output", 150.milliseconds, emptyList(), TestOutcome.FAILED, emptyMap(), emptyList())
+            TestResult("test4", null, "output", 150.milliseconds, emptyList(), TestOutcome.FAILED, emptyMap(), emptyList())
         )
 
         val testResults = TestResults(
@@ -153,13 +153,13 @@ class FinishedBuildTest {
     @Test
     fun `test results all sequence contains all tests`() {
         val passed = setOf(
-            TestResult("test1", null, 100.milliseconds, null, TestOutcome.PASSED, emptyMap(), emptyList())
+            TestResult("test1", null, null, 100.milliseconds, null, TestOutcome.PASSED, emptyMap(), emptyList())
         )
         val skipped = setOf(
-            TestResult("test2", null, 0.milliseconds, null, TestOutcome.SKIPPED, emptyMap(), emptyList())
+            TestResult("test2", null, null, 0.milliseconds, null, TestOutcome.SKIPPED, emptyMap(), emptyList())
         )
         val failed = setOf(
-            TestResult("test3", "output", 150.milliseconds, emptyList(), TestOutcome.FAILED, emptyMap(), emptyList())
+            TestResult("test3", null, "output", 150.milliseconds, emptyList(), TestOutcome.FAILED, emptyMap(), emptyList())
         )
 
         val testResults = TestResults(
@@ -241,6 +241,7 @@ class FinishedBuildTest {
 
         val testResult = TestResult(
             testName = "failingTest",
+            suiteName = null,
             consoleOutput = null,
             executionDuration = 100.milliseconds,
             failures = listOf(testFailure),
@@ -289,6 +290,7 @@ class FinishedBuildTest {
 
         val testResult = TestResult(
             testName = "failingTest",
+            suiteName = null,
             consoleOutput = null,
             executionDuration = 100.milliseconds,
             failures = listOf(testFailure),
@@ -338,6 +340,7 @@ class FinishedBuildTest {
 
         val testResult = TestResult(
             testName = "failingTest",
+            suiteName = null,
             consoleOutput = null,
             executionDuration = 100.milliseconds,
             failures = listOf(testFailure),
@@ -496,6 +499,7 @@ class FinishedBuildTest {
 
         val testResult = TestResult(
             testName = "metadataTest",
+            suiteName = null,
             consoleOutput = "some output",
             executionDuration = 50.milliseconds,
             failures = null,

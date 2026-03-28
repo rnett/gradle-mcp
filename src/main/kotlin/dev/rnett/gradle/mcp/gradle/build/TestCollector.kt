@@ -36,15 +36,20 @@ internal val TestOperationDescriptor.isAtomic: Boolean
     }
 
 @OptIn(ExperimentalAtomicApi::class)
-internal fun TestOperationDescriptor.baseTestName(): String {
+internal fun TestOperationDescriptor.getSuiteAndTestName(): Pair<String?, String> {
     if (this is JvmTestOperationDescriptor) {
         val cls = this.className
         val method = this.methodName
         if (cls != null && method != null) {
-            return "$cls.$method"
+            return cls to method
         }
     }
-    return displayName
+    val name = this.displayName
+    val lastDot = name.lastIndexOf('.')
+    if (lastDot != -1 && lastDot != 0 && lastDot != name.length - 1) {
+        return name.substring(0, lastDot) to name.substring(lastDot + 1)
+    }
+    return null to name
 }
 
 /**
@@ -76,14 +81,16 @@ class TestCollector(
     private val attachments = ConcurrentHashMap<TestOperationDescriptor, ConcurrentLinkedQueue<FileAttachment>>()
 
     // Unique name assignment
-    private val testNames = ConcurrentHashMap<TestOperationDescriptor, String>()
+    private val testNames = ConcurrentHashMap<TestOperationDescriptor, Pair<String?, String>>()
     private val baseNameCounts = ConcurrentHashMap<String, AtomicInt>()
 
-    private fun getOrAssignTestName(descriptor: TestOperationDescriptor): String {
+    private fun getOrAssignTestName(descriptor: TestOperationDescriptor): Pair<String?, String> {
         return testNames.computeIfAbsent(descriptor) {
-            val baseName = descriptor.baseTestName()
-            val count = baseNameCounts.computeIfAbsent(baseName) { AtomicInt(0) }.addAndFetch(1)
-            if (count > 1) "$baseName #$count" else baseName
+            val (suite, baseTestName) = descriptor.getSuiteAndTestName()
+            val fullName = if (suite != null) "$suite.$baseTestName" else baseTestName
+            val count = baseNameCounts.computeIfAbsent(fullName) { AtomicInt(0) }.addAndFetch(1)
+            val finalTestName = if (count > 1) "$baseTestName #$count" else baseTestName
+            suite to finalTestName
         }
     }
 
@@ -113,6 +120,7 @@ class TestCollector(
 
     data class Result(
         val testName: String,
+        val suiteName: String?,
         val output: String?,
         val duration: Duration,
         val failures: List<Failure>?,
@@ -145,9 +153,10 @@ class TestCollector(
             _inProgressCount.addAndFetch(-1)
         }
 
-        val testName = getOrAssignTestName(descriptor)
+        val (suiteName, testName) = getOrAssignTestName(descriptor)
         val testResult = Result(
             testName,
+            suiteName,
             null,
             (event.result.endTime - event.result.startTime).milliseconds,
             null,
@@ -208,8 +217,10 @@ class TestCollector(
 
     fun results(endTime: Long): Results {
         val inProgressResults = inProgress.filterKeys { it.isAtomic }.map { (descriptor, startTime) ->
+            val (suiteName, testName) = getOrAssignTestName(descriptor)
             Result(
-                getOrAssignTestName(descriptor),
+                testName,
+                suiteName,
                 output[descriptor]?.toString(),
                 (endTime - startTime).milliseconds,
                 null,

@@ -34,6 +34,7 @@ data class TestResults(
 
 data class TestResult(
     val testName: String,
+    val suiteName: String?,
     val consoleOutput: String?,
     val executionDuration: Duration,
     val failures: List<Failure>?,
@@ -41,6 +42,7 @@ data class TestResult(
     val metadata: Map<String, String>,
     val attachments: List<Attachment>
 ) {
+    val fullName: String get() = if (suiteName != null) "$suiteName.$testName" else testName
     data class Attachment(val path: Path, val mediaType: String?)
 }
 

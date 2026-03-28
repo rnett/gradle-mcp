@@ -125,7 +125,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         if (args.mode == LookupMode.details) {
             require(!args.testName.isNullOrEmpty()) { "testName is required for details mode" }
             val allTests = build.testResults.all.toList()
-            val exactMatches = allTests.filter { it.testName == args.testName }
+            val exactMatches = allTests.filter { it.fullName == args.testName }
 
             val test = if (exactMatches.isNotEmpty()) {
                 val targetIndex = args.testIndex ?: 0
@@ -134,18 +134,45 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                 }
                 if (exactMatches.size > 1) exactMatches[targetIndex] else exactMatches.single()
             } else {
-                val prefixMatches = allTests.filter { it.testName.startsWith(args.testName) }
+                val prefixMatches = allTests.filter { it.fullName.startsWith(args.testName) }
                 if (prefixMatches.isEmpty()) {
                     val isRunning = build is RunningBuild || build.isRunning
                     if (isRunning) {
                         return "Test not found. The build is still running, so it may not have been executed yet."
                     } else {
-                        error("Test not found: ${args.testName}")
+                        val allResults = build.testResults.all.toList()
+
+                        // Try suite-based fallback
+                        if (args.testName.contains('.')) {
+                            val potentialSuite = args.testName.substringBeforeLast('.')
+                            val suiteTests = allResults.filter { it.suiteName == potentialSuite }.map { it.fullName }.distinct()
+                            if (suiteTests.isNotEmpty()) {
+                                return buildString {
+                                    appendLine("Test not found: ${args.testName}")
+                                    appendLine("\nOther tests in suite '$potentialSuite':")
+                                    suiteTests.take(10).forEach { appendLine("  - $it") }
+                                    if (suiteTests.size > 10) appendLine("  - ... and ${suiteTests.size - 10} more")
+                                }
+                            }
+                        }
+
+                        val substringMatches = allResults.filter { it.fullName.contains(args.testName, ignoreCase = true) }
+                            .map { it.fullName }.distinct()
+                        if (substringMatches.isNotEmpty()) {
+                            return buildString {
+                                appendLine("Test not found: ${args.testName}")
+                                appendLine("\nTests containing '${args.testName}':")
+                                substringMatches.take(10).forEach { appendLine("  - $it") }
+                                if (substringMatches.size > 10) appendLine("  - ... and ${substringMatches.size - 10} more")
+                            }
+                        } else {
+                            error("Test not found: ${args.testName}")
+                        }
                     }
                 }
 
                 if (prefixMatches.size > 1) {
-                    val matches = prefixMatches.map { it.testName }.distinct()
+                    val matches = prefixMatches.map { it.fullName }.distinct()
                     if (matches.size > 1) {
                         val firstMatches = matches.take(10)
                         return buildString {
@@ -158,7 +185,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                         // All matches have same name, but multiple executions
                         val targetIndex = args.testIndex ?: 0
                         if (prefixMatches.size > 1 && targetIndex >= prefixMatches.size) {
-                            return "${prefixMatches.size} test executions for unique prefix match '${prefixMatches.first().testName}' found. Pass a valid `testIndex` (0 to ${prefixMatches.size - 1}) to select one."
+                            return "${prefixMatches.size} test executions for unique prefix match '${prefixMatches.first().fullName}' found. Pass a valid `testIndex` (0 to ${prefixMatches.size - 1}) to select one."
                         }
                         prefixMatches[targetIndex]
                     }
@@ -168,11 +195,11 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             }
 
             return buildString {
-                if (test.testName != args.testName) {
-                    appendLine("Note: Showing details for unique prefix match: ${test.testName}")
+                if (test.fullName != args.testName) {
+                    appendLine("Note: Showing details for unique prefix match: ${test.fullName}")
                     appendLine()
                 }
-                append(test.testName).append(" - ").appendLine(test.status)
+                append(test.fullName).append(" - ").appendLine(test.status)
                 appendLine("Duration: ${test.executionDuration}")
 
                 if (!test.failures.isNullOrEmpty()) {
@@ -232,7 +259,26 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             } else {
                 val prefixMatches = result.taskResults.values.filter { it.path.startsWith(args.taskPath) }
                 if (prefixMatches.isEmpty()) {
-                    throw IllegalArgumentException("Task not found in build ${result.id}: ${args.taskPath}")
+                    val isRunning = result.activeOperations.contains(args.taskPath)
+                    if (isRunning) {
+                        return "Task ${args.taskPath} is currently running. Detailed results and isolated output are only available AFTER the task completes."
+                    }
+
+                    val executedTasks = result.taskResults.keys + result.taskOutputs.keys
+                    if (executedTasks.isEmpty()) {
+                        return "No tasks found in build ${result.id}. This might be because the build failed during configuration."
+                    }
+
+                    return buildString {
+                        val taskPath = args.taskPath
+                        appendLine("Task $taskPath not found in executed tasks for build ${result.id}.")
+                        if (result.isRunning && (result.args.allAdditionalArguments.contains(taskPath) || result.args.allAdditionalArguments.any { arg -> arg.endsWith(taskPath) })) {
+                            appendLine("The task might still be waiting to execute or is a long-running task like `run` that never completes.")
+                        }
+                        appendLine()
+                        appendLine("Executed tasks:")
+                        appendLine(paginate(executedTasks.toList().sorted(), args.pagination, "tasks"))
+                    }
                 }
 
                 if (prefixMatches.size > 1) {
@@ -380,20 +426,13 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
     internal fun getConsoleOutput(build: Build, args: InspectBuildArgs): String {
         return if (args.consoleTail == true) {
             val totalLines = build.consoleOutputLines.size
-            val start = (totalLines - args.pagination.offset - args.pagination.limit).coerceAtLeast(0)
-            val end = (totalLines - args.pagination.offset).coerceAtLeast(0)
+            val offset = args.pagination.offset
+            val limit = args.pagination.limit
+            val start = (totalLines - offset - limit).coerceAtLeast(0)
+            val end = (totalLines - offset).coerceAtLeast(0)
             val pagedLines = build.consoleOutputLines.subList(start, end)
 
-            buildString {
-                appendLine("Lines $start to $end of $totalLines lines (tailing mode)")
-                appendLine()
-                append(pagedLines.joinToString("\n"))
-                if (start > 0) {
-                    appendLine("\n---")
-                    appendLine("To see more previous lines, use: `offset=${args.pagination.offset + args.pagination.limit}`, `limit=${args.pagination.limit}`.")
-                    appendLine("---")
-                }
-            }
+            paginate(pagedLines, args.pagination, "lines", total = totalLines, isAlreadyPaged = true, isTail = true)
         } else {
             paginateText(build.consoleOutputLines.joinToString("\n"), args.pagination)
         }
@@ -406,7 +445,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             |Inspects build information, monitors progress, and performs post-mortem diagnostics; ALWAYS use instead of raw console logs for test failures, task outputs, and build errors.
             |
             |### Lookup Modes
-            |- **`mode="summary"`** (default): Dashboard/overview; best for finding BuildIds, TestNames, FailureIds.
+            |- **`mode="summary"`** (default): Dashboard/overview; best for finding BuildIds, TestNames, FailureIds. When a build ID is provided, shows a detailed summary including recent error context and currently running tasks.
             |- **`mode="details"`**: Exhaustive analysis; requires `testName`, `taskPath`, `failureId`, or `problemId`.
             |
             |### How to Inspect Details
@@ -414,6 +453,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             |- Task outputs: `taskPath=":path:to:task"`, `mode="details"`.
             |- Build failures: `failureId="ID"`, `mode="details"` (use summary first to find IDs).
             |- Full console: `consoleTail=true` (tail) or `consoleTail=false` (head).
+            |- Pagination: Use `offset` and `limit` to navigate through long console logs or large task/test lists.
             |
             |### Wait & Progress Monitoring
             |Use `timeout` (seconds) with `waitFor` (regex), `waitForTask` (path), or `waitForFinished=true` to monitor active builds.

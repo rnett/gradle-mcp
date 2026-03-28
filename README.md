@@ -9,6 +9,8 @@ A Model Context Protocol (MCP) server for Gradle. It gives AI agents the tools t
 
 ##### Features
 
+**Source downloading and indexing tools will be moving to a dedicated MCP/cli soon.**
+
 * **Agent Skills**: Built-in workflows that guide AI agents through complex Gradle tasks.
 * **Project Mapping**: Easily explore multi-project structures, modules, tasks, and properties.
 * **Smart Task Execution**: Run builds in the background, monitor progress, and capture specific task outputs without the noise. Supports advanced environment control and shell environment sourcing.

@@ -115,9 +115,14 @@ ALWAYS scope with `dependency`, `projectPath`, `configurationPath`, or `sourceSe
 Returns the absolute path of the sources root. Dependency directories are symlinked; pass `--follow` to `rg` (e.g., `rg --follow <pattern> <path>`).
 
 ### Search Modes
-- `DECLARATION`: class/method/interface names or FQNs. Case-sensitive; supports exact names, globs, and regexes (e.g., `fqn:/.*\.internal.*/`); use `name:X` or `fqn:x.y.*` prefix syntax.
-- `FULL_TEXT` (default): Lucene query, case-insensitive. Escape special chars like `:` `=` `+`.
-- `GLOB`: file paths, case-insensitive (e.g., `**/AndroidManifest.xml`).
+- `DECLARATION`: Finds class, method, or interface definitions. All symbol searches are **case-sensitive**.
+  - **Fields**: Matches against `name` (simple name, e.g., `MyClass`) and `fqn` (fully qualified name, e.g., `com.example.MyClass`).
+  - **Unqualified Queries**: A query without a field prefix (e.g., `query: "MyClass"`) searches BOTH `name` and `fqn` fields.
+  - **Prefix Syntax**: Use `name:X` for simple names or `fqn:x.y.Z` for precision. Supports Lucene wildcards (`*`, `?`).
+  - **FQN Matching**: `fqn` is NOT tokenized (it matches the full string literal), so use `fqn:*.MyClass` for partial matches.
+  - **Regex**: Wrap query in `/` for a full regular expression on the `fqn` field (e.g., `query: "/.*\.internal\..*/"`).
+- `FULL_TEXT` (default): Exhaustive text search using a Lucene query. **Case-insensitive**. Escape special characters like `:`, `=`, `+`.
+- `GLOB`: Locates files by name or extension using Java glob syntax. **Case-insensitive** (e.g., `query: "**/AndroidManifest.xml"`).
 
 ### Examples
 - All deps: `{ query: "CoroutineScope", searchType: "DECLARATION" }`

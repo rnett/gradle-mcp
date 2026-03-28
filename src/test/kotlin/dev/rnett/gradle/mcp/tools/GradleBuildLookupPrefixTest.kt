@@ -33,11 +33,11 @@ class GradleBuildLookupPrefixTest {
         val id = BuildId(Uuid.random().toString())
         val testResults = TestResults(
             passed = setOf(
-                TestResult("com.example.TestA.testOne", "Output A1", 0.1.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList()),
-                TestResult("com.example.TestA.testTwo", "Output A2", 0.2.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList()),
-                TestResult("com.example.TestB.testUnique", "Output B Unique", 0.3.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList()),
-                TestResult("com.example.DuplicateName", "Output Dup 1", 0.4.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList()),
-                TestResult("com.example.DuplicateName", "Output Dup 2", 0.5.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList())
+                TestResult("testOne", "com.example.TestA", "Output A1", 0.1.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList()),
+                TestResult("testTwo", "com.example.TestA", "Output A2", 0.2.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList()),
+                TestResult("testUnique", "com.example.TestB", "Output B Unique", 0.3.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList()),
+                TestResult("DuplicateName", "com.example", "Output Dup 1", 0.4.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList()),
+                TestResult("DuplicateName", "com.example", "Output Dup 2", 0.5.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList())
             ),
             failed = emptySet(),
             skipped = emptySet()
@@ -160,19 +160,52 @@ class GradleBuildLookupPrefixTest {
     }
 
     @Test
+    fun `test test not found with suite-based fallback`() = runTest {
+        val build = createSyntheticBuild()
+
+        val args = GradleBuildLookupTools.InspectBuildArgs(
+            buildId = build.id,
+            mode = GradleBuildLookupTools.LookupMode.details,
+            testName = "com.example.TestA.nonExistent"
+        )
+
+        val output = tools.getTestsOutput(build, args)
+        assertContains(output, "Test not found: com.example.TestA.nonExistent")
+        assertContains(output, "Other tests in suite 'com.example.TestA':")
+        assertContains(output, "  - com.example.TestA.testOne")
+        assertContains(output, "  - com.example.TestA.testTwo")
+    }
+
+    @Test
+    fun `test test not found with substring matches`() = runTest {
+        val build = createSyntheticBuild()
+
+        val args = GradleBuildLookupTools.InspectBuildArgs(
+            buildId = build.id,
+            mode = GradleBuildLookupTools.LookupMode.details,
+            testName = "testOne"
+        )
+
+        val output = tools.getTestsOutput(build, args)
+        assertContains(output, "Test not found: testOne")
+        assertContains(output, "Tests containing 'testOne':")
+        assertContains(output, "  - com.example.TestA.testOne")
+    }
+
+    @Test
     fun `test test not found for finished build`() = runTest {
         val build = createSyntheticBuild()
 
         val args = GradleBuildLookupTools.InspectBuildArgs(
             buildId = build.id,
             mode = GradleBuildLookupTools.LookupMode.details,
-            testName = "com.example.NonExistent"
+            testName = "DefinitelyNotThere"
         )
 
         assertFailsWith<IllegalStateException> {
             tools.getTestsOutput(build, args)
         }.also {
-            assertContains(it.message ?: "", "Test not found: com.example.NonExistent")
+            assertContains(it.message ?: "", "Test not found: DefinitelyNotThere")
         }
     }
 

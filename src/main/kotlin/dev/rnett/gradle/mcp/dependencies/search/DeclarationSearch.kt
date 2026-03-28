@@ -138,9 +138,14 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
                 val searcher = IndexSearcher(reader)
                 createAnalyzer().use { analyzer ->
                     val q = try {
-                        val parser = MultiFieldQueryParser(arrayOf(Fields.NAME, Fields.FQN), analyzer)
-                        parser.allowLeadingWildcard = true
-                        parser.parse(query)
+                        if (query.startsWith("/") && query.endsWith("/") && query.length > 2) {
+                            val pattern = query.substring(1, query.length - 1)
+                            org.apache.lucene.search.RegexpQuery(Term(Fields.FQN, pattern))
+                        } else {
+                            val parser = MultiFieldQueryParser(arrayOf(Fields.NAME, Fields.FQN), analyzer)
+                            parser.allowLeadingWildcard = true
+                            parser.parse(query)
+                        }
                     } catch (e: Exception) {
                         val message = e.message ?: "Unknown error"
                         val error = LuceneUtils.formatSyntaxError(message)

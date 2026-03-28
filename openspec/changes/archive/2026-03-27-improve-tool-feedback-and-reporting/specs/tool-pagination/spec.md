@@ -1,19 +1,4 @@
-# Capability: tool-pagination
-
-## Purpose
-
-Defines the standardized pagination parameter model and LLM-optimized metadata format used across all MCP tools returning large result sets.
-
-## Requirements
-
-### Requirement: Standardized Pagination Parameters
-
-The system SHALL provide a standardized way to pass `offset` and `limit` parameters to tools that return potentially large result sets.
-
-#### Scenario: Pagination parameters in tool input
-
-- **WHEN** a tool is defined using the standard pagination input model
-- **THEN** the tool's JSON schema MUST include optional `offset` (default 0) and `limit` (default 20) fields
+## MODIFIED Requirements
 
 ### Requirement: LLM-Optimized Pagination Metadata
 

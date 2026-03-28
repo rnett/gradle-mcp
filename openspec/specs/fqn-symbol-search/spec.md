@@ -15,6 +15,17 @@ The system SHALL allow users to search for symbols by their fully qualified name
 - **WHEN** searching for "org.gradle.api.Project" using the SYMBOLS search type
 - **THEN** the system returns only the exact match for that class.
 
+#### Scenario: Field-level symbol search
+
+- **WHEN** a SYMBOLS search query includes a field prefix (e.g., `name:MyClass` or `fqn:com.example.*`)
+- **THEN** it SHALL only search that specific field.
+- **AND** `fqn` field matching SHALL be non-tokenized (matching the full literal path).
+
+#### Scenario: Regex search for FQNs
+
+- **WHEN** a SYMBOLS search query is wrapped in `/` (e.g., `/.*\.internal\..*/`)
+- **THEN** the system SHALL perform a full regular expression match on the `fqn` field.
+
 ### Requirement: Package Navigation and Search
 
 The system SHALL treat packages like directory structures, allowing users to "read" a package to see all symbols contained within it.

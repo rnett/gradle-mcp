@@ -69,12 +69,13 @@ fun <T> McpServerComponent.paginate(
     total: Int? = null,
     isAlreadyPaged: Boolean = false,
     hasMore: Boolean? = null,
+    isTail: Boolean = false,
     formatter: (T) -> String = { it.toString() }
 ): String {
     val offset = pagination.offset
     val limit = pagination.limit
 
-    McpToolHelper.logger.debug("Paginating {}: offset={}, limit={}, total={}, hasMore={}", itemName, offset, limit, total, hasMore)
+    McpToolHelper.logger.debug("Paginating {}: offset={}, limit={}, total={}, hasMore={}, isTail={}", itemName, offset, limit, total, hasMore, isTail)
 
     val paged = if (isAlreadyPaged) items else items.drop(offset).take(limit)
     val calculatedTotal = total ?: if (isAlreadyPaged) null else items.size
@@ -89,14 +90,24 @@ fun <T> McpServerComponent.paginate(
     }
 
     val actualHasMore = hasMore ?: (calculatedTotal != null && end < calculatedTotal)
-    val metadata = if (actualHasMore || offset > 0) {
-        val suffix = if (!actualHasMore) " (End of list)" else ""
+    val metadata = if (actualHasMore || offset > 0 || isTail) {
+        val range = if (isTail && calculatedTotal != null) {
+            val tailStart = (calculatedTotal - offset - paged.size).coerceAtLeast(0) + 1
+            val tailEnd = (calculatedTotal - offset).coerceAtLeast(0)
+            if (offset == 0) "last ${paged.size} $itemName"
+            else "$itemName $tailStart to $tailEnd (from end)"
+        } else if (isTail) {
+            "last ${paged.size} $itemName"
+        } else {
+            "$itemName ${offset + 1} to $end"
+        }
+        val suffix = if (!actualHasMore && !isTail) " (End of list)" else ""
         val totalSuffix = if (calculatedTotal != null) " of $calculatedTotal" else ""
         """
 
 ---
-Pagination: Showing $itemName ${offset + 1} to $end$totalSuffix$suffix.
-${if (actualHasMore) "To see more results, use: `offset=${end}`, `limit=$limit`.\n" else ""}---
+Pagination: Showing $range$totalSuffix$suffix.
+${if (actualHasMore || (isTail && offset + paged.size < (calculatedTotal ?: 0))) "To see more results, use: `offset=${offset + paged.size}`, `limit=$limit`.\n" else ""}---
 """.trimIndent()
     } else ""
 
@@ -109,22 +120,24 @@ ${if (actualHasMore) "To see more results, use: `offset=${end}`, `limit=$limit`.
  * @param text The full text to paginate.
  * @param pagination The [PaginationInput] defining offset and limit.
  * @param unit The [PaginationUnit] (lines or characters) to use for slicing.
+ * @param isTail If true, the metadata indicates that the text is the tail of the source.
  * @return A string containing the paginated text segment and LLM-optimized metadata.
  */
 fun McpServerComponent.paginateText(
     text: String,
     pagination: PaginationInput,
-    unit: PaginationUnit = PaginationUnit.LINES
+    unit: PaginationUnit = PaginationUnit.LINES,
+    isTail: Boolean = false
 ): String {
     val offset = pagination.offset
     val limit = pagination.limit
 
-    McpToolHelper.logger.debug("Paginating text by {}: offset={}, limit={}, length={}", unit, offset, limit, text.length)
+    McpToolHelper.logger.debug("Paginating text by {}: offset={}, limit={}, length={}, isTail={}", unit, offset, limit, text.length, isTail)
 
     return when (unit) {
         PaginationUnit.LINES -> {
             val lines = text.lines()
-            paginate(lines, pagination, "lines")
+            paginate(lines, pagination, "lines", isTail = isTail)
         }
 
         PaginationUnit.CHARACTERS -> {
@@ -133,12 +146,13 @@ fun McpServerComponent.paginateText(
             val paged = if (offset < total) text.substring(offset, endPos) else ""
             val end = (offset + paged.length).coerceAtMost(total)
 
-            val metadata = if (total > 0 && (end < total || offset > 0)) {
-                val suffix = if (end >= total) " (End of text)" else ""
+            val metadata = if (total > 0 && (end < total || offset > 0 || isTail)) {
+                val range = if (isTail) "last ${paged.length} characters" else "characters ${offset + 1} to $end"
+                val suffix = if (end >= total && !isTail) " (End of text)" else ""
                 """
 
 ---
-Pagination: Showing characters ${offset + 1} to $end of $total$suffix.
+Pagination: Showing $range of $total$suffix.
 To see more results, use: `offset=${end}`, `limit=$limit`.
 ---
 """.trimIndent()

@@ -98,6 +98,7 @@ class RunningBuild(
         }
     val publishedScansInternal = ConcurrentLinkedQueue<GradleBuildScan>()
     override val publishedScans: List<GradleBuildScan> get() = publishedScansInternal.toList()
+    override val activeOperations: List<String> get() = progressTracker.activeOperations
     override val taskResults = ConcurrentHashMap<String, TaskResult>()
     val taskOutputsAccumulator = ConcurrentHashMap<String, StringBuffer>()
     override val taskOutputs: Map<String, String> get() = taskOutputsAccumulator.mapValues { it.value.toString() }
@@ -244,6 +245,7 @@ private class RefFinishedBuild(val runningBuild: RunningBuild, override val fini
 private fun TestCollector.Result.toModel(indexer: FailureIndexer, status: TestOutcome): TestResult {
     return TestResult(
         testName,
+        suiteName,
         output,
         duration,
         failures?.map { indexer.withIndex(it.toContent()) },

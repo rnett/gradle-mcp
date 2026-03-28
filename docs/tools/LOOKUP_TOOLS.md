@@ -9,7 +9,7 @@ Tools for looking up detailed information about past Gradle builds ran by this M
 Inspects build information, monitors progress, and performs post-mortem diagnostics; ALWAYS use instead of raw console logs for test failures, task outputs, and build errors.
 
 ### Lookup Modes
-- **`mode="summary"`** (default): Dashboard/overview; best for finding BuildIds, TestNames, FailureIds.
+- **`mode="summary"`** (default): Dashboard/overview; best for finding BuildIds, TestNames, FailureIds. When a build ID is provided, shows a detailed summary including recent error context and currently running tasks.
 - **`mode="details"`**: Exhaustive analysis; requires `testName`, `taskPath`, `failureId`, or `problemId`.
 
 ### How to Inspect Details
@@ -17,6 +17,7 @@ Inspects build information, monitors progress, and performs post-mortem diagnost
 - Task outputs: `taskPath=":path:to:task"`, `mode="details"`.
 - Build failures: `failureId="ID"`, `mode="details"` (use summary first to find IDs).
 - Full console: `consoleTail=true` (tail) or `consoleTail=false` (head).
+- Pagination: Use `offset` and `limit` to navigate through long console logs or large task/test lists.
 
 ### Wait & Progress Monitoring
 Use `timeout` (seconds) with `waitFor` (regex), `waitForTask` (path), or `waitForFinished=true` to monitor active builds.

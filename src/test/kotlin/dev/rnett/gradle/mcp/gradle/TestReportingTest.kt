@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.gradle
 
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.fixtures.gradle.testJavaProject
+import dev.rnett.gradle.mcp.tools.toOutputString
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -137,6 +138,55 @@ class TestReportingTest {
             val hasCombined = messages.any { it.contains(Regex("pass: 1.*fail: 1")) }
 
             assertTrue(hasPass || hasFail || hasCombined, "Should have seen test progress in messages: $messages")
+        }
+    }
+
+    @Test
+    fun `verifies test summary grouping in output`() = runTest(timeout = 180.seconds) {
+        val provider = createTestProvider()
+        testJavaProject {
+            file(
+                "src/test/java/com/example/SuiteA.java", """
+                package com.example;
+                import org.junit.jupiter.api.Test;
+                import static org.junit.jupiter.api.Assertions.*;
+                public class SuiteA {
+                    @Test void testFail1() { fail("fail 1"); }
+                    @Test void testFail2() { fail("fail 2"); }
+                }
+            """.trimIndent()
+            )
+            file(
+                "src/test/java/com/example/SuiteB.java", """
+                package com.example;
+                import org.junit.jupiter.api.Test;
+                import static org.junit.jupiter.api.Assertions.*;
+                public class SuiteB {
+                    @Test void testFail3() { fail("fail 3"); }
+                }
+            """.trimIndent()
+            )
+        }.use { project ->
+            val projectRoot = GradleProjectRoot(project.pathString())
+            val runningBuild = provider.runTests(
+                projectRoot = projectRoot,
+                testPatterns = mapOf(
+                    ":test" to setOf(
+                        "com.example.SuiteA.testFail1",
+                        "com.example.SuiteA.testFail2",
+                        "com.example.SuiteB.testFail3"
+                    )
+                ),
+                args = GradleInvocationArguments.DEFAULT
+            )
+            val result = runningBuild.awaitFinished()
+            val output = result.toOutputString()
+
+            assertTrue(output.contains("- com.example.SuiteA"), "Should contain SuiteA group. Output:\n$output")
+            assertTrue(output.contains("    - testFail1"), "Should contain testFail1 under SuiteA. Output:\n$output")
+            assertTrue(output.contains("    - testFail2"), "Should contain testFail2 under SuiteA. Output:\n$output")
+            assertTrue(output.contains("- com.example.SuiteB"), "Should contain SuiteB group. Output:\n$output")
+            assertTrue(output.contains("    - testFail3"), "Should contain testFail3 under SuiteB. Output:\n$output")
         }
     }
 }

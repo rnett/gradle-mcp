@@ -131,4 +131,57 @@ class DeclarationSearchIntegrationTest : SearchIntegrationTestBase() {
 
         assertTrue(result.error != null, "Expected error for invalid regex")
     }
+
+    @Test
+    fun `test field prefixes and unqualified search`() = runTest {
+        val zip = createSourceZip(
+            "field-test-sources", mapOf(
+                "com/example/FieldTest.kt" to """
+                package com.example
+                
+                class FieldTest {
+                    fun testMethod() {}
+                }
+            """.trimIndent()
+            )
+        )
+
+        mockDependencyReport(
+            GradleDependency(
+                id = "com.example:field-test:1.0",
+                group = "com.example",
+                name = "field-test",
+                version = "1.0",
+                sourcesFile = zip
+            )
+        )
+
+        val sourcesDir = with(ProgressReporter.PRINTLN) {
+            sourcesService.resolveAndProcessAllSources(projectRoot, providerToIndex = searchProvider)
+        }
+
+        // Unqualified search should find by name
+        val resultsUnqualified = sourceIndexService.search(sourcesDir, searchProvider, "FieldTest").results
+        assertTrue(resultsUnqualified.any { it.relativePath.endsWith("FieldTest.kt") }, "Unqualified search failed to find class by name")
+
+        // name: prefix should work
+        val resultsName = sourceIndexService.search(sourcesDir, searchProvider, "name:FieldTest").results
+        assertTrue(resultsName.any { it.relativePath.endsWith("FieldTest.kt") }, "name: search failed")
+
+        // fqn: prefix should work with full FQN
+        val resultsFqn = sourceIndexService.search(sourcesDir, searchProvider, "fqn:com.example.FieldTest").results
+        assertTrue(resultsFqn.any { it.relativePath.endsWith("FieldTest.kt") }, "fqn: search failed with full FQN")
+
+        // fqn: prefix should work with wildcard
+        val resultsFqnWildcard = sourceIndexService.search(sourcesDir, searchProvider, "fqn:com.example.*").results
+        assertTrue(resultsFqnWildcard.any { it.relativePath.endsWith("FieldTest.kt") }, "fqn: search failed with wildcard")
+
+        // fqn: prefix should NOT find by simple name because it's a KeywordAnalyzer
+        val resultsFqnSimple = sourceIndexService.search(sourcesDir, searchProvider, "fqn:FieldTest").results
+        assertTrue(resultsFqnSimple.isEmpty(), "fqn: search should NOT have found results for simple name without wildcard")
+
+        // fqn: regex should work
+        val resultsRegex = sourceIndexService.search(sourcesDir, searchProvider, "fqn:/com\\.example\\..*Test/").results
+        assertTrue(resultsRegex.any { it.relativePath.endsWith("FieldTest.kt") }, "fqn: regex search failed")
+    }
 }
