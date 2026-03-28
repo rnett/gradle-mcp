@@ -12,7 +12,7 @@ metadata:
 
 # Authoritative Project Runtime & Source Interaction
 
-Probes project logic, tests utility functions, and interacts with the JVM runtime using a project-aware REPL.
+Probes project logic, tests utility functions, and interacts with the JVM runtime of your source sets with absolute precision using a project-aware REPL.
 
 ## Constitution
 
@@ -33,20 +33,9 @@ Probes project logic, tests utility functions, and interacts with the JVM runtim
 - **Pick up source changes**: The REPL uses a static snapshot of the classpath. If you change project code, you MUST `stop` and then `start` the session again to pick up the updated classes.
 - **Utilize the `responder`**: ALWAYS use `responder.render(value)` or specialized methods (`markdown`, `image`, `html`) to return rich content.
 - **Import necessary classes**: ALWAYS provide explicit imports for project-specific and library classes.
-- **Use `envSource: SHELL` if environment variables are missing**: Set `env: { envSource: "SHELL" }` when calling `start` if the REPL cannot find expected env vars (e.g., `JAVA_HOME`).
-
-## K2 Scripting & REPL Internals
-
-### Snippet Naming & Evaluation
-
-- **Naming Protocol**: When using `K2ReplCompiler`, ALWAYS name the `SourceCode` snippets using the `_<ID>` convention (e.g., `_1`, `_2`). This ensures the generated class name matches the name expected by the evaluator.
-- **Stack Trace Identification**: Identify K2 REPL script execution frames by looking for the `$$eval` method name in stack traces. Use this marker for cleaning and isolating script-level errors from internal evaluator infrastructure.
-- **`RuntimeException` Ambiguity**: Explicitly import or use the FQN for `java.lang.RuntimeException` in snippets to avoid ambiguity with `kotlin.RuntimeException` during FIR analysis.
-
-### Architectural Boundaries
-
-- **Workarounds**: The current experimental K2 REPL implementation does not support the standard `providedProperties` scripting API. Use a global singleton object in a shared classloader and `defaultImports` as a workaround.
-- **Abstraction Mandate**: ALWAYS abstract `K2ReplCompiler` and `K2ReplEvaluator` behind the generic `ReplCompiler` and `ReplEvaluator` interfaces from the Kotlin Scripting API.
+- **Use `envSource: SHELL` if environment variables are missing**: If the REPL fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
+  fully loaded. Set `env: { envSource: "SHELL" }` when calling `start` to force a new shell process to query the environment.
+- **Resolve `{baseDir}` manually**: If your environment does not automatically resolve the `{baseDir}` placeholder in reference links, treat it as the absolute path to the directory containing this `SKILL.md` file.
 
 ## When to Use
 

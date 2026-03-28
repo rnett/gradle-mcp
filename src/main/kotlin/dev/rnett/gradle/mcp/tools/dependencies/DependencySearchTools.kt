@@ -1,105 +1,56 @@
 package dev.rnett.gradle.mcp.tools.dependencies
 
-import dev.rnett.gradle.mcp.maven.MAVEN_CENTRAL_URL
-import dev.rnett.gradle.mcp.maven.MavenCentralService
-import dev.rnett.gradle.mcp.maven.MavenRepoService
+import dev.rnett.gradle.mcp.maven.DepsDevService
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.tools.ToolNames
+import dev.rnett.gradle.mcp.tools.paginate
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
 
 class DependencySearchTools(
-    private val mavenRepoService: MavenRepoService,
-    private val mavenCentralService: MavenCentralService
+    private val depsDevService: DepsDevService
 ) : McpServerComponent("Dependency Search Tools", "Tools for querying maven repositories for dependency information.") {
 
     @Serializable
-    data class SearchMavenArtifactsArgs(
-        @Description("Artifact name, group, or coordinates. If versions=true, MUST be exactly 'group:artifact'.")
-        val query: String,
-        @Description("Retrieve all versions for a 'group:artifact'. Ideal for researching release history.")
-        val versions: Boolean = false,
-        @Description("Offset for pagination over large result sets.")
-        val offset: Int? = null,
-        @Description("Max results to return. Default is 10.")
-        val limit: Int? = null
+    data class LookupMavenVersionsArgs(
+        @Description("Maven coordinates in 'group:artifact' format, e.g. 'org.jetbrains.kotlinx:kotlinx-coroutines-core'.")
+        val coordinates: String,
+        @Description("offset = zero-based start index (default 0); limit = max versions to return (default 5).")
+        val pagination: PaginationInput = PaginationInput(limit = 5)
     )
 
-    val searchMavenCentral by tool<SearchMavenArtifactsArgs, String>(
-        ToolNames.SEARCH_MAVEN_CENTRAL,
+    val lookupMavenVersions by tool<LookupMavenVersionsArgs, String>(
+        ToolNames.LOOKUP_MAVEN_VERSIONS,
         """
-            |Searches Maven Central for library coordinates and version histories; use instead of hallucinated versions or generic web searches.
-            |
-            |- **Coordinate Discovery**: Search by name, group, or artifact ID snippet.
-            |- **Version Research**: Set `versions=true` with `group:artifact` query to list all released versions.
-            |- Once identified, use `${ToolNames.INSPECT_DEPENDENCIES}` to check if the project already uses the library.
+            |Retrieves all released versions for a Maven `group:artifact` from deps.dev, sorted most-recent first with `yyyy-MM-dd` publish dates.
+            |Covers the full Maven package index including packages published via the new Central Portal (central.sonatype.com).
+            |Use to verify exact release history instead of hallucinated version numbers; then use `${ToolNames.INSPECT_DEPENDENCIES}` to check if the project already uses the library.
         """.trimMargin()
     ) { args ->
-        if (args.versions) {
-            val parts = args.query.split(":")
-            if (parts.size < 2) {
-                isError = true
-                return@tool "When versions=true, query must be in format 'group:artifact' (e.g., 'org.jetbrains.kotlinx:kotlinx-serialization-json')"
-            }
-            val group = parts[0]
-            val artifact = parts[1]
-            val offset = args.offset ?: 0
-            val limit = args.limit
-
-            val allVersions = try {
-                mavenRepoService.getVersions(MAVEN_CENTRAL_URL, group, artifact).reversed()
-            } catch (e: Exception) {
-                emptyList()
-            }
-
-            if (allVersions.isEmpty()) {
-                return@tool "No versions found for $group:$artifact"
-            }
-
-            val totalVersions = allVersions.size
-            val paginatedVersions = if (limit != null) {
-                allVersions.drop(offset).take(limit)
-            } else {
-                allVersions.drop(offset)
-            }
-
-            buildString {
-                appendLine("Versions for $group:$artifact (Total: $totalVersions):")
-                paginatedVersions.forEach { appendLine("- $it") }
-                if (limit != null && totalVersions > offset + limit) {
-                    appendLine("... and ${totalVersions - (offset + limit)} more versions")
-                }
-            }
-        } else {
-            val start = args.offset ?: 0
-            val limit = args.limit ?: 10
-
-            val response = mavenCentralService.searchCentral(args.query, start, limit)
-
-            if (response.docs.isEmpty()) {
-                return@tool "No artifacts found for '${args.query}'"
-            }
-
-            buildString {
-                appendLine("Found ${response.numFound} artifacts for '${args.query}':\n")
-                response.docs.forEach { doc ->
-                    val latestVersion = try {
-                        mavenRepoService.getVersions(MAVEN_CENTRAL_URL, doc.groupId, doc.artifactId).reversed().firstOrNull()
-                    } catch (e: Exception) {
-                        null
-                    }
-
-                    appendLine("- ${doc.groupId}:${doc.artifactId}")
-                    appendLine("  Latest Version: ${latestVersion ?: doc.latestVersion}")
-                    if (doc.classifier.isNotBlank()) {
-                        appendLine("  Classifier: ${doc.classifier}")
-                    }
-                    appendLine()
-                }
-                if (response.numFound > start + response.docs.size) {
-                    appendLine("... and ${response.numFound - (start + response.docs.size)} more results")
-                }
-            }
+        val parts = args.coordinates.split(":")
+        if (parts.size < 2) {
+            isError = true
+            return@tool "coordinates must be in 'group:artifact' format (e.g. 'org.jetbrains.kotlinx:kotlinx-serialization-json')"
         }
+        val group = parts[0]
+        val artifact = parts[1]
+
+        val allVersions = try {
+            depsDevService.getMavenVersions(group, artifact)
+        } catch (e: Exception) {
+            emptyList()
+        }
+
+        if (allVersions.isEmpty()) {
+            return@tool "No versions found for $group:$artifact"
+        }
+
+        "Versions for $group:$artifact:\n" + paginate(
+            items = allVersions,
+            pagination = args.pagination,
+            itemName = "versions",
+            total = allVersions.size
+        ) { v -> "- ${v.version} (${v.publishedAt})" }
     }
 }

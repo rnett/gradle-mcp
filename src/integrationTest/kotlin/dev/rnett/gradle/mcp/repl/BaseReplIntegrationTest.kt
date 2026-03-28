@@ -43,8 +43,10 @@ import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.gradle.build.BuildExecutionService
 import dev.rnett.gradle.mcp.gradle.build.DefaultBuildExecutionService
 import dev.rnett.gradle.mcp.lucene.LuceneReaderCache
+import dev.rnett.gradle.mcp.maven.DefaultDepsDevService
 import dev.rnett.gradle.mcp.maven.DefaultMavenCentralService
 import dev.rnett.gradle.mcp.maven.DefaultMavenRepoService
+import dev.rnett.gradle.mcp.maven.DepsDevService
 import dev.rnett.gradle.mcp.maven.MavenCentralService
 import dev.rnett.gradle.mcp.maven.MavenRepoService
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
@@ -154,6 +156,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single<GradleDependencyService> { DefaultGradleDependencyService(get()) }
         single<MavenRepoService> { DefaultMavenRepoService(get()) }
         single<MavenCentralService> { DefaultMavenCentralService(get()) }
+        single<DepsDevService> { DefaultDepsDevService(get()) }
         single<IndexService> { DefaultIndexService(get()) }
         single<SourceStorageService> { DefaultSourceStorageService(get()) }
         single<CoroutineDispatcher> { Dispatchers.IO }
@@ -169,7 +172,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
             )
         }
         single {
-            DI.components(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get())
+            DI.components(get(), get(), get(), get(), get(), get(), get(), get(), get(), get())
         }
         single {
             val components: List<McpServerComponent> = get()

@@ -79,7 +79,7 @@ For deep-dives into specific problems (e.g., deprecations, plugin issues), use `
 
 ### 2. Adding a Dependency
 
-1. **Search Maven Central**: Use the `search_maven_central` tool to find the artifact.
+1. **Search Maven Central**: Use the `lookup_maven_versions` tool to find the artifact.
 2. **Update `libs.versions.toml`**: Add the dependency coordinates to the catalog.
 3. **Apply to `build.gradle.kts`**: Use the type-safe accessor from the catalog.
 4. **Verify**: Run the `gradle` tool with `commandLine: ["dependencies"]` to check resolution.
@@ -94,12 +94,11 @@ For deep-dives into specific problems (e.g., deprecations, plugin issues), use `
 
 ### Adding a new dependency to a module
 
-Tool: `search_maven_central`
+Tool: `lookup_maven_versions`
 
 ```json
 {
-  "query": "com.google.guava:guava",
-  "versions": true
+  "coordinates": "com.google.guava:guava"
 }
 ```
 

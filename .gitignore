@@ -48,3 +48,5 @@ bin/
 .DS_Store
 /gradle-mcp.log
 /gradle/gradle-mcp.log
+
+/.playwright-mcp/

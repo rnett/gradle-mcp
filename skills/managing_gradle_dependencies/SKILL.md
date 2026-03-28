@@ -19,7 +19,7 @@ Audits project dependencies, performs high-resolution update checks, and discove
 - **ALWAYS** use `inspect_dependencies` for querying project dependency information instead of raw Gradle tasks.
 - **ALWAYS** provide absolute paths for `projectRoot`.
 - **ALWAYS** use `updatesOnly: true` to quickly identify available library updates.
-- **ALWAYS** use `search_maven_central` to find exact GAV coordinates for new libraries.
+- **ALWAYS** use `lookup_maven_versions` to find exact GAV coordinates for new libraries.
 - **NEVER** add a dependency to a project without verifying its authoritative version and existence on Maven Central.
 - **ALWAYS** use the `projectPath` argument to target specific modules in multi-project builds.
 
@@ -32,7 +32,7 @@ Audits project dependencies, performs high-resolution update checks, and discove
   faster than resolving the entire project graph.
 - **Efficient Transitive Isolation**: When isolating a single library, filter the flattened list of resolved components using the dependency filter rather than traversing the dependency graph. This naturally and efficiently excludes
   transitive dependencies that do not match the targeted filter.
-- **Discover libraries surgically**: ALWAYS use `search_maven_central` to find new libraries or check the version history of an existing artifact.
+- **Discover libraries surgically**: ALWAYS use `lookup_maven_versions` to check the version history of an existing artifact.
 - **Use `gradle` for diagnostics**: For built-in tasks like `dependencyInsight`, ALWAYS use the `gradle` tool with `captureTaskOutput`.
 - **Audit full trees**: ALWAYS use `onlyDirect: false` in `inspect_dependencies` when you need to visualize the complete transitive dependency graph.
 
@@ -59,8 +59,7 @@ Audits project dependencies, performs high-resolution update checks, and discove
 
 ### 3. Discovering New Libraries
 
-1. Use `search_maven_central(query="search-term")` to find candidates.
-2. Use `search_maven_central(query="group:artifact", versions=true)` to see all available versions for a specific library.
+1. Use `lookup_maven_versions(coordinates="group:artifact")` to see all available versions for a specific library.
 
 ### 4. Targeted Dependency Inspection
 
@@ -97,15 +96,6 @@ Audits project dependencies, performs high-resolution update checks, and discove
   "stableOnly": true
 }
 // Reasoning: Performing a high-signal update audit that ignores unstable pre-release versions.
-```
-
-### Search for a library on Maven Central
-
-```json
-{
-  "query": "kotlinx-serialization"
-}
-// Reasoning: Using Maven Central search to find the correct GAV coordinates for a new dependency.
 ```
 
 ### List all versions of a specific library

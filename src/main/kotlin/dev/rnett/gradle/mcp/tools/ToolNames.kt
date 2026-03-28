@@ -7,7 +7,7 @@ object ToolNames {
     const val INSPECT_DEPENDENCIES = "inspect_dependencies"
     const val READ_DEPENDENCY_SOURCES = "read_dependency_sources"
     const val SEARCH_DEPENDENCY_SOURCES = "search_dependency_sources"
-    const val SEARCH_MAVEN_CENTRAL = "search_maven_central"
+    const val LOOKUP_MAVEN_VERSIONS = "lookup_maven_versions"
     const val GRADLE_DOCS = "gradle_docs"
     const val INSTALL_GRADLE_SKILLS = "install_gradle_skills"
 }

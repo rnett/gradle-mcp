@@ -35,6 +35,7 @@ import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.lucene.LuceneReaderCache
+import dev.rnett.gradle.mcp.maven.DepsDevService
 import dev.rnett.gradle.mcp.maven.MavenCentralService
 import dev.rnett.gradle.mcp.maven.MavenRepoService
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
@@ -125,6 +126,7 @@ class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
         single<GradleDependencyService> { mockk<GradleDependencyService>(relaxed = true) }
         single<MavenRepoService> { mockk<MavenRepoService>(relaxed = true) }
         single<MavenCentralService> { mockk<MavenCentralService>(relaxed = true) }
+        single<DepsDevService> { mockk<DepsDevService>(relaxed = true) }
 
         single<IndexService> { DefaultIndexService(get()) }
         single<SourceStorageService> { DefaultSourceStorageService(get()) }
@@ -144,8 +146,7 @@ class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
             val gradleDocsService: GradleDocsService = get()
             val gradleVersionService: GradleVersionService = get()
             val gradleDependencyService: GradleDependencyService = get()
-            val mavenRepoService: MavenRepoService = get()
-            val mavenCentralService: MavenCentralService = get()
+            val depsDevService: DepsDevService = get()
             val sourcesService: SourcesService = get()
             val gradleSourceService: GradleSourceService = get()
             val indexService: SourceIndexService = get()
@@ -156,8 +157,7 @@ class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
                 gradleDocsService,
                 gradleVersionService,
                 gradleDependencyService,
-                mavenRepoService,
-                mavenCentralService,
+                depsDevService,
                 sourcesService,
                 gradleSourceService,
                 indexService

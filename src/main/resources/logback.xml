@@ -14,12 +14,6 @@
             <pattern>%d{YYYY-MM-dd HH:mm:ss.SSS} [%X{PID}] [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
-    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
-        <target>System.err</target>
-        <encoder>
-            <pattern>%d{YYYY-MM-dd HH:mm:ss.SSS} [%X{PID}] [%thread] %-5level %logger{36} - %msg%n</pattern>
-        </encoder>
-    </appender>
     <root level="info">
         <appender-ref ref="FILE"/>
     </root>

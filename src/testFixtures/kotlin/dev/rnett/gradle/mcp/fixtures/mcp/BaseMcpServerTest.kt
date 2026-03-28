@@ -17,6 +17,7 @@ import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
 import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
+import dev.rnett.gradle.mcp.maven.DepsDevService
 import dev.rnett.gradle.mcp.maven.MavenCentralService
 import dev.rnett.gradle.mcp.maven.MavenRepoService
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
@@ -67,6 +68,7 @@ abstract class BaseMcpServerTest {
         single<GradleDependencyService> { mockk<GradleDependencyService>(relaxed = true) }
         single<MavenRepoService> { mockk<MavenRepoService>(relaxed = true) }
         single<MavenCentralService> { mockk<MavenCentralService>(relaxed = true) }
+        single<DepsDevService> { mockk<DepsDevService>(relaxed = true) }
         single<SourcesService> { mockk<SourcesService>(relaxed = true) }
         single<dev.rnett.gradle.mcp.dependencies.SourceIndexService> { mockk<dev.rnett.gradle.mcp.dependencies.SourceIndexService>(relaxed = true) }
         single<GradleSourceService> { mockk<GradleSourceService>(relaxed = true) }
@@ -82,12 +84,11 @@ abstract class BaseMcpServerTest {
             val gradleDocsService: GradleDocsService = get()
             val gradleVersionService: GradleVersionService = get()
             val gradleDependencyService: GradleDependencyService = get()
-            val mavenRepoService: MavenRepoService = get()
-            val mavenCentralService: MavenCentralService = get()
+            val depsDevService: DepsDevService = get()
             val sourcesService: SourcesService = get()
             val gradleSourceService: GradleSourceService = get()
             val indexService: dev.rnett.gradle.mcp.dependencies.SourceIndexService = get()
-            DI.components(provider, replManager, replEnvironmentService, gradleDocsService, gradleVersionService, gradleDependencyService, mavenRepoService, mavenCentralService, sourcesService, gradleSourceService, indexService)
+            DI.components(provider, replManager, replEnvironmentService, gradleDocsService, gradleVersionService, gradleDependencyService, depsDevService, sourcesService, gradleSourceService, indexService)
         }
 
         single {

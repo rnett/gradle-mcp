@@ -22,9 +22,8 @@ import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleResult
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
-import dev.rnett.gradle.mcp.maven.MavenCentralSearchResponse
-import dev.rnett.gradle.mcp.maven.MavenCentralService
-import dev.rnett.gradle.mcp.maven.MavenRepoService
+import dev.rnett.gradle.mcp.maven.DepsDevService
+import dev.rnett.gradle.mcp.maven.DepsDevVersion
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.repl.ReplConfig
 import dev.rnett.gradle.mcp.repl.ReplConfigWithJava
@@ -94,8 +93,7 @@ object UpdateTools {
             ThrowingGradleDocsService,
             ThrowingGradleVersionService,
             ThrowingGradleDependencyService,
-            ThrowingMavenRepoService,
-            ThrowingMavenCentralService,
+            ThrowingDepsDevService,
             ThrowingSourcesService,
             ThrowingGradleSourceService,
             ThrowingSourceIndexService
@@ -395,18 +393,8 @@ private object ThrowingGradleDependencyService : GradleDependencyService {
     }
 }
 
-private object ThrowingMavenRepoService : MavenRepoService {
-    override suspend fun getVersions(repository: String, group: String, artifact: String): List<String> {
-        throw UnsupportedOperationException("Not used for tool listing")
-    }
-}
-
-private object ThrowingMavenCentralService : MavenCentralService {
-    override suspend fun searchCentral(
-        query: String,
-        start: Int,
-        results: Int
-    ): MavenCentralSearchResponse.Response {
+private object ThrowingDepsDevService : DepsDevService {
+    override suspend fun getMavenVersions(group: String, artifact: String): List<DepsDevVersion> {
         throw UnsupportedOperationException("Not used for tool listing")
     }
 }

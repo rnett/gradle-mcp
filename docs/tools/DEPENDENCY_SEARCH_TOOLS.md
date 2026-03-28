@@ -4,13 +4,11 @@
 
 Tools for querying maven repositories for dependency information.
 
-## search_maven_central
+## lookup_maven_versions
 
-Searches Maven Central for library coordinates and version histories; use instead of hallucinated versions or generic web searches.
-
-- **Coordinate Discovery**: Search by name, group, or artifact ID snippet.
-- **Version Research**: Set `versions=true` with `group:artifact` query to list all released versions.
-- Once identified, use `inspect_dependencies` to check if the project already uses the library.
+Retrieves all released versions for a Maven `group:artifact` from deps.dev, sorted most-recent first with `yyyy-MM-dd` publish dates.
+Covers the full Maven package index including packages published via the new Central Portal (central.sonatype.com).
+Use to verify exact release history instead of hallucinated version numbers; then use `inspect_dependencies` to check if the project already uses the library.
 
 <details>
 
@@ -20,35 +18,30 @@ Searches Maven Central for library coordinates and version histories; use instea
 ```json
 {
   "properties": {
-    "query": {
+    "coordinates": {
       "type": "string",
-      "description": "Artifact name, group, or coordinates. If versions=true, MUST be exactly 'group:artifact'."
+      "description": "Maven coordinates in 'group:artifact' format, e.g. 'org.jetbrains.kotlinx:kotlinx-coroutines-core'."
     },
-    "versions": {
-      "type": "boolean",
-      "description": "Retrieve all versions for a 'group:artifact'. Ideal for researching release history."
-    },
-    "offset": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "minimum": -2147483648,
-      "maximum": 2147483647,
-      "description": "Offset for pagination over large result sets."
-    },
-    "limit": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "minimum": -2147483648,
-      "maximum": 2147483647,
-      "description": "Max results to return. Default is 10."
+    "pagination": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "offset": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        }
+      },
+      "description": "offset = zero-based start index (default 0); limit = max versions to return (default 5)."
     }
   },
   "required": [
-    "query"
+    "coordinates"
   ],
   "type": "object"
 }

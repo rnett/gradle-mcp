@@ -36,8 +36,10 @@ import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.gradle.build.BuildExecutionService
 import dev.rnett.gradle.mcp.gradle.build.DefaultBuildExecutionService
 import dev.rnett.gradle.mcp.lucene.LuceneReaderCache
+import dev.rnett.gradle.mcp.maven.DefaultDepsDevService
 import dev.rnett.gradle.mcp.maven.DefaultMavenCentralService
 import dev.rnett.gradle.mcp.maven.DefaultMavenRepoService
+import dev.rnett.gradle.mcp.maven.DepsDevService
 import dev.rnett.gradle.mcp.maven.MavenCentralService
 import dev.rnett.gradle.mcp.maven.MavenRepoService
 import dev.rnett.gradle.mcp.mcp.McpServer
@@ -127,6 +129,7 @@ object DI {
         single<GradleDependencyService> { DefaultGradleDependencyService(get()) }
         single<MavenRepoService> { DefaultMavenRepoService(get()) }
         single<MavenCentralService> { DefaultMavenCentralService(get()) }
+        single<DepsDevService> { DefaultDepsDevService(get()) }
         single<IndexService> { DefaultIndexService(get()) }
         single<SourceStorageService> { DefaultSourceStorageService(get()) }
         single<CoroutineDispatcher> { Dispatchers.IO }
@@ -152,8 +155,7 @@ object DI {
             val gradleDocsService: GradleDocsService = get()
             val gradleVersionService: GradleVersionService = get()
             val gradleDependencyService: GradleDependencyService = get()
-            val mavenRepoService: MavenRepoService = get()
-            val mavenCentralService: MavenCentralService = get()
+            val depsDevService: DepsDevService = get()
             val sourcesService: SourcesService = get()
             val gradleSourceService: GradleSourceService = get()
             val indexService: SourceIndexService = get()
@@ -164,8 +166,7 @@ object DI {
                 gradleDocsService,
                 gradleVersionService,
                 gradleDependencyService,
-                mavenRepoService,
-                mavenCentralService,
+                depsDevService,
                 sourcesService,
                 gradleSourceService,
                 indexService
@@ -202,8 +203,7 @@ object DI {
         gradleDocsService: GradleDocsService,
         gradleVersionService: GradleVersionService,
         gradleDependencyService: GradleDependencyService,
-        mavenRepoService: MavenRepoService,
-        mavenCentralService: MavenCentralService,
+        depsDevService: DepsDevService,
         sourcesService: SourcesService,
         gradleSourceService: GradleSourceService,
         indexService: SourceIndexService
@@ -213,7 +213,7 @@ object DI {
         GradleBuildLookupTools(provider.buildManager),
         GradleDocsTools(gradleDocsService, gradleVersionService),
         GradleDependencyTools(gradleDependencyService),
-        DependencySearchTools(mavenRepoService, mavenCentralService),
+        DependencySearchTools(depsDevService),
         DependencySourceTools(sourcesService, gradleSourceService, indexService),
         SkillTools()
     )

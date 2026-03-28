@@ -56,7 +56,7 @@ class GradleDependencyTools(
             |- **Update Check**: `checkUpdates=true` (default) detects newer versions; use `updatesOnly=true` for a summary of available updates.
             |- **Plugin Auditing**: Use `configuration="buildscript:classpath"` to audit plugins.
             |- **Targeted**: Use `dependency="org:artifact"` to target a single library — significantly faster.
-            |- Use `${ToolNames.SEARCH_MAVEN_CENTRAL}` to find GAV coordinates; `${ToolNames.GRADLE}` for `dependencyInsight`.
+            |- Use `${ToolNames.LOOKUP_MAVEN_VERSIONS}` to find released versions; `${ToolNames.GRADLE}` for `dependencyInsight`.
         """.trimMargin()
     ) {
         val root = with(server) { it.projectRoot.resolveRoot() }

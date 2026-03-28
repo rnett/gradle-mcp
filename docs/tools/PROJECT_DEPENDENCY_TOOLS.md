@@ -11,7 +11,7 @@ Inspects the project's resolved dependency graph, checks for updates, and audits
 - **Update Check**: `checkUpdates=true` (default) detects newer versions; use `updatesOnly=true` for a summary of available updates.
 - **Plugin Auditing**: Use `configuration="buildscript:classpath"` to audit plugins.
 - **Targeted**: Use `dependency="org:artifact"` to target a single library — significantly faster.
-- Use `search_maven_central` to find GAV coordinates; `gradle` for `dependencyInsight`.
+- Use `lookup_maven_versions` to find released versions; `gradle` for `dependencyInsight`.
 
 <details>
 

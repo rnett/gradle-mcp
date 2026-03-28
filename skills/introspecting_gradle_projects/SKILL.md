@@ -12,7 +12,7 @@ metadata:
 
 # Deep Project Structure & Environment Introspection
 
-Uncovers project modules, discovers runnable tasks, and gains total visibility into build configuration using core Gradle diagnostic tools and authoritative dependency auditing.
+Uncovers project modules, discovers runnable tasks, and gain total visibility into your build configuration using core Gradle diagnostic tools and authoritative dependency auditing.
 
 ## Constitution
 
