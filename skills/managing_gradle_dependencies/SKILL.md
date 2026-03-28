@@ -7,7 +7,7 @@ description: >
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
-  version: "3.3"
+  version: "3.4"
 ---
 
 # Authoritative Dependency Intelligence & Maven Central Search
@@ -27,7 +27,8 @@ Audits project dependencies, performs high-resolution update checks, and discove
 
 - **Identify authoritative paths**: ALWAYS use the Gradle project path (e.g., `:app`) when querying dependencies.
 - **Inspect plugins and build scripts**: Build script dependencies (like plugins) are automatically included in `inspect_dependencies` output under configurations prefixed with `buildscript:` (e.g. `buildscript:classpath`).
-- **Monitor for updates**: ALWAYS use `updatesOnly: true` in `inspect_dependencies` to retrieve a high-signal report of available library updates.
+- **Monitor for updates**: ALWAYS use `updatesOnly: true` in `inspect_dependencies` to retrieve a flat, high-signal report of available library updates: `group:artifact: current → latest` with the project paths where each dep is used.
+  Configuration and source-set detail is intentionally omitted; use `inspect_dependencies` with a specific `dependency` filter if that detail is needed.
 - **Target dependencies surgically**: Use the `dependency` parameter in `inspect_dependencies` to target a single library. It supports `group:name:version:variant`, `group:name:version`, `group:name`, or just `group`. This is significantly
   faster than resolving the entire project graph.
 - **Efficient Transitive Isolation**: When isolating a single library, filter the flattened list of resolved components using the dependency filter rather than traversing the dependency graph. This naturally and efficiently excludes
@@ -55,7 +56,7 @@ Audits project dependencies, performs high-resolution update checks, and discove
 ### 2. Checking for Stable Updates
 
 1. Call `inspect_dependencies(updatesOnly=true, stableOnly=true)`.
-2. Review the list of current vs. latest stable versions.
+2. Review the flat list of upgradeable dependencies. Each entry shows `group:artifact: current → latest` and the project paths where it is used.
 
 ### 3. Discovering New Libraries
 
@@ -102,8 +103,7 @@ Audits project dependencies, performs high-resolution update checks, and discove
 
 ```json
 {
-  "query": "org.jetbrains.kotlinx:kotlinx-serialization-json",
-  "versions": true
+  "coordinates": "org.jetbrains.kotlinx:kotlinx-serialization-json"
 }
 // Reasoning: Retrieving the full version history of an artifact to identify the latest stable or specific version required.
 ```
@@ -112,5 +112,7 @@ Audits project dependencies, performs high-resolution update checks, and discove
 
 - **Dependency Not Found**: Verify the `projectPath` using the `projects` task in the `introspecting_gradle_projects` skill.
 - **Update Not Showing**: If a known update is missing, ensure `stableOnly` is set correctly and check if a `versionFilter` is active.
+- **[UPDATE CHECK SKIPPED]**: This annotation means the dep was in scope for update checking but its resolution genuinely failed — it does NOT appear for dependencies intentionally excluded from the update-check scope (e.g., transitive deps
+  when `onlyDirect=true`, or deps excluded by a `dependency` filter).
 - **Maven Search No Results**: Use broader search terms or verify the `group:artifact` format for version searches.
 - **Missing environment variables**: Set `invocationArguments: { envSource: "SHELL" }` if Gradle cannot find expected env vars (e.g., `JAVA_HOME`).

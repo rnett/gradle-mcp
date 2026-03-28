@@ -1,7 +1,6 @@
 package dev.rnett.gradle.mcp.tools.dependencies
 
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
-import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
 import dev.rnett.gradle.mcp.dependencies.model.GradleProjectDependencies
@@ -14,15 +13,10 @@ import dev.rnett.gradle.mcp.tools.paginate
 import dev.rnett.gradle.mcp.tools.resolveRoot
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
-import org.slf4j.LoggerFactory
 
 class GradleDependencyTools(
     private val dependencyService: GradleDependencyService
 ) : McpServerComponent("Project Dependency Tools", "Tools for querying Gradle dependencies and checking for updates.") {
-
-    companion object {
-        private val LOGGER = LoggerFactory.getLogger(GradleDependencyTools::class.java)
-    }
 
     @Serializable
     data class InspectDependenciesArgs(
@@ -33,13 +27,13 @@ class GradleDependencyTools(
         val configuration: String? = null,
         @Description("Filtering the report by a specific source set (e.g., 'test').")
         val sourceSet: String? = null,
-        @Description("Single dependency filter by GAV (e.g., 'group:name'). Excludes transitive dependencies.")
+        @Description("Filtering reported components to those matching a GAV coordinate (`group:name:version:variant`, `group:name:version`, `group:name`, or `group`). Transitive children of matched components are shown when `onlyDirect=false`.")
         val dependency: String? = null,
-        @Description("Checking project repositories for newer versions of all dependencies authoritatively.")
+        @Description("Checking project repositories for newer versions of all dependencies authoritatively. Always `true` when `updatesOnly=true`.")
         val checkUpdates: Boolean = true,
-        @Description("Showing only direct dependencies in the summary. Set to false for the full tree.")
+        @Description("Showing only direct dependencies in the summary. Set to false for the full tree. Also controls update-check scope: only direct deps are checked when `true`.")
         val onlyDirect: Boolean = true,
-        @Description("Returning only a summary of dependencies that have available updates.")
+        @Description("Returning a flat list of upgradeable dependencies: `group:artifact: current → latest` with project paths. Forces `checkUpdates=true`. Note: format changed from earlier versions — the dep key no longer includes the version and the separator changed from ASCII `->` to Unicode `→`.")
         val updatesOnly: Boolean = false,
         @Description("Ignoring pre-release versions (alpha, beta, rc, etc.) when checking for updates.")
         val stableOnly: Boolean = false,
@@ -53,14 +47,16 @@ class GradleDependencyTools(
         """
             |Inspects the project's resolved dependency graph, checks for updates, and audits plugins; use instead of manually parsing build files which misses transitive deps and dynamic versions.
             |
-            |- **Update Check**: `checkUpdates=true` (default) detects newer versions; use `updatesOnly=true` for a summary of available updates.
+            |- **Update Check**: `checkUpdates=true` (default) detects newer versions — individual lines show `[UPDATE AVAILABLE: X.Y.Z]`; use `updatesOnly=true` for a flat summary: `group:artifact: current → latest` with the project paths where each dep is used (forces `checkUpdates=true`). Use `stableOnly=true` to exclude pre-release versions.
+            |- **[UPDATE CHECK SKIPPED]**: Appears only for dependencies that were in scope for update checking but whose resolution genuinely failed — not for dependencies intentionally excluded from the update-check scope (e.g., transitive deps when `onlyDirect=true`).
             |- **Plugin Auditing**: Use `configuration="buildscript:classpath"` to audit plugins.
             |- **Targeted**: Use `dependency="org:artifact"` to target a single library — significantly faster.
             |- Use `${ToolNames.LOOKUP_MAVEN_VERSIONS}` to find released versions; `${ToolNames.GRADLE}` for `dependencyInsight`.
         """.trimMargin()
     ) {
         val root = with(server) { it.projectRoot.resolveRoot() }
-        val checkingUpdates = it.checkUpdates || it.updatesOnly
+        // updatesOnly forces checkUpdates regardless of the explicit checkUpdates value.
+        val checkUpdatesEnabled = it.checkUpdates || it.updatesOnly
         val report = with(progressReporter) {
             dependencyService.getDependencies(
                 projectRoot = root,
@@ -68,7 +64,7 @@ class GradleDependencyTools(
                 configuration = it.configuration,
                 sourceSet = it.sourceSet,
                 dependency = it.dependency,
-                checkUpdates = checkingUpdates,
+                checkUpdates = checkUpdatesEnabled,
                 versionFilter = it.versionFilter,
                 stableOnly = it.stableOnly,
                 onlyDirect = it.onlyDirect
@@ -78,11 +74,15 @@ class GradleDependencyTools(
         if (it.updatesOnly) {
             formatUpdatesSummary(report, it.pagination)
         } else {
-            formatDependencyReport(report, it.pagination, checkingUpdates)
+            formatDependencyReport(report, it.pagination, checkUpdatesEnabled)
         }
     }
 
-    fun formatDependencyReport(report: GradleDependencyReport, pagination: PaginationInput, checkingUpdates: Boolean = false): String {
+    internal fun formatDependencyReport(
+        report: GradleDependencyReport,
+        pagination: PaginationInput,
+        checkUpdatesEnabled: Boolean = false
+    ): String {
         if (report.projects.isEmpty()) return "No projects found."
 
         return buildString {
@@ -92,14 +92,14 @@ class GradleDependencyTools(
 
             val pagedProjects = paginate(report.projects, pagination, "projects") { project ->
                 buildString {
-                    formatProject(project, checkingUpdates)
+                    formatProject(project, checkUpdatesEnabled)
                 }.trim()
             }
             append(pagedProjects)
         }.trim()
     }
 
-    private fun StringBuilder.formatProject(project: GradleProjectDependencies, checkingUpdates: Boolean = false) {
+    private fun StringBuilder.formatProject(project: GradleProjectDependencies, checkUpdatesEnabled: Boolean = false) {
         appendLine("Project: ${project.path}")
         if (project.repositories.isNotEmpty()) {
             appendLine("  Repositories:")
@@ -140,7 +140,7 @@ class GradleDependencyTools(
             } else if (config.dependencies.isEmpty()) {
                 appendLine("    (no dependencies)")
             } else {
-                renderDependencies(filteredDeps, 2, checkingUpdates = checkingUpdates) { dep ->
+                renderDependencies(filteredDeps, 2, checkUpdatesEnabled = checkUpdatesEnabled) { dep ->
                     if (dep.fromConfiguration != null) {
                         val parent = includedConfigs[dep.fromConfiguration]
                         val parentDep = parent?.dependencies?.find {
@@ -155,43 +155,38 @@ class GradleDependencyTools(
         }
     }
 
-    fun formatUpdatesSummary(report: GradleDependencyReport, pagination: PaginationInput): String {
-        val updates = mutableListOf<DependencyUpdate>()
-
-        report.projects.forEach { project ->
-            val configToSourceSet = mutableMapOf<String, MutableList<String>>()
-            project.sourceSets.forEach { sourceSet ->
-                sourceSet.configurations.forEach { configName ->
-                    configToSourceSet.getOrPut(configName) { mutableListOf() }.add(sourceSet.name)
-                }
-            }
-
-            project.configurations.forEach { config ->
-                config.dependencies.forEach { dep ->
-                    findUpdates(dep, config, project.path, configToSourceSet[config.name] ?: emptyList(), updates)
+    internal fun formatUpdatesSummary(report: GradleDependencyReport, pagination: PaginationInput): String {
+        val updates = report.projects.flatMap { project ->
+            // A single visited set per project deduplicates the same (projectPath, group:artifact)
+            // across configurations and across diamond-dependency subtrees, avoiding redundant entries
+            // before groupBy. The init script controls whether transitive deps appear in the model.
+            val visited = mutableSetOf<String>()
+            project.configurations.flatMap { config ->
+                config.dependencies.flatMap { dep ->
+                    findUpdates(dep, project.path, visited)
                 }
             }
         }
 
-        val distinctUpdates = updates.distinctBy { "${it.projectPath}:${it.configuration}:${it.dependencyId}" }
-            .groupBy { it.dependencyId }
-            .toList()
+        // Group by dep coordinate (group:artifact) across all projects.
+        // Note: when the same group:artifact resolves to different versions across projects,
+        // the first project's currentVersion is shown. Use inspect_dependencies with a specific
+        // dependency filter to see per-project version details.
+        val groupedUpdates = updates.groupBy { it.dependencyId }.toList()
 
-        return if (distinctUpdates.isEmpty()) {
+        return if (groupedUpdates.isEmpty()) {
             "No dependency updates found."
         } else {
             buildString {
                 appendLine("Available Dependency Updates:")
-                val paged = paginate(distinctUpdates, pagination, "dependency updates") { (dependencyId, depUpdates) ->
+                val paged = paginate(groupedUpdates, pagination, "dependency updates") { (dependencyId, depUpdates) ->
                     buildString {
+                        // depUpdates is guaranteed non-empty by groupBy semantics.
                         val first = depUpdates.first()
-                        appendLine("\n- $dependencyId: ${first.currentVersion} -> ${first.latestVersion}")
+                        appendLine("- $dependencyId: ${first.currentVersion} → ${first.latestVersion}")
                         appendLine("  Found in:")
-                        depUpdates.groupBy { it.projectPath }.forEach { (projectPath, projectUpdates) ->
-                            val configs = projectUpdates.map { it.configuration }.distinct().sorted()
-                            val sourceSets = projectUpdates.flatMap { it.sourceSets }.distinct().sorted()
-                            val sourceSetInfo = if (sourceSets.isNotEmpty()) ", Source Sets: ${sourceSets.joinToString(", ")}" else ""
-                            appendLine("    - Project: $projectPath, Configurations: ${configs.joinToString(", ")}$sourceSetInfo")
+                        depUpdates.map { it.projectPath }.sorted().forEach { projectPath ->
+                            appendLine("    - $projectPath")
                         }
                     }.trim()
                 }
@@ -202,44 +197,49 @@ class GradleDependencyTools(
 
     private data class DependencyUpdate(
         val projectPath: String,
-        val configuration: String,
-        val sourceSets: List<String>,
         val dependencyId: String,
-        val currentVersion: String?,
+        val currentVersion: String,
         val latestVersion: String
     )
 
+    /** Key used to track already-rendered nodes in the dependency tree. */
+    private data class DepVisitKey(val id: String, val variant: String?, val capabilities: List<String>)
+
+    /** Returns true when [dep] has a known newer version available. */
+    private fun isUpdateAvailable(dep: GradleDependency): Boolean =
+        dep.latestVersion != null && dep.version != null && dep.latestVersion != dep.version
+
     private fun findUpdates(
         dep: GradleDependency,
-        config: GradleConfigurationDependencies,
         projectPath: String,
-        sourceSets: List<String>,
-        updates: MutableList<DependencyUpdate>
-    ) {
-        if (dep.latestVersion != null && dep.latestVersion != dep.version) {
-            updates.add(
+        visited: MutableSet<String>
+    ): List<DependencyUpdate> = buildList {
+        // Skip already-seen (projectPath, group:artifact) pairs to avoid duplicate entries
+        // from diamond dependencies appearing under multiple parents.
+        val key = "$projectPath|${dep.group}:${dep.name}"
+        if (!visited.add(key)) return@buildList
+        if (isUpdateAvailable(dep)) {
+            add(
                 DependencyUpdate(
                     projectPath = projectPath,
-                    configuration = config.name,
-                    sourceSets = sourceSets,
-                    dependencyId = dep.id,
-                    currentVersion = dep.version,
-                    latestVersion = dep.latestVersion
+                    dependencyId = "${dep.group}:${dep.name}",
+                    currentVersion = dep.version!!,  // non-null: isUpdateAvailable checks dep.version != null
+                    latestVersion = dep.latestVersion!!  // non-null: isUpdateAvailable checks dep.latestVersion != null
                 )
             )
         }
-        dep.children.forEach { findUpdates(it, config, projectPath, sourceSets, updates) }
+        dep.children.forEach { addAll(findUpdates(it, projectPath, visited)) }
     }
 
     private fun StringBuilder.renderDependencies(
         deps: List<GradleDependency>,
         indent: Int,
-        visited: MutableSet<Triple<String, String?, List<String>>>,
-        checkingUpdates: Boolean = false,
-        noteProvider: (GradleDependency) -> String?
+        checkUpdatesEnabled: Boolean = false,
+        visited: MutableSet<DepVisitKey> = mutableSetOf(),
+        noteProvider: (GradleDependency) -> String? = { null }
     ) {
         deps.forEach { dep ->
-            val key = Triple(dep.id, dep.variant, dep.capabilities)
+            val key = DepVisitKey(dep.id, dep.variant, dep.capabilities)
             val alreadyVisited = !visited.add(key)
 
             append("  ".repeat(indent))
@@ -250,9 +250,11 @@ class GradleDependencyTools(
             if (alreadyVisited) {
                 append(" (*)")
             }
-            if (dep.latestVersion != null && dep.latestVersion != dep.version) {
+            // isUpdateAvailable checks dep.version != null, so [UPDATE AVAILABLE] never fires for
+            // null-version deps — consistent with the findUpdates path.
+            if (isUpdateAvailable(dep)) {
                 append(" [UPDATE AVAILABLE: ${dep.latestVersion}]")
-            } else if (checkingUpdates && !dep.updatesChecked) {
+            } else if (checkUpdatesEnabled && !dep.updatesChecked) {
                 append(" [UPDATE CHECK SKIPPED]")
             }
             if (dep.reason != null) {
@@ -260,17 +262,8 @@ class GradleDependencyTools(
             }
             appendLine()
             if (!alreadyVisited) {
-                renderDependencies(dep.children, indent + 1, visited, checkingUpdates, noteProvider)
+                renderDependencies(dep.children, indent + 1, checkUpdatesEnabled, visited, noteProvider)
             }
         }
-    }
-
-    private fun StringBuilder.renderDependencies(
-        deps: List<GradleDependency>,
-        indent: Int,
-        checkingUpdates: Boolean = false,
-        noteProvider: (GradleDependency) -> String? = { null }
-    ) {
-        renderDependencies(deps, indent, mutableSetOf(), checkingUpdates, noteProvider)
     }
 }

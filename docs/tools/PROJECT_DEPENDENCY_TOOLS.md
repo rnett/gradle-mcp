@@ -8,7 +8,8 @@ Tools for querying Gradle dependencies and checking for updates.
 
 Inspects the project's resolved dependency graph, checks for updates, and audits plugins; use instead of manually parsing build files which misses transitive deps and dynamic versions.
 
-- **Update Check**: `checkUpdates=true` (default) detects newer versions; use `updatesOnly=true` for a summary of available updates.
+- **Update Check**: `checkUpdates=true` (default) detects newer versions — individual lines show `[UPDATE AVAILABLE: X.Y.Z]`; use `updatesOnly=true` for a flat summary: `group:artifact: current → latest` with the project paths where each dep is used (forces `checkUpdates=true`). Use `stableOnly=true` to exclude pre-release versions.
+- **[UPDATE CHECK SKIPPED]**: Appears only for dependencies that were in scope for update checking but whose resolution genuinely failed — not for dependencies intentionally excluded from the update-check scope (e.g., transitive deps when `onlyDirect=true`).
 - **Plugin Auditing**: Use `configuration="buildscript:classpath"` to audit plugins.
 - **Targeted**: Use `dependency="org:artifact"` to target a single library — significantly faster.
 - Use `lookup_maven_versions` to find released versions; `gradle` for `dependencyInsight`.
@@ -53,19 +54,19 @@ Inspects the project's resolved dependency graph, checks for updates, and audits
         "string",
         "null"
       ],
-      "description": "Single dependency filter by GAV (e.g., 'group:name'). Excludes transitive dependencies."
+      "description": "Filtering reported components to those matching a GAV coordinate (`group:name:version:variant`, `group:name:version`, `group:name`, or `group`). Transitive children of matched components are shown when `onlyDirect=false`."
     },
     "checkUpdates": {
       "type": "boolean",
-      "description": "Checking project repositories for newer versions of all dependencies authoritatively."
+      "description": "Checking project repositories for newer versions of all dependencies authoritatively. Always `true` when `updatesOnly=true`."
     },
     "onlyDirect": {
       "type": "boolean",
-      "description": "Showing only direct dependencies in the summary. Set to false for the full tree."
+      "description": "Showing only direct dependencies in the summary. Set to false for the full tree. Also controls update-check scope: only direct deps are checked when `true`."
     },
     "updatesOnly": {
       "type": "boolean",
-      "description": "Returning only a summary of dependencies that have available updates."
+      "description": "Returning a flat list of upgradeable dependencies: `group:artifact: current → latest` with project paths. Forces `checkUpdates=true`. Note: format changed from earlier versions — the dep key no longer includes the version and the separator changed from ASCII `->` to Unicode `→`."
     },
     "stableOnly": {
       "type": "boolean",

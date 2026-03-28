@@ -162,6 +162,7 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
 
         mcpRenderer.latestVersions = latestVersions
         mcpRenderer.sourcesFiles = sourcesFiles
+        mcpRenderer.checksEnabled = checkUpdates
         mcpRenderer.updatesCheckedDeps = if (checkUpdates) targetComponents.map { "${it.group}:${it.module}" }.toSet() else emptySet()
         mcpRenderer.onlyDirect = onlyDirect
 
@@ -369,12 +370,18 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
     }
 }
 
-// use AsciiDependencyReportRenderer for guidence
+// use AsciiDependencyReportRenderer for guidance
 class McpDependencyReportRenderer : DependencyReportRenderer {
     private var output: StyledTextOutput? = null
     var latestVersions: Map<String, String> = emptyMap()
     var sourcesFiles: Map<String, String> = emptyMap()
+
+    // Set of "group:module" coordinates that were targeted for update checking (i.e., in targetComponents).
+    // Used together with latestVersions to determine whether a dep's check genuinely failed.
     var updatesCheckedDeps: Set<String> = emptySet()
+
+    // Whether update checking was enabled at all for this run.
+    var checksEnabled: Boolean = false
     var onlyDirect: Boolean = false
     var gradleProject: Project? = null
     var inBuildscript: Boolean = false
@@ -518,6 +525,23 @@ class McpDependencyReportRenderer : DependencyReportRenderer {
         }
     }
 
+    /**
+     * Returns true when the dep's update-check status is complete (no annotation needed):
+     *  - dep not in updatesCheckedDeps → dep was intentionally excluded from scope (e.g., transitive
+     *    dep when onlyDirect=true, or excluded by a dependency filter); not a genuine failure.
+     *  - dep in latestVersions → check was attempted and succeeded; not a failure.
+     * Returns false (annotation needed) when: checksEnabled=true AND dep was in scope
+     * (present in updatesCheckedDeps) AND resolution yielded no result (absent from latestVersions).
+     *
+     * When checksEnabled=false the renderer gates on checksUpdates (the Kotlin-side flag) and
+     * suppresses the annotation regardless of this field's value, so returning false here is safe.
+     */
+    private fun isUpdateCheckComplete(group: String, name: String): Boolean {
+        if (!checksEnabled) return false
+        val coordinateKey = "$group:$name"
+        return !updatesCheckedDeps.contains(coordinateKey) || latestVersions.containsKey(coordinateKey)
+    }
+
     private fun renderDependencyResult(project: ProjectDetails, dep: DependencyResult, depth: Int, visited: MutableSet<Any>, fromConfiguration: String?) {
         val path = getProjectPath(project)
 
@@ -549,7 +573,7 @@ class McpDependencyReportRenderer : DependencyReportRenderer {
             val markers = "*".repeat(depth)
             val latestVersion = latestVersions["$group:$name"] ?: ""
             val sourcesFile = sourcesFiles[id.toString()] ?: sourcesFiles["$group:$name:$version"] ?: ""
-            val updatesChecked = updatesCheckedDeps.contains("$group:$name")
+            val updatesChecked = isUpdateCheckComplete(group, name)
 
             var selectionReason = ""
             val requested = dep.requested
@@ -628,7 +652,7 @@ class McpDependencyReportRenderer : DependencyReportRenderer {
         }
 
         val sourcesFile = sourcesFiles[renderedId] ?: sourcesFiles["$group:$name:$version"] ?: ""
-        val updatesChecked = updatesCheckedDeps.contains("$group:$name")
+        val updatesChecked = isUpdateCheckComplete(group, name)
 
         output?.println("DEP: $path | $markers | $renderedId | $group | $name | $version | ${dep.getDescription() ?: ""} | | $isDirect | | | | $sourcesFile | $updatesChecked")
 

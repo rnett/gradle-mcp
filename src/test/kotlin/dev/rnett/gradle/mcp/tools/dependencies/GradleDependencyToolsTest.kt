@@ -21,6 +21,7 @@ import kotlinx.serialization.json.put
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class GradleDependencyToolsTest : BaseMcpServerTest() {
@@ -36,7 +37,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `inspect_dependencies updatesOnly produces consolidated summary`() = runTest {
+    fun `inspect_dependencies updatesOnly produces flat summary without configuration columns`() = runTest {
         val report = GradleDependencyReport(
             projects = listOf(
                 GradleProjectDependencies(
@@ -105,19 +106,64 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
             }
         ) as CallToolResult
 
-        val result = (response.content.first() as TextContent).text
+        val result = (response.content.first() as TextContent).text!!
 
-        val expected = """
-            Available Dependency Updates:
-            - org.slf4j:slf4j-api:1.7.30: 1.7.30 -> 2.0.0
-              Found in:
-                - Project: :, Configurations: compileClasspath, Source Sets: main
-            - junit:junit:4.12: 4.12 -> 4.13.2
-              Found in:
-                - Project: :, Configurations: testCompileClasspath, Source Sets: test
-        """.trimIndent()
+        // Verify header
+        assertTrue(result.contains("Available Dependency Updates:"), "Should have header. Output:\n$result")
+        // Verify group:artifact format with Unicode arrow (no version in key)
+        assertTrue(result.contains("- org.slf4j:slf4j-api: 1.7.30 → 2.0.0"), "Should contain slf4j entry. Output:\n$result")
+        assertTrue(result.contains("- junit:junit: 4.12 → 4.13.2"), "Should contain junit entry. Output:\n$result")
+        // Verify project path listed under each dep
+        assertEquals(2, result.lines().count { it.trim() == "- :" }, "Each dep should list project path. Output:\n$result")
+        // Verify old format is absent
+        assertFalse(result.contains("Configurations"), "Should not contain configuration columns. Output:\n$result")
+        assertFalse(result.contains("Source Sets"), "Should not contain source set columns. Output:\n$result")
+        assertFalse(result.contains("->"), "Should use Unicode → not ASCII ->. Output:\n$result")
+    }
 
-        assertEquals(expected, result)
+    @Test
+    fun `inspect_dependencies updatesOnly=true forces checkUpdates=true even when checkUpdates=false`() = runTest {
+        val report = GradleDependencyReport(projects = emptyList())
+
+        coEvery {
+            with(any<ProgressReporter>()) {
+                dependencyService.getDependencies(
+                    projectRoot = any(),
+                    projectPath = any(),
+                    configuration = any(),
+                    sourceSet = any(),
+                    dependency = any(),
+                    checkUpdates = any(),
+                    versionFilter = any(),
+                    stableOnly = any(),
+                    onlyDirect = any()
+                )
+            }
+        } returns report
+
+        server.client.callTool(
+            ToolNames.INSPECT_DEPENDENCIES, buildJsonObject {
+                put("updatesOnly", true)
+                put("checkUpdates", false) // explicitly false — must be overridden by updatesOnly
+            }
+        ) as CallToolResult
+
+        // Verify the service was called with checkUpdates=true despite checkUpdates=false in args.
+        coVerify {
+            with(any<ProgressReporter>()) {
+                dependencyService.getDependencies(
+                    projectRoot = any(),
+                    projectPath = any(),
+                    configuration = any(),
+                    sourceSet = any(),
+                    dependency = any(),
+                    checkUpdates = true,
+                    versionFilter = any(),
+                    stableOnly = any(),
+                    onlyDirect = any()
+                )
+            }
+        }
     }
 
     @Test
@@ -158,9 +204,9 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
         } returns report
 
         val response = server.client.callTool(ToolNames.INSPECT_DEPENDENCIES, emptyMap()) as CallToolResult
-        val result = (response.content.first() as TextContent).text
+        val result = (response.content.first() as TextContent).text!!
 
-        assertTrue(result!!.contains("Dependency Report"), "Should contain report header")
+        assertTrue(result.contains("Dependency Report"), "Should contain report header")
         assertTrue(result.contains("Note: (*) indicates a dependency that has already been listed"), "Should contain (*) explanation")
         assertTrue(result.contains("B (*)"), "Repeated dependency should be marked with (*)")
     }
@@ -212,7 +258,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
         val childPart = output.substring(childIdx)
 
         assertTrue(parentPart.contains("slf4j-api:1.7.30"), "parentConf should contain slf4j-api")
-        assertTrue(!childPart.contains("slf4j-api:1.7.30"), "childConf should NOT contain slf4j-api (inherited). Child part:\n$childPart")
+        assertFalse(childPart.contains("slf4j-api:1.7.30"), "childConf should NOT contain slf4j-api (inherited). Child part:\n$childPart")
         assertTrue(childPart.contains("guava:30.1-jre"), "childConf should contain guava")
     }
 
@@ -341,8 +387,8 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
             }
         ) as CallToolResult
 
-        val result = (response.content.first() as TextContent).text
-        assertTrue(result!!.contains("[UPDATE AVAILABLE: 2.0.0]"), "Output should contain update message. Result:\n$result")
+        val result = (response.content.first() as TextContent).text!!
+        assertTrue(result.contains("[UPDATE AVAILABLE: 2.0.0]"), "Output should contain update message. Result:\n$result")
     }
 
     @Test
@@ -418,10 +464,10 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
             }
         ) as CallToolResult
 
-        val result = (response.content.first() as TextContent).text
-        assertTrue(result!!.contains("Project: :p2"), "Should contain second project")
+        val result = (response.content.first() as TextContent).text!!
+        assertTrue(result.contains("Project: :p2"), "Should contain second project")
         assertTrue(result.contains("Project: :p3"), "Should contain third project")
-        assertTrue(!result.contains("Project: :p1"), "Should NOT contain first project")
+        assertFalse(result.contains("Project: :p1"), "Should NOT contain first project")
         assertTrue(result.contains("Showing projects 2 to 3 of 5"), "Should contain pagination metadata")
     }
 }
