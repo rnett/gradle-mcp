@@ -349,7 +349,8 @@ private object ThrowingGradleDependencyService : GradleDependencyService {
         versionFilter: String?,
         stableOnly: Boolean,
         onlyDirect: Boolean,
-        downloadSources: Boolean
+        downloadSources: Boolean,
+        fresh: Boolean
     ): GradleDependencyReport {
         throw UnsupportedOperationException("Not used for tool listing")
     }
@@ -358,7 +359,8 @@ private object ThrowingGradleDependencyService : GradleDependencyService {
     override suspend fun getSourceSetDependencies(
         projectRoot: GradleProjectRoot,
         sourceSetPath: String,
-        dependency: String?
+        dependency: String?,
+        fresh: Boolean
     ): GradleSourceSetDependencyReport {
         throw UnsupportedOperationException("Not used for tool listing")
     }
@@ -367,28 +369,29 @@ private object ThrowingGradleDependencyService : GradleDependencyService {
     override suspend fun getConfigurationDependencies(
         projectRoot: GradleProjectRoot,
         configurationPath: String,
-        dependency: String?
+        dependency: String?,
+        fresh: Boolean
     ): GradleConfigurationDependencies {
         throw UnsupportedOperationException("Not used for tool listing")
     }
 
     context(progress: ProgressReporter)
-    override suspend fun downloadAllSources(projectRoot: GradleProjectRoot, dependency: String?): GradleDependencyReport {
+    override suspend fun downloadAllSources(projectRoot: GradleProjectRoot, dependency: String?, fresh: Boolean): GradleDependencyReport {
         throw UnsupportedOperationException("Not used for tool listing")
     }
 
     context(progress: ProgressReporter)
-    override suspend fun downloadProjectSources(projectRoot: GradleProjectRoot, projectPath: String, dependency: String?): GradleProjectDependencies {
+    override suspend fun downloadProjectSources(projectRoot: GradleProjectRoot, projectPath: String, dependency: String?, fresh: Boolean): GradleProjectDependencies {
         throw UnsupportedOperationException("Not used for tool listing")
     }
 
     context(progress: ProgressReporter)
-    override suspend fun downloadConfigurationSources(projectRoot: GradleProjectRoot, configurationPath: String, dependency: String?): GradleConfigurationDependencies {
+    override suspend fun downloadConfigurationSources(projectRoot: GradleProjectRoot, configurationPath: String, dependency: String?, fresh: Boolean): GradleConfigurationDependencies {
         throw UnsupportedOperationException("Not used for tool listing")
     }
 
     context(progress: ProgressReporter)
-    override suspend fun downloadSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, dependency: String?): GradleSourceSetDependencyReport {
+    override suspend fun downloadSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, dependency: String?, fresh: Boolean): GradleSourceSetDependencyReport {
         throw UnsupportedOperationException("Not used for tool listing")
     }
 }
@@ -401,7 +404,7 @@ private object ThrowingDepsDevService : DepsDevService {
 
 private object ThrowingGradleSourceService : GradleSourceService {
     context(progress: ProgressReporter)
-    override suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean, providerToIndex: SearchProvider?): SourcesDir =
+    override suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir =
         throw UnsupportedOperationException("Not supported in tool generator")
 }
 

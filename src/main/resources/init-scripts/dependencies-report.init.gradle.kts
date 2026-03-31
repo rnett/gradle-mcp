@@ -56,10 +56,7 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
                 1 -> group == filterParts[0]
                 2 -> group == filterParts[0] && module == filterParts[1]
                 3 -> group == filterParts[0] && module == filterParts[1] && version == filterParts[2]
-                else -> group == filterParts[0] && module == filterParts[1] && version == filterParts[2]
-                // Note: variant matching is harder here as we don't have it in ModuleComponentIdentifier easily,
-                // so we fallback to 3-part matching (G:A:V) for filters with 4+ parts.
-                // The SourcesService will do the final filtering if variants are specified.
+                else -> group == filterParts[0] && module == filterParts[1]
             }
         }
 

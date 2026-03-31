@@ -14,7 +14,6 @@ import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.tools.InitScriptNames
-import kotlin.io.path.Path
 
 /**
  * Service that orchestrates retrieving dependency and repository information from a Gradle build
@@ -44,7 +43,8 @@ interface GradleDependencyService {
         versionFilter: String? = null,
         stableOnly: Boolean = false,
         onlyDirect: Boolean = false,
-        downloadSources: Boolean = false
+        downloadSources: Boolean = false,
+        fresh: Boolean = false
     ): GradleDependencyReport
 
     /**
@@ -57,7 +57,8 @@ interface GradleDependencyService {
     suspend fun getSourceSetDependencies(
         projectRoot: GradleProjectRoot,
         sourceSetPath: String,
-        dependency: String? = null
+        dependency: String? = null,
+        fresh: Boolean = false
     ): GradleSourceSetDependencyReport
 
     /**
@@ -70,32 +71,33 @@ interface GradleDependencyService {
     suspend fun getConfigurationDependencies(
         projectRoot: GradleProjectRoot,
         configurationPath: String,
-        dependency: String? = null
+        dependency: String? = null,
+        fresh: Boolean = false
     ): GradleConfigurationDependencies
 
     /**
      * Download sources for all dependencies in the project.
      */
     context(progress: ProgressReporter)
-    suspend fun downloadAllSources(projectRoot: GradleProjectRoot, dependency: String? = null): GradleDependencyReport
+    suspend fun downloadAllSources(projectRoot: GradleProjectRoot, dependency: String? = null, fresh: Boolean = false): GradleDependencyReport
 
     /**
      * Download sources for all dependencies in a specific project.
      */
     context(progress: ProgressReporter)
-    suspend fun downloadProjectSources(projectRoot: GradleProjectRoot, projectPath: String, dependency: String? = null): GradleProjectDependencies
+    suspend fun downloadProjectSources(projectRoot: GradleProjectRoot, projectPath: String, dependency: String? = null, fresh: Boolean = false): GradleProjectDependencies
 
     /**
      * Download sources for all dependencies in a specific configuration.
      */
     context(progress: ProgressReporter)
-    suspend fun downloadConfigurationSources(projectRoot: GradleProjectRoot, configurationPath: String, dependency: String? = null): GradleConfigurationDependencies
+    suspend fun downloadConfigurationSources(projectRoot: GradleProjectRoot, configurationPath: String, dependency: String? = null, fresh: Boolean = false): GradleConfigurationDependencies
 
     /**
      * Download sources for all dependencies in a specific source set.
      */
     context(progress: ProgressReporter)
-    suspend fun downloadSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, dependency: String? = null): GradleSourceSetDependencyReport
+    suspend fun downloadSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, dependency: String? = null, fresh: Boolean = false): GradleSourceSetDependencyReport
 }
 
 private class MutableDep(
@@ -124,7 +126,7 @@ private class MutableDep(
             children.map { it.toImmutable(knownChildren, visited + key) }
         }
         return GradleDependency(
-            id, group, name, version, variant, capabilities, latestVersion, isDirect, fromConfiguration, reason, sourcesFile?.let { Path(it) },
+            id, group, name, version, variant, capabilities, latestVersion, isDirect, fromConfiguration, reason, sourcesFile?.let { kotlin.io.path.Path(it) },
             updatesChecked,
             immutableChildren
         )
@@ -247,7 +249,8 @@ class DefaultGradleDependencyService(
         versionFilter: String?,
         stableOnly: Boolean,
         onlyDirect: Boolean,
-        downloadSources: Boolean
+        downloadSources: Boolean,
+        fresh: Boolean
     ): GradleDependencyReport {
         progress.report(0.0, 1.0, "Preparing dependency report...")
         // Prepare invocation args: include the init script and arguments
@@ -328,9 +331,10 @@ class DefaultGradleDependencyService(
     override suspend fun getSourceSetDependencies(
         projectRoot: GradleProjectRoot,
         sourceSetPath: String,
-        dependency: String?
+        dependency: String?,
+        fresh: Boolean
     ): GradleSourceSetDependencyReport {
-        return getSourceSetDependencies(projectRoot, sourceSetPath, dependency, false)
+        return getSourceSetDependencies(projectRoot, sourceSetPath, dependency, false, fresh)
     }
 
     context(progress: ProgressReporter)
@@ -338,7 +342,8 @@ class DefaultGradleDependencyService(
         projectRoot: GradleProjectRoot,
         sourceSetPath: String,
         dependency: String?,
-        downloadSources: Boolean
+        downloadSources: Boolean,
+        fresh: Boolean
     ): GradleSourceSetDependencyReport {
         val lastColon = sourceSetPath.lastIndexOf(':')
         require(lastColon != -1) { "sourceSetPath must be an absolute Gradle path (e.g. :project:foo:main)" }
@@ -354,7 +359,8 @@ class DefaultGradleDependencyService(
             versionFilter = null,
             stableOnly = false,
             onlyDirect = false,
-            downloadSources = downloadSources
+            downloadSources = downloadSources,
+            fresh = fresh
         )
         val project = report.projects.find { it.path == projectPath }
             ?: throw IllegalArgumentException("Project not found in report: $projectPath")
@@ -376,9 +382,10 @@ class DefaultGradleDependencyService(
     override suspend fun getConfigurationDependencies(
         projectRoot: GradleProjectRoot,
         configurationPath: String,
-        dependency: String?
+        dependency: String?,
+        fresh: Boolean
     ): GradleConfigurationDependencies {
-        return getConfigurationDependencies(projectRoot, configurationPath, dependency, false)
+        return getConfigurationDependencies(projectRoot, configurationPath, dependency, false, fresh)
     }
 
     context(progress: ProgressReporter)
@@ -386,7 +393,8 @@ class DefaultGradleDependencyService(
         projectRoot: GradleProjectRoot,
         configurationPath: String,
         dependency: String?,
-        downloadSources: Boolean
+        downloadSources: Boolean,
+        fresh: Boolean
     ): GradleConfigurationDependencies {
         val isBuildscript = configurationPath.contains(":buildscript:")
         val searchPath = if (isBuildscript) configurationPath.replace(":buildscript:", "::") else configurationPath
@@ -407,7 +415,8 @@ class DefaultGradleDependencyService(
             versionFilter = null,
             stableOnly = false,
             onlyDirect = false,
-            downloadSources = downloadSources
+            downloadSources = downloadSources,
+            fresh = fresh
         )
         val project = report.projects.find { it.path == projectPath }
             ?: throw IllegalArgumentException("Project not found in report: $projectPath")
@@ -417,11 +426,12 @@ class DefaultGradleDependencyService(
     }
 
     context(progress: ProgressReporter)
-    override suspend fun downloadAllSources(projectRoot: GradleProjectRoot, dependency: String?): GradleDependencyReport {
+    override suspend fun downloadAllSources(projectRoot: GradleProjectRoot, dependency: String?, fresh: Boolean): GradleDependencyReport {
         return getDependencies(
             projectRoot = projectRoot,
             dependency = dependency,
-            downloadSources = true
+            downloadSources = true,
+            fresh = fresh
         )
     }
 
@@ -429,13 +439,15 @@ class DefaultGradleDependencyService(
     override suspend fun downloadProjectSources(
         projectRoot: GradleProjectRoot,
         projectPath: String,
-        dependency: String?
+        dependency: String?,
+        fresh: Boolean
     ): GradleProjectDependencies {
         val report = getDependencies(
             projectRoot = projectRoot,
             projectPath = projectPath,
             dependency = dependency,
-            downloadSources = true
+            downloadSources = true,
+            fresh = fresh
         )
         val path = if (projectPath.startsWith(":")) projectPath else ":$projectPath"
         return report.projects.find { it.path == path }
@@ -446,18 +458,20 @@ class DefaultGradleDependencyService(
     override suspend fun downloadConfigurationSources(
         projectRoot: GradleProjectRoot,
         configurationPath: String,
-        dependency: String?
+        dependency: String?,
+        fresh: Boolean
     ): GradleConfigurationDependencies {
-        return getConfigurationDependencies(projectRoot, configurationPath, dependency, true)
+        return getConfigurationDependencies(projectRoot, configurationPath, dependency, true, fresh)
     }
 
     context(progress: ProgressReporter)
     override suspend fun downloadSourceSetSources(
         projectRoot: GradleProjectRoot,
         sourceSetPath: String,
-        dependency: String?
+        dependency: String?,
+        fresh: Boolean
     ): GradleSourceSetDependencyReport {
-        return getSourceSetDependencies(projectRoot, sourceSetPath, dependency, true)
+        return getSourceSetDependencies(projectRoot, sourceSetPath, dependency, true, fresh)
     }
 
     internal fun parseStructuredOutput(output: String): GradleDependencyReport {

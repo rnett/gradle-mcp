@@ -23,6 +23,7 @@ import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
 import kotlin.io.path.getLastModifiedTime
 import kotlin.io.path.listDirectoryEntries
+import kotlin.io.path.writeText
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -50,16 +51,16 @@ interface SourceStorageService {
     fun calculateHash(dep: GradleDependency): String
 
     /**
-     * Calculates a unique stable hash for a sequence of dependencies.
+     * Calculates a unique stable hash for a map of dependencies to their CAS directories.
      */
-    fun calculateDependencyHash(deps: Sequence<GradleDependency>): String
+    fun calculateViewHash(deps: Map<GradleDependency, CASDependencySourcesDir>): String
 
     /**
      * Creates an ephemeral session view for the given dependencies.
      * Returns a [SessionViewSourcesDir] containing junctions to CAS entries.
+     * If [force] is true, the view is recreated even if it already exists.
      */
-    suspend fun createSessionView(deps: Map<GradleDependency, CASDependencySourcesDir>): SessionViewSourcesDir
-
+    suspend fun createSessionView(deps: Map<GradleDependency, CASDependencySourcesDir>, force: Boolean = false): SessionViewSourcesDir
     /**
      * Extracts a dependency's source archive into the specified directory.
      * Supports a callback for each file extracted to enable parallel indexing.
@@ -142,10 +143,9 @@ class DefaultSourceStorageService(private val environment: GradleMcpEnvironment)
         return environment.projectLockFile(storagePath)
     }
 
-    override fun calculateDependencyHash(deps: Sequence<GradleDependency>): String {
-        val input = deps
-            .filter { it.hasSources }
-            .map { "${it.id}:${it.sourcesFile?.fileName?.toString()}" }
+    override fun calculateViewHash(deps: Map<GradleDependency, CASDependencySourcesDir>): String {
+        val input = deps.entries
+            .map { (dep, casDir) -> "${dep.id}:${casDir.hash}" }
             .sorted()
             .joinToString("\n")
         return input.toByteArray().hash()
@@ -157,7 +157,7 @@ class DefaultSourceStorageService(private val environment: GradleMcpEnvironment)
         encodeDefaults = true
     }
 
-    override suspend fun createSessionView(deps: Map<GradleDependency, CASDependencySourcesDir>): SessionViewSourcesDir = withContext(Dispatchers.IO) {
+    override suspend fun createSessionView(deps: Map<GradleDependency, CASDependencySourcesDir>, force: Boolean): SessionViewSourcesDir = withContext(Dispatchers.IO) {
         val sessionId = UUID.randomUUID().toString()
         val timestamp = Clock.System.now().toString().replace(Regex("[^a-zA-Z0-9]"), "_")
         val viewBaseDir = sessionViewsDir.resolve("${timestamp}_$sessionId")
@@ -184,6 +184,9 @@ class DefaultSourceStorageService(private val environment: GradleMcpEnvironment)
                 )
             }
         )
+
+        val manifestFile = viewBaseDir.resolve("manifest.json")
+        manifestFile.writeText(json.encodeToString(manifest))
 
         SessionViewSourcesDir(sessionId, viewBaseDir, viewSourcesDir, manifest, casDir)
     }

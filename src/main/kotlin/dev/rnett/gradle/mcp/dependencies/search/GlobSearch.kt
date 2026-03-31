@@ -34,7 +34,8 @@ object GlobSearch : SearchProvider {
                 if (!query.any { it in "*?[]{}\\" }) {
                     null // Treat as substring search if no glob characters are present
                 } else {
-                    FileSystems.getDefault().getPathMatcher("glob:$query")
+                    val normalizedQuery = query.replace('\\', '/')
+                    FileSystems.getDefault().getPathMatcher("glob:$normalizedQuery")
                 }
             } catch (e: Exception) {
                 // If it's not a valid glob, treat it as a substring match
@@ -50,7 +51,7 @@ object GlobSearch : SearchProvider {
                     for (line in lines) {
                         val isMatch = if (matcher != null) {
                             try {
-                                matcher.matches(Path(line))
+                                matcher.matches(Path(line.replace('\\', '/')))
                             } catch (e: Exception) {
                                 line.contains(query, ignoreCase = true)
                             }
@@ -76,7 +77,7 @@ object GlobSearch : SearchProvider {
             SearchResponse(
                 paginatedMatches.map {
                     RelativeSearchResult(
-                        relativePath = it,
+                        relativePath = it.replace('\\', '/'),
                         offset = 0,
                         line = null,
                         score = 1.0f,

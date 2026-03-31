@@ -62,6 +62,7 @@ object FileUtils {
      */
     @OptIn(kotlin.io.path.ExperimentalPathApi::class)
     suspend fun atomicMoveIfAbsent(source: Path, target: Path): Boolean = withContext(Dispatchers.IO) {
+        if (!source.exists()) return@withContext false
         if (target.exists()) {
             try {
                 source.deleteRecursively()
@@ -74,24 +75,34 @@ object FileUtils {
         try {
             Files.move(source, target, StandardCopyOption.ATOMIC_MOVE)
             true
+        } catch (e: java.nio.file.NoSuchFileException) {
+            if (source.exists()) {
+                LOGGER.warn("NoSuchFileException during move from $source to $target (source exists, target parent might be missing)", e)
+            }
+            false
         } catch (e: java.nio.file.FileAlreadyExistsException) {
             // Another process beat us to it
-            try {
-                source.deleteRecursively()
-            } catch (e2: Exception) {
-                LOGGER.warn("Failed to delete redundant source $source after CAS collision (FileAlreadyExistsException)", e2)
+            if (source.exists()) {
+                try {
+                    source.deleteRecursively()
+                } catch (e2: Exception) {
+                    LOGGER.warn("Failed to delete redundant source $source after CAS collision (FileAlreadyExistsException)", e2)
+                }
             }
             false
         } catch (e: Exception) {
             // Check if it exists now, maybe another process moved it while we were trying
             if (target.exists()) {
-                try {
-                    source.deleteRecursively()
-                } catch (e2: Exception) {
-                    LOGGER.warn("Failed to delete redundant source $source after CAS collision (catch Exception)", e2)
+                if (source.exists()) {
+                    try {
+                        source.deleteRecursively()
+                    } catch (e2: Exception) {
+                        LOGGER.warn("Failed to delete redundant source $source after CAS collision (catch Exception)", e2)
+                    }
                 }
                 false
             } else {
+                LOGGER.error("Unexpected exception during move from $source to $target", e)
                 throw e
             }
         }
@@ -104,6 +115,7 @@ object FileUtils {
     @OptIn(kotlin.io.path.ExperimentalPathApi::class)
     suspend fun atomicReplaceDirectory(source: Path, target: Path) {
         withContext(Dispatchers.IO) {
+            if (!source.exists()) return@withContext
             val tempOld = target.resolveSibling("${target.fileName}.old.${java.util.UUID.randomUUID()}")
             var movedToTemp = false
 
@@ -120,8 +132,16 @@ object FileUtils {
 
                 try {
                     Files.move(source, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+                } catch (e: java.nio.file.NoSuchFileException) {
+                    LOGGER.warn("NoSuchFileException during move in atomicReplaceDirectory from $source to $target (source might have been moved by another process)", e)
+                    return@withContext
                 } catch (e: java.nio.file.AtomicMoveNotSupportedException) {
-                    Files.move(source, target, StandardCopyOption.REPLACE_EXISTING)
+                    try {
+                        Files.move(source, target, StandardCopyOption.REPLACE_EXISTING)
+                    } catch (e2: java.nio.file.NoSuchFileException) {
+                        LOGGER.warn("NoSuchFileException during fallback move in atomicReplaceDirectory from $source to $target", e2)
+                        return@withContext
+                    }
                 }
 
                 if (movedToTemp) {

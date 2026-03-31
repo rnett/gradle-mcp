@@ -18,7 +18,7 @@ val SearchProvider.markerFileName: String
 interface SearchProvider {
     val name: String
     val indexVersion: Int
-
+    fun resolveIndexDir(baseDir: Path): Path = baseDir
     /**
      * Performs a search against multiple individual dependency indices.
      */
@@ -89,10 +89,10 @@ fun Collection<RelativeSearchResult>.toSearchResults(sourcesRoot: Path): List<Se
                 val (actualLine, snippet) = findHighSignalSnippet(content)
                 return@map SearchResult(relativePath, file, actualLine, snippet, res.score)
             }
-            val actualLine = if (res.offset in 0..content.length) {
+            val actualLine = res.line ?: if (res.offset in 0..content.length) {
                 content.substring(0, res.offset).count { it == '\n' } + 1
             } else {
-                res.line ?: 1
+                1
             }
             val lineIndex = (actualLine - 1).coerceIn(lines.indices)
             val startLine = (lineIndex - SearchResult.DEFAULT_SNIPPET_RANGE).coerceAtLeast(0)

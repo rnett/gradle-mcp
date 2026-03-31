@@ -10,6 +10,8 @@ import org.treesitter.TreeSitterKotlin
 import java.nio.file.Path
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class TreeSitterDeclarationExtractorTest {
@@ -156,6 +158,38 @@ class TreeSitterDeclarationExtractorTest {
     }
 
     @Test
+    fun `test multi-byte characters`() = runTest {
+        val ktFile = tempDir.resolve("Emoji.kt")
+        // Use an emoji which is multi-byte in UTF-8
+        ktFile.writeText(
+            """
+            package com.example.emoji
+            
+            /**
+             * Some comment with emoji: 🚀
+             */
+            class RocketLauncher {
+                fun launch() {}
+            }
+        """.trimIndent()
+        )
+
+        val extractor = TreeSitterDeclarationExtractor()
+        val symbols = extractor.extractSymbols(ktFile)
+
+        val rocketLauncher = symbols.find { it.name == "RocketLauncher" }
+        assertNotNull(rocketLauncher)
+        assertEquals("com.example.emoji.RocketLauncher", rocketLauncher.fqn)
+
+        val launch = symbols.find { it.name == "launch" }
+        assertNotNull(launch)
+        assertEquals("com.example.emoji.RocketLauncher.launch", launch.fqn)
+
+        // Verify we can actually read the snippet using the character offset if needed,
+        // although TreeSitterDeclarationExtractor already provides the name.
+        // The fix was specifically about not crashing during substring/extraction.
+    }
+
     fun `print java tree`() = runTest {
         val javaFile = tempDir.resolve("Temp.java")
         javaFile.writeText("package com.example; class X { int y; void z() {} } interface I {} enum E { A } record R() {}")

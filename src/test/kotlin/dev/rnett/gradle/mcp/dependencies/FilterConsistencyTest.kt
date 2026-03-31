@@ -50,7 +50,7 @@ class FilterConsistencyTest {
         val d = dep(group, name, version, variant)
         val id = moduleId(group, name, version)
 
-        val serviceResult = DependencyFilterMatcher(filter).matches(d)
+        val serviceResult = DependencyFilterMatcher(filter).matchesDependency(d)
         val ktsResult = matchesFilterKts(id, filter)
 
         assertEquals(ktsResult, serviceResult, "Inconsistency for filter '$filter' with $group:$name:$version (variant=$variant)")
@@ -80,7 +80,7 @@ class FilterConsistencyTest {
         val id = moduleId("org.example", "artifact", "1.0.0")
 
         val filter = "org.example:artifact:1.0.0:jvm"
-        val serviceResult = DependencyFilterMatcher(filter).matches(d)
+        val serviceResult = DependencyFilterMatcher(filter).matchesDependency(d)
         val ktsResult = matchesFilterKts(id, filter)
 
         // KTS should still match on G:A:V for a 4-part filter

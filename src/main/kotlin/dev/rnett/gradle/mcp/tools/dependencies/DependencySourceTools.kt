@@ -103,7 +103,7 @@ class DependencySourceTools(
                 args.projectPath,
                 args.dependency,
                 args.forceDownload,
-                args.fresh,
+                args.fresh || args.forceDownload,
                 DeclarationSearch
             )
         }
@@ -213,7 +213,7 @@ class DependencySourceTools(
                 args.projectPath,
                 args.dependency,
                 args.forceDownload,
-                args.fresh,
+                args.fresh || args.forceDownload,
                 provider
             )
         }
@@ -318,7 +318,7 @@ class DependencySourceTools(
         providerToIndex: SearchProvider? = null
     ): SourcesDir {
         return when {
-            gradleSource -> gradleSourceService.getGradleSources(root, forceDownload = forceDownload)
+            gradleSource -> gradleSourceService.getGradleSources(root, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)
             sourceSetPath != null -> sourcesService.resolveAndProcessSourceSetSources(root, sourceSetPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)
             configurationPath != null -> sourcesService.resolveAndProcessConfigurationSources(root, configurationPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)
             projectPath != null -> sourcesService.resolveAndProcessProjectSources(root, projectPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)

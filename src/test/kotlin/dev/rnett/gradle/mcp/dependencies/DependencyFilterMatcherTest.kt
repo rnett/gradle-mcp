@@ -17,7 +17,7 @@ class DependencyFilterMatcherTest {
     )
 
     private fun matchesFilter(dep: GradleDependency, filter: String): Boolean {
-        return DependencyFilterMatcher(filter).matches(dep)
+        return DependencyFilterMatcher(filter).matchesDependency(dep)
     }
 
     @Test

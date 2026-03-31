@@ -7,7 +7,8 @@ This repository contains a Model Context Protocol (MCP) server written in Kotlin
 1. **Security & Secrets**: NEVER log, print, or commit API keys, secrets, or .env contents.
 2. **Source Control**: ALWAYS add changes to Git for persistence, but NEVER create commits or push unless explicitly instructed.
 3. **Tool Preference**: ALWAYS prefer Gradle MCP tools (`gradle`, `inspect_build`, etc.) over raw shell execution of `./gradlew`.
-4. **Verification**: NO change is complete without passing relevant tests. Use `test` for most changes; `check` or `integrationTest` for wider impacts.
+4. **Verification**: NO CHANGE OR WORK ITEM IS COMPLETE WITHOUT ENSURING THAT THE RELEVENT TESTS PASS, and that there is sufficient test coverage. Use `test` for most changes; `check` or `integrationTest` for wider impacts or features that
+   need full integration tests (e.g. the repl).
 5. **Tool Metadata**: After modifying tool descriptions or structure, MUST run `./gradlew :updateToolsList`.
 6. **Agent Documentation**: Behavior and features MUST be documented in tool descriptions AND skills to be considered "existing".
 

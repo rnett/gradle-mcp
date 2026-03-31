@@ -8,14 +8,12 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import java.io.InputStream
-import java.nio.file.Files
 import java.nio.file.Path
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createDirectories
-import kotlin.io.path.createParentDirectories
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.isDirectory
 import kotlin.io.path.listDirectoryEntries
@@ -155,7 +153,10 @@ object ArchiveExtractor {
     ) {
         var tempTarget: Path? = null
         if (writeFiles) {
-            tempTarget = Files.createTempDirectory("gradle-mcp-extract-")
+            val finalTarget = requireNotNull(target)
+            finalTarget.parent.createDirectories()
+            tempTarget = finalTarget.parent.resolve("extract-${java.util.UUID.randomUUID()}")
+            tempTarget.createDirectories()
         }
 
         try {
@@ -163,6 +164,9 @@ object ArchiveExtractor {
             entriesProcessor { entry, input ->
                 currentCoroutineContext().ensureActive()
                 entryCount++
+                if (entryCount < 10) {
+                    LOGGER.info("Processing archive entry: ${entry.name}")
+                }
                 // Progress reporting is intentionally omitted here to avoid UI jitter with indexing, 
                 // and because per-file extraction progress is not particularly valuable to the user.
 
@@ -198,11 +202,10 @@ object ArchiveExtractor {
                     }
                 }
             }
+            LOGGER.info("Finished entries processing, total entries: $entryCount")
 
             if (writeFiles) {
                 val finalTarget = requireNotNull(target)
-                finalTarget.createParentDirectories()
-
                 val sourceToMove = if (skipSingleFirstDir) {
                     val targetDir = requireNotNull(tempTarget)
                     val child = targetDir.listDirectoryEntries().filter { !it.name.startsWith(".") }.singleOrNull()

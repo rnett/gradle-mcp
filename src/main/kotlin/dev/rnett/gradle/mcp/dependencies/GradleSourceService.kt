@@ -44,7 +44,7 @@ import kotlin.time.measureTime
 
 interface GradleSourceService {
     context(progress: ProgressReporter)
-    suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean = false, providerToIndex: SearchProvider? = null): SourcesDir
+    suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean = false, fresh: Boolean = false, providerToIndex: SearchProvider? = null): SourcesDir
 }
 
 @OptIn(ExperimentalPathApi::class)
@@ -68,7 +68,7 @@ class DefaultGradleSourceService(
 
     @OptIn(ExperimentalPathApi::class)
     context(progress: ProgressReporter)
-    override suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean, providerToIndex: SearchProvider?): SourcesDir = withContext(Dispatchers.IO) {
+    override suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir = withContext(Dispatchers.IO) {
         val rootPath = GradlePathUtils.getRootProjectPath(projectRoot)
         val inputVersion = GradlePathUtils.getGradleVersion(rootPath)
         val version = versionService.resolveVersion(inputVersion)
@@ -78,31 +78,27 @@ class DefaultGradleSourceService(
         val targetDir = MergedSourcesDir(storagePath, storagePath.resolve("sources"), storagePath.resolve("metadata"))
         val markerFile = storagePath.resolve(".completed")
 
-        if (!forceDownload) {
+        if (!forceDownload && !fresh) {
             val cached = FileLockManager.withLock(lockFile, shared = true) {
                 if (markerFile.exists()) {
-                    if (providerToIndex == null) {
+                    if (providerToIndex == null || targetDir.index.resolve(providerToIndex.markerFileName).exists()) {
                         targetDir
-                    } else {
-                        if (targetDir.index.resolve(providerToIndex.markerFileName).exists()) {
-                            targetDir
-                        } else null
-                    }
+                    } else null
                 } else null
             }
             if (cached != null) return@withContext cached
         }
 
         return@withContext FileLockManager.withLock(lockFile, shared = false) {
-            if (markerFile.exists() && !forceDownload) {
+            if (markerFile.exists() && !forceDownload && !fresh) {
                 if (providerToIndex != null && !targetDir.index.resolve(providerToIndex.markerFileName).exists()) {
                     indexInternal(version, null, targetDir, providerToIndex)
                 }
                 return@withLock targetDir
             }
 
-            if (forceDownload) {
-                LOGGER.info("Force downloading Gradle sources for version $version")
+            if (forceDownload || fresh) {
+                LOGGER.info("Refreshing Gradle sources for version $version")
                 storagePath.deleteRecursively()
             }
 

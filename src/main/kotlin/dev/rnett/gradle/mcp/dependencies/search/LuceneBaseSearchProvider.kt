@@ -21,7 +21,7 @@ import kotlin.io.path.writeText
 abstract class LuceneBaseSearchProvider : SearchProvider {
     protected abstract val logger: Logger
 
-    protected open fun resolveIndexDir(baseDir: Path): Path = baseDir
+    override fun resolveIndexDir(baseDir: Path): Path = baseDir
 
     protected abstract fun createAnalyzer(): Analyzer
 

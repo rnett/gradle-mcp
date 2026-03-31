@@ -77,7 +77,8 @@ class TreeSitterDeclarationExtractor : AutoCloseable {
     }
 
     private fun extract(root: TSNode, src: String, query: TSQuery, packageQuery: TSQuery, ext: String): List<ExtractedSymbol> {
-        val packageName = extractPackageName(root, src, packageQuery)
+        val srcBytes = src.toByteArray(Charsets.UTF_8)
+        val packageName = extractPackageName(root, srcBytes, packageQuery)
         val symbols = mutableListOf<ExtractedSymbol>()
 
         TSQueryCursor().use { cursor ->
@@ -92,7 +93,7 @@ class TreeSitterDeclarationExtractor : AutoCloseable {
                 val node = nameCapture.node
                 val startByte = node.startByte
                 val endByte = node.endByte
-                val name = src.substring(startByte, endByte)
+                val name = srcBytes.decodeToString(startByte, endByte)
 
                 // Extract FQN by walking up the tree
                 val fqnParts = mutableListOf<String>()
@@ -112,39 +113,44 @@ class TreeSitterDeclarationExtractor : AutoCloseable {
                             }
                         }
 
-                        if (nameNode != null && !nameNode.isNull() && nameNode.endByte > nameNode.startByte) {
-                            val parentName = src.substring(nameNode.startByte, nameNode.endByte)
-                            fqnParts.add(parentName)
+                        if (nameNode != null) {
+                            fqnParts.add(srcBytes.decodeToString(nameNode.startByte, nameNode.endByte))
                         }
                     }
                     current = current.parent
                 }
 
-                fqnParts.reverse()
-                fqnParts.add(name)
-                val fqn = if (packageName.isEmpty()) fqnParts.joinToString(".") else packageName + "." + fqnParts.joinToString(".")
+                val fqnPartsWithPkg = if (packageName.isNotEmpty()) {
+                    listOf(packageName) + fqnParts.reversed() + name
+                } else {
+                    fqnParts.reversed() + name
+                }
+                val fqn = fqnPartsWithPkg.joinToString(".")
+                val startPoint = node.startPoint
 
                 symbols.add(
                     ExtractedSymbol(
                         name = name,
                         fqn = fqn,
                         packageName = packageName,
-                        line = node.startPoint.row + 1,
-                        offset = startByte
+                        line = startPoint.row + 1,
+                        offset = srcBytes.decodeToString(0, node.startByte).length
                     )
                 )
             }
         }
+
         return symbols
     }
 
-    private fun extractPackageName(root: TSNode, src: String, query: TSQuery): String {
+    private fun extractPackageName(root: TSNode, srcBytes: ByteArray, packageQuery: TSQuery): String {
         TSQueryCursor().use { cursor ->
-            cursor.exec(query, root)
+            cursor.exec(packageQuery, root)
             val match = TSQueryMatch()
             if (cursor.nextMatch(match)) {
                 val capture = match.captures.firstOrNull() ?: return ""
-                return src.substring(capture.node.startByte, capture.node.endByte)
+                val node = capture.node
+                return srcBytes.decodeToString(node.startByte, node.endByte)
             }
         }
         return ""

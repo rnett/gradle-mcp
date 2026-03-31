@@ -55,14 +55,14 @@ class DefaultIndexService(
         val dir = casBaseDir.resolve("index")
         val markerFile = dir.resolve(provider.markerFileName)
 
-        if (markerFile.exists()) {
+        val providerDir = dir.resolve(provider.name)
+        if (markerFile.exists() && providerDir.exists()) {
             fileFlow.collect { } // Consume the flow to avoid resource leaks
             return Index(dir)
         }
 
-        cleanupOldIndices(dir, provider)
+        cleanupOldIndices(dir, provider, markerFile)
 
-        val providerDir = dir.resolve(provider.name)
         if (providerDir.exists()) providerDir.deleteRecursively()
         providerDir.createDirectories()
 
@@ -100,7 +100,7 @@ class DefaultIndexService(
     }
 
     @OptIn(ExperimentalPathApi::class)
-    private fun cleanupOldIndices(dir: Path, provider: SearchProvider) {
+    private fun cleanupOldIndices(dir: Path, provider: SearchProvider, markerFile: Path) {
         val currentVersion = provider.indexVersion
         val prefix = ".indexed-${provider.name}-"
 
@@ -118,7 +118,7 @@ class DefaultIndexService(
             }
         }
 
-        // Also cleanup old index directories
+        // Also cleanup old index directories (for Lucene providers)
         val indexDirPrefix = "${provider.name}-index-v"
         dir.listDirectoryEntries().forEach { entry ->
             val name = entry.fileName.toString()
@@ -129,6 +129,10 @@ class DefaultIndexService(
                     logger.info("Cleaning up old index directory version $version for ${provider.name} in $dir")
                     entry.deleteRecursively()
                 }
+            } else if (name == provider.name && !markerFile.exists()) {
+                // If directory exists but marker doesn't, it's a partial/old index of current version
+                logger.info("Cleaning up partial index for ${provider.name} in $dir")
+                entry.deleteRecursively()
             }
         }
     }
