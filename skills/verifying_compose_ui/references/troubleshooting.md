@@ -11,6 +11,18 @@ The Gradle REPL only supports JVM-based source sets.
 - **Issue**: Dependencies from `commonMain` are not resolving.
 - **Solution**: Starting the REPL on a JVM-specific source set that *depends* on `commonMain` (which is standard KMP structure) will include all inherited dependencies. Ensure the project is built before starting.
 
+## Android Limitation (FUNDAMENTAL)
+
+**IMPORTANT: `runComposeUiTest` and `captureToImage()` CANNOT work on Android.**
+
+This is not a bug or limitation that can be fixed—it is a fundamental architectural incompatibility:
+
+- `runComposeUiTest` requires desktop Compose runtime with Skiko rendering
+- Android's ART does not support desktop Compose testing APIs
+- `captureToImage()` relies on desktop-specific rendering pipelines
+
+**Solution**: Put your Composables in `commonMain` and run the REPL on a JVM target (`jvmMain`, `jvmTest`, `desktopMain`, or `desktopTest`).
+
 ## `ClassNotFoundException: androidx.compose.ui.test.junit4.DesktopComposeTestRule`
 
 This occurs when the Compose UI Test dependencies are not on the REPL's classpath.

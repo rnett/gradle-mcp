@@ -10,6 +10,42 @@ metadata:
   version: "2.2"
 ---
 
+## ⚠️ FUNDAMENTAL ANDROID LIMITATION
+
+**IMPORTANT: `runComposeUiTest` and image capture methods (`node.captureToImage()`) are NOT supported on Android and CANNOT work.**
+
+### Why This Cannot Work
+
+The `runComposeUiTest` function requires a JVM-based test runtime with desktop Compose rendering (via Skiko on JVM/Desktop). Android's ART (Android Runtime) does not support the desktop Compose testing APIs, and image capture via
+`captureToImage()` relies on desktop-specific rendering pipelines that are fundamentally incompatible with Android.
+
+### The Solution: Use a JVM Target
+
+**For visual verification of Composables, you MUST use a JVM or Desktop target source set.** This is not a workaround—it is the only supported method.
+
+Recommended approach:
+
+1. **Put your Composables in a common source set** (`commonMain`) that is shared across all targets
+2. **Create or use a JVM target** (e.g., `jvmMain`, `desktopMain`) that depends on `commonMain`
+3. **Run the REPL on the JVM target** (`sourceSet: "jvmMain"` or `sourceSet: "jvmTest"`)
+
+This is the standard KMP pattern and allows you to verify your UI code without needing an Android device or emulator.
+
+### What WILL NOT Work
+
+- ❌ Running the REPL with `sourceSet: "androidMain"`
+- ❌ Running the REPL with `sourceSet: "androidTest"`
+- ❌ Any attempt to use `runComposeUiTest` on Android
+- ❌ Any attempt to use `captureToImage()` on Android
+
+### What WILL Work
+
+- ✅ Running the REPL with `sourceSet: "jvmMain"` or `sourceSet: "jvmTest"`
+- ✅ Running the REPL with `sourceSet: "desktopMain"` or `sourceSet: "desktopTest"`
+- ✅ Using `runComposeUiTest` with `captureToImage()` on JVM/Desktop targets
+
+---
+
 # Authoritative Compose UI Preview & Visual Verification
 
 Visually verifies and renders any @Composable or @Preview directly to high-quality images from the project-aware REPL for instant, authoritative visual feedback.
