@@ -1,5 +1,6 @@
 Steps are in order, from next to furthest.
 
+- Paging issue in docs/gradle_mcp_pagination_error_report.md
 - Buildscript deps shouldn't be included unless asked for for sources.
 - The agent likes to find the full path for a file in the root deps, and then try to read it by specifying the dependency + the path in the dependency. It has lots of trouble with the view dependency structure. `fd` may not be following the
   links.

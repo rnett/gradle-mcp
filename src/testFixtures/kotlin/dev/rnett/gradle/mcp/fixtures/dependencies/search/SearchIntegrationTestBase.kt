@@ -80,7 +80,7 @@ abstract class SearchIntegrationTestBase {
                 )
             )
         )
-        coEvery { with(any<ProgressReporter>()) { dependencyService.downloadAllSources(projectRoot) } } returns report
+        coEvery { with(any<ProgressReporter>()) { dependencyService.downloadAllSources(projectRoot, any(), any()) } } returns report
     }
 
     @Test

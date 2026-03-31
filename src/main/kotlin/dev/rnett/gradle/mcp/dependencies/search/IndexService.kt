@@ -50,6 +50,15 @@ class DefaultIndexService(
     private val logger = LoggerFactory.getLogger(DefaultIndexService::class.java)
 
     @OptIn(ExperimentalPathApi::class)
+    /**
+     * Indexes a stream of files for a specific CAS directory and search provider.
+     * The index is created in the provided [casBaseDir]'s index subdirectory.
+     *
+     * @param casBaseDir The base directory of the CAS entry.
+     * @param fileFlow A flow of files to index.
+     * @param provider The search provider to use.
+     * @return The [Index] metadata if successful, or null if indexing failed.
+     */
     context(progress: ProgressReporter)
     override suspend fun indexFiles(casBaseDir: Path, fileFlow: Flow<IndexEntry>, provider: SearchProvider): Index? {
         val dir = casBaseDir.resolve("index")
@@ -139,7 +148,19 @@ class DefaultIndexService(
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    /**
+     * Performs a search against multiple indices using MultiReader.
+     *
+     * @param view The sources view containing the indices to search.
+     * @param provider The search provider to use.
+     * @param query The search query. Must not be blank.
+     * @param pagination Pagination parameters.
+     * @return A [SearchResponse] containing the results.
+     */
     override suspend fun search(view: SourcesDir, provider: SearchProvider, query: String, pagination: PaginationInput): SearchResponse<RelativeSearchResult> {
+        if (query.isBlank()) {
+            return SearchResponse(emptyList(), error = "Search query cannot be empty.")
+        }
         val indexDirs = getProviderIndexDirs(view, provider)
         if (indexDirs.isEmpty()) return SearchResponse(emptyList(), error = "No dependencies found with indices.")
         return provider.search(indexDirs, query, pagination)

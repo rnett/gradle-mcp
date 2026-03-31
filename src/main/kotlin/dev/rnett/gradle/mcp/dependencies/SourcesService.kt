@@ -18,6 +18,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
@@ -89,6 +91,12 @@ interface SourcesService {
     ): SourcesDir
 }
 
+/**
+ * Default implementation of [SourcesService].
+ * Manages the resolution, extraction, and indexing of dependency sources.
+ * Uses a project-level cache to reuse session views and avoid redundant Gradle builds.
+ * Ensures safe concurrent access to CAS entries using filesystem-level locks.
+ */
 @OptIn(ExperimentalPathApi::class)
 class DefaultSourcesService(
     private val depService: GradleDependencyService,
@@ -109,6 +117,7 @@ class DefaultSourcesService(
     )
 
     private val cache = ConcurrentHashMap<CacheKey, CachedView>()
+    private val keyLocks = ConcurrentHashMap<CacheKey, Mutex>()
 
     private sealed interface SourceScope {
         data class All(val projectRoot: GradleProjectRoot) : SourceScope
@@ -127,46 +136,49 @@ class DefaultSourcesService(
         resolve: suspend () -> Sequence<GradleDependency>
     ): SourcesDir {
         val key = CacheKey(scope, matcher.dependencyFilter)
-        val cached = if (!fresh && !forceDownload) cache[key] else null
+        val lock = keyLocks.computeIfAbsent(key) { Mutex() }
 
-        if (fresh || forceDownload) {
-            cache.remove(key)
-        }
-
-        if (cached != null && cached.sourcesDir.sources.exists()) {
-            if (providerToIndex != null) {
-                runProcessingLoop(cached.depToCasDir, forceDownload, providerToIndex)
+        return lock.withLock {
+            if (fresh || forceDownload) {
+                cache.remove(key)
             }
-            return cached.sourcesDir
-        }
 
-        storageService.pruneSessionViews()
-
-        val allDepsSeq = resolve()
-        val filteredDepsSeq = if (matcher.dependencyFilter != null) {
-            allDepsSeq.filter { matcher.matchesDependency(it) }
-        } else allDepsSeq
-
-        val filteredDeps = filteredDepsSeq.filter { it.hasSources }.toList()
-
-        if (filteredDeps.isEmpty()) {
-            if (matcher.dependencyFilter != null) {
-                throw IllegalArgumentException("Dependency filter '${matcher.dependencyFilter}' matched zero dependencies in scope with sources.")
-            } else {
-                throw IllegalArgumentException("Matched zero dependencies in scope with sources.")
+            val cached = cache[key]
+            if (cached != null && cached.sourcesDir.sources.exists()) {
+                if (providerToIndex != null) {
+                    runProcessingLoop(cached.depToCasDir, forceDownload, providerToIndex)
+                }
+                return@withLock cached.sourcesDir
             }
+
+            storageService.pruneSessionViews()
+
+            val allDepsSeq = resolve()
+            val filteredDepsSeq = if (matcher.dependencyFilter != null) {
+                allDepsSeq.filter { matcher.matchesDependency(it) }
+            } else allDepsSeq
+
+            val filteredDeps = filteredDepsSeq.filter { it.hasSources }.toList()
+
+            if (filteredDeps.isEmpty()) {
+                if (matcher.dependencyFilter != null) {
+                    throw IllegalArgumentException("Dependency filter '${matcher.dependencyFilter}' matched zero dependencies in scope with sources.")
+                } else {
+                    throw IllegalArgumentException("Matched zero dependencies in scope with sources.")
+                }
+            }
+
+            val depToCasDir = filteredDeps.associateWith { dep ->
+                val hash = storageService.calculateHash(dep)
+                storageService.getCASDependencySourcesDir(hash)
+            }
+
+            runProcessingLoop(depToCasDir, forceDownload, providerToIndex)
+
+            val result = storageService.createSessionView(depToCasDir, force = forceDownload)
+            cache[key] = CachedView(result, depToCasDir)
+            result
         }
-
-        val depToCasDir = filteredDeps.associateWith { dep ->
-            val hash = storageService.calculateHash(dep)
-            storageService.getCASDependencySourcesDir(hash)
-        }
-
-        runProcessingLoop(depToCasDir, forceDownload, providerToIndex)
-
-        val result = storageService.createSessionView(depToCasDir, force = forceDownload)
-        cache[key] = CachedView(result, depToCasDir)
-        return result
     }
 
     context(progress: ProgressReporter)
@@ -242,13 +254,21 @@ class DefaultSourcesService(
                     orchestrateExtractionAndIndexing(dep, tempDir, forceDownload, providerToIndex, casDir)
 
                     val tempIndexBaseDir = tempDir.resolve("index")
-                    val tempIndexDir = providerToIndex.resolveIndexDir(tempIndexBaseDir)
-                    if (tempIndexDir.exists()) {
-                        val targetIndexDir = providerToIndex.resolveIndexDir(casDir.index)
-                        logger.info("Moving index for ${dep.id} from $tempIndexDir to $targetIndexDir")
-                        FileUtils.atomicReplaceDirectory(tempIndexDir, targetIndexDir)
+                    val tempProviderDir = tempIndexBaseDir.resolve(providerToIndex.name)
+                    if (tempProviderDir.exists()) {
+                        val targetProviderDir = casDir.index.resolve(providerToIndex.name)
+                        logger.info("Moving index for ${dep.id} from $tempProviderDir to $targetProviderDir")
+                        targetProviderDir.parent.createDirectories()
+                        FileUtils.atomicReplaceDirectory(tempProviderDir, targetProviderDir)
+
+                        val markerFile = tempIndexBaseDir.resolve(providerToIndex.markerFileName)
+                        if (markerFile.exists()) {
+                            val targetMarker = casDir.index.resolve(providerToIndex.markerFileName)
+                            targetMarker.parent.createDirectories()
+                            Files.move(markerFile, targetMarker, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+                        }
                     } else {
-                        logger.warn("Index directory $tempIndexDir does not exist after indexing ${dep.id}")
+                        logger.warn("Index directory $tempProviderDir does not exist after indexing ${dep.id}")
                     }
                 } else {
                 }

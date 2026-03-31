@@ -378,7 +378,7 @@ class GradleDependencyIntegrationTest {
                 projectRoot = projectRoot,
                 projectPath = ":sub-a",
                 checkUpdates = true,
-                versionFilter = "^1\\."
+                versionFilter = "^1\\..*"
             )
         }
 

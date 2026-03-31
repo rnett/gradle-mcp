@@ -250,7 +250,7 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
 
                     if (stableOnly && !isStable(version)) {
                         reject("Version '$version' is a pre-release version")
-                    } else if (versionRegex != null && !versionRegex.containsMatchIn(version)) {
+                    } else if (versionRegex != null && !versionRegex.matches(version)) {
                         reject("Version '$version' does not match the provided filter regex: $versionFilter")
                     }
                 })

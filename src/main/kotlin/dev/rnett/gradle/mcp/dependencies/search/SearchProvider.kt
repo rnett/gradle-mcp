@@ -100,7 +100,7 @@ fun Collection<RelativeSearchResult>.toSearchResults(sourcesRoot: Path): List<Se
             val snippet = lines.subList(startLine, endLine + 1).joinToString("\n")
             SearchResult(relativePath, file, actualLine, snippet, res.score)
         }.distinctBy { it.line }
-    }
+    }.sortedByDescending { it.score }
 }
 
 /**
