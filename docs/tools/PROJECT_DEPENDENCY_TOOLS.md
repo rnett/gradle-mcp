@@ -95,6 +95,10 @@ Inspects the project's resolved dependency graph, checks for updates, and audits
         }
       },
       "description": "Pagination. offset = zero-based start index (default 0); limit = max items/lines to return."
+    },
+    "excludeBuildscript": {
+      "type": "boolean",
+      "description": "Whether to exclude buildscript dependencies from the report. Defaults to false."
     }
   },
   "required": [],

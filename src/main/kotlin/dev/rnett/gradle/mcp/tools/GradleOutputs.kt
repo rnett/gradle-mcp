@@ -117,42 +117,46 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
 
         val problemsSummary = problems.toSummary()
         appendLine("Problems:     ${problemsSummary.totalCount}")
-        appendLine("  To see all problems, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"summary\")`.")
-        appendLine("  To see details for a specific problem, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"details\", problemId=\"ID\")`.")
-        if (problemsSummary.errorCounts.isNotEmpty()) {
-            appendLine("  Errors:     ${problemsSummary.errorCounts.size}")
-            appendLine(OutputFormatter.listResults(problemsSummary.errorCounts.toList(), 5, item = ::formatProblem))
-        }
-        if (problemsSummary.warningCounts.isNotEmpty()) {
-            appendLine("  Warnings:   ${problemsSummary.warningCounts.size}")
-            appendLine(OutputFormatter.listResults(problemsSummary.warningCounts.toList(), 3, item = ::formatProblem))
-        }
-        if (problemsSummary.adviceCounts.isNotEmpty()) {
-            appendLine("  Advice:     ${problemsSummary.adviceCounts.size}")
-            appendLine(OutputFormatter.listResults(problemsSummary.adviceCounts.toList(), 3, item = ::formatProblem))
-        }
-        if (problemsSummary.otherCounts.isNotEmpty()) {
-            appendLine("  Other:      ${problemsSummary.otherCounts.size}")
-            appendLine(OutputFormatter.listResults(problemsSummary.otherCounts.toList(), 3, item = ::formatProblem))
+        if (problemsSummary.totalCount > 0) {
+            appendLine("  To see all problems, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"summary\")`.")
+            appendLine("  To see details for a specific problem, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"details\", problemId=\"ID\")`.")
+            if (problemsSummary.errorCounts.isNotEmpty()) {
+                appendLine("  Errors:     ${problemsSummary.errorCounts.size}")
+                appendLine(OutputFormatter.listResults(problemsSummary.errorCounts.toList(), 5, item = ::formatProblem))
+            }
+            if (problemsSummary.warningCounts.isNotEmpty()) {
+                appendLine("  Warnings:   ${problemsSummary.warningCounts.size}")
+                appendLine(OutputFormatter.listResults(problemsSummary.warningCounts.toList(), 3, item = ::formatProblem))
+            }
+            if (problemsSummary.adviceCounts.isNotEmpty()) {
+                appendLine("  Advice:     ${problemsSummary.adviceCounts.size}")
+                appendLine(OutputFormatter.listResults(problemsSummary.adviceCounts.toList(), 3, item = ::formatProblem))
+            }
+            if (problemsSummary.otherCounts.isNotEmpty()) {
+                appendLine("  Other:      ${problemsSummary.otherCounts.size}")
+                appendLine(OutputFormatter.listResults(problemsSummary.otherCounts.toList(), 3, item = ::formatProblem))
+            }
         }
         appendLine()
 
         appendLine("Tests:      ${testResults.totalCount}")
-        appendLine("  To see all test results, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"summary\")`.")
-        appendLine("  To see details and console output for a specific individual test, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"details\", testName=\"FULL_TEST_NAME\")`.")
-        appendLine("  Passed:   ${testResults.passed.size}")
-        appendLine("  Skipped:  ${testResults.skipped.size}")
-        appendLine("  Failed:   ${testResults.failed.size}")
-        if (testResults.cancelled.isNotEmpty()) {
-            if (this@toOutputString is FinishedBuild) {
-                appendLine("  Cancelled: ${testResults.cancelled.size}")
-            } else {
-                appendLine("  In Progress: ${testResults.cancelled.size}")
+        if (testResults.totalCount > 0) {
+            appendLine("  To see all test results, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"summary\")`.")
+            appendLine("  To see details and console output for a specific individual test, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"details\", testName=\"FULL_TEST_NAME\")`.")
+            appendLine("  Passed:   ${testResults.passed.size}")
+            appendLine("  Skipped:  ${testResults.skipped.size}")
+            appendLine("  Failed:   ${testResults.failed.size}")
+            if (testResults.cancelled.isNotEmpty()) {
+                if (this@toOutputString is FinishedBuild) {
+                    appendLine("  Cancelled: ${testResults.cancelled.size}")
+                } else {
+                    appendLine("  In Progress: ${testResults.cancelled.size}")
+                }
             }
-        }
-        append(OutputFormatter.listGroupedTests(testResults.failed, 20, "  "))
-        if (this@toOutputString is FinishedBuild) {
-            append(OutputFormatter.listGroupedTests(testResults.cancelled, 20, "  "))
+            append(OutputFormatter.listGroupedTests(testResults.failed, 20, "  "))
+            if (this@toOutputString is FinishedBuild) {
+                append(OutputFormatter.listGroupedTests(testResults.cancelled, 20, "  "))
+            }
         }
 
         val consoleLines = consoleOutput.lines()

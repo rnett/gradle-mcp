@@ -163,13 +163,13 @@ class GradleInvocationArgumentsTest {
         assert(shellEnv.all { (k, v) -> actualShell[k] == v })
 
         val noneArgs = GradleInvocationArguments(envSource = EnvSource.NONE)
-        assert(noneArgs.actualEnvVars(testProvider) == emptyMap<String, String>())
+        assert(noneArgs.actualEnvVars(testProvider) == mapOf("NONINTERACTIVE" to "true"))
 
         val additionalArgs = GradleInvocationArguments(
             envSource = EnvSource.NONE,
             additionalEnvVars = mapOf("EXTRA" to "VAR")
         )
-        assert(additionalArgs.actualEnvVars(testProvider) == mapOf("EXTRA" to "VAR"))
+        assert(additionalArgs.actualEnvVars(testProvider) == mapOf("EXTRA" to "VAR", "NONINTERACTIVE" to "true"))
     }
 
     @Test

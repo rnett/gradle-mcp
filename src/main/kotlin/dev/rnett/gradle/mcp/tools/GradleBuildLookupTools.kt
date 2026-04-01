@@ -23,7 +23,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
+import kotlin.io.path.Path
 import kotlin.io.path.absolutePathString
+import kotlin.io.path.writeText
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
@@ -80,7 +82,10 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         val problemId: ProblemId? = null,
 
         @Description("true = tail raw console output; false = head. Specify to get raw console output.")
-        val consoleTail: Boolean? = null
+        val consoleTail: Boolean? = null,
+
+        @Description("If specified, write the output to the given file path instead of returning it. The response will include the file absolute path and its length (in characters and lines).")
+        val outputFile: String? = null
     )
 
     private fun getLatestBuildsOutput(args: InspectBuildArgs, onlyCompleted: Boolean): String {
@@ -549,7 +554,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         val setOptionsCount = listOf(hasTasks, hasTests, hasFailures, hasProblems, hasConsole).count { it }
         require(setOptionsCount <= 1) { "Only one section (tasks, tests, failures, problems, or console) may be specified at a time." }
 
-        buildString {
+        val output = buildString {
             if (build is RunningBuild) {
                 appendLine("--- BUILD IN PROGRESS ---")
             } else {
@@ -611,6 +616,21 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                     appendLine()
                 }
             }
+        }
+
+        if (args.outputFile != null) {
+            try {
+                val path = Path(args.outputFile)
+                path.writeText(output)
+                val absolutePath = path.absolutePathString()
+                val charCount = output.length
+                val lineCount = output.lineSequence().count()
+                return@tool "Output written to $absolutePath ($charCount characters, $lineCount lines)"
+            } catch (e: Exception) {
+                return@tool "Error writing to file ${args.outputFile}: ${e.message}"
+            }
+        } else {
+            return@tool output
         }
     }
 }

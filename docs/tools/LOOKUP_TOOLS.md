@@ -161,6 +161,13 @@ Set `afterCall=true` to only match events emitted after this call.
         "null"
       ],
       "description": "true = tail raw console output; false = head. Specify to get raw console output."
+    },
+    "outputFile": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "If specified, write the output to the given file path instead of returning it. The response will include the file absolute path and its length (in characters and lines)."
     }
   },
   "required": [],

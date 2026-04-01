@@ -108,11 +108,16 @@ data class GradleInvocationArguments(
             EnvSource.INHERIT -> envProvider.getInheritedEnvironment()
             EnvSource.SHELL -> envProvider.getShellEnvironment()
         }
-        if (additionalEnvVars.isEmpty()) return base
 
-        if (!OS.isWindows) return base + additionalEnvVars
+        // Add NONINTERACTIVE=true to the base environment map
+        val baseWithNoninteractive = base.toMutableMap()
+        baseWithNoninteractive["NONINTERACTIVE"] = "true"
 
-        val result = base.toMutableMap()
+        if (additionalEnvVars.isEmpty()) return baseWithNoninteractive
+
+        if (!OS.isWindows) return baseWithNoninteractive + additionalEnvVars
+
+        val result = baseWithNoninteractive.toMutableMap()
         additionalEnvVars.forEach { (k, v) ->
             val existingKey = result.keys.find { it.equals(k, ignoreCase = true) }
             if (existingKey != null) {
