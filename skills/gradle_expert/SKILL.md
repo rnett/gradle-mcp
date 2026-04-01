@@ -22,6 +22,7 @@ Provides authoritative guidance and automation for creating, modifying, and audi
 - **ALWAYS** use `libs.versions.toml` for dependency management if it exists.
 - **ALWAYS** use `gradle_docs` for authoritative documentation lookup instead of generic web searches.
 - **ALWAYS** use `search_dependency_sources` with `gradleSource = true` when researching core Gradle behavior.
+- **ALWAYS** use `search_dependency_sources` with `sourceSetPath = ":buildscript"` when researching plugin (buildscript) source code. This targets the virtual `buildscript` source set which aggregates all classpath plugins.
 - **ALWAYS** use `inspect_build` with `testName` and `mode="details"` for individual test output instead of generic `taskPath`, `captureTaskOutput`, or shell `grep`.
 - **ALWAYS** use safe navigation (`?.url?.toString()`) and provide fallback values when accessing `ArtifactRepository` URLs in Gradle init scripts or plugins to prevent `NullPointerException`.
 - **STRONGLY PREFERRED**: Use `inspect_build` for all failure diagnostics. It is more token-efficient than reading raw console logs and provides structured access to failures, stack traces, and problems.
@@ -59,7 +60,7 @@ For deep-dives into specific problems (e.g., deprecations, plugin issues), use `
 
 - **Author builds idiomatically**: Use standard patterns for multi-project builds and convention plugins.
 - **Perform performance audits**: Identify configuration bottlenecks and recommend lazy API migrations.
-- **Research internals authoritatively**: Use `gradle_docs` and internal source search to understand "how it works" at the engine level. Use `read_dependency_sources` to explore implementation details.
+- **Research internals authoritatively**: Use `gradle_docs` and internal source search to understand "how it works" at the engine level. Use `read_dependency_sources` to explore implementation details. To search a plugin, use `sourceSetPath=":buildscript"`.
 - **Diagnose failures surgically**: Use `inspect_build` with `testName` and `mode="details"` to analyze test failures and stack traces instead of reading raw console logs. DO NOT use `taskPath` or `captureTaskOutput` for tests.
 - **Resolve dependencies precisely**: Use `inspect_dependencies` and `managing_gradle_dependencies` for auditing and updates.
 - **Consult best practices**: Refer to the [Best Practices Snapshot](./references/best_practices.md) for a high-level overview. **ALWAYS** use `gradle_docs` with `tag:best-practices` to retrieve the latest and most comprehensive

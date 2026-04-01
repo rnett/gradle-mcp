@@ -10,7 +10,7 @@ Inspects the project's resolved dependency graph, checks for updates, and audits
 
 - **Update Check**: `checkUpdates=true` (default) detects newer versions — individual lines show `[UPDATE AVAILABLE: X.Y.Z]`; use `updatesOnly=true` for a flat summary: `group:artifact: current → latest` with the project paths where each dep is used (forces `checkUpdates=true`). Use `stableOnly=true` to exclude pre-release versions.
 - **[UPDATE CHECK SKIPPED]**: Appears only for dependencies that were in scope for update checking but whose resolution genuinely failed — not for dependencies intentionally excluded from the update-check scope (e.g., transitive deps when `onlyDirect=true`).
-- **Plugin Auditing**: Use `configuration="buildscript:classpath"` to audit plugins.
+- **Plugin Auditing**: Use `sourceSet="buildscript"` to audit plugins.
 - **Targeted**: Use `dependency="org:artifact"` to target a single library — significantly faster.
 - Use `lookup_maven_versions` to find released versions; `gradle` for `dependencyInsight`.
 

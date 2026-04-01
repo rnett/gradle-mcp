@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp
 
+import dev.rnett.gradle.mcp.dependencies.DependencyRequestOptions
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.GradleSourceService
 import dev.rnett.gradle.mcp.dependencies.SourcesService
@@ -342,15 +343,7 @@ private object ThrowingGradleDependencyService : GradleDependencyService {
     override suspend fun getDependencies(
         projectRoot: GradleProjectRoot,
         projectPath: String?,
-        configuration: String?,
-        sourceSet: String?,
-        dependency: String?,
-        checkUpdates: Boolean,
-        versionFilter: String?,
-        stableOnly: Boolean,
-        onlyDirect: Boolean,
-        downloadSources: Boolean,
-        fresh: Boolean
+        options: DependencyRequestOptions
     ): GradleDependencyReport {
         throw UnsupportedOperationException("Not used for tool listing")
     }

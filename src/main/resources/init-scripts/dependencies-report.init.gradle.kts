@@ -22,6 +22,11 @@ import org.gradle.internal.logging.text.StyledTextOutput
 import java.io.File
 
 abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
+    companion object {
+        const val BUILDSCRIPT_PREFIX = "buildscript:"
+        const val BUILDSCRIPT_SOURCE_SET = "__mcp_buildscript__"
+    }
+
     init {
         group = "help"
         description = "Generates a structured dependency report for MCP."
@@ -36,14 +41,19 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         val realProject = getProject()
         mcpRenderer.gradleProject = realProject
 
-        val checkUpdates = realProject.hasProperty("mcp.checkUpdates") && realProject.property("mcp.checkUpdates").toString() == "true"
-        val onlyDirect = realProject.hasProperty("mcp.onlyDirect") && realProject.property("mcp.onlyDirect").toString() == "true"
-        val downloadSources = realProject.hasProperty("mcp.downloadSources") && realProject.property("mcp.downloadSources").toString() == "true"
-        val stableOnly = realProject.hasProperty("mcp.stableOnly") && realProject.property("mcp.stableOnly").toString() == "true"
-        val versionFilter = if (realProject.hasProperty("mcp.versionFilter")) realProject.property("mcp.versionFilter").toString() else null
-        val targetConfig = if (realProject.hasProperty("mcp.configuration")) realProject.property("mcp.configuration").toString() else null
-        val targetSourceSet = if (realProject.hasProperty("mcp.sourceSet")) realProject.property("mcp.sourceSet").toString() else null
-        val dependencyFilter = if (realProject.hasProperty("mcp.dependencyFilter")) realProject.property("mcp.dependencyFilter").toString() else null
+        fun Project.mcpProperty(name: String): String? =
+            if (hasProperty("mcp.$name")) property("mcp.$name").toString() else null
+        fun Project.mcpBooleanProperty(name: String): Boolean =
+            mcpProperty(name) == "true"
+        val checkUpdates = realProject.mcpBooleanProperty("checkUpdates")
+        val onlyDirect = realProject.mcpBooleanProperty("onlyDirect")
+        val downloadSources = realProject.mcpBooleanProperty("downloadSources")
+        val excludeBuildscript = realProject.mcpBooleanProperty("excludeBuildscript")
+        val stableOnly = realProject.mcpBooleanProperty("stableOnly")
+        val versionFilter = realProject.mcpProperty("versionFilter")
+        val targetConfig = realProject.mcpProperty("configuration")
+        val targetSourceSet = realProject.mcpProperty("sourceSet")?.trim('\'', '"', ' ')
+        val dependencyFilter = realProject.mcpProperty("dependencyFilter")
         val filterParts = dependencyFilter?.split(":", limit = 4)
 
         fun matchesFilter(id: ModuleComponentIdentifier): Boolean {
@@ -61,8 +71,8 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         }
 
         if (targetConfig != null) {
-            val isBuildscript = targetConfig.startsWith("buildscript:")
-            val configName = if (isBuildscript) targetConfig.substringAfter("buildscript:") else targetConfig
+            val isBuildscript = targetConfig.startsWith(BUILDSCRIPT_PREFIX)
+            val configName = if (isBuildscript) targetConfig.substringAfter(BUILDSCRIPT_PREFIX) else targetConfig
             val exists = if (isBuildscript) {
                 realProject.buildscript.configurations.findByName(configName) != null
             } else {
@@ -73,7 +83,7 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
             }
         }
 
-        if (targetSourceSet != null) {
+        if (targetSourceSet != null && targetSourceSet != BUILDSCRIPT_SOURCE_SET) {
             val sourceSets = realProject.extensions.findByType(SourceSetContainer::class.java)
             if (sourceSets == null || sourceSets.findByName(targetSourceSet) == null) {
                 throw IllegalArgumentException("SourceSet '$targetSourceSet' not found in project '${realProject.path}'")
@@ -82,13 +92,18 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
 
         val modelConfigurations = getModelConfigurations(model)
 
-        val projectConfigs = if (targetConfig != null && targetConfig.startsWith("buildscript:")) {
+        val projectConfigs = if (targetConfig != null && targetConfig.startsWith(BUILDSCRIPT_PREFIX)) {
             emptyList()
         } else {
             modelConfigurations.mapNotNull { realProject.configurations.findByName(it.name) }
         }
-        val buildscriptConfigs = realProject.buildscript.configurations.filter {
-            targetConfig == null || targetConfig == "buildscript:${it.name}"
+        val isTargetingBuildscript = targetSourceSet == BUILDSCRIPT_SOURCE_SET || (targetConfig != null && targetConfig.startsWith(BUILDSCRIPT_PREFIX))
+        val buildscriptConfigs = if (!excludeBuildscript || isTargetingBuildscript) {
+            realProject.buildscript.configurations.filter {
+                targetConfig == null || targetConfig == "$BUILDSCRIPT_PREFIX${it.name}"
+            }
+        } else {
+            emptyList()
         }
         val allConfigs = projectConfigs + buildscriptConfigs
 
@@ -166,6 +181,10 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
         mcpRenderer.outputProject(project)
         outputRepositories(project, realProject, mcpRenderer)
         outputSourceSets(project, realProject, mcpRenderer)
+        if (!excludeBuildscript || isTargetingBuildscript) {
+            mcpRenderer.outputSourceSet(project, BUILDSCRIPT_SOURCE_SET, realProject.buildscript.configurations.map { "$BUILDSCRIPT_PREFIX${it.name}" })
+        }
+
         outputKotlinSourceSets(project, realProject, mcpRenderer)
 
         // Phase 4: Collecting
@@ -325,7 +344,7 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
                 is IvyArtifactRepository -> repo.url?.toString() ?: "unknown"
                 else -> "unknown"
             }
-            mcpRenderer.outputRepository(project, "buildscript:$name", url)
+            mcpRenderer.outputRepository(project, "$BUILDSCRIPT_PREFIX$name", url)
         }
     }
 
@@ -420,8 +439,8 @@ class McpDependencyReportRenderer : DependencyReportRenderer {
         this.currentConfigurationName = configuration.name
         val path = currentProject?.let { getProjectPath(it) } ?: "unknown"
         val realConfig = if (inBuildscript) gradleProject?.buildscript?.configurations?.findByName(configuration.name) else gradleProject?.configurations?.findByName(configuration.name)
-        val extendsFrom = realConfig?.extendsFrom?.map { if (inBuildscript) "buildscript:${it.name}" else it.name }?.joinToString(",") ?: ""
-        val prefix = if (inBuildscript) "buildscript:" else ""
+        val extendsFrom = realConfig?.extendsFrom?.map { if (inBuildscript) "${McpDependencyReportTask.BUILDSCRIPT_PREFIX}${it.name}" else it.name }?.joinToString(",") ?: ""
+        val prefix = if (inBuildscript) McpDependencyReportTask.BUILDSCRIPT_PREFIX else ""
         output?.println("CONFIGURATION: $path | $prefix${configuration.name} | ${configuration.description ?: ""} | ${configuration.isCanBeResolved} | $extendsFrom")
     }
 
@@ -686,12 +705,15 @@ class McpDependencyReportRenderer : DependencyReportRenderer {
 allprojects {
     tasks.register("mcpDependencyReport", McpDependencyReportTask::class.java) {
         doFirst {
-            val targetConfig = if (project.hasProperty("mcp.configuration")) project.property("mcp.configuration").toString() else null
-            val targetSourceSet = if (project.hasProperty("mcp.sourceSet")) project.property("mcp.sourceSet").toString() else null
+            fun Project.mcpProperty(name: String): String? =
+                if (hasProperty("mcp.$name")) property("mcp.$name").toString() else null
+
+            val targetConfig = project.mcpProperty("configuration")
+            val targetSourceSet = project.mcpProperty("sourceSet")
 
             if (targetConfig != null) {
-                val isBuildscript = targetConfig.startsWith("buildscript:")
-                val configName = if (isBuildscript) targetConfig.substringAfter("buildscript:") else targetConfig
+                val isBuildscript = targetConfig.startsWith(McpDependencyReportTask.BUILDSCRIPT_PREFIX)
+                val configName = if (isBuildscript) targetConfig.substringAfter(McpDependencyReportTask.BUILDSCRIPT_PREFIX) else targetConfig
                 val exists = if (isBuildscript) {
                     project.buildscript.configurations.findByName(configName) != null
                 } else {
@@ -702,7 +724,7 @@ allprojects {
                 }
             }
 
-            if (targetSourceSet != null) {
+            if (targetSourceSet != null && targetSourceSet != McpDependencyReportTask.BUILDSCRIPT_SOURCE_SET) {
                 val sourceSets = project.extensions.findByType(org.gradle.api.tasks.SourceSetContainer::class.java)
                 if (sourceSets == null || sourceSets.findByName(targetSourceSet) == null) {
                     throw IllegalArgumentException("SourceSet '$targetSourceSet' not found in project '${project.path}'")

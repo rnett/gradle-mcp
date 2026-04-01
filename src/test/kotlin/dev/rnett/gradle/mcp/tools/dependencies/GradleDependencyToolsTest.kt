@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.tools.dependencies
 
 import dev.rnett.gradle.mcp.ProgressReporter
+import dev.rnett.gradle.mcp.dependencies.DependencyRequestOptions
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
@@ -87,12 +88,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
                 dependencyService.getDependencies(
                     projectRoot = any(),
                     projectPath = any(),
-                    configuration = any(),
-                    sourceSet = any(),
-                    dependency = any(),
-                    checkUpdates = true,
-                    versionFilter = any(),
-                    onlyDirect = true
+                    options = match { it.checkUpdates && it.onlyDirect }
                 )
             }
         } returns report
@@ -130,13 +126,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
                 dependencyService.getDependencies(
                     projectRoot = any(),
                     projectPath = any(),
-                    configuration = any(),
-                    sourceSet = any(),
-                    dependency = any(),
-                    checkUpdates = any(),
-                    versionFilter = any(),
-                    stableOnly = any(),
-                    onlyDirect = any()
+                    options = any()
                 )
             }
         } returns report
@@ -154,13 +144,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
                 dependencyService.getDependencies(
                     projectRoot = any(),
                     projectPath = any(),
-                    configuration = any(),
-                    sourceSet = any(),
-                    dependency = any(),
-                    checkUpdates = true,
-                    versionFilter = any(),
-                    stableOnly = any(),
-                    onlyDirect = any()
+                    options = match { it.checkUpdates }
                 )
             }
         }
@@ -199,7 +183,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<ProgressReporter>()) {
-                dependencyService.getDependencies(any(), any(), any(), any(), any(), any(), any(), any(), any())
+                dependencyService.getDependencies(any(), any(), any())
             }
         } returns report
 
@@ -377,7 +361,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<ProgressReporter>()) {
-                dependencyService.getDependencies(any(), any(), any(), any(), any(), any(), any(), any(), any())
+                dependencyService.getDependencies(any(), any(), any())
             }
         } returns report
 
@@ -400,14 +384,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
                 dependencyService.getDependencies(
                     projectRoot = any(),
                     projectPath = any(),
-                    configuration = any(),
-                    sourceSet = any(),
-                    dependency = any(),
-                    checkUpdates = any(),
-                    versionFilter = any(),
-                    stableOnly = any(),
-                    onlyDirect = any(),
-                    downloadSources = any()
+                    options = any()
                 )
             }
         } returns report
@@ -423,14 +400,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
                 dependencyService.getDependencies(
                     projectRoot = any(),
                     projectPath = any(),
-                    configuration = any(),
-                    sourceSet = any(),
-                    dependency = "org.example:artifact",
-                    checkUpdates = any(),
-                    versionFilter = any(),
-                    stableOnly = any(),
-                    onlyDirect = any(),
-                    downloadSources = any()
+                    options = match { it.dependency == "org.example:artifact" }
                 )
             }
         }
@@ -451,7 +421,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
 
         coEvery {
             with(any<ProgressReporter>()) {
-                dependencyService.getDependencies(any(), any(), any(), any(), any(), any(), any(), any(), any())
+                dependencyService.getDependencies(any(), any(), any())
             }
         } returns report
 

@@ -30,6 +30,8 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 - **ALWAYS** use `fresh: true` if a search returns a `SearchResponse` with an `error` indicating a missing index; the tool will return an error message rather than throwing an exception if the index is not found.
 - **BE AWARE** that indexing and extraction failures (e.g., `ZipException`) are still propagated and will cause the tool to fail with a descriptive error.
 - **NOTE** that the `dependency` filter targets ONLY the specific library version matched, NOT its transitive dependencies.
+- **BE AWARE** that buildscript (plugin) dependencies are excluded from `search_dependency_sources` and `read_dependency_sources` by default to reduce noise.
+- **ALWAYS** use `sourceSetPath: ":buildscript"` (root project) or `sourceSetPath: ":app:buildscript"` (subproject) to search or read plugin source code. This targets the virtual `buildscript` source set which aggregates all classpath plugins.
 
 ## Directives
 
@@ -40,7 +42,7 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
     - **FULL_TEXT**: Best for literal strings, constants, and complex code patterns using Lucene. **Case-insensitive**.
     - **GLOB**: Best for finding specific files (XML, properties, etc.) by name or extension. **Case-insensitive**.
 - **Invoke Precisely**: ALWAYS set `searchType` explicitly if the intent is not a general full-text search. This improves result accuracy and reduces noise.
-- **Scope Surgically**: Use `projectPath`, `configurationPath`, or `sourceSetPath` to narrow the search and improve performance if the target library's context is known. To search a plugin, use `configurationPath=":buildscript:classpath"`.
+- **Scope Surgically**: Use `projectPath`, `configurationPath`, or `sourceSetPath` to narrow the search and improve performance if the target library's context is known. To search a plugin, use `sourceSetPath=":buildscript"`.
 - **Target Libraries Directly**: Use the `dependency` parameter to search or read from a single library. It supports `group:name:version:variant`, `group:name:version`, `group:name`, or just `group`. This bypasses project-level index
   merging and provides instantaneous results from the global extracted source cache. Note that results will be relative to the targeted library root.
 - **Troubleshoot Targeted Searches**: If a targeted search using the `dependency` parameter fails or returns no matches, use `inspect_dependencies` first to verify the exact coordinates (group, name, version, variant) of the dependency as
@@ -50,8 +52,7 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
   covered by the MCP tools (e.g., regex-heavy searches). Because dependency directories are symlinks, always pass `--follow` to `rg`: `rg --follow <pattern> <sources-root>`.
 - **Explore Packages Authoritatively**: Use `read_dependency_sources` with a dot-separated package path (e.g., `org.gradle.api`) to list its direct symbols and sub-packages. This is backed by the symbol index and is more reliable than
   directory-based exploration for Kotlin projects.
-- **Analyze Implementation**: Use `read_dependency_sources` to retrieve the implementation logic. If the file is large, use `pagination` to read specific sections. You can target plugins by passing
-  `configurationPath=":buildscript:classpath"`.
+- **Analyze Implementation**: Use `read_dependency_sources` to retrieve the implementation logic. If the file is large, use `pagination` to read specific sections. You can target plugins by passing `sourceSetPath=":buildscript"`.
 - **Trace Symbols Authoritatively**: When encountering an unknown symbol, use `DECLARATION` search to jump directly to its definition in the library. This is the only reliable way to understand exact behavior and available methods.
 
 ## When to Use

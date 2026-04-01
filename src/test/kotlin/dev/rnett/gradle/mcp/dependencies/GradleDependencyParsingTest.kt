@@ -161,6 +161,30 @@ class GradleDependencyParsingTest {
         assertEquals("org.jetbrains.kotlin:kotlin-stdlib:1.9.22", appStdLib.id)
     }
 
+    @Test
+    fun `can parse buildscript source set`() {
+        val output = """
+            PROJECT: : | project ':'
+            SOURCESET: : | buildscript | buildscript:classpath
+            CONFIGURATION: : | buildscript:classpath | | true
+            DEP: : | * | com.google.guava:guava:32.1.2-jre | com.google.guava | guava | 32.1.2-jre | | | false
+        """.trimIndent()
+
+        val service = DefaultGradleDependencyService(MockGradleProvider())
+        val report = service.parseStructuredOutput(output)
+
+        assertNotNull(report)
+        val project = report.projects[0]
+        val buildscript = project.sourceSets.find { it.name == "buildscript" }
+        assertNotNull(buildscript)
+        assertEquals(listOf("buildscript:classpath"), buildscript.configurations)
+
+        val config = project.configurations.find { it.name == "buildscript:classpath" }
+        assertNotNull(config)
+        assertEquals(1, config.dependencies.size)
+        assertEquals("com.google.guava:guava:32.1.2-jre", config.dependencies[0].id)
+    }
+
     private class MockGradleProvider : GradleProvider {
         override suspend fun <T : Model> getBuildModel(
             projectRoot: GradleProjectRoot,

@@ -1,5 +1,7 @@
 package dev.rnett.gradle.mcp.tools.dependencies
 
+import dev.rnett.gradle.mcp.ProgressReporter
+import dev.rnett.gradle.mcp.dependencies.DependencyRequestOptions
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
@@ -39,7 +41,9 @@ class GradleDependencyTools(
         val stableOnly: Boolean = false,
         @Description("Regex filter for considered update versions (e.g., '^1\\.' to match versions starting with 1).")
         val versionFilter: String? = null,
-        val pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS
+        val pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS,
+        @Description("Whether to exclude buildscript dependencies from the report. Defaults to false.")
+        val excludeBuildscript: Boolean = false
     )
 
     val inspectDependencies by tool<InspectDependenciesArgs, String>(
@@ -49,7 +53,7 @@ class GradleDependencyTools(
             |
             |- **Update Check**: `checkUpdates=true` (default) detects newer versions — individual lines show `[UPDATE AVAILABLE: X.Y.Z]`; use `updatesOnly=true` for a flat summary: `group:artifact: current → latest` with the project paths where each dep is used (forces `checkUpdates=true`). Use `stableOnly=true` to exclude pre-release versions.
             |- **[UPDATE CHECK SKIPPED]**: Appears only for dependencies that were in scope for update checking but whose resolution genuinely failed — not for dependencies intentionally excluded from the update-check scope (e.g., transitive deps when `onlyDirect=true`).
-            |- **Plugin Auditing**: Use `configuration="buildscript:classpath"` to audit plugins.
+            |- **Plugin Auditing**: Use `sourceSet="buildscript"` to audit plugins.
             |- **Targeted**: Use `dependency="org:artifact"` to target a single library — significantly faster.
             |- Use `${ToolNames.LOOKUP_MAVEN_VERSIONS}` to find released versions; `${ToolNames.GRADLE}` for `dependencyInsight`.
         """.trimMargin()
@@ -61,13 +65,16 @@ class GradleDependencyTools(
             dependencyService.getDependencies(
                 projectRoot = root,
                 projectPath = it.projectPath.path,
-                configuration = it.configuration,
-                sourceSet = it.sourceSet,
-                dependency = it.dependency,
-                checkUpdates = checkUpdatesEnabled,
-                versionFilter = it.versionFilter,
-                stableOnly = it.stableOnly,
-                onlyDirect = it.onlyDirect
+                options = DependencyRequestOptions(
+                    configuration = it.configuration,
+                    sourceSet = it.sourceSet,
+                    dependency = it.dependency,
+                    checkUpdates = checkUpdatesEnabled,
+                    versionFilter = it.versionFilter,
+                    stableOnly = it.stableOnly,
+                    onlyDirect = it.onlyDirect,
+                    excludeBuildscript = it.excludeBuildscript // Use the arg value (default false)
+                )
             )
         }
 

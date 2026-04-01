@@ -9,7 +9,7 @@ This repository contains a Model Context Protocol (MCP) server written in Kotlin
 3. **Tool Preference**: ALWAYS prefer Gradle MCP tools (`gradle`, `inspect_build`, etc.) over raw shell execution of `./gradlew`.
 4. **Verification**: NO CHANGE OR WORK ITEM IS COMPLETE WITHOUT ENSURING THAT THE RELEVENT TESTS PASS, and that there is sufficient test coverage. Use `test` for most changes; `check` or `integrationTest` for wider impacts or features that
    need full integration tests (e.g. the repl).
-5. **Tool Metadata**: After modifying tool descriptions or structure, MUST run `./gradlew :updateToolsList`.
+5. **Tool Metadata**: After modifying tool descriptions or structure in Kotlin source code, MUST run `./gradlew :updateToolsList` to sync auto-generated documentation (`docs/tools/*.md`) and LLM metadata.
 6. **Agent Documentation**: Behavior and features MUST be documented in tool descriptions AND skills to be considered "existing".
 
 ---
@@ -34,6 +34,7 @@ This repository contains a Model Context Protocol (MCP) server written in Kotlin
 - **Isolated State**: Each tool call operates on a unique session view, ensuring stability during concurrent updates.
 - **Kotlin & Koin**: Leverage Gradle's type system; isolated Koin prevents global state leakage.
 - **Testing**: Use **Power Assert** for rich failure messages (avoid overly nested assertions to prevent compiler crashes). Reuse class-level test resources for speed.
+- **Mocking & Future-Proofing**: When refactoring service interfaces mocked in many tests, prioritize using a **data class for parameters** (e.g., `DependencyRequestOptions`). This avoids "boolean blindness" and allows adding new configuration flags with defaults without breaking existing test call sites.
 - **MCP Design**: Return structured Markdown for LLM reasoning. Use Tooling API for stability. MCP tool descriptions must be self-sufficient enough for standalone use, while skills remain the primary "agentic" interface.
 - **Ambiguity Reporting**: Use "exact match -> unique prefix match -> ambiguous prefix match" flow for lookup tools.
 

@@ -4,6 +4,7 @@ import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.TestFixturesBuildConfig
+import dev.rnett.gradle.mcp.dependencies.DependencyRequestOptions
 import dev.rnett.gradle.mcp.dependencies.DefaultGradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourcesService
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
@@ -24,6 +25,7 @@ import java.nio.file.Path
 import kotlin.io.path.createTempDirectory
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
@@ -204,7 +206,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `can get transitive dependencies`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val report = with(ProgressReporter.PRINTLN) { service.getDependencies(projectRoot, projectPath = ":sub-a", configuration = "testCompileClasspath") }
+        val report = with(ProgressReporter.PRINTLN) { service.getDependencies(projectRoot, projectPath = ":sub-a", options = DependencyRequestOptions(configuration = "testCompileClasspath")) }
 
         val subA = report.projects.find { it.path == ":sub-a" }
         assertNotNull(subA)
@@ -228,7 +230,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `can filter dependencies by configuration`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val report = with(ProgressReporter.PRINTLN) { service.getDependencies(projectRoot, projectPath = ":sub-a", configuration = "runtimeClasspath") }
+        val report = with(ProgressReporter.PRINTLN) { service.getDependencies(projectRoot, projectPath = ":sub-a", options = DependencyRequestOptions(configuration = "runtimeClasspath")) }
 
         val subA = report.projects.find { it.path == ":sub-a" }
         assertNotNull(subA)
@@ -240,7 +242,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `can filter only direct dependencies`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val report = with(ProgressReporter.PRINTLN) { service.getDependencies(projectRoot, projectPath = ":sub-a", configuration = "testCompileClasspath", onlyDirect = true) }
+        val report = with(ProgressReporter.PRINTLN) { service.getDependencies(projectRoot, projectPath = ":sub-a", options = DependencyRequestOptions(configuration = "testCompileClasspath", onlyDirect = true)) }
 
         val subA = report.projects.find { it.path == ":sub-a" }
         assertNotNull(subA)
@@ -317,7 +319,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `can check for updates`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val report = with(ProgressReporter.PRINTLN) { service.getDependencies(projectRoot, projectPath = ":sub-a", checkUpdates = true) }
+        val report = with(ProgressReporter.PRINTLN) { service.getDependencies(projectRoot, projectPath = ":sub-a", options = DependencyRequestOptions(checkUpdates = true)) }
 
         val slf4j = report.projects.flatMap { it.configurations }
             .flatMap { it.dependencies }
@@ -338,8 +340,10 @@ class GradleDependencyIntegrationTest {
             service.getDependencies(
                 projectRoot,
                 projectPath = ":sub-a",
-                checkUpdates = true,
-                stableOnly = true
+                options = DependencyRequestOptions(
+                    checkUpdates = true,
+                    stableOnly = true
+                )
             )
         }
 
@@ -361,7 +365,7 @@ class GradleDependencyIntegrationTest {
             with(ProgressReporter.PRINTLN) {
                 service.getDependencies(
                     projectRoot = projectRoot,
-                    configuration = "fakeConfig"
+                    options = DependencyRequestOptions(configuration = "fakeConfig")
                 )
             }
         }
@@ -377,8 +381,10 @@ class GradleDependencyIntegrationTest {
             service.getDependencies(
                 projectRoot = projectRoot,
                 projectPath = ":sub-a",
-                checkUpdates = true,
-                versionFilter = "^1\\..*"
+                options = DependencyRequestOptions(
+                    checkUpdates = true,
+                    versionFilter = "^1\\..*"
+                )
             )
         }
 
@@ -443,7 +449,7 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `can get buildscript dependencies`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        val report = with(ProgressReporter.PRINTLN) { service.getDependencies(projectRoot, projectPath = ":") }
+        val report = with(ProgressReporter.PRINTLN) { service.getDependencies(projectRoot, projectPath = ":", options = DependencyRequestOptions(excludeBuildscript = false)) }
 
         val rootProject = report.projects.find { it.path == ":" }
         assertNotNull(rootProject)
@@ -453,6 +459,65 @@ class GradleDependencyIntegrationTest {
 
         // buildscript configurations should be resolvable
         assertTrue(buildscriptClasspath.isResolvable, "buildscript:classpath should be resolvable")
+    }
+
+    @Test
+    fun `can exclude buildscript dependencies`() = runTest(timeout = 180.seconds) {
+        val projectRoot = GradleProjectRoot(complexProject.pathString())
+
+        // 1. Check that they are included by default (excludeBuildscript = false)
+        val reportWith = with(ProgressReporter.PRINTLN) {
+            service.getDependencies(projectRoot, projectPath = ":", options = DependencyRequestOptions(excludeBuildscript = false))
+        }
+        val rootProjectWith = reportWith.projects.find { it.path == ":" }!!
+        val config = rootProjectWith.configurations.find { it.name == "buildscript:classpath" }
+        if (config == null) {
+            println("REPORT PROJECTS:")
+            reportWith.projects.forEach { p ->
+                println("Project: ${p.path}")
+                p.configurations.forEach { println("  Config: ${it.name}") }
+            }
+        }
+        assertNotNull(config)
+
+        // 2. Check that they are excluded when requested
+        val reportWithout = with(ProgressReporter.PRINTLN) {
+            service.getDependencies(projectRoot, projectPath = ":", options = DependencyRequestOptions(excludeBuildscript = true))
+        }
+        val rootProjectWithout = reportWithout.projects.find { it.path == ":" }!!
+        assertNull(rootProjectWithout.configurations.find { it.name == "buildscript:classpath" }, "buildscript:classpath should be excluded")
+    }
+
+    @Test
+    fun `can get virtual buildscript source set`() = runTest(timeout = 180.seconds) {
+        val projectRoot = GradleProjectRoot(complexProject.pathString())
+
+        val report = with(ProgressReporter.PRINTLN) {
+            service.downloadSourceSetSources(projectRoot, sourceSetPath = ":buildscript")
+        }
+
+        assertEquals("buildscript", report.name)
+        assertTrue(report.configurations.any { it.name == "buildscript:classpath" })
+    }
+
+    @Test
+    fun `switching excludeBuildscript between calls returns distinct results`() = runTest(timeout = 180.seconds) {
+        val projectRoot = GradleProjectRoot(complexProject.pathString())
+
+        // First call: include buildscript deps
+        val reportWith = with(ProgressReporter.PRINTLN) {
+            service.getDependencies(projectRoot, projectPath = ":", options = DependencyRequestOptions(excludeBuildscript = false))
+        }
+        val rootWith = reportWith.projects.find { it.path == ":" }!!
+        assertNotNull(rootWith.configurations.find { it.name == "buildscript:classpath" }, "First call should include buildscript:classpath")
+
+        // Second call: exclude buildscript deps — must not bleed from first call's cache
+        val reportWithout = with(ProgressReporter.PRINTLN) {
+            service.getDependencies(projectRoot, projectPath = ":", options = DependencyRequestOptions(excludeBuildscript = true))
+        }
+        val rootWithout = reportWithout.projects.find { it.path == ":" }!!
+        assertNull(rootWithout.configurations.find { it.name == "buildscript:classpath" }, "Second call should not include buildscript:classpath")
+        assertNull(rootWithout.sourceSets.find { it.name == "buildscript" }, "Second call should not include virtual buildscript source set")
     }
 
     @Test

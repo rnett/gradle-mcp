@@ -78,6 +78,7 @@ class DependencySourceTools(
         ToolNames.READ_DEPENDENCY_SOURCES,
         """
             |Reads source files and explores directory structures of external library dependencies, plugins, or Gradle's internal engine; use instead of shell tools which cannot locate remote dependency sources.
+            |Buildscript (plugin) dependencies are excluded by default to reduce noise. To search plugins, use `sourceSetPath: ":buildscript"` (root project) or `sourceSetPath: ":app:buildscript"` (subproject).
             |Supports dot-separated package paths via the symbol index. Use `${ToolNames.SEARCH_DEPENDENCY_SOURCES}` to find paths first.
             |`path` without `dependency`: must include group/artifact prefix. With `dependency`: relative to library root.
             |Sources are CAS-cached (immutable). Use `fresh=true` for dependency changes; `forceDownload=true` only to recover corrupt/missing files.
@@ -89,7 +90,7 @@ class DependencySourceTools(
             |- Browse single dep: `{ dependency: "org.jetbrains.kotlin:kotlin-stdlib" }`
             |- Read file: `{ dependency: "org.jetbrains.kotlin:kotlin-stdlib", path: "kotlin/collections/List.kt" }`
             |- Read package: `{ dependency: "org.jetbrains.kotlin:kotlin-stdlib", path: "kotlin.collections" }`
-            |- Plugin sources: `{ configurationPath: ":buildscript:classpath" }`
+            |- Plugins: `{ sourceSetPath: ":buildscript" }`
             |- Gradle internals: `{ gradleSource: true }`
         """.trimMargin()
     ) { args ->
@@ -172,6 +173,7 @@ class DependencySourceTools(
         ToolNames.SEARCH_DEPENDENCY_SOURCES,
         """
             |Searches for symbols or text across the source code of ALL external library dependencies, plugins, or Gradle's internal engine; use instead of shell grep which cannot find remote dependency sources.
+            |Buildscript (plugin) dependencies are excluded by default to reduce noise. To search plugins, use `sourceSetPath: ":buildscript"` (root project) or `sourceSetPath: ":app:buildscript"` (subproject).
             |Sources are CAS-cached (immutable). Use `fresh=true` for dependency changes; `forceDownload=true` only to recover corrupt/missing files.
             |ALWAYS scope with `dependency`, `projectPath`, `configurationPath`, or `sourceSetPath` — unscoped search indexes ALL dependencies and is VERY EXPENSIVE on large projects.
             |Returns the absolute path of the sources root. Dependency directories are symlinked; pass `--follow` to `rg` (e.g., `rg --follow <pattern> <path>`).
@@ -191,7 +193,7 @@ class DependencySourceTools(
             |- Full-text: `{ query: "TIMEOUT_MS" }`
             |- Single dep: `{ dependency: "org.jetbrains.kotlinx:kotlinx-coroutines-core", query: "launch", searchType: "DECLARATION" }`
             |- Gradle internals: `{ gradleSource: true, query: "DefaultProject", searchType: "DECLARATION" }`
-            |- Plugins: `{ configurationPath: ":buildscript:classpath", query: "MyPlugin", searchType: "DECLARATION" }`
+            |- Plugins: `{ sourceSetPath: ":buildscript", query: "MyPlugin", searchType: "DECLARATION" }`
             |- Files: `{ query: "**/plugin.properties", searchType: "GLOB" }`
             |
             |Once found, read content with `${ToolNames.READ_DEPENDENCY_SOURCES}`.

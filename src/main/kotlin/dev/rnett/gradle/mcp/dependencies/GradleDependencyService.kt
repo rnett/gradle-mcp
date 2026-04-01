@@ -14,6 +14,7 @@ import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.tools.InitScriptNames
+import org.slf4j.LoggerFactory
 
 /**
  * Service that orchestrates retrieving dependency and repository information from a Gradle build
@@ -26,25 +27,13 @@ interface GradleDependencyService {
      *
      * @param projectRoot The root of the Gradle project.
      * @param projectPath The Gradle path of the project to get dependencies for (e.g. ":", ":subproject"). If null, all projects are included.
-     * @param configuration The name of the configuration to get dependencies for (e.g. "implementation"). If null, all configurations are included.
-     * @param sourceSet The name of the source set to get dependencies for (e.g. "main"). If null, all source sets are included.
-     * @param dependency The coordinates of the dependency to filter by (e.g. "group:name").
-     * @param checkUpdates Whether to check for dependency updates.
-     * @param onlyDirect Whether to only include direct dependencies.
+     * @param options The options for the dependency request.
      */
     context(progress: ProgressReporter)
     suspend fun getDependencies(
         projectRoot: GradleProjectRoot,
         projectPath: String? = null,
-        configuration: String? = null,
-        sourceSet: String? = null,
-        dependency: String? = null,
-        checkUpdates: Boolean = false,
-        versionFilter: String? = null,
-        stableOnly: Boolean = false,
-        onlyDirect: Boolean = false,
-        downloadSources: Boolean = false,
-        fresh: Boolean = false
+        options: DependencyRequestOptions = DependencyRequestOptions()
     ): GradleDependencyReport
 
     /**
@@ -52,6 +41,8 @@ interface GradleDependencyService {
      *
      * @param projectRoot the Gradle project root
      * @param sourceSetPath the absolute Gradle path of the source set, e.g. :my:project:foo:main
+     * @param dependency optional dependency coordinate filter
+     * @param fresh whether to force a fresh resolution
      */
     context(progress: ProgressReporter)
     suspend fun getSourceSetDependencies(
@@ -66,6 +57,8 @@ interface GradleDependencyService {
      *
      * @param projectRoot the Gradle project root
      * @param configurationPath the absolute Gradle path of the configuration, e.g. :my:project:foo:main
+     * @param dependency optional dependency coordinate filter
+     * @param fresh whether to force a fresh resolution
      */
     context(progress: ProgressReporter)
     suspend fun getConfigurationDependencies(
@@ -77,24 +70,43 @@ interface GradleDependencyService {
 
     /**
      * Download sources for all dependencies in the project.
+     *
+     * @param projectRoot the Gradle project root
+     * @param dependency optional dependency coordinate filter
+     * @param fresh whether to force a fresh resolution
      */
     context(progress: ProgressReporter)
     suspend fun downloadAllSources(projectRoot: GradleProjectRoot, dependency: String? = null, fresh: Boolean = false): GradleDependencyReport
 
     /**
      * Download sources for all dependencies in a specific project.
+     *
+     * @param projectRoot the Gradle project root
+     * @param projectPath the Gradle path of the project
+     * @param dependency optional dependency coordinate filter
+     * @param fresh whether to force a fresh resolution
      */
     context(progress: ProgressReporter)
     suspend fun downloadProjectSources(projectRoot: GradleProjectRoot, projectPath: String, dependency: String? = null, fresh: Boolean = false): GradleProjectDependencies
 
     /**
      * Download sources for all dependencies in a specific configuration.
+     *
+     * @param projectRoot the Gradle project root
+     * @param configurationPath the absolute Gradle path of the configuration
+     * @param dependency optional dependency coordinate filter
+     * @param fresh whether to force a fresh resolution
      */
     context(progress: ProgressReporter)
     suspend fun downloadConfigurationSources(projectRoot: GradleProjectRoot, configurationPath: String, dependency: String? = null, fresh: Boolean = false): GradleConfigurationDependencies
 
     /**
      * Download sources for all dependencies in a specific source set.
+     *
+     * @param projectRoot the Gradle project root
+     * @param sourceSetPath the absolute Gradle path of the source set
+     * @param dependency optional dependency coordinate filter
+     * @param fresh whether to force a fresh resolution
      */
     context(progress: ProgressReporter)
     suspend fun downloadSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, dependency: String? = null, fresh: Boolean = false): GradleSourceSetDependencyReport
@@ -152,6 +164,11 @@ class DefaultGradleDependencyService(
     private val gradle: GradleProvider
 ) : GradleDependencyService {
 
+    companion object {
+        private val LOGGER = LoggerFactory.getLogger(DefaultGradleDependencyService::class.java)
+        private const val BUILDSCRIPT_SOURCE_SET = "__mcp_buildscript__"
+    }
+
     private class ProjectParser(val path: String) {
         val project = MutableProject(path)
         var currentConfig: MutableConfig? = null
@@ -172,9 +189,10 @@ class DefaultGradleDependencyService(
 
                 "SOURCESET" -> {
                     val name = parts.getOrNull(1).orEmpty()
+                    val mappedName = if (name == BUILDSCRIPT_SOURCE_SET) "buildscript" else name
                     val configs = parts.getOrNull(2)?.takeIf { it.isNotEmpty() }?.split(",")?.map { it.trim() }
                         ?: emptyList()
-                    project.sourceSets.add(GradleSourceSetDependencies(name, configs))
+                    project.sourceSets.add(GradleSourceSetDependencies(mappedName, configs))
                 }
 
                 "CONFIGURATION" -> {
@@ -242,15 +260,7 @@ class DefaultGradleDependencyService(
     override suspend fun getDependencies(
         projectRoot: GradleProjectRoot,
         projectPath: String?,
-        configuration: String?,
-        sourceSet: String?,
-        dependency: String?,
-        checkUpdates: Boolean,
-        versionFilter: String?,
-        stableOnly: Boolean,
-        onlyDirect: Boolean,
-        downloadSources: Boolean,
-        fresh: Boolean
+        options: DependencyRequestOptions
     ): GradleDependencyReport {
         progress.report(0.0, 1.0, "Preparing dependency report...")
         // Prepare invocation args: include the init script and arguments
@@ -258,6 +268,10 @@ class DefaultGradleDependencyService(
             .withInitScript(InitScriptNames.DEPENDENCIES_REPORT)
 
         val additional = mutableListOf<String>()
+        if (options.fresh) {
+            additional += "--rerun-tasks"
+        }
+
         // Append custom dependency report task
         val task = if (projectPath != null) {
             val path = ":" + projectPath.trim(':')
@@ -272,18 +286,21 @@ class DefaultGradleDependencyService(
             if (value is Boolean && value) {
                 additional += "-Pmcp.$name=true"
             } else if (value is String && value.isNotBlank()) {
-                additional += "-Pmcp.$name=$value"
+                val targetValue = if (name == "sourceSet" && value == "buildscript") BUILDSCRIPT_SOURCE_SET else value
+                additional += "-Pmcp.$name=$targetValue"
             }
         }
 
-        addProp("configuration", configuration)
-        addProp("sourceSet", sourceSet)
-        addProp("dependencyFilter", dependency)
-        addProp("checkUpdates", checkUpdates)
-        addProp("versionFilter", versionFilter)
-        addProp("stableOnly", stableOnly)
-        addProp("onlyDirect", onlyDirect)
-        addProp("downloadSources", downloadSources)
+        addProp("configuration", options.configuration)
+        addProp("sourceSet", options.sourceSet)
+        addProp("dependencyFilter", options.dependency)
+        addProp("checkUpdates", options.checkUpdates)
+        addProp("versionFilter", options.versionFilter)
+        addProp("stableOnly", options.stableOnly)
+        addProp("onlyDirect", options.onlyDirect)
+        addProp("downloadSources", options.downloadSources)
+        addProp("excludeBuildscript", options.excludeBuildscript)
+
         args = args.copy(additionalArguments = args.additionalArguments + additional)
 
         val running: RunningBuild = gradle.runBuild(
@@ -297,6 +314,7 @@ class DefaultGradleDependencyService(
         // Wait for build to complete so console output is finalized
         val finished = running.awaitFinished()
         if (finished.outcome is BuildOutcome.Failed) {
+            println("RAW OUTPUT ON FAILURE:\n${running.consoleOutput}")
             val failure = (finished.outcome as BuildOutcome.Failed).failures.firstOrNull()
             val allMessages = failure?.flatten()?.mapNotNull { it.message }?.joinToString("; ") ?: "Unknown error"
             throw IllegalStateException("Gradle build failed: $allMessages")
@@ -306,11 +324,14 @@ class DefaultGradleDependencyService(
         val parsed = parseStructuredOutput(text)
 
         // If client requested configuration or sourceSet filtering, apply here
-        val filtered = if (!configuration.isNullOrBlank() || !sourceSet.isNullOrBlank()) {
+        val filtered = if (!options.configuration.isNullOrBlank() || !options.sourceSet.isNullOrBlank()) {
             parsed.copy(
                 projects = parsed.projects.mapNotNull { p ->
-                    val newConfigs = if (!configuration.isNullOrBlank()) p.configurations.filter { it.name == configuration } else p.configurations
-                    val newSourceSets = if (!sourceSet.isNullOrBlank()) p.sourceSets.filter { it.name == sourceSet } else p.sourceSets
+                    val newConfigs = if (!options.configuration.isNullOrBlank()) p.configurations.filter { it.name == options.configuration } else p.configurations
+                    val newSourceSets = if (!options.sourceSet.isNullOrBlank()) {
+                        val sourceSetFilter = if (options.sourceSet == BUILDSCRIPT_SOURCE_SET) "buildscript" else options.sourceSet
+                        p.sourceSets.filter { it.name == sourceSetFilter }
+                    } else p.sourceSets
 
                     if (newConfigs.isEmpty() && newSourceSets.isEmpty() && (p.configurations.isNotEmpty() || p.sourceSets.isNotEmpty())) {
                         null
@@ -334,39 +355,33 @@ class DefaultGradleDependencyService(
         dependency: String?,
         fresh: Boolean
     ): GradleSourceSetDependencyReport {
-        return getSourceSetDependencies(projectRoot, sourceSetPath, dependency, false, fresh)
+        return getSourceSetDependencies(projectRoot, sourceSetPath, DependencyRequestOptions(dependency = dependency, fresh = fresh))
     }
 
     context(progress: ProgressReporter)
     private suspend fun getSourceSetDependencies(
         projectRoot: GradleProjectRoot,
         sourceSetPath: String,
-        dependency: String?,
-        downloadSources: Boolean,
-        fresh: Boolean
+        options: DependencyRequestOptions
     ): GradleSourceSetDependencyReport {
         val lastColon = sourceSetPath.lastIndexOf(':')
         require(lastColon != -1) { "sourceSetPath must be an absolute Gradle path (e.g. :project:foo:main)" }
         val projectPath = if (lastColon == 0) ":" else sourceSetPath.substring(0, lastColon)
         val sourceSetName = sourceSetPath.substring(lastColon + 1)
+        val internalSourceSetName = if (sourceSetName == "buildscript") BUILDSCRIPT_SOURCE_SET else sourceSetName
 
         val report = getDependencies(
             projectRoot,
             projectPath = projectPath,
-            sourceSet = sourceSetName,
-            dependency = dependency,
-            checkUpdates = false,
-            versionFilter = null,
-            stableOnly = false,
-            onlyDirect = false,
-            downloadSources = downloadSources,
-            fresh = fresh
+            options = options.copy(
+                sourceSet = internalSourceSetName
+            )
         )
         val project = report.projects.find { it.path == projectPath }
             ?: throw IllegalArgumentException("Project not found in report: $projectPath")
 
         val sourceSet = project.sourceSets.find { it.name == sourceSetName }
-            ?: throw IllegalArgumentException("Source set not found in project $projectPath: $sourceSetName")
+            ?: throw IllegalArgumentException("Source set not found in project $projectPath: $sourceSetName. Available: ${project.sourceSets.map { it.name }}. Parsed output projects:\n${report.projects.map { "Project: ${it.path}\nSource sets: ${it.sourceSets.map { it.name }}\n" }}")
 
         val configs = project.configurations.filter { it.name in sourceSet.configurations }
         val repositories = project.repositories
@@ -385,38 +400,34 @@ class DefaultGradleDependencyService(
         dependency: String?,
         fresh: Boolean
     ): GradleConfigurationDependencies {
-        return getConfigurationDependencies(projectRoot, configurationPath, dependency, false, fresh)
+        return getConfigurationDependencies(projectRoot, configurationPath, DependencyRequestOptions(dependency = dependency, fresh = fresh))
     }
 
     context(progress: ProgressReporter)
     private suspend fun getConfigurationDependencies(
         projectRoot: GradleProjectRoot,
         configurationPath: String,
-        dependency: String?,
-        downloadSources: Boolean,
-        fresh: Boolean
+        options: DependencyRequestOptions
     ): GradleConfigurationDependencies {
-        val isBuildscript = configurationPath.contains(":buildscript:")
-        val searchPath = if (isBuildscript) configurationPath.replace(":buildscript:", "::") else configurationPath
-        val lastColon = searchPath.lastIndexOf(':')
+        val lastColon = configurationPath.lastIndexOf(':')
         require(lastColon != -1) { "configurationPath must be an absolute Gradle path (e.g. :project:foo:implementation)" }
-
-        val actualLastColon = if (isBuildscript) configurationPath.lastIndexOf(":buildscript:") else lastColon
-        val projectPath = if (actualLastColon == 0) ":" else configurationPath.substring(0, actualLastColon)
-        val configurationName = configurationPath.substring(actualLastColon + 1)
+        
+        val parsedProject = if (lastColon == 0) ":" else configurationPath.substring(0, lastColon)
+        val parsedName = configurationPath.substring(lastColon + 1)
+        
+        val (projectPath, configurationName) = if (parsedProject.endsWith(":buildscript")) {
+            val p = if (parsedProject == ":buildscript") ":" else parsedProject.substring(0, parsedProject.length - ":buildscript".length)
+            p to "buildscript:$parsedName"
+        } else {
+            parsedProject to parsedName
+        }
 
         val report = getDependencies(
             projectRoot,
             projectPath = projectPath,
-            configuration = configurationName,
-            sourceSet = null,
-            dependency = dependency,
-            checkUpdates = false,
-            versionFilter = null,
-            stableOnly = false,
-            onlyDirect = false,
-            downloadSources = downloadSources,
-            fresh = fresh
+            options = options.copy(
+                configuration = configurationName
+            )
         )
         val project = report.projects.find { it.path == projectPath }
             ?: throw IllegalArgumentException("Project not found in report: $projectPath")
@@ -429,9 +440,12 @@ class DefaultGradleDependencyService(
     override suspend fun downloadAllSources(projectRoot: GradleProjectRoot, dependency: String?, fresh: Boolean): GradleDependencyReport {
         return getDependencies(
             projectRoot = projectRoot,
-            dependency = dependency,
-            downloadSources = true,
-            fresh = fresh
+            options = DependencyRequestOptions(
+                dependency = dependency,
+                downloadSources = true,
+                excludeBuildscript = true,
+                fresh = fresh
+            )
         )
     }
 
@@ -445,9 +459,12 @@ class DefaultGradleDependencyService(
         val report = getDependencies(
             projectRoot = projectRoot,
             projectPath = projectPath,
-            dependency = dependency,
-            downloadSources = true,
-            fresh = fresh
+            options = DependencyRequestOptions(
+                dependency = dependency,
+                downloadSources = true,
+                excludeBuildscript = true,
+                fresh = fresh
+            )
         )
         val path = if (projectPath.startsWith(":")) projectPath else ":$projectPath"
         return report.projects.find { it.path == path }
@@ -461,7 +478,16 @@ class DefaultGradleDependencyService(
         dependency: String?,
         fresh: Boolean
     ): GradleConfigurationDependencies {
-        return getConfigurationDependencies(projectRoot, configurationPath, dependency, true, fresh)
+        return getConfigurationDependencies(
+            projectRoot = projectRoot,
+            configurationPath = configurationPath,
+            options = DependencyRequestOptions(
+                dependency = dependency,
+                downloadSources = true,
+                excludeBuildscript = false, // Design Decision 3: Inclusion is handled by configuration target
+                fresh = fresh
+            )
+        )
     }
 
     context(progress: ProgressReporter)
@@ -471,7 +497,16 @@ class DefaultGradleDependencyService(
         dependency: String?,
         fresh: Boolean
     ): GradleSourceSetDependencyReport {
-        return getSourceSetDependencies(projectRoot, sourceSetPath, dependency, true, fresh)
+        return getSourceSetDependencies(
+            projectRoot = projectRoot,
+            sourceSetPath = sourceSetPath,
+            options = DependencyRequestOptions(
+                dependency = dependency,
+                downloadSources = true,
+                excludeBuildscript = false, // Design Decision 3: Inclusion is handled by virtual source set target
+                fresh = fresh
+            )
+        )
     }
 
     internal fun parseStructuredOutput(output: String): GradleDependencyReport {
