@@ -62,20 +62,20 @@ class DeclarationSearchIntegrationTest : SearchIntegrationTestBase() {
         // Search for Kotlin declaration
         val results1 = sourceIndexService.search(sourcesDir, searchProvider, "MyClass").results
         assertTrue(results1.isNotEmpty(), "MyClass not found")
-        assertTrue(results1.any { it.relativePath == "com/example/dep1-sources/example/MyClass.kt" && it.line == 3 }, "MyClass missing at line 3: ${results1}")
+        assertTrue(results1.any { it.relativePath == "deps/dep1/1.0/example/MyClass.kt" && it.line == 3 }, "MyClass missing at line 3: ${results1}")
 
         val resultsField = sourceIndexService.search(sourcesDir, searchProvider, "myField").results
         assertTrue(resultsField.isNotEmpty(), "myField not found")
-        assertTrue(resultsField.any { it.relativePath == "com/example/dep1-sources/example/MyClass.kt" && it.line == 4 }, "myField missing at line 4: ${resultsField}")
+        assertTrue(resultsField.any { it.relativePath == "deps/dep1/1.0/example/MyClass.kt" && it.line == 4 }, "myField missing at line 4: ${resultsField}")
 
         // Search for Java declaration
         val results2 = sourceIndexService.search(sourcesDir, searchProvider, "OtherClass").results
         assertTrue(results2.isNotEmpty(), "OtherClass not found")
-        assertTrue(results2.any { it.relativePath == "com/other/dep2-sources/other/OtherClass.java" && it.line == 3 }, "OtherClass missing at line 3: ${results2}")
+        assertTrue(results2.any { it.relativePath == "deps/dep2/2.0/other/OtherClass.java" && it.line == 3 }, "OtherClass missing at line 3: ${results2}")
 
         val resultsMethod = sourceIndexService.search(sourcesDir, searchProvider, "myMethod").results
         assertTrue(resultsMethod.isNotEmpty(), "myMethod not found")
-        assertTrue(resultsMethod.any { it.relativePath == "com/other/dep2-sources/other/OtherClass.java" && it.line == 4 }, "myMethod missing at line 4: ${resultsMethod}")
+        assertTrue(resultsMethod.any { it.relativePath == "deps/dep2/2.0/other/OtherClass.java" && it.line == 4 }, "myMethod missing at line 4: ${resultsMethod}")
     }
 
     @Test

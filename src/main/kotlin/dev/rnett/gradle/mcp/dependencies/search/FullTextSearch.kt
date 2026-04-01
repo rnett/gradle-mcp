@@ -32,7 +32,7 @@ import kotlin.time.measureTimedValue
 object FullTextSearch : LuceneBaseSearchProvider() {
     override val logger = LoggerFactory.getLogger(FullTextSearch::class.java)
     override val name: String = "full-text"
-    override val indexVersion: Int = 14
+    override val indexVersion: Int = 15
 
     private const val CONTENTS = "contents"
     private const val CONTENTS_EXACT = "contents_exact"

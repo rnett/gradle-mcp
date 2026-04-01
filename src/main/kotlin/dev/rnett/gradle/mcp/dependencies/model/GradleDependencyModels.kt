@@ -1,7 +1,6 @@
 package dev.rnett.gradle.mcp.dependencies.model
 
 import java.nio.file.Path
-import kotlin.io.path.nameWithoutExtension
 
 data class GradleDependencyReport(
     val projects: List<GradleProjectDependencies>
@@ -122,13 +121,14 @@ data class GradleDependency(
     val hasSources: Boolean get() = sourcesFile != null && group != null && version != null
 
     /**
-     * The relative path prefix for this dependency's sources in the project-level cache.
-     * Calculated as `group/sourcesFile.nameWithoutExtension`.
+     * The relative path prefix for this dependency's sources in the session view.
+     * Format: `deps/{name}/{version}` — clearly non-package-like, making paths unambiguous.
+     * The junction at this prefix points to the CAS `v1/` normalized directory.
      */
     val relativePrefix: String? by lazy {
-        val g = group ?: return@lazy null
-        val s = sourcesFile ?: return@lazy null
-        "${g.replace('.', '/')}/${s.nameWithoutExtension}"
+        val v = version ?: return@lazy null
+        if (sourcesFile == null) return@lazy null
+        "deps/$name/$v"
     }
 
     fun allDependencies(): Sequence<GradleDependency> {

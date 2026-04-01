@@ -24,10 +24,18 @@ data class CASDependencySourcesDir(
 ) : SourcesDir {
     override val sources: Path = baseDir.resolve("sources")
     val index: Path = baseDir.resolve("index")
+
+    /** Pre-normalized, merged source tree (all source sets flattened, platform files renamed). */
+    val normalizedDir: Path = baseDir.resolve("v1")
     override val rootForSearch: Path = sources
 
     val advisoryLockFile: Path = baseDir.resolveSibling("$hash.lock")
-    val completionMarker: Path = baseDir.resolve(".completed")
+
+    /**
+     * Versioned completion marker. Using `.completed-v1` means old `.completed` entries are
+     * automatically treated as stale and will be re-normalized on next access (without re-downloading).
+     */
+    val completionMarker: Path = baseDir.resolve(".completed-v1")
 
     override fun lastRefresh(): kotlin.time.Instant? {
         if (completionMarker.exists()) {

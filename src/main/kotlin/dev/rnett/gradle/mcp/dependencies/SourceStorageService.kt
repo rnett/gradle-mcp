@@ -167,9 +167,11 @@ class DefaultSourceStorageService(private val environment: GradleMcpEnvironment)
         deps.forEach { (dep, casDir) ->
             val linkPath = viewSourcesDir.resolve(requireNotNull(dep.relativePrefix))
             linkPath.createParentDirectories()
-            if (!FileUtils.createSymbolicLink(linkPath, casDir.sources)) {
+            // Prefer the pre-normalized v1/ dir; fall back to raw sources/ for legacy CAS entries
+            val linkTarget = if (casDir.normalizedDir.exists()) casDir.normalizedDir else casDir.sources
+            if (!FileUtils.createSymbolicLink(linkPath, linkTarget)) {
                 logger.warn("Failed to create symlink/junction for ${dep.id} in session view. Falling back to copy.")
-                casDir.sources.copyToRecursively(linkPath, followLinks = false, overwrite = true)
+                linkTarget.copyToRecursively(linkPath, followLinks = false, overwrite = true)
             }
         }
 

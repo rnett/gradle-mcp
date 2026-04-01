@@ -33,7 +33,7 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
 
     override val logger = LoggerFactory.getLogger(DeclarationSearch::class.java)
     override val name: String = "declarations"
-    override val indexVersion: Int = 8
+    override val indexVersion: Int = 9
 
     override fun createAnalyzer() = org.apache.lucene.analysis.miscellaneous.PerFieldAnalyzerWrapper(
         LuceneUtils.createCaseSensitiveAnalyzer(),
