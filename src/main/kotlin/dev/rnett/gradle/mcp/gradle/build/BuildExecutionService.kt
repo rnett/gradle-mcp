@@ -129,7 +129,6 @@ class DefaultBuildExecutionService(
         launcher.setEnvironmentVariables(env)
 
         @Suppress("UNCHECKED_CAST")
-        launcher.withSystemProperties(args.additionalSystemProps)
         launcher.addJvmArguments(args.additionalJvmArgs + "-Dscan.tag.MCP")
         launcher.withDetailedFailure()
 
@@ -143,10 +142,13 @@ class DefaultBuildExecutionService(
         }
 
         val initScripts = initScriptProvider.extractInitScripts(
-            args.requestedInitScripts + if (args.publishScan || args.additionalArguments.contains("--scan")) listOf("scans") else emptyList()
+            args.requestedInitScripts +
+                    (if (args.publishScan || args.additionalArguments.contains("--scan")) listOf("scans") else emptyList())
         )
         val allArguments = initScripts.flatMap { listOf("-I", it.toString()) } + args.allAdditionalArguments
         launcher.withArguments(allArguments)
+
+        launcher.withSystemProperties(args.additionalSystemProps)
         launcher.setColorOutput(false)
 
         val cancellationToken = runningBuild.cancellationTokenSource.token()

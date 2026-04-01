@@ -1,10 +1,8 @@
 Steps are in order, from next to furthest.
 
 - Buildscript deps shouldn't be included unless asked for for sources.
-- Selecting tests doesn't seem to work
 - The agent likes to find the full path for a file in the root deps, and then try to read it by specifying the dependency + the path in the dependency (as opposed to the dependency's path in the view root). It has lots of trouble with the
-  view dependency structure. `fd` may not be following the
-  links.
+  view dependency structure.
 - REPL seems to have issues with JVM versions for Kotlin/JVM project. I suspect the compilation jvm target is not propagated correctly. See docs/[gradle-mcp-repl-jvm-target-bug.md](docs/gradle-mcp-repl-jvm-target-bug.md)
 - Searching within inspect build results, or maybe just write them to a file. Some tests have too much output to go through manually.
 - Dependency collection task is not CC compatible

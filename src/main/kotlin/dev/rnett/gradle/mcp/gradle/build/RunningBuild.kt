@@ -152,6 +152,7 @@ class RunningBuild(
         val outcome = when {
             exception is BuildCancelledException -> BuildOutcome.Canceled
             buildFailures.isNotEmpty() -> BuildOutcome.Failed(buildFailures)
+            exception != null -> BuildOutcome.Failed(listOf(indexer.withIndex(FailureContent(exception.message, exception.toString(), emptySet(), emptyMap()))))
             else -> BuildOutcome.Success
         }
 
