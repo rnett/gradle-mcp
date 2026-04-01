@@ -71,14 +71,17 @@ fun <T> McpServerComponent.paginate(
     hasMore: Boolean? = null,
     isTail: Boolean = false,
     formatter: (T) -> String = { it.toString() }
-): String {
+): String = try {
     val offset = pagination.offset
     val limit = pagination.limit
 
     McpToolHelper.logger.debug("Paginating {}: offset={}, limit={}, total={}, hasMore={}, isTail={}", itemName, offset, limit, total, hasMore, isTail)
 
-    val paged = if (isAlreadyPaged) items else items.drop(offset).take(limit)
     val calculatedTotal = total ?: if (isAlreadyPaged) null else items.size
+    val paged = if (isAlreadyPaged) items else items.let {
+        if (isTail) it.takeLast(offset + limit).take(limit)
+        else it.drop(offset).take(limit)
+    }
     val end = offset + paged.size
 
     val content = if (paged.isEmpty() && calculatedTotal != null && calculatedTotal > 0 && offset >= calculatedTotal) {
@@ -111,7 +114,10 @@ ${if (actualHasMore || (isTail && offset + paged.size < (calculatedTotal ?: 0)))
 """.trimIndent()
     } else ""
 
-    return "$content$metadata"
+    "$content$metadata"
+} catch (e: Throwable) {
+    McpToolHelper.logger.error("Error in paginate: ${e.message}", e)
+    throw e
 }
 
 /**
@@ -128,33 +134,54 @@ fun McpServerComponent.paginateText(
     pagination: PaginationInput,
     unit: PaginationUnit = PaginationUnit.LINES,
     isTail: Boolean = false
-): String {
+): String = try {
     val offset = pagination.offset
     val limit = pagination.limit
 
     McpToolHelper.logger.debug("Paginating text by {}: offset={}, limit={}, length={}, isTail={}", unit, offset, limit, text.length, isTail)
 
-    return when (unit) {
+    when (unit) {
         PaginationUnit.LINES -> {
             val lines = text.lines()
-            paginate(lines, pagination, "lines", isTail = isTail)
+            val total = lines.size
+            if (isTail) {
+                val start = (total - offset - limit).coerceAtLeast(0)
+                val end = (total - offset).coerceAtLeast(0)
+                val paged = lines.subList(start, end)
+                paginate(paged, pagination, "lines", total = total, isAlreadyPaged = true, isTail = true)
+            } else {
+                paginate(lines, pagination, "lines")
+            }
         }
 
         PaginationUnit.CHARACTERS -> {
             val total = text.length
-            val endPos = (offset + limit).coerceAtMost(total)
-            val paged = if (offset < total) text.substring(offset, endPos) else ""
-            val end = (offset + paged.length).coerceAtMost(total)
+            val (start, end) = if (isTail) {
+                val start = (total - offset - limit).coerceAtLeast(0)
+                val end = (total - offset).coerceAtLeast(0)
+                start to end
+            } else {
+                val start = offset.coerceAtMost(total)
+                val end = (offset + limit).coerceAtMost(total)
+                start to end
+            }
 
-            val metadata = if (total > 0 && (end < total || offset > 0 || isTail)) {
-                val range = if (isTail) "last ${paged.length} characters" else "characters ${offset + 1} to $end"
-                val suffix = if (end >= total && !isTail) " (End of text)" else ""
+            val paged = if (start < total) text.substring(start, end) else ""
+            val range = if (isTail) {
+                if (offset == 0) "last ${paged.length} characters"
+                else "characters ${start + 1} to $end (from end)"
+            } else {
+                "characters ${start + 1} to $end"
+            }
+
+            val hasMore = if (isTail) start > 0 else end < total
+            val metadata = if (total > 0 && (hasMore || offset > 0 || isTail)) {
+                val suffix = if (!hasMore && !isTail) " (End of text)" else ""
                 """
 
 ---
 Pagination: Showing $range of $total$suffix.
-To see more results, use: `offset=${end}`, `limit=$limit`.
----
+${if (hasMore) "To see more results, use: `offset=${if (isTail) total - start else end}`, `limit=$limit`.\n" else ""}---
 """.trimIndent()
             } else ""
 
@@ -163,4 +190,8 @@ To see more results, use: `offset=${end}`, `limit=$limit`.
 
         else -> throw IllegalArgumentException("Unsupported pagination unit: $unit")
     }
+} catch (e: Throwable) {
+    McpToolHelper.logger.error("Error in paginateText: ${e.message}", e)
+    throw e
 }
+
