@@ -50,3 +50,5 @@ bin/
 /gradle/gradle-mcp.log
 
 /.playwright-mcp/
+
+/.worktrees/
