@@ -157,13 +157,17 @@ class GradleDependencyTools(
 
     internal fun formatUpdatesSummary(report: GradleDependencyReport, pagination: PaginationInput): String {
         val updates = report.projects.flatMap { project ->
+            val configToSourceSets = project.sourceSets.flatMap { ss -> ss.configurations.map { it to ss.name } }
+                .groupBy({ it.first }, { it.second })
+
             // A single visited set per project deduplicates the same (projectPath, group:artifact)
             // across configurations and across diamond-dependency subtrees, avoiding redundant entries
             // before groupBy. The init script controls whether transitive deps appear in the model.
-            val visited = mutableSetOf<String>()
+            val visited = mutableMapOf<String, MutableSet<String>>()
             project.configurations.flatMap { config ->
+                val sourceSets = configToSourceSets[config.name] ?: emptyList()
                 config.dependencies.flatMap { dep ->
-                    findUpdates(dep, project.path, visited)
+                    findUpdates(dep, project.path, sourceSets.toSet(), visited)
                 }
             }
         }
@@ -172,21 +176,28 @@ class GradleDependencyTools(
         // Note: when the same group:artifact resolves to different versions across projects,
         // the first project's currentVersion is shown. Use inspect_dependencies with a specific
         // dependency filter to see per-project version details.
-        val groupedUpdates = updates.groupBy { it.dependencyId }.toList()
+        val groupedUpdates = updates.groupBy { it.dependencyId }
+            .mapValues { (_, depUpdates) ->
+                depUpdates.groupBy { it.projectPath }
+                    .mapValues { (_, projectUpdates) -> projectUpdates.flatMap { it.sourceSets }.toSet().sorted() }
+                    .toList().sortedBy { it.first }
+            }
+            .toList().sortedBy { it.first }
 
         return if (groupedUpdates.isEmpty()) {
             "No dependency updates found."
         } else {
             buildString {
                 appendLine("Available Dependency Updates:")
-                val paged = paginate(groupedUpdates, pagination, "dependency updates") { (dependencyId, depUpdates) ->
+                val paged = paginate(groupedUpdates, pagination, "dependency updates") { (dependencyId, projectSourceSets) ->
                     buildString {
-                        // depUpdates is guaranteed non-empty by groupBy semantics.
-                        val first = depUpdates.first()
-                        appendLine("- $dependencyId: ${first.currentVersion} → ${first.latestVersion}")
+                        // Get current/latest version from the first update for this dependencyId
+                        val firstUpdate = updates.first { it.dependencyId == dependencyId }
+                        appendLine("- $dependencyId: ${firstUpdate.currentVersion} → ${firstUpdate.latestVersion}")
                         appendLine("  Found in:")
-                        depUpdates.map { it.projectPath }.sorted().forEach { projectPath ->
-                            appendLine("    - $projectPath")
+                        projectSourceSets.forEach { (projectPath, sourceSets) ->
+                            val ssInfo = if (sourceSets.isNotEmpty()) " (${sourceSets.joinToString(", ")})" else ""
+                            appendLine("    - $projectPath$ssInfo")
                         }
                     }.trim()
                 }
@@ -199,11 +210,12 @@ class GradleDependencyTools(
         val projectPath: String,
         val dependencyId: String,
         val currentVersion: String,
-        val latestVersion: String
+        val latestVersion: String,
+        val sourceSets: Set<String>
     )
 
     /** Key used to track already-rendered nodes in the dependency tree. */
-    private data class DepVisitKey(val id: String, val variant: String?, val capabilities: List<String>)
+    internal data class DepVisitKey(val id: String, val variant: String?, val capabilities: List<String>)
 
     /** Returns true when [dep] has a known newer version available. */
     private fun isUpdateAvailable(dep: GradleDependency): Boolean =
@@ -212,23 +224,28 @@ class GradleDependencyTools(
     private fun findUpdates(
         dep: GradleDependency,
         projectPath: String,
-        visited: MutableSet<String>
+        sourceSets: Set<String>,
+        visited: MutableMap<String, MutableSet<String>>
     ): List<DependencyUpdate> = buildList {
-        // Skip already-seen (projectPath, group:artifact) pairs to avoid duplicate entries
-        // from diamond dependencies appearing under multiple parents.
         val key = "$projectPath|${dep.group}:${dep.name}"
-        if (!visited.add(key)) return@buildList
+        val firstVisit = !visited.containsKey(key)
+        val seenSourceSets = visited.getOrPut(key) { mutableSetOf() }
+        val newlyAdded = seenSourceSets.addAll(sourceSets)
+
+        if (!firstVisit && !newlyAdded) return@buildList
+
         if (isUpdateAvailable(dep)) {
             add(
                 DependencyUpdate(
                     projectPath = projectPath,
                     dependencyId = "${dep.group}:${dep.name}",
                     currentVersion = dep.version!!,  // non-null: isUpdateAvailable checks dep.version != null
-                    latestVersion = dep.latestVersion!!  // non-null: isUpdateAvailable checks dep.latestVersion != null
+                    latestVersion = dep.latestVersion!!,  // non-null: isUpdateAvailable checks dep.latestVersion != null
+                    sourceSets = sourceSets
                 )
             )
         }
-        dep.children.forEach { addAll(findUpdates(it, projectPath, visited)) }
+        dep.children.forEach { addAll(findUpdates(it, projectPath, sourceSets, visited)) }
     }
 
     private fun StringBuilder.renderDependencies(

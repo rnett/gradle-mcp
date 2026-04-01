@@ -20,7 +20,6 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -114,7 +113,8 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
         assertTrue(result.contains("- org.slf4j:slf4j-api: 1.7.30 → 2.0.0"), "Should contain slf4j entry. Output:\n$result")
         assertTrue(result.contains("- junit:junit: 4.12 → 4.13.2"), "Should contain junit entry. Output:\n$result")
         // Verify project path listed under each dep
-        assertEquals(2, result.lines().count { it.trim() == "- :" }, "Each dep should list project path. Output:\n$result")
+        assertTrue(result.contains("- : (main)"), "Each dep should list project path and source set. Output:\n$result")
+        assertTrue(result.contains("- : (test)"), "Each dep should list project path and source set. Output:\n$result")
         // Verify old format is absent
         assertFalse(result.contains("Configurations"), "Should not contain configuration columns. Output:\n$result")
         assertFalse(result.contains("Source Sets"), "Should not contain source set columns. Output:\n$result")
