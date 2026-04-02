@@ -222,7 +222,7 @@ class RunningBuild(
     }
 
     internal fun addTaskOutput(taskPath: String, output: String) {
-        taskOutputsAccumulator.computeIfAbsent(taskPath) { StringBuffer() }.appendLine(output)
+        taskOutputsAccumulator.computeIfAbsent(taskPath) { StringBuffer() }.append(output).append('\n')
     }
 
 }
