@@ -1,8 +1,5 @@
 Steps are in order, from next to furthest.
 
-- Check how new view merging strategy works when both common/metadata variant and platform variant are on classpath
-- REPL seems to have issues with JVM versions for Kotlin/JVM project. I suspect the compilation jvm target is not propagated correctly. See docs/[gradle-mcp-repl-jvm-target-bug.md](docs/gradle-mcp-repl-jvm-target-bug.md)
-- Dependency collection task is not CC compatible
 - Include https://docs.gradle.org/9.5.0-rc-1/release-notes.html#task-provenance-in-reports-and-failure-messages.
 - A "Gradle doctor" like skill with best practices embedded in it (via gradle task), or enhance the expert skill.
 - Dedicated "render this compose preview" tool that takes the file+function name or line number
