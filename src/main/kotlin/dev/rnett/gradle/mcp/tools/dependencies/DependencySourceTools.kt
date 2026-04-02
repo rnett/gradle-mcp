@@ -10,6 +10,7 @@ import dev.rnett.gradle.mcp.dependencies.search.PackageContents
 import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
 import dev.rnett.gradle.mcp.dependencies.search.SearchResponse
 import dev.rnett.gradle.mcp.dependencies.search.SearchResult
+import dev.rnett.gradle.mcp.dependencies.search.SearchResult.Companion.DEFAULT_SNIPPET_RANGE
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.tools.GradleProjectRootInput
 import dev.rnett.gradle.mcp.tools.PaginationInput
@@ -195,6 +196,9 @@ class DependencySourceTools(
             |- Gradle internals: `{ gradleSource: true, query: "DefaultProject", searchType: "DECLARATION" }`
             |- Plugins: `{ sourceSetPath: ":buildscript", query: "MyPlugin", searchType: "DECLARATION" }`
             |- Files: `{ query: "**/plugin.properties", searchType: "GLOB" }`
+            |
+            |### Result Grouping
+            |Results are grouped by proximity: matches within the snippet context range ($DEFAULT_SNIPPET_RANGE) are combined into a single result with a multi-line snippet showing context. Matches that are far apart in a file produce separate results.
             |
             |Once found, read content with `${ToolNames.READ_DEPENDENCY_SOURCES}`.
         """.trimMargin()

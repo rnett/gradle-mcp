@@ -73,7 +73,7 @@ data class RelativeSearchResult(
 )
 
 fun Collection<RelativeSearchResult>.toSearchResults(sourcesRoot: Path): List<SearchResult> {
-    return this.groupBy { it.relativePath }.flatMap { (relativePath, results) ->
+    return this.groupBy { it.relativePath }.flatMap { (relativePath, matches) ->
         val file = sourcesRoot.resolve(relativePath)
         if (!file.exists()) {
             throw IllegalStateException("Search result points to non-existent source file: $file")
@@ -81,25 +81,74 @@ fun Collection<RelativeSearchResult>.toSearchResults(sourcesRoot: Path): List<Se
         val content = file.readText()
         val lines = content.lines()
 
-        results.map { res ->
-            if (res.snippet != null) {
-                return@map SearchResult(relativePath, file, res.line ?: 1, res.snippet, res.score)
-            }
-            if (res.skipBoilerplate) {
-                val (actualLine, snippet) = findHighSignalSnippet(content)
-                return@map SearchResult(relativePath, file, actualLine, snippet, res.score)
-            }
-            val actualLine = res.line ?: if (res.offset in 0..content.length) {
-                content.substring(0, res.offset).count { it == '\n' } + 1
+        // Convert matches to have concrete line numbers
+        val matchesWithLines = matches.map { match ->
+            val line = match.line ?: if (match.offset in 0..content.length) {
+                content.substring(0, match.offset).count { it == '\n' } + 1
             } else {
                 1
             }
-            val lineIndex = (actualLine - 1).coerceIn(lines.indices)
-            val startLine = (lineIndex - SearchResult.DEFAULT_SNIPPET_RANGE).coerceAtLeast(0)
-            val endLine = (lineIndex + SearchResult.DEFAULT_SNIPPET_RANGE).coerceAtMost(lines.size - 1)
-            val snippet = lines.subList(startLine, endLine + 1).joinToString("\n")
-            SearchResult(relativePath, file, actualLine, snippet, res.score)
-        }.distinctBy { it.line }
+            match to line
+        }.sortedBy { it.second }
+
+        // Cluster matches that are close together (within DEFAULT_SNIPPET_RANGE)
+        val clusteringThreshold = SearchResult.DEFAULT_SNIPPET_RANGE
+        val clusters = mutableListOf<MutableList<Pair<RelativeSearchResult, Int>>>()
+        for ((match, line) in matchesWithLines) {
+            if (clusters.isEmpty()) {
+                clusters.add(mutableListOf(Pair(match, line)))
+            } else {
+                val lastCluster = clusters.last()
+                val lastLine = lastCluster.last().second
+                if (line - lastLine <= clusteringThreshold) {
+                    lastCluster.add(Pair(match, line))
+                } else {
+                    clusters.add(mutableListOf(Pair(match, line)))
+                }
+            }
+        }
+
+        // Convert each cluster to a SearchResult
+        clusters.map { cluster ->
+            // Cluster is already sorted by line (maintained during construction)
+            val firstMatch = cluster.first().first
+            val lastMatch = cluster.last().first
+            val firstLine = cluster.first().second
+            val lastLine = cluster.last().second
+
+            val snippetStart = (firstLine - 1 - SearchResult.DEFAULT_SNIPPET_RANGE).coerceAtLeast(0)
+            val snippetEnd = (lastLine - 1 + SearchResult.DEFAULT_SNIPPET_RANGE).coerceAtMost(lines.size - 1)
+            val snippet = lines.subList(snippetStart, snippetEnd + 1).joinToString("\n")
+
+            val matchLines = cluster.map { it.second } // Already sorted by construction
+            // Find best match (for line) and sum scores
+            var bestMatch: RelativeSearchResult? = null
+            var bestScore = Float.NEGATIVE_INFINITY
+            var sumScore = 0f
+            for ((match, _) in cluster) {
+                val score = match.score ?: 0f
+                sumScore += score
+                if (score > bestScore) {
+                    bestScore = score
+                    bestMatch = match
+                }
+            }
+            val finalScore = if (sumScore == 0f && bestScore == Float.NEGATIVE_INFINITY) 0f else sumScore
+            val bestLine = bestMatch?.line ?: if (bestMatch?.offset in 0..content.length) {
+                content.substring(0, bestMatch!!.offset).count { it == '\n' } + 1
+            } else {
+                1
+            }
+
+            SearchResult(
+                relativePath = relativePath,
+                file = file,
+                line = bestLine,
+                snippet = snippet,
+                score = finalScore,
+                matchLines = matchLines
+            )
+        }
     }.sortedByDescending { it.score }
 }
 
@@ -158,7 +207,8 @@ data class SearchResult(
     val file: Path,
     val line: Int,
     val snippet: String,
-    val score: Float?
+    val score: Float?,
+    val matchLines: List<Int>
 ) {
     companion object {
         const val DEFAULT_SNIPPET_RANGE = 2

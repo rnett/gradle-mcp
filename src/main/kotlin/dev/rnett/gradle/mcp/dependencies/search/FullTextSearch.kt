@@ -138,7 +138,7 @@ object FullTextSearch : LuceneBaseSearchProvider() {
                         val contentsMatches = matches.getMatches(CONTENTS)
                         val codeMatches = matches.getMatches(CODE)
 
-                        fun collectMatches(it: org.apache.lucene.search.MatchesIterator?, matchBoost: Float) {
+                        fun collectMatches(it: org.apache.lucene.search.MatchesIterator?, matchBoost: Float = 1f) {
                             if (it == null) return
                             while (it.next()) {
                                 val start = it.startOffset()
@@ -152,7 +152,7 @@ object FullTextSearch : LuceneBaseSearchProvider() {
                                                     relativePath = path,
                                                     offset = start,
                                                     line = lineNum,
-                                                    score = hit.score + matchBoost
+                                                    score = hit.score * matchBoost
                                                 )
                                             )
                                         }
@@ -168,8 +168,8 @@ object FullTextSearch : LuceneBaseSearchProvider() {
                             }
                         }
 
-                        collectMatches(codeMatches, 1000f)
-                        collectMatches(contentsMatches, 0f)
+                        collectMatches(codeMatches, 10f)
+                        collectMatches(contentsMatches)
                     }
                 }
 

@@ -43,11 +43,13 @@ class FullTextSearchTest {
 
         val results = FullTextSearch.search(listOf(indexDir), "match").results
         val searchResults = results.toSearchResults(depDir)
-        assertEquals(2, searchResults.size, "Should find 2 matches")
+        // With file-level grouping, all matches in the same file are combined into one result
+        assertEquals(1, searchResults.size, "Should find 1 result after grouping matches from the same file")
 
-        val lines = searchResults.map { it.line }.sorted()
-        assertEquals(listOf(2, 4), lines, "Matches should be on lines 2 and 4")
-        assertEquals("TestFile.kt", searchResults[0].relativePath)
+        val result = searchResults[0]
+        assertEquals("TestFile.kt", result.relativePath)
+        assertEquals(2, result.line, "First match line should be 2")
+        assertEquals(setOf(2, 4), result.matchLines.toSet(), "matchLines should contain both matched lines")
     }
 
     @Test
@@ -72,9 +74,10 @@ class FullTextSearchTest {
         assertEquals(1, camel[0].line)
 
         val case = FullTextSearch.search(listOf(indexDir), "Case").results.toSearchResults(depDir)
-        // 'Case' matches 'camelCase' (line 1) and 'snake_case' (line 2)
-        assertEquals(2, case.size, "Should find 'Case' in 'camelCase' and 'snake_case'")
-        assertEquals(setOf(1, 2), case.map { it.line }.toSet())
+        // 'Case' matches 'camelCase' (line 1) and 'snake_case' (line 2) - grouped into one result
+        assertEquals(1, case.size, "Should find 1 result after grouping matches from the same file")
+        assertEquals(1, case[0].line, "First match line should be 1")
+        assertEquals(setOf(1, 2), case[0].matchLines.toSet(), "matchLines should contain both matched lines")
 
         val camelCase = FullTextSearch.search(listOf(indexDir), "\"camelCase\"").results.toSearchResults(depDir)
         assertEquals(1, camelCase.size, "Should find 'camelCase' exactly with quotes")
@@ -325,5 +328,28 @@ class FullTextSearchTest {
         assertEquals("lib/File2.kt", results[0].relativePath)
         assertEquals("lib/File1.kt", results[1].relativePath)
         assertTrue(results[0].score!! > results[1].score!!)
+    }
+
+    @Test
+    fun `search produces multiple results for far-apart matches`() = runTest {
+        val depDir = depDir()
+        // Matches on line 1 and line 10 (distance 9 > 2*DEFAULT_SNIPPET_RANGE=4) should produce 2 separate results
+        val fileContent = (1..10).joinToString("\n") { if (it == 1 || it == 10) "match" else "other" }
+        depDir.resolve("TestFile.kt").writeText(fileContent)
+
+        val indexDir = tempDir.resolve("index")
+        with(ProgressReporter.PRINTLN) {
+            FullTextSearch.index(depDir, indexDir)
+        }
+
+        val results = FullTextSearch.search(listOf(indexDir), "match").results
+        val searchResults = results.toSearchResults(depDir)
+        // Should produce 2 separate results because matches are far apart
+        assertEquals(2, searchResults.size, "Should find 2 results for far-apart matches")
+        val lines = searchResults.map { it.line }.sorted()
+        assertEquals(listOf(1, 10), lines, "Result lines should be 1 and 10")
+        // Each result should have only one match line
+        assertEquals(listOf(1), searchResults.first { it.line == 1 }.matchLines)
+        assertEquals(listOf(10), searchResults.first { it.line == 10 }.matchLines)
     }
 }

@@ -134,6 +134,9 @@ Returns the absolute path of the sources root. Dependency directories are symlin
 - Plugins: `{ sourceSetPath: ":buildscript", query: "MyPlugin", searchType: "DECLARATION" }`
 - Files: `{ query: "**/plugin.properties", searchType: "GLOB" }`
 
+### Result Grouping
+Results are grouped by proximity: matches within the snippet context range (2) are combined into a single result with a multi-line snippet showing context. Matches that are far apart in a file produce separate results.
+
 Once found, read content with `read_dependency_sources`.
 
 <details>
