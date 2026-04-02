@@ -8,6 +8,8 @@ Tools for looking up detailed information about past Gradle builds ran by this M
 
 Inspects build information, monitors progress, and performs post-mortem diagnostics; ALWAYS use instead of raw console logs for test failures, task outputs, and build errors.
 
+**Note:** Only builds executed by this MCP server session are listed. External Gradle runs are not tracked.
+
 ### Lookup Modes
 - **`mode="summary"`** (default): Dashboard/overview; best for finding BuildIds, TestNames, FailureIds. When a build ID is provided, shows a detailed summary including recent error context and currently running tasks.
 - **`mode="details"`**: Exhaustive analysis; requires `testName`, `taskPath`, `failureId`, or `problemId`.

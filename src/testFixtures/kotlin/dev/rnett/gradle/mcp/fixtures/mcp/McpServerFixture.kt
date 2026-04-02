@@ -40,6 +40,7 @@ class McpServerFixture(
     private val transports = ChannelBasedInMemoryTransport.createLinkedPair(scope)
 
     val koinApp = koinApplication {
+        allowOverride(true)
         modules(koinModules)
     }
 

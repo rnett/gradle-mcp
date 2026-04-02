@@ -13,27 +13,58 @@ data class GradleProjectDependencies(
     val configurations: List<GradleConfigurationDependencies>
 ) {
     fun allDependencies(): Sequence<GradleDependency> {
-        return sequence {
-            configurations.forEach { config ->
-                yieldAll(config.allDependencies())
+        val resolved = mutableMapOf<Triple<String, String?, List<String>>, GradleDependency>()
+        val unresolved = mutableMapOf<String, GradleDependency>()
+
+        configurations.forEach { config ->
+            config.allDependencies().forEach { dep ->
+                val isUnresolved = dep.id.startsWith("UNRESOLVED:")
+                val id = dep.id.removePrefix("UNRESOLVED:")
+                val key = Triple(id, dep.variant, dep.capabilities)
+
+                if (isUnresolved) {
+                    if (resolved.keys.none { it.first == id }) {
+                        val existing = unresolved[id]
+                        if (existing == null || (existing.children.isEmpty() && dep.children.isNotEmpty())) {
+                            unresolved[id] = dep
+                        }
+                    }
+                } else {
+                    val existing = resolved[key]
+                    if (existing == null || (existing.children.isEmpty() && dep.children.isNotEmpty())) {
+                        resolved[key] = dep
+                    }
+                    unresolved.remove(id)
+                }
             }
         }
+        return (resolved.values.asSequence() + unresolved.values.asSequence())
     }
 
     fun allDependencies(configurationName: String): List<GradleDependency> {
-        val allDeps = mutableMapOf<Any, GradleDependency>()
+        val resolved = mutableMapOf<Triple<String, String?, List<String>>, GradleDependency>()
+        val unresolved = mutableMapOf<String, GradleDependency>()
 
         fun collect(name: String) {
             val current = configurations.find { it.name == name } ?: return
-
-            // Collect dependencies from this configuration.
-            // If already present, only update if the new one has children (is resolved) 
-            // while the old one doesn't.
             current.dependencies.forEach { dep ->
-                val key = listOf(dep.id, dep.variant, dep.capabilities)
-                val existing = allDeps[key]
-                if (existing == null || (existing.children.isEmpty() && dep.children.isNotEmpty())) {
-                    allDeps[key] = dep
+                val isUnresolved = dep.id.startsWith("UNRESOLVED:")
+                val id = dep.id.removePrefix("UNRESOLVED:")
+                val key = Triple(id, dep.variant, dep.capabilities)
+
+                if (isUnresolved) {
+                    if (resolved.keys.none { it.first == id }) {
+                        val existing = unresolved[id]
+                        if (existing == null || (existing.children.isEmpty() && dep.children.isNotEmpty())) {
+                            unresolved[id] = dep
+                        }
+                    }
+                } else {
+                    val existing = resolved[key]
+                    if (existing == null || (existing.children.isEmpty() && dep.children.isNotEmpty())) {
+                        resolved[key] = dep
+                    }
+                    unresolved.remove(id)
                 }
             }
 
@@ -41,7 +72,7 @@ data class GradleProjectDependencies(
         }
 
         collect(configurationName)
-        return allDeps.values.toList()
+        return (resolved.values + unresolved.values).toList()
     }
 
     fun configurationDepth(name: String): Int {

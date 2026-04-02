@@ -3,7 +3,7 @@ name: gradle_expert
 description: >
   Provides expert build engineer guidance on Gradle Kotlin DSL scripts, plugin development, and deep internals research;
   use for build failures, compilation errors, dependency conflicts, or complex build authoring.
-  Do NOT use for executing builds/tests (use `running_gradle_builds`/`running_gradle_tests`) or dependency graph auditing.
+  Do NOT use for executing builds/tests (use `running_gradle_builds`/`running_gradle_tests`).
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
@@ -63,6 +63,8 @@ For deep-dives into specific problems (e.g., deprecations, plugin issues), use `
 - **Research internals authoritatively**: Use `gradle_docs` and internal source search to understand "how it works" at the engine level. Use `read_dependency_sources` to explore implementation details. To search a plugin, use `sourceSetPath=":buildscript"`.
 - **Diagnose failures surgically**: Use `inspect_build` with `testName` and `mode="details"` to analyze test failures and stack traces instead of reading raw console logs. DO NOT use `taskPath` or `captureTaskOutput` for tests.
 - **Resolve dependencies precisely**: Use `inspect_dependencies` and `managing_gradle_dependencies` for auditing and updates.
+  - **Default Exclusion**: Buildscript (plugin) dependencies are excluded by default from reports and searches. Use `excludeBuildscript: false` to include them in reports.
+  - **Virtual Buildscript Source Set**: Use `sourceSetPath = ":buildscript"` (or `:app:buildscript`) to precisely audit the plugin classpath. This aggregates all `buildscript { ... }` configurations.
 - **Consult best practices**: Refer to the [Best Practices Snapshot](./references/best_practices.md) for a high-level overview. **ALWAYS** use `gradle_docs` with `tag:best-practices` to retrieve the latest and most comprehensive
   guidelines from the official documentation.
 - **Use `envSource: SHELL` if environment variables are missing**: If Gradle fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
@@ -76,14 +78,15 @@ For deep-dives into specific problems (e.g., deprecations, plugin issues), use `
 2. **Create Directory Structure**: Use `run_shell_command` with `mkdir subproject/src/main/kotlin` (or equivalent).
 3. **Add to `settings.gradle.kts`**: Use `replace` or `write_file` to append `include(":<module-name>")`.
 4. **Create `build.gradle.kts`**: Use idiomatic patterns (e.g., applying convention plugins).
-5. **Verify**: Run `gradle` tool with `commandLine: [":<module-name>:tasks"]` to ensure it's correctly integrated.
+5. **Verify**: Run the `gradle` tool with `commandLine: [":<module-name>:tasks"]` to ensure it's correctly integrated.
 
 ### 2. Adding a Dependency
 
 1. **Search Maven Central**: Use the `lookup_maven_versions` tool to find the artifact.
 2. **Update `libs.versions.toml`**: Add the dependency coordinates to the catalog.
 3. **Apply to `build.gradle.kts`**: Use the type-safe accessor from the catalog.
-4. **Verify**: Run the `gradle` tool with `commandLine: ["dependencies"]` to check resolution.
+4. **Verify**: Run `inspect_dependencies(fresh: true)` to check resolution.
+5. **Plugins**: If adding a plugin, verify its resolution using `inspect_dependencies(sourceSetPath = ":buildscript")`.
 
 ### 3. Performance Audit
 

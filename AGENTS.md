@@ -33,7 +33,8 @@ This repository contains a Model Context Protocol (MCP) server written in Kotlin
 - **Virtual Searching**: Leverages Lucene `MultiReader` to search across multiple dependency indices without physical merging.
 - **Isolated State**: Each tool call operates on a unique session view, ensuring stability during concurrent updates.
 - **Kotlin & Koin**: Leverage Gradle's type system; isolated Koin prevents global state leakage.
-- **Testing**: Use **Power Assert** for rich failure messages (avoid overly nested assertions to prevent compiler crashes). Reuse class-level test resources for speed.
+- **Testing**: Use **Power Assert** for rich failure messages (avoid overly nested assertions to prevent compiler crashes). Reuse class-level test resources for speed. When asserting on the output of an MCP tool that passes through a
+  service layer, verify the final re-rendered format (e.g., `Project: :path`) rather than the raw task output format (e.g., `PROJECT: :path`) to prevent false negatives caused by formatting layers.
 - **Mocking & Future-Proofing**: When refactoring service interfaces mocked in many tests, prioritize using a **data class for parameters** (e.g., `DependencyRequestOptions`). This avoids "boolean blindness" and allows adding new configuration flags with defaults without breaking existing test call sites.
 - **MCP Design**: Return structured Markdown for LLM reasoning. Use Tooling API for stability. MCP tool descriptions must be self-sufficient enough for standalone use, while skills remain the primary "agentic" interface.
 - **Ambiguity Reporting**: Use "exact match -> unique prefix match -> ambiguous prefix match" flow for lookup tools.
@@ -57,6 +58,17 @@ Detailed operational guidance is offloaded to specialized **Expert Skills** to m
 - **Caching**: Use `inspect_dependencies` and `search_dependency_sources` with `fresh = true` only when dependencies change.
 - **Research First**: ALWAYS research correct implementation/API usage (especially Kotlin Scripting) before attempting code changes.
 - **Rubber Ducking**: Document findings and "think out loud" when stuck.
+
+---
+
+## Project-Specific Operational Guidance
+
+- **MCP Dependency Reporting Deduplication**: When deduplicating dependencies across multiple Gradle configurations in an MCP report, prefer `RESOLVED` entries over `UNRESOLVED` ones. Use only the component ID (stripping `UNRESOLVED:`
+  prefix) for matching. This handles configurations that are unresolvable by design (e.g., `implementation`) but report the same logical dependency that is `RESOLVED` in child configurations (e.g., `runtimeClasspath`).
+- **Structured Gradle Output Parsing**: When parsing structured Gradle output in a service layer, ensure all dependencies, including those inherited from parent configurations, are added to the configuration's dependency list, even if they
+  have a `fromConfiguration` marker. This prevents missing top-level dependencies in reports for complex projects (like KMP) where most dependencies are declared in non-resolvable parent configurations.
+- **Integration Test Project Dependency Reporting**: For project dependencies in integration tests, consistently use a specific group (e.g., `"project"`) and the project path as the name in the report. This ensures compatibility with
+  existing test assertions, as changing project dependencies to report their actual `ModuleVersionIdentifier` (group/name/version) can break tests reliant on path-based naming conventions.
 
 ---
 

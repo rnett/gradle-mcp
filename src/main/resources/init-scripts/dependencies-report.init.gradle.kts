@@ -1,111 +1,174 @@
+import org.gradle.api.DefaultTask
 import org.gradle.api.NamedDomainObjectContainer
-import org.gradle.api.Project
-import org.gradle.api.artifacts.Configuration
-import org.gradle.api.artifacts.ProjectDependency
-import org.gradle.api.artifacts.component.ModuleComponentIdentifier
-import org.gradle.api.artifacts.component.ModuleComponentSelector
-import org.gradle.api.artifacts.component.ProjectComponentIdentifier
-import org.gradle.api.artifacts.component.ProjectComponentSelector
-import org.gradle.api.artifacts.repositories.IvyArtifactRepository
-import org.gradle.api.artifacts.repositories.MavenArtifactRepository
-import org.gradle.api.artifacts.result.DependencyResult
-import org.gradle.api.artifacts.result.ResolvedDependencyResult
-import org.gradle.api.artifacts.result.ResolvedVariantResult
-import org.gradle.api.artifacts.result.UnresolvedDependencyResult
+import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.MapProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.SourceSetContainer
-import org.gradle.api.tasks.diagnostics.AbstractDependencyReportTask
-import org.gradle.api.tasks.diagnostics.internal.ConfigurationDetails
-import org.gradle.api.tasks.diagnostics.internal.DependencyReportRenderer
-import org.gradle.api.tasks.diagnostics.internal.ProjectDetails
-import org.gradle.api.tasks.diagnostics.internal.graph.nodes.RenderableDependency
+import org.gradle.api.tasks.TaskAction
 import org.gradle.internal.logging.text.StyledTextOutput
-import java.io.File
 
-abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
+class McpRepositoryData(
+    val name: String,
+    val url: String
+) : java.io.Serializable
+
+class McpConfigurationMetadata(
+    val name: String,
+    val description: String?,
+    val isCanBeResolved: Boolean,
+    val extendsFrom: List<String>,
+    val declaredDependencies: Set<Pair<String?, String>>
+) : java.io.Serializable
+
+class McpResolvedComponent(
+    val id: String,
+    val group: String,
+    val name: String,
+    val version: String,
+    val selectionReason: String,
+    val variants: Map<String, McpResolvedVariant>
+) : java.io.Serializable
+
+class McpResolvedVariant(
+    val name: String,
+    val capabilities: List<String>,
+    val dependencies: List<McpResolvedDependency>
+) : java.io.Serializable
+
+class McpResolvedDependency(
+    val requested: String,
+    val selectedId: String?,
+    val variantName: String?,
+    val failure: String?
+) : java.io.Serializable
+
+class McpResolvedGraph(
+    val rootId: String,
+    val rootVariantName: String?,
+    val rootDependencies: List<McpResolvedDependency>,
+    val components: Map<String, McpResolvedComponent>
+) : java.io.Serializable
+
+abstract class McpDependencyReportTask : DefaultTask() {
     companion object {
         const val BUILDSCRIPT_PREFIX = "buildscript:"
         const val BUILDSCRIPT_SOURCE_SET = "__mcp_buildscript__"
     }
 
+    @get:Input
+    abstract val checkUpdates: Property<Boolean>
+
+    @get:Input
+    abstract val onlyDirect: Property<Boolean>
+
+    @get:Input
+    abstract val downloadSources: Property<Boolean>
+
+    @get:Input
+    abstract val excludeBuildscript: Property<Boolean>
+
+    @get:Input
+    abstract val stableOnly: Property<Boolean>
+
+    @get:Input
+    @get:Optional
+    abstract val versionFilter: Property<String>
+
+    @get:Input
+    @get:Optional
+    abstract val targetConfig: Property<String>
+
+    @get:Input
+    @get:Optional
+    abstract val targetSourceSet: Property<String>
+
+    @get:Input
+    @get:Optional
+    abstract val dependencyFilter: Property<String>
+
+    @get:Input
+    abstract val projectPath: Property<String>
+
+    @get:Input
+    abstract val projectDisplayName: Property<String>
+
+    @get:Input
+    abstract val configurationsMetadata: MapProperty<String, McpConfigurationMetadata>
+
+    @get:Input
+    abstract val buildscriptConfigurationsMetadata: MapProperty<String, McpConfigurationMetadata>
+
+    @get:Input
+    abstract val configurationsGraphs: MapProperty<String, McpResolvedGraph>
+
+    @get:Input
+    abstract val buildscriptConfigurationsGraphs: MapProperty<String, McpResolvedGraph>
+
+    @get:Input
+    abstract val latestVersions: MapProperty<String, String>
+
+    @get:Input
+    abstract val sourcesFiles: MapProperty<String, String>
+
+    @get:Input
+    abstract val repositories: ListProperty<McpRepositoryData>
+
+    @get:Input
+    abstract val buildscriptRepositories: ListProperty<McpRepositoryData>
+
+    @get:Input
+    abstract val sourceSets: MapProperty<String, List<String>>
+
+    @get:Input
+    abstract val kotlinSourceSets: MapProperty<String, List<String>>
+
     init {
         group = "help"
         description = "Generates a structured dependency report for MCP."
-        val mcpRenderer = McpDependencyReportRenderer()
-        setRenderer(mcpRenderer)
-
-        notCompatibleWithConfigurationCache("Uses Project object during execution")
     }
 
-    override fun generateReportFor(project: ProjectDetails, model: AbstractDependencyReportTask.DependencyReportModel) {
-        val mcpRenderer = renderer as McpDependencyReportRenderer
-        val realProject = getProject()
-        mcpRenderer.gradleProject = realProject
+    @TaskAction
+    fun generate() {
+        val mcpRenderer = McpDependencyReportRenderer()
+        mcpRenderer.setOutput(services.get(org.gradle.internal.logging.text.StyledTextOutputFactory::class.java).create(McpDependencyReportTask::class.java))
 
-        fun Project.mcpProperty(name: String): String? =
-            if (hasProperty("mcp.$name")) property("mcp.$name").toString() else null
-        fun Project.mcpBooleanProperty(name: String): Boolean =
-            mcpProperty(name) == "true"
-        val checkUpdates = realProject.mcpBooleanProperty("checkUpdates")
-        val onlyDirect = realProject.mcpBooleanProperty("onlyDirect")
-        val downloadSources = realProject.mcpBooleanProperty("downloadSources")
-        val excludeBuildscript = realProject.mcpBooleanProperty("excludeBuildscript")
-        val stableOnly = realProject.mcpBooleanProperty("stableOnly")
-        val versionFilter = realProject.mcpProperty("versionFilter")
-        val targetConfig = realProject.mcpProperty("configuration")
-        val targetSourceSet = realProject.mcpProperty("sourceSet")?.trim('\'', '"', ' ')
-        val dependencyFilter = realProject.mcpProperty("dependencyFilter")
-        val filterParts = dependencyFilter?.split(":", limit = 4)
+        mcpRenderer.configurationsMetadata = configurationsMetadata.get()
+        mcpRenderer.buildscriptConfigurationsMetadata = buildscriptConfigurationsMetadata.get()
 
-        fun matchesFilter(id: ModuleComponentIdentifier): Boolean {
-            if (filterParts == null) return true
-            val group = id.group
-            val module = id.module
-            val version = id.version
+        val checkUpdates = this.checkUpdates.get()
+        val onlyDirect = this.onlyDirect.get()
+        val targetConfig = this.targetConfig.orNull
+        val targetSourceSet = this.targetSourceSet.orNull?.trim { it == ' ' || it == '"' || it == '\'' }
+        val dependencyFilter = this.dependencyFilter.orNull
 
-            return when (filterParts.size) {
-                1 -> group == filterParts[0]
-                2 -> group == filterParts[0] && module == filterParts[1]
-                3 -> group == filterParts[0] && module == filterParts[1] && version == filterParts[2]
-                else -> group == filterParts[0] && module == filterParts[1]
-            }
-        }
+        val projectPath = this.projectPath.get()
+        val projectDisplayName = this.projectDisplayName.get()
 
+        val isTargetingBuildscript = targetSourceSet == BUILDSCRIPT_SOURCE_SET || (targetConfig != null && targetConfig.startsWith(BUILDSCRIPT_PREFIX))
         if (targetConfig != null) {
             val isBuildscript = targetConfig.startsWith(BUILDSCRIPT_PREFIX)
             val configName = if (isBuildscript) targetConfig.substringAfter(BUILDSCRIPT_PREFIX) else targetConfig
-            val exists = if (isBuildscript) {
-                realProject.buildscript.configurations.findByName(configName) != null
-            } else {
-                realProject.configurations.findByName(configName) != null
-            }
-            if (!exists) {
-                throw IllegalArgumentException("Configuration '$targetConfig' not found in project '${realProject.path}'")
+            val meta = if (isBuildscript) buildscriptConfigurationsMetadata.get() else configurationsMetadata.get()
+            if (!meta.containsKey(configName)) {
+                throw IllegalArgumentException("Configuration '$targetConfig' not found in project '$projectPath'")
             }
         }
 
         if (targetSourceSet != null && targetSourceSet != BUILDSCRIPT_SOURCE_SET) {
-            val sourceSets = realProject.extensions.findByType(SourceSetContainer::class.java)
-            if (sourceSets == null || sourceSets.findByName(targetSourceSet) == null) {
-                throw IllegalArgumentException("SourceSet '$targetSourceSet' not found in project '${realProject.path}'")
+            val ss = if (targetSourceSet.startsWith("kotlin:")) targetSourceSet.substringAfter("kotlin:") else targetSourceSet
+            if (!sourceSets.get().containsKey(ss) && !kotlinSourceSets.get().containsKey(ss)) {
+                throw IllegalArgumentException("SourceSet '$targetSourceSet' not found in project '$projectPath'")
             }
         }
 
-        val modelConfigurations = getModelConfigurations(model)
+        val projectConfigs = configurationsMetadata.get()
+        val buildscriptConfigs = if (!excludeBuildscript.get() || isTargetingBuildscript) {
+            buildscriptConfigurationsMetadata.get()
+        } else emptyMap()
 
-        val projectConfigs = if (targetConfig != null && targetConfig.startsWith(BUILDSCRIPT_PREFIX)) {
-            emptyList()
-        } else {
-            modelConfigurations.mapNotNull { realProject.configurations.findByName(it.name) }
-        }
-        val isTargetingBuildscript = targetSourceSet == BUILDSCRIPT_SOURCE_SET || (targetConfig != null && targetConfig.startsWith(BUILDSCRIPT_PREFIX))
-        val buildscriptConfigs = if (!excludeBuildscript || isTargetingBuildscript) {
-            realProject.buildscript.configurations.filter {
-                targetConfig == null || targetConfig == "$BUILDSCRIPT_PREFIX${it.name}"
-            }
-        } else {
-            emptyList()
-        }
-        val allConfigs = projectConfigs + buildscriptConfigs
+        val allConfigs = projectConfigs.keys + buildscriptConfigs.keys.map { "$BUILDSCRIPT_PREFIX$it" }
 
         // Progress Tracking
         var totalItems = allConfigs.size.toLong() * 2 // RESOLUTION + COLLECTING
@@ -123,613 +186,604 @@ abstract class McpDependencyReportTask : AbstractDependencyReportTask() {
 
         updateTotal(totalItems)
 
-        val directDependencies = gatherDirectDependencies(allConfigs)
-
-        // Phase 1: Resolving
-        val allComponents = if (checkUpdates || downloadSources) {
-            val resolvableConfigs = allConfigs.filter { it.isCanBeResolved }
-            val components = mutableSetOf<ModuleComponentIdentifier>()
-            resolvableConfigs.forEach { config ->
-                reportProgress("Resolving", config.name)
-                try {
-                    config.incoming.resolutionResult.allComponents.forEach {
-                        val id = it.id
-                        if (id is ModuleComponentIdentifier) {
-                            components.add(id)
-                        }
-                    }
-                } catch (e: Exception) {
-                }
-            }
-            // Mark remaining non-resolvable configs as finished for this phase
-            val nonResolvableCount = allConfigs.size - resolvableConfigs.size
-            repeat(nonResolvableCount) { completedItems++ }
-            components
-        } else {
-            allConfigs.forEach { reportProgress("Resolving", "Skipping ${it.name}") }
-            emptySet()
-        }
-
-        val targetComponents = allComponents.filter { (!onlyDirect || "${it.group}:${it.module}" in directDependencies) && matchesFilter(it) }
-        if (checkUpdates || downloadSources) {
-            var newTotal = allConfigs.size.toLong() * 2
-            if (checkUpdates) newTotal += targetComponents.size
-            if (downloadSources) newTotal += targetComponents.size
-            updateTotal(newTotal)
-        }
-
-        // Phase 2: Checking Updates
-        val latestVersions = if (checkUpdates && targetComponents.isNotEmpty()) {
-            gatherLatestVersions(targetComponents, directDependencies, onlyDirect, versionFilter, stableOnly) { id ->
-                reportProgress("Checking Updates", id)
-            }
-        } else emptyMap()
-
-        // Phase 3: Downloading Sources
-        val sourcesFiles = if (downloadSources && targetComponents.isNotEmpty()) {
-            gatherSources(targetComponents, directDependencies, onlyDirect) { id ->
-                reportProgress("Downloading Sources", id)
-            }
-        } else emptyMap()
-
-        mcpRenderer.latestVersions = latestVersions
-        mcpRenderer.sourcesFiles = sourcesFiles
+        mcpRenderer.latestVersions = latestVersions.get()
+        mcpRenderer.sourcesFiles = sourcesFiles.get()
         mcpRenderer.checksEnabled = checkUpdates
-        mcpRenderer.updatesCheckedDeps = if (checkUpdates) targetComponents.map { "${it.group}:${it.module}" }.toSet() else emptySet()
         mcpRenderer.onlyDirect = onlyDirect
+        mcpRenderer.dependencyFilter = dependencyFilter
+        mcpRenderer.updatesCheckedDeps = if (checkUpdates) latestVersions.get().keys else emptySet()
 
-        mcpRenderer.outputProject(project)
-        outputRepositories(project, realProject, mcpRenderer)
-        outputSourceSets(project, realProject, mcpRenderer)
-        if (!excludeBuildscript || isTargetingBuildscript) {
-            mcpRenderer.outputSourceSet(project, BUILDSCRIPT_SOURCE_SET, realProject.buildscript.configurations.map { "$BUILDSCRIPT_PREFIX${it.name}" })
+        mcpRenderer.outputProject(projectPath, projectDisplayName)
+
+        repositories.get().forEach {
+            mcpRenderer.outputRepository(projectPath, it.name, it.url)
+        }
+        buildscriptRepositories.get().forEach {
+            mcpRenderer.outputRepository(projectPath, "$BUILDSCRIPT_PREFIX${it.name}", it.url)
         }
 
-        outputKotlinSourceSets(project, realProject, mcpRenderer)
+        sourceSets.get().forEach { (name, configs) ->
+            mcpRenderer.outputSourceSet(projectPath, name, configs)
+        }
+        if (!excludeBuildscript.get() || isTargetingBuildscript) {
+            mcpRenderer.outputSourceSet(projectPath, BUILDSCRIPT_SOURCE_SET, buildscriptConfigurationsMetadata.get().keys.map { "$BUILDSCRIPT_PREFIX$it" })
+        }
+        kotlinSourceSets.get().forEach { (name, configs) ->
+            mcpRenderer.outputSourceSet(projectPath, "kotlin:$name", configs)
+        }
 
-        // Phase 4: Collecting
-        mcpRenderer.startProject(project)
-        projectConfigs.forEach { config ->
-            reportProgress("Collecting", "[${realProject.path}] ${config.name}")
-            val details = ConfigurationDetails.of(config)
-            mcpRenderer.startConfiguration(details)
-            mcpRenderer.render(details)
-            mcpRenderer.completeConfiguration(details)
+        // Phase 4: Collecting (Processing)
+        mcpRenderer.startProject(projectPath, projectDisplayName)
+
+        val graphs = configurationsGraphs.get()
+        configurationsMetadata.get().forEach { (name, metadata) ->
+            if (targetConfig == null || targetConfig == name) {
+                reportProgress("Resolving", name)
+                reportProgress("Collecting", "[$projectPath] $name")
+                mcpRenderer.startConfiguration(projectPath, name, metadata)
+                val graph = graphs[name]
+                if (graph != null) {
+                    mcpRenderer.render(projectPath, graph, name)
+                } else if (!metadata.isCanBeResolved) {
+                    mcpRenderer.renderUnresolvable(projectPath, name, metadata)
+                }
+                mcpRenderer.completeConfiguration()
+            }
         }
 
         mcpRenderer.inBuildscript = true
-        for (config in buildscriptConfigs) {
-            reportProgress("Collecting", "[${realProject.path}] buildscript:${config.name}")
-            val details = ConfigurationDetails.of(config)
-            mcpRenderer.startConfiguration(details)
-            mcpRenderer.render(details)
-            mcpRenderer.completeConfiguration(details)
+        val bGraphs = buildscriptConfigurationsGraphs.get()
+        buildscriptConfigs.forEach { (name, metadata) ->
+            val fullName = "$BUILDSCRIPT_PREFIX$name"
+            if (targetConfig == null || targetConfig == fullName) {
+                reportProgress("Resolving", fullName)
+                reportProgress("Collecting", "[$projectPath] $fullName")
+                mcpRenderer.startConfiguration(projectPath, name, metadata)
+                val graph = bGraphs[name]
+                if (graph != null) {
+                    mcpRenderer.render(projectPath, graph, fullName)
+                } else if (!metadata.isCanBeResolved) {
+                    mcpRenderer.renderUnresolvable(projectPath, name, metadata)
+                }
+                mcpRenderer.completeConfiguration()
+            }
         }
         mcpRenderer.inBuildscript = false
-        mcpRenderer.completeProject(project)
-    }
-
-    private fun getModelConfigurations(model: AbstractDependencyReportTask.DependencyReportModel): List<ConfigurationDetails> {
-        val field = model.javaClass.getDeclaredField("configurations")
-        field.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        return field.get(model) as List<ConfigurationDetails>
-    }
-
-    private fun gatherDirectDependencies(configurations: List<Configuration>): Set<String> {
-        val directDependencies = mutableSetOf<String>()
-        configurations.forEach { config ->
-            config.dependencies.forEach { dep ->
-                if (dep is ProjectDependency) {
-                    directDependencies.add("project:${dep.path}")
-                } else if (dep.group != null) {
-                    directDependencies.add("${dep.group}:${dep.name}")
-                }
-            }
-        }
-        return directDependencies
-    }
-
-    private fun gatherLatestVersions(
-        targetComponents: List<ModuleComponentIdentifier>,
-        directDependencies: Set<String>,
-        onlyDirect: Boolean,
-        versionFilter: String?,
-        stableOnly: Boolean,
-        onProgress: (String) -> Unit
-    ): Map<String, String> {
-        val realProject = getProject()
-        val updatesConfig = realProject.configurations.detachedConfiguration()
-
-        if (versionFilter != null || stableOnly) {
-            val versionRegex = versionFilter?.let { Regex(it) }
-            val unstableKeywords = setOf("alpha", "beta", "rc", "m", "milestone", "releasecandidate", "dev", "ea", "preview", "snapshot", "canary")
-
-            fun isStable(version: String): Boolean {
-                val tokens = version.split(Regex("[.\\-_+ ]"))
-                val parts = tokens.flatMap { token ->
-                    val result = mutableListOf<String>()
-                    var start = 0
-                    for (i in 1 until token.length) {
-                        if (token[i].isDigit() != token[i - 1].isDigit()) {
-                            result.add(token.substring(start, i))
-                            start = i
-                        }
-                    }
-                    result.add(token.substring(start))
-                    result
-                }
-                return parts.none { it.lowercase() in unstableKeywords }
-            }
-
-            updatesConfig.resolutionStrategy.componentSelection {
-                all(delegateClosureOf<org.gradle.api.artifacts.ComponentSelection> {
-                    val candidate = this.candidate
-                    val version = candidate.version
-
-                    if (stableOnly && !isStable(version)) {
-                        reject("Version '$version' is a pre-release version")
-                    } else if (versionRegex != null && !versionRegex.matches(version)) {
-                        reject("Version '$version' does not match the provided filter regex: $versionFilter")
-                    }
-                })
-            }
-        }
-
-        targetComponents.forEach { id ->
-            val dep = realProject.dependencies.create("${id.group}:${id.module}:+") {
-                (this as org.gradle.api.artifacts.ExternalModuleDependency).isTransitive = false
-            }
-            updatesConfig.dependencies.add(dep)
-        }
-        updatesConfig.resolutionStrategy.cacheDynamicVersionsFor(0, "seconds")
-
-        val latestVersions = mutableMapOf<String, String>()
-        try {
-            updatesConfig.incoming.resolutionResult.allComponents.forEach {
-                val id = it.id
-                if (id is ModuleComponentIdentifier) {
-                    latestVersions["${id.group}:${id.module}"] = id.version
-                    onProgress("${id.group}:${id.module}")
-                }
-            }
-        } catch (e: Exception) {
-        }
-        return latestVersions
-    }
-
-    private fun gatherSources(
-        targetComponents: List<ModuleComponentIdentifier>,
-        directDependencies: Set<String>,
-        onlyDirect: Boolean,
-        onProgress: (String) -> Unit
-    ): Map<String, String> {
-        val realProject = getProject()
-        val sourcesFiles = mutableMapOf<String, String>()
-        try {
-            val sourcesConfig = realProject.configurations.detachedConfiguration()
-            targetComponents.forEach { id ->
-                val dep = realProject.dependencies.create("${id.group}:${id.module}:${id.version}:sources@jar") {
-                    (this as org.gradle.api.artifacts.ExternalModuleDependency).isTransitive = false
-                }
-                sourcesConfig.dependencies.add(dep)
-            }
-
-            sourcesConfig.resolvedConfiguration.lenientConfiguration.artifacts.forEach { artifact ->
-                val id = artifact.moduleVersion.id
-                sourcesFiles["${id.group}:${id.name}:${id.version}"] = artifact.file.absolutePath
-                onProgress("${id.group}:${id.name}:${id.version}")
-            }
-        } catch (e: Throwable) {
-            println("ERROR_GATHERING_SOURCES: ${e.message}")
-        }
-        return sourcesFiles
-    }
-
-
-    private fun outputRepositories(project: ProjectDetails, realProject: Project, mcpRenderer: McpDependencyReportRenderer) {
-        realProject.repositories.forEach { repo ->
-            val name = repo.name
-            val url = when (repo) {
-                is MavenArtifactRepository -> repo.url?.toString() ?: "unknown"
-                is IvyArtifactRepository -> repo.url?.toString() ?: "unknown"
-                else -> "unknown"
-            }
-            mcpRenderer.outputRepository(project, name, url)
-        }
-        realProject.buildscript.repositories.forEach { repo ->
-            val name = repo.name
-            val url = when (repo) {
-                is MavenArtifactRepository -> repo.url?.toString() ?: "unknown"
-                is IvyArtifactRepository -> repo.url?.toString() ?: "unknown"
-                else -> "unknown"
-            }
-            mcpRenderer.outputRepository(project, "$BUILDSCRIPT_PREFIX$name", url)
-        }
-    }
-
-    private fun outputSourceSets(project: ProjectDetails, realProject: Project, mcpRenderer: McpDependencyReportRenderer) {
-        val sourceSets = realProject.extensions.findByType(SourceSetContainer::class.java)
-        sourceSets?.forEach { sourceSet ->
-            val configs = listOfNotNull(
-                sourceSet.implementationConfigurationName,
-                sourceSet.runtimeOnlyConfigurationName,
-                sourceSet.compileClasspathConfigurationName
-            )
-            mcpRenderer.outputSourceSet(project, sourceSet.name, configs)
-        }
-    }
-
-    private fun outputKotlinSourceSets(project: ProjectDetails, realProject: Project, mcpRenderer: McpDependencyReportRenderer) {
-        try {
-            val kotlinExtension = realProject.extensions.findByName("kotlin") ?: return
-            val getSourceSets = kotlinExtension.javaClass.getMethod("getSourceSets")
-            val kotlinSourceSets = getSourceSets.invoke(kotlinExtension) as? NamedDomainObjectContainer<*> ?: return
-
-            kotlinSourceSets.forEach { sourceSet ->
-                val getName = sourceSet.javaClass.getMethod("getName")
-                val name = getName.invoke(sourceSet) as String
-                val configs = mutableListOf<String>()
-                val propNames = listOf("apiConfigurationName", "implementationConfigurationName", "compileOnlyConfigurationName", "runtimeOnlyConfigurationName")
-                propNames.forEach { propName ->
-                    try {
-                        val methodName = "get" + propName.replaceFirstChar { it.uppercaseChar() }
-                        val configName = sourceSet.javaClass.getMethod(methodName).invoke(sourceSet) as? String
-                        if (configName != null) configs.add(configName)
-                    } catch (e: Exception) {
-                    }
-                }
-                mcpRenderer.outputSourceSet(project, "kotlin:$name", configs)
-            }
-        } catch (e: Exception) {
-        }
+        mcpRenderer.completeProject()
     }
 }
 
-// use AsciiDependencyReportRenderer for guidance
-class McpDependencyReportRenderer : DependencyReportRenderer {
+class McpDependencyReportRenderer {
     private var output: StyledTextOutput? = null
     var latestVersions: Map<String, String> = emptyMap()
     var sourcesFiles: Map<String, String> = emptyMap()
 
-    // Set of "group:module" coordinates that were targeted for update checking (i.e., in targetComponents).
-    // Used together with latestVersions to determine whether a dep's check genuinely failed.
+    // Set of "group:module" coordinates that were targeted for update checking
     var updatesCheckedDeps: Set<String> = emptySet()
 
     // Whether update checking was enabled at all for this run.
     var checksEnabled: Boolean = false
     var onlyDirect: Boolean = false
-    var gradleProject: Project? = null
+    var dependencyFilter: String? = null
     var inBuildscript: Boolean = false
-    private var currentProject: ProjectDetails? = null
+    var configurationsMetadata: Map<String, McpConfigurationMetadata> = emptyMap()
+    var buildscriptConfigurationsMetadata: Map<String, McpConfigurationMetadata> = emptyMap()
+
     private var currentConfigurationName: String? = null
 
     // Performance Caches
-    private val hierarchyCache = mutableMapOf<Configuration, List<Configuration>>()
-    private val declaredDependenciesCache = mutableMapOf<Configuration, Set<Pair<String?, String>>>()
-    private val declaringConfigCache = mutableMapOf<Pair<Configuration, Any>, Configuration?>()
+    private val hierarchyCache = mutableMapOf<String, List<String>>()
+    private val declaringConfigCache = mutableMapOf<Pair<String, String>, String?>()
 
-    override fun setOutput(textOutput: StyledTextOutput) {
+    fun setOutput(textOutput: StyledTextOutput) {
         this.output = textOutput
     }
 
-    override fun setOutputFile(file: File) {}
+    private fun String.escape() = this.replace("|", "\\|")
 
-    fun outputProject(project: ProjectDetails) {
-        output?.println("PROJECT: ${getProjectPath(project)} | ${project.displayName}")
+    fun outputProject(path: String, displayName: String) {
+        output?.println("PROJECT: ${path.escape()} | ${displayName.escape()}")
     }
 
-    fun outputRepository(project: ProjectDetails, name: String, url: String) {
-        output?.println("REPOSITORY: ${getProjectPath(project)} | $name | $url")
+    fun outputRepository(path: String, name: String, url: String) {
+        output?.println("REPOSITORY: ${path.escape()} | ${name.escape()} | ${url.escape()}")
     }
 
-    fun outputSourceSet(project: ProjectDetails, name: String, configurations: List<String>) {
-        output?.println("SOURCESET: ${getProjectPath(project)} | $name | ${configurations.joinToString(",")}")
+    fun outputSourceSet(path: String, name: String, configurations: List<String>) {
+        output?.println("SOURCESET: ${path.escape()} | ${name.escape()} | ${configurations.joinToString(",").escape()}")
     }
 
-    override fun startProject(project: ProjectDetails) {
-        this.currentProject = project
-    }
+    fun startProject(path: String, displayName: String) {}
 
-    override fun completeProject(project: ProjectDetails) {
-        this.currentProject = null
-    }
+    fun completeProject() {}
 
-    override fun startConfiguration(configuration: ConfigurationDetails) {
-        this.currentConfigurationName = configuration.name
-        val path = currentProject?.let { getProjectPath(it) } ?: "unknown"
-        val realConfig = if (inBuildscript) gradleProject?.buildscript?.configurations?.findByName(configuration.name) else gradleProject?.configurations?.findByName(configuration.name)
-        val extendsFrom = realConfig?.extendsFrom?.map { if (inBuildscript) "${McpDependencyReportTask.BUILDSCRIPT_PREFIX}${it.name}" else it.name }?.joinToString(",") ?: ""
+    fun startConfiguration(projectPath: String, name: String, metadata: McpConfigurationMetadata) {
+        this.currentConfigurationName = name
         val prefix = if (inBuildscript) McpDependencyReportTask.BUILDSCRIPT_PREFIX else ""
-        output?.println("CONFIGURATION: $path | $prefix${configuration.name} | ${configuration.description ?: ""} | ${configuration.isCanBeResolved} | $extendsFrom")
+        val extendsFrom = metadata.extendsFrom.map { if (inBuildscript) "${McpDependencyReportTask.BUILDSCRIPT_PREFIX}$it" else it }.joinToString(",")
+        output?.println("CONFIGURATION: ${projectPath.escape()} | $prefix${name.escape()} | ${(metadata.description ?: "").escape()} | ${metadata.isCanBeResolved} | ${extendsFrom.escape()}")
     }
 
-    override fun render(configuration: ConfigurationDetails) {
-        val project = currentProject ?: return
-        val realConfig = (if (inBuildscript) gradleProject?.buildscript?.configurations?.findByName(configuration.name) else gradleProject?.configurations?.findByName(configuration.name)) ?: return
-        
-        if (configuration.isCanBeResolved) {
-            val root = configuration.resolutionResultRoot?.get() ?: return
-            val visited = mutableSetOf<Any>()
+    fun render(projectPath: String, graph: McpResolvedGraph, configName: String) {
+        val root = graph.components[graph.rootId] ?: return
+        val visited = mutableSetOf<String>()
 
-            // For the root, we use its ID and first variant (if any) as the visited key
-            val variants = root.variants
-            val (vName, caps) = if (variants.isNotEmpty()) getVariantInfoFromResolved(variants[0]) else "" to emptyList<String>()
-            visited.add(listOf(root.id, vName, caps))
-
-            root.dependencies.forEach { dep ->
-                if (dep is ResolvedDependencyResult && dep.isConstraint()) return@forEach
-
-                val declaringConfig = findDeclaringConfiguration(realConfig, dep)
-                if (declaringConfig == null) return@forEach
-
-                val declaringName = if (inBuildscript) "buildscript:${declaringConfig.name}" else declaringConfig.name
-
-                if (declaringConfig == realConfig) {
-                    renderDependencyResult(project, dep, 1, visited, null)
-                } else if (!declaringConfig.isCanBeResolved()) {
-                    renderDependencyResult(project, dep, 1, visited, declaringName)
-                }
-            }
+        // Root itself is visited
+        val rootVariant = graph.rootVariantName?.let { root.variants[it] } ?: root.variants.values.firstOrNull()
+        if (rootVariant != null) {
+            visited.add("${root.id} | ${rootVariant.name} | ${rootVariant.capabilities.joinToString(",")}")
         } else {
-            val rootNode = configuration.unresolvableResult
-            if (rootNode != null) {
-                val visited = mutableSetOf<Any>()
-                rootNode.id?.let { visited.add(it) }
-                rootNode.children.forEach { child ->
-                    if (isDeclaredInUnresolvable(configuration.name, child)) {
-                        renderRenderableDependency(project, child, 1, visited)
-                    }
-                }
+            visited.add(root.id)
+        }
+
+        graph.rootDependencies.forEach {
+            val declaringName = findDeclaringConfiguration(configName, it.requested)
+            val fullName = if (declaringName != null && inBuildscript && !declaringName.startsWith(McpDependencyReportTask.BUILDSCRIPT_PREFIX)) {
+                "${McpDependencyReportTask.BUILDSCRIPT_PREFIX}$declaringName"
+            } else declaringName
+
+            if (declaringName == configName || (declaringName == null && !inBuildscript)) {
+                renderDependency(projectPath, graph, it, 1, visited, null)
+            } else {
+                renderDependency(projectPath, graph, it, 1, visited, fullName)
             }
         }
     }
 
-    private fun findDeclaringConfiguration(currentConfig: Configuration, dep: DependencyResult): Configuration? {
-        val requested = dep.requested
-        val key = currentConfig to requested
+    fun renderUnresolvable(projectPath: String, configName: String, metadata: McpConfigurationMetadata) {
+        metadata.declaredDependencies.forEach { (group, name) ->
+            if (dependencyFilter != null && !("${group ?: ""}:${name}").contains(dependencyFilter!!)) return@forEach
+
+            val markers = "*"
+            val requested = if (group == "project") "project $name" else if (group != null) "$group:$name" else name
+            output?.println("DEP: ${projectPath.escape()} | $markers | UNRESOLVED:${requested.escape()} | ${(group ?: "").escape()} | ${name.escape()} | | UNRESOLVABLE CONFIGURATION | | true | | | | | false")
+        }
+    }
+
+    private fun findDeclaringConfiguration(currentConfigName: String, requested: String): String? {
+        val key = currentConfigName to requested
         return declaringConfigCache.getOrPut(key) {
-            val hierarchy = hierarchyCache.getOrPut(currentConfig) { currentConfig.hierarchy.toList() }
+            val metadataMap = if (inBuildscript) buildscriptConfigurationsMetadata else configurationsMetadata
+            val unprefixedCurrent = currentConfigName.removePrefix(McpDependencyReportTask.BUILDSCRIPT_PREFIX)
 
-            // We want to find a configuration in the hierarchy that declares this dependency.
-            for (conf in hierarchy) {
-                val declaredDeps = declaredDependenciesCache.getOrPut(conf) {
-                    conf.dependencies.map { it.group to it.name }.toSet()
+            val hierarchy = hierarchyCache.getOrPut(currentConfigName) {
+                val result = mutableListOf<String>()
+                fun collect(name: String) {
+                    if (name in result) return
+                    result.add(name)
+                    metadataMap[name]?.extendsFrom?.forEach { collect(it) }
                 }
+                collect(unprefixedCurrent)
+                result
+            }
 
-                val match = when (requested) {
-                    is ModuleComponentSelector -> {
-                        (requested.group to requested.module) in declaredDeps
+            for (confName in hierarchy) {
+                val metadata = metadataMap[confName] ?: continue
+                val declaredDeps = metadata.declaredDependencies
+
+                val match = declaredDeps.any { (group, name) ->
+                    if (group == "project") {
+                        val reqPath = requested.substringAfter("project ").trim()
+                        val declPath = name.trim()
+                        declPath == reqPath || (declPath == ":" && reqPath == ":") || declPath == reqPath.removePrefix(":") || (declPath.startsWith(":") && declPath.removePrefix(":") == reqPath)
+                    } else if (group != null && group.isNotEmpty()) {
+                        requested.startsWith("$group:$name")
+                    } else {
+                        requested.startsWith(name)
                     }
-
-                    is ProjectComponentSelector -> {
-                        conf.dependencies.any { declared ->
-                            if (declared is ProjectDependency) {
-                                val dPath = declared.path
-                                dPath == requested.projectPath || (dPath == ":" && requested.projectPath == ":") || (dPath == requested.projectPath.removePrefix(":"))
-                            } else if (declared is org.gradle.api.artifacts.ExternalModuleDependency && declared.group == "project") {
-                                val dPath = declared.name
-                                dPath == requested.projectPath || (dPath == ":" && requested.projectPath == ":") || (dPath == requested.projectPath.removePrefix(":"))
-                            } else false
-                        }
-                    }
-
-                    else -> false
                 }
-                if (match) return@getOrPut conf
+                if (match) return@getOrPut if (inBuildscript) "${McpDependencyReportTask.BUILDSCRIPT_PREFIX}$confName" else confName
             }
             null
         }
     }
 
-    private fun isDeclaredInUnresolvable(configName: String, dep: RenderableDependency): Boolean {
-        val config = (if (inBuildscript) gradleProject?.buildscript?.configurations?.findByName(configName) else gradleProject?.configurations?.findByName(configName)) ?: return false
-        val name = dep.getName()
-        val depId = dep.getId()
-        return config.dependencies.any { declared ->
-            if (declared is ProjectDependency) {
-                name.contains(declared.getPath()) || (depId is ProjectComponentSelector && depId.projectPath == declared.getPath())
-            } else {
-                val dGroup = declared.group
-                val dName = declared.name
-                if (dGroup != null) {
-                    name.contains("$dGroup:$dName") || (depId is ModuleComponentSelector && depId.group == dGroup && depId.module == dName)
-                } else {
-                    name.contains(dName) || (depId is ModuleComponentSelector && depId.module == dName)
-                }
+    private fun renderDependency(projectPath: String, graph: McpResolvedGraph, dep: McpResolvedDependency, depth: Int, visited: MutableSet<String>, fromConfiguration: String?) {
+        val markers = "*".repeat(depth)
+
+        if (dep.selectedId != null) {
+            val selected = graph.components[dep.selectedId] ?: return
+
+            // Filtering
+            if (dependencyFilter != null && depth == 1) {
+                if (!selected.id.contains(dependencyFilter!!) && !dep.requested.contains(dependencyFilter!!)) return
             }
+
+            val variant = dep.variantName?.let { selected.variants[it] } ?: selected.variants.values.firstOrNull()
+
+            val visitKey = if (variant != null) "${selected.id} | ${variant.name} | ${variant.capabilities.joinToString(",")}" else selected.id
+            val alreadyVisited = !visited.add(visitKey)
+
+            if (onlyDirect && depth > 1) return
+
+            val latestVersion = latestVersions["${selected.group}:${selected.name}"] ?: ""
+            val sourcesFile = sourcesFiles[selected.id] ?: ""
+            val updatesChecked = isUpdateCheckComplete(selected.group, selected.name)
+
+            val reason = selected.selectionReason.let {
+                if (it.startsWith("requested: ")) it.removePrefix("requested: ")
+                else it
+            }
+
+            if (variant != null) {
+                output?.println(
+                    "DEP: ${projectPath.escape()} | $markers | ${selected.id.escape()} | ${selected.group.escape()} | ${selected.name.escape()} | ${selected.version.escape()} | ${reason.escape()} | ${latestVersion.escape()} | ${depth == 1} | ${variant.name.escape()} | ${
+                        variant.capabilities.joinToString(
+                            ","
+                        ).escape()
+                    } | ${(fromConfiguration ?: "").escape()} | ${sourcesFile.escape()} | $updatesChecked"
+                )
+
+                if (!alreadyVisited) {
+                    variant.dependencies.forEach {
+                        renderDependency(projectPath, graph, it, depth + 1, visited, null)
+                    }
+                }
+            } else {
+                output?.println("DEP: ${projectPath.escape()} | $markers | ${selected.id.escape()} | ${selected.group.escape()} | ${selected.name.escape()} | ${selected.version.escape()} | ${reason.escape()} | ${latestVersion.escape()} | ${depth == 1} | | | ${(fromConfiguration ?: "").escape()} | ${sourcesFile.escape()} | $updatesChecked")
+            }
+        } else {
+            // Unresolved
+            if (dependencyFilter != null && depth == 1 && !dep.requested.contains(dependencyFilter!!)) return
+
+            val requested = dep.requested
+            val parts = requested.split(":")
+            val group = if (parts.size >= 2) parts[0] else ""
+            val name = if (parts.size >= 2) parts[1] else parts[0]
+            val version = if (parts.size >= 3) parts[2] else ""
+
+            output?.println("DEP: ${projectPath.escape()} | $markers | UNRESOLVED:${requested.escape()} | ${group.escape()} | ${name.escape()} | ${version.escape()} | ${(dep.failure ?: "unknown").escape()} | | ${depth == 1} | | | ${(fromConfiguration ?: "").escape()} | | false")
         }
     }
 
-    /**
-     * Returns true when the dep's update-check status is complete (no annotation needed):
-     *  - dep not in updatesCheckedDeps → dep was intentionally excluded from scope (e.g., transitive
-     *    dep when onlyDirect=true, or excluded by a dependency filter); not a genuine failure.
-     *  - dep in latestVersions → check was attempted and succeeded; not a failure.
-     * Returns false (annotation needed) when: checksEnabled=true AND dep was in scope
-     * (present in updatesCheckedDeps) AND resolution yielded no result (absent from latestVersions).
-     *
-     * When checksEnabled=false the renderer gates on checksUpdates (the Kotlin-side flag) and
-     * suppresses the annotation regardless of this field's value, so returning false here is safe.
-     */
     private fun isUpdateCheckComplete(group: String, name: String): Boolean {
         if (!checksEnabled) return false
         val coordinateKey = "$group:$name"
         return !updatesCheckedDeps.contains(coordinateKey) || latestVersions.containsKey(coordinateKey)
     }
 
-    private fun renderDependencyResult(project: ProjectDetails, dep: DependencyResult, depth: Int, visited: MutableSet<Any>, fromConfiguration: String?) {
-        val path = getProjectPath(project)
-
-        if (dep is UnresolvedDependencyResult) {
-            val markers = "*".repeat(depth)
-            val id = dep.requested.toString()
-            val reason = dep.failure?.message ?: ""
-            output?.println("DEP: $path | $markers | $id | | | | $reason | | true | | | ${fromConfiguration ?: ""}")
-            return
-        }
-
-        if (dep is ResolvedDependencyResult) {
-            val component = dep.selected
-            val variant = dep.resolvedVariant
-            val (variantName, caps) = getVariantInfoFromResolved(variant)
-
-            val id = component.id
-            val (group, name, version) = when (id) {
-                is ModuleComponentIdentifier -> Triple(id.group, id.module, id.version)
-                is ProjectComponentIdentifier -> Triple("project", id.projectPath, "")
-                else -> Triple("", dep.requested.displayName, "")
-            }
-
-            val isDirect = (depth == 1)
-            if (onlyDirect && !isDirect) return
-
-            val visitKey = listOf(id, variantName, caps)
-            val alreadyRendered = !visited.add(visitKey)
-            val markers = "*".repeat(depth)
-            val latestVersion = latestVersions["$group:$name"] ?: ""
-            val sourcesFile = sourcesFiles[id.toString()] ?: sourcesFiles["$group:$name:$version"] ?: ""
-            val updatesChecked = isUpdateCheckComplete(group, name)
-
-            var selectionReason = ""
-            val requested = dep.requested
-            if (requested is ModuleComponentSelector) {
-                val requestedVersion = requested.version
-                if (requestedVersion != version && requestedVersion.isNotEmpty()) {
-                    selectionReason = "requested: $requestedVersion"
-                }
-            }
-
-            output?.println("DEP: $path | $markers | $id | $group | $name | $version | $selectionReason | $latestVersion | $isDirect | $variantName | ${caps.joinToString(",")} | ${fromConfiguration ?: ""} | $sourcesFile | $updatesChecked")
-
-            if (!alreadyRendered) {
-                component.getDependenciesForVariant(variant).forEach { child ->
-                    if (child is ResolvedDependencyResult && child.isConstraint()) return@forEach
-                    renderDependencyResult(project, child, depth + 1, visited, null)
-                }
-            }
-        }
-    }
-
-    private fun renderRenderableDependency(project: ProjectDetails, dep: RenderableDependency, depth: Int, visited: MutableSet<Any>) {
-        val depId = dep.getId() ?: return
-        val path = getProjectPath(project)
-
-        val alreadyRendered = !visited.add(depId)
-        val markers = "*".repeat(depth)
-        val isDirect = (depth == 1)
-
-        var group = ""
-        var name = ""
-        var version = ""
-
-        when (depId) {
-            is ModuleComponentSelector -> {
-                group = depId.group
-                name = depId.module
-                version = depId.version
-            }
-
-            is ModuleComponentIdentifier -> {
-                group = depId.group
-                name = depId.module
-                version = depId.version
-            }
-
-            is ProjectComponentSelector -> {
-                group = "project"
-                name = depId.projectPath
-                version = ""
-            }
-
-            is ProjectComponentIdentifier -> {
-                group = "project"
-                name = depId.projectPath
-                version = ""
-            }
-
-            else -> {
-                val fullName = dep.getName() ?: ""
-                val parts = fullName.split(":")
-                if (parts.size >= 2) {
-                    group = parts[0]
-                    name = parts[1]
-                    version = parts.getOrNull(2) ?: ""
-                } else {
-                    name = fullName
-                }
-            }
-        }
-
-        val renderedId = if (group.isNotEmpty() && name.isNotEmpty()) {
-            if (version.isNotEmpty()) "$group:$name:$version" else "$group:$name"
-        } else {
-            depId.toString()
-        }
-
-        val sourcesFile = sourcesFiles[renderedId] ?: sourcesFiles["$group:$name:$version"] ?: ""
-        val updatesChecked = isUpdateCheckComplete(group, name)
-
-        output?.println("DEP: $path | $markers | $renderedId | $group | $name | $version | ${dep.getDescription() ?: ""} | | $isDirect | | | | $sourcesFile | $updatesChecked")
-
-        if (!alreadyRendered) {
-            dep.children.forEach { renderRenderableDependency(project, it, depth + 1, visited) }
-        }
-    }
-
-    private fun getVariantInfoFromResolved(variant: ResolvedVariantResult?): Pair<String, List<String>> {
-        if (variant == null) return "" to emptyList()
-        val displayName = variant.displayName
-        val caps = variant.capabilities.map { "${it.group}:${it.name}:${it.version}" }
-        return displayName to caps
-    }
-
-    override fun completeConfiguration(configuration: ConfigurationDetails) {
+    fun completeConfiguration() {
         this.currentConfigurationName = null
     }
 
-    override fun complete() {}
+    fun complete() {}
+}
 
-    private fun getProjectPath(project: ProjectDetails): String {
-        if (project is ProjectDetails.ProjectNameAndPath) return project.path
-        val displayName = project.displayName
-        return when {
-            displayName.startsWith("project '") && displayName.endsWith("'") -> displayName.substring(9, displayName.length - 1)
-            displayName == "root project" -> ":"
-            displayName.startsWith("root project '") && displayName.endsWith("'") -> ":"
-            else -> displayName
+class McpGraphConverter(private val components: MutableMap<String, McpResolvedComponent>) {
+    companion object {
+        fun convertGraph(configName: String, root: org.gradle.api.artifacts.result.ResolvedComponentResult, allComponents: Set<org.gradle.api.artifacts.result.ResolvedComponentResult>): McpResolvedGraph {
+            val components = mutableMapOf<String, McpResolvedComponent>()
+            val converter = McpGraphConverter(components)
+            val rootId = converter.convert(root)
+            val seen = mutableSetOf<String>()
+            val rootDependencies = root.dependencies.mapNotNull {
+                val requested = it.requested.toString()
+                val variant = (it as? org.gradle.api.artifacts.result.ResolvedDependencyResult)?.resolvedVariant
+                val key = "$requested | ${variant?.displayName}"
+                if (!seen.add(key)) return@mapNotNull null
+
+                if (it is org.gradle.api.artifacts.result.ResolvedDependencyResult) {
+                    McpResolvedDependency(requested, converter.convert(it.selected), variant?.displayName, null)
+                } else if (it is org.gradle.api.artifacts.result.UnresolvedDependencyResult) {
+                    McpResolvedDependency(requested, null, null, it.failure.message)
+                } else {
+                    McpResolvedDependency(requested, null, null, "unknown dependency type")
+                }
+            }
+            return McpResolvedGraph(rootId, null, rootDependencies, components)
         }
+    }
+
+    private fun convert(component: org.gradle.api.artifacts.result.ResolvedComponentResult): String {
+        val id = component.id.toString()
+        if (id in components) return id
+
+        val mcpVariants = mutableMapOf<String, McpResolvedVariant>()
+
+        val (group, name, version) = when (val cid = component.id) {
+            is org.gradle.api.artifacts.component.ModuleComponentIdentifier -> Triple(cid.group, cid.module, cid.version)
+            is org.gradle.api.artifacts.component.ProjectComponentIdentifier -> Triple("project", cid.projectPath, "")
+            else -> Triple("", component.id.displayName, "")
+        }
+
+        // Register placeholder to break infinite recursion
+        val mcpComp = McpResolvedComponent(id, group, name, version, component.selectionReason.toString(), mcpVariants)
+        components[id] = mcpComp
+
+        component.variants.forEach {
+            val depsList = component.getDependenciesForVariant(it)
+
+            val deps = depsList.map {
+                val requested = it.requested.toString()
+                if (it is org.gradle.api.artifacts.result.ResolvedDependencyResult) {
+                    McpResolvedDependency(requested, convert(it.selected), it.resolvedVariant.displayName, null)
+                } else if (it is org.gradle.api.artifacts.result.UnresolvedDependencyResult) {
+                    McpResolvedDependency(requested, null, null, it.failure.message)
+                } else {
+                    McpResolvedDependency(requested, null, null, "unknown dependency type")
+                }
+            }
+            mcpVariants[it.displayName] = McpResolvedVariant(it.displayName, it.capabilities.map { "${it.group}:${it.name}:${it.version}" }, deps)
+        }
+
+        return id
     }
 }
 
 allprojects {
     tasks.register("mcpDependencyReport", McpDependencyReportTask::class.java) {
-        doFirst {
-            fun Project.mcpProperty(name: String): String? =
-                if (hasProperty("mcp.$name")) property("mcp.$name").toString() else null
+        val proj = this.project
 
-            val targetConfig = project.mcpProperty("configuration")
-            val targetSourceSet = project.mcpProperty("sourceSet")
+        fun mcpProp(name: String): String? = if (proj.hasProperty("mcp.$name")) proj.property("mcp.$name").toString() else System.getProperty("mcp.$name")
 
-            if (targetConfig != null) {
-                val isBuildscript = targetConfig.startsWith(McpDependencyReportTask.BUILDSCRIPT_PREFIX)
-                val configName = if (isBuildscript) targetConfig.substringAfter(McpDependencyReportTask.BUILDSCRIPT_PREFIX) else targetConfig
-                val exists = if (isBuildscript) {
-                    project.buildscript.configurations.findByName(configName) != null
-                } else {
-                    project.configurations.findByName(configName) != null
+        checkUpdates.set(mcpProp("checkUpdates") == "true")
+        onlyDirect.set(mcpProp("onlyDirect") == "true")
+        downloadSources.set(mcpProp("downloadSources") == "true")
+        excludeBuildscript.set(mcpProp("excludeBuildscript") == "true")
+        stableOnly.set(mcpProp("stableOnly") == "true")
+
+        mcpProp("versionFilter")?.let { versionFilter.set(it) }
+        mcpProp("configuration")?.let { targetConfig.set(it) }
+        mcpProp("sourceSet")?.let { targetSourceSet.set(it) }
+        mcpProp("dependencyFilter")?.let { dependencyFilter.set(it) }
+
+        projectPath.set(proj.path)
+        projectDisplayName.set(proj.displayName)
+
+        val targetConfigName = mcpProp("configuration")
+        val targetSourceSetName = mcpProp("sourceSet")?.trim { it == ' ' || it == '"' || it == '\'' }
+        val excludeBuildscriptBool = mcpProp("excludeBuildscript") == "true"
+
+        val isTargetingBuildscript = targetSourceSetName == McpDependencyReportTask.BUILDSCRIPT_SOURCE_SET || (targetConfigName != null && targetConfigName.startsWith(McpDependencyReportTask.BUILDSCRIPT_PREFIX))
+
+        configurationsMetadata.set(proj.provider {
+            val meta = mutableMapOf<String, McpConfigurationMetadata>()
+            proj.configurations.forEach {
+                meta[it.name] = McpConfigurationMetadata(
+                    it.name, it.description, it.isCanBeResolved, it.extendsFrom.map { it.name },
+                    it.dependencies.map {
+                        if (it is org.gradle.api.artifacts.ProjectDependency) "project" to it.path
+                        else (it.group ?: "") to it.name
+                    }.toSet()
+                )
+            }
+            meta
+        })
+
+        configurationsGraphs.set(proj.provider {
+            val graphs = mutableMapOf<String, McpResolvedGraph>()
+            proj.configurations.filter { targetConfigName == null || targetConfigName == it.name }.forEach {
+                if (it.isCanBeResolved) {
+                    try {
+                        val root = it.incoming.resolutionResult.root
+                        val all = it.incoming.resolutionResult.allComponents
+                        graphs[it.name] = McpGraphConverter.convertGraph(it.name, root, all)
+                    } catch (e: Exception) {
+                        println("[gradle-mcp] [ERROR] Failed to resolve configuration '${it.name}': ${e.message}")
+                    }
                 }
-                if (!exists) {
-                    throw IllegalArgumentException("Configuration '$targetConfig' not found in project '${project.path}'")
+            }
+            graphs
+        })
+
+        buildscriptConfigurationsMetadata.set(proj.provider {
+            val bMeta = mutableMapOf<String, McpConfigurationMetadata>()
+            proj.buildscript.configurations.forEach {
+                bMeta[it.name] = McpConfigurationMetadata(
+                    it.name, it.description, it.isCanBeResolved, it.extendsFrom.map { it.name },
+                    it.dependencies.map {
+                        if (it is org.gradle.api.artifacts.ProjectDependency) "project" to it.path
+                        else (it.group ?: "") to it.name
+                    }.toSet()
+                )
+            }
+            bMeta
+        })
+
+        buildscriptConfigurationsGraphs.set(proj.provider {
+            val graphs = mutableMapOf<String, McpResolvedGraph>()
+            val buildscriptConfigs = if (!excludeBuildscriptBool || isTargetingBuildscript) {
+                proj.buildscript.configurations.filter {
+                    targetConfigName == null || targetConfigName == "${McpDependencyReportTask.BUILDSCRIPT_PREFIX}${it.name}"
+                }
+            } else {
+                emptyList()
+            }
+            buildscriptConfigs.forEach {
+                if (it.isCanBeResolved) {
+                    try {
+                        val root = it.incoming.resolutionResult.root
+                        val all = it.incoming.resolutionResult.allComponents
+                        graphs[it.name] = McpGraphConverter.convertGraph("${McpDependencyReportTask.BUILDSCRIPT_PREFIX}${it.name}", root, all)
+                    } catch (e: Exception) {
+                        println("[gradle-mcp] [ERROR] Failed to resolve buildscript configuration '${it.name}': ${e.message}")
+                    }
+                }
+            }
+            graphs
+        })
+
+        latestVersions.set(proj.provider {
+            val directDependencies = mutableSetOf<String>()
+            val allUniqueModuleComponents = mutableSetOf<org.gradle.api.artifacts.component.ModuleComponentIdentifier>()
+            val allResolvableConfigs = (proj.configurations + proj.buildscript.configurations).filter { it.isCanBeResolved }
+
+            allResolvableConfigs.forEach {
+                it.dependencies.forEach {
+                    if (it is org.gradle.api.artifacts.ProjectDependency) {
+                        directDependencies.add("project:${it.path}")
+                    } else if (it.group != null) {
+                        directDependencies.add("${it.group}:${it.name}")
+                    }
+                }
+                try {
+                    it.incoming.resolutionResult.allComponents.forEach {
+                        val id = it.id
+                        if (id is org.gradle.api.artifacts.component.ModuleComponentIdentifier) {
+                            allUniqueModuleComponents.add(id)
+                        }
+                    }
+                } catch (e: Exception) {
                 }
             }
 
-            if (targetSourceSet != null && targetSourceSet != McpDependencyReportTask.BUILDSCRIPT_SOURCE_SET) {
-                val sourceSets = project.extensions.findByType(org.gradle.api.tasks.SourceSetContainer::class.java)
-                if (sourceSets == null || sourceSets.findByName(targetSourceSet) == null) {
-                    throw IllegalArgumentException("SourceSet '$targetSourceSet' not found in project '${project.path}'")
+            if (mcpProp("checkUpdates") == "true" && allUniqueModuleComponents.isNotEmpty()) {
+                val versionFilterStr = mcpProp("versionFilter")
+                val onlyDirectBool = mcpProp("onlyDirect") == "true"
+                val isStableOnly = mcpProp("stableOnly") == "true"
+
+                val updatesConfig = proj.configurations.detachedConfiguration()
+                updatesConfig.resolutionStrategy.componentSelection {
+                    all {
+                        if (isStableOnly) {
+                            val version = candidate.version
+                            val nonStable = listOf("alpha", "beta", "rc", "m", "preview", "snapshot", "canary")
+                            if (nonStable.any { version.contains(it, ignoreCase = true) }) {
+                                reject("Version '$version' is not stable")
+                            }
+                        }
+                        if (versionFilterStr != null) {
+                            val versionRegex = Regex(versionFilterStr)
+                            if (!candidate.version.matches(versionRegex)) {
+                                reject("Version '${candidate.version}' does not match the provided filter regex: $versionFilterStr")
+                            }
+                        }
+                    }
+                }
+
+                allUniqueModuleComponents.forEach {
+                    if (!onlyDirectBool || "${it.group}:${it.module}" in directDependencies) {
+                        val dep = proj.dependencies.create("${it.group}:${it.module}:+") {
+                            (this as org.gradle.api.artifacts.ExternalModuleDependency).isTransitive = false
+                        }
+                        updatesConfig.dependencies.add(dep)
+                    }
+                }
+                updatesConfig.resolutionStrategy.cacheDynamicVersionsFor(0, "seconds")
+
+                val latest = mutableMapOf<String, String>()
+                try {
+                    updatesConfig.incoming.resolutionResult.allComponents.forEach {
+                        val id = it.id
+                        if (id is org.gradle.api.artifacts.component.ModuleComponentIdentifier) {
+                            latest["${id.group}:${id.module}"] = id.version
+                        }
+                    }
+                } catch (e: Exception) {
+                }
+                latest
+            } else {
+                emptyMap()
+            }
+        })
+
+        sourcesFiles.set(proj.provider {
+            val directDependencies = mutableSetOf<String>()
+            val allUniqueModuleComponents = mutableSetOf<org.gradle.api.artifacts.component.ModuleComponentIdentifier>()
+            val allResolvableConfigs = (proj.configurations + proj.buildscript.configurations).filter { it.isCanBeResolved }
+
+            allResolvableConfigs.forEach {
+                it.dependencies.forEach {
+                    if (it is org.gradle.api.artifacts.ProjectDependency) {
+                        directDependencies.add("project:${it.path}")
+                    } else if (it.group != null) {
+                        directDependencies.add("${it.group}:${it.name}")
+                    }
+                }
+                try {
+                    it.incoming.resolutionResult.allComponents.forEach {
+                        val id = it.id
+                        if (id is org.gradle.api.artifacts.component.ModuleComponentIdentifier) {
+                            allUniqueModuleComponents.add(id)
+                        }
+                    }
+                } catch (e: Exception) {
                 }
             }
-        }
+
+            val val_downloadSources = mcpProp("downloadSources") == "true"
+            if (val_downloadSources && allUniqueModuleComponents.isNotEmpty()) {
+                val onlyDirectBool = mcpProp("onlyDirect") == "true"
+                val sourcesConfig = proj.configurations.detachedConfiguration()
+                allUniqueModuleComponents.forEach {
+                    if (!onlyDirectBool || "${it.group}:${it.module}" in directDependencies) {
+                        val dep = proj.dependencies.create("${it.group}:${it.module}:${it.version}:sources@jar") {
+                            (this as org.gradle.api.artifacts.ExternalModuleDependency).isTransitive = false
+                        }
+                        sourcesConfig.dependencies.add(dep)
+                    }
+                }
+
+                val sources = mutableMapOf<String, String>()
+                try {
+                    sourcesConfig.resolvedConfiguration.lenientConfiguration.artifacts.forEach {
+                        val id = it.moduleVersion.id
+                        val path = it.file.absolutePath
+                        sources["${id.group}:${id.name}:${id.version}"] = path
+                    }
+                } catch (e: Exception) {
+                }
+                sources
+            } else {
+                emptyMap()
+            }
+        })
+
+        repositories.set(proj.provider {
+            proj.repositories.mapNotNull {
+                if (it is org.gradle.api.artifacts.repositories.MavenArtifactRepository) McpRepositoryData(it.name, it.url?.toString() ?: "unknown")
+                else if (it is org.gradle.api.artifacts.repositories.IvyArtifactRepository) McpRepositoryData(it.name, it.url?.toString() ?: "unknown")
+                else null
+            }
+        })
+        buildscriptRepositories.set(proj.provider {
+            proj.buildscript.repositories.mapNotNull {
+                if (it is org.gradle.api.artifacts.repositories.MavenArtifactRepository) McpRepositoryData(it.name, it.url?.toString() ?: "unknown")
+                else if (it is org.gradle.api.artifacts.repositories.IvyArtifactRepository) McpRepositoryData(it.name, it.url?.toString() ?: "unknown")
+                else null
+            }
+        })
+
+        sourceSets.set(proj.provider {
+            val sourceSetsContainer = proj.extensions.findByType(SourceSetContainer::class.java)
+            sourceSetsContainer?.associate { ss ->
+                ss.name to listOfNotNull(
+                    ss.apiConfigurationName.takeIf { proj.configurations.findByName(it) != null },
+                    ss.implementationConfigurationName.takeIf { proj.configurations.findByName(it) != null },
+                    ss.compileOnlyConfigurationName.takeIf { proj.configurations.findByName(it) != null },
+                    ss.runtimeOnlyConfigurationName.takeIf { proj.configurations.findByName(it) != null }
+                )
+            } ?: emptyMap()
+        })
+
+        kotlinSourceSets.set(proj.provider {
+            val kotlinData = mutableMapOf<String, List<String>>()
+            try {
+                val kotlinExtension = proj.extensions.findByName("kotlin")
+                if (kotlinExtension != null) {
+                    val getSourceSets = kotlinExtension.javaClass.getMethod("getSourceSets")
+                    val ssContainer = getSourceSets.invoke(kotlinExtension) as NamedDomainObjectContainer<*>
+                    ssContainer.forEach { ss ->
+                        val getName = ss.javaClass.getMethod("getName")
+                        val ssName = getName.invoke(ss) as String
+                        val configs = mutableListOf<String>()
+                        val propNames = listOf("apiConfigurationName", "implementationConfigurationName", "compileOnlyConfigurationName", "runtimeOnlyConfigurationName")
+                        propNames.forEach {
+                            try {
+                                val methodName = "get" + it.replaceFirstChar { it.uppercaseChar() }
+                                val configName = ss.javaClass.getMethod(methodName).invoke(ss) as? String
+                                if (configName != null && proj.configurations.findByName(configName) != null) {
+                                    configs.add(configName)
+                                }
+                            } catch (e: Exception) {
+                            }
+                        }
+                        kotlinData[ssName] = configs
+                    }
+                }
+            } catch (e: Exception) {
+            }
+            kotlinData
+        })
     }
 }

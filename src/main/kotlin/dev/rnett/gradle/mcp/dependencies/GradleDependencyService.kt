@@ -325,7 +325,7 @@ class DefaultGradleDependencyService(
 
         // If client requested configuration or sourceSet filtering, apply here
         val filtered = if (!options.configuration.isNullOrBlank() || !options.sourceSet.isNullOrBlank()) {
-            parsed.copy(
+            val result = parsed.copy(
                 projects = parsed.projects.mapNotNull { p ->
                     val newConfigs = if (!options.configuration.isNullOrBlank()) p.configurations.filter { it.name == options.configuration } else p.configurations
                     val newSourceSets = if (!options.sourceSet.isNullOrBlank()) {
@@ -343,6 +343,14 @@ class DefaultGradleDependencyService(
                     }
                 }
             )
+            if (result.projects.isEmpty() && parsed.projects.isNotEmpty()) {
+                val msg = listOfNotNull(
+                    options.configuration?.let { "Configuration '$it'" },
+                    options.sourceSet?.let { "SourceSet '$it'" }
+                ).joinToString(" and ")
+                throw IllegalArgumentException("$msg not found in project")
+            }
+            result
         } else parsed
 
         return filtered
@@ -381,7 +389,8 @@ class DefaultGradleDependencyService(
             ?: throw IllegalArgumentException("Project not found in report: $projectPath")
 
         val sourceSet = project.sourceSets.find { it.name == sourceSetName }
-            ?: throw IllegalArgumentException("Source set not found in project $projectPath: $sourceSetName. Available: ${project.sourceSets.map { it.name }}. Parsed output projects:\n${report.projects.map { "Project: ${it.path}\nSource sets: ${it.sourceSets.map { it.name }}\n" }}")
+            ?: project.sourceSets.find { it.name == "kotlin:$sourceSetName" }
+            ?: throw IllegalArgumentException("Source set not found in project $projectPath: $sourceSetName. Available: ${project.sourceSets.map { it.name }}")
 
         val configs = project.configurations.filter { it.name in sourceSet.configurations }
         val repositories = project.repositories
@@ -414,8 +423,16 @@ class DefaultGradleDependencyService(
         
         val parsedProject = if (lastColon == 0) ":" else configurationPath.substring(0, lastColon)
         val parsedName = configurationPath.substring(lastColon + 1)
-        
+
+        // Disambiguate between virtual buildscript configuration and real project named 'buildscript'
+        // We use a heuristic: if the path ends with ':buildscript' and the next part is a known buildscript config,
+        // or if we use the internal marker.
         val (projectPath, configurationName) = if (parsedProject.endsWith(":buildscript")) {
+            // To fix collision (Finding 10), we could check if it's a real project, but we don't know yet.
+            // However, the common pattern is :project:buildscript:classpath.
+            // If the user wants a real project named buildscript, they likely won't be targeting 'classpath'.
+            // But to be robust, we'll try to find the project in the report later.
+            // For now, we'll stick to the prefixing logic used in getDependencies.
             val p = if (parsedProject == ":buildscript") ":" else parsedProject.substring(0, parsedProject.length - ":buildscript".length)
             p to "buildscript:$parsedName"
         } else {
@@ -429,11 +446,20 @@ class DefaultGradleDependencyService(
                 configuration = configurationName
             )
         )
-        val project = report.projects.find { it.path == projectPath }
-            ?: throw IllegalArgumentException("Project not found in report: $projectPath")
 
-        return project.configurations.find { it.name == configurationName }
-            ?: throw IllegalArgumentException("Configuration not found in project $projectPath: $configurationName")
+        // Finding 10: Robustness check. If projectPath + buildscript config not found, but parsedProject + parsedName exists, use that.
+        val project = report.projects.find { it.path == projectPath }
+        val config = project?.configurations?.find { it.name == configurationName }
+
+        if (config != null) return config
+
+        // Fallback: maybe it was a real project named buildscript
+        val realProject = report.projects.find { it.path == parsedProject }
+        val realConfig = realProject?.configurations?.find { it.name == parsedName }
+
+        if (realConfig != null) return realConfig
+
+        throw IllegalArgumentException("Configuration not found in project ${projectPath}: $configurationName (also checked $parsedProject:$parsedName)")
     }
 
     context(progress: ProgressReporter)
