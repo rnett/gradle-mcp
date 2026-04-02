@@ -67,6 +67,11 @@ class ReplEnvironmentServiceTest {
                 "java-only", buildScript = """
                 plugins { java }
                 repositories { mavenCentral() }
+                java {
+                    toolchain {
+                        languageVersion.set(JavaLanguageVersion.of(17))
+                    }
+                }
             """.trimIndent()
             )
 
@@ -174,6 +179,15 @@ class ReplEnvironmentServiceTest {
     }
 
     @Test
+    fun `ReplEnvironmentService extracts JVM target from toolchain`() = runTest(timeout = 300.seconds) {
+        val env = resolveEnv(complexProject, projectPath = ":kotlin-jvm")
+        val args = env.config.compilerArgs
+        println("[DEBUG_LOG] Kotlin-JVM Compiler Args: ${args}")
+        assertTrue(args.contains("-jvm-target"), "Compiler args should contain -jvm-target. Args: $args")
+        assertTrue(args.contains("17"), "JVM target should be 17. Args: $args")
+    }
+
+    @Test
     fun `ReplEnvironmentService resolves environment for Java`() = runTest(timeout = 300.seconds) {
         val env = resolveEnv(
             complexProject,
@@ -185,6 +199,9 @@ class ReplEnvironmentServiceTest {
         assert(env.javaExecutable.isNotBlank())
         assert(env.config.classpath.isNotEmpty())
         assertTrue(env.config.classpath.any { it.contains("kotlin-reflect") }, "Classpath should contain kotlin-reflect")
+
+        val args = env.config.compilerArgs
+        println("[DEBUG_LOG] Java-only Compiler Args: ${args}")
     }
 
     @Test

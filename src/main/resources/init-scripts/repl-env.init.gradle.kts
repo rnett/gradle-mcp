@@ -113,8 +113,9 @@ fun Any.getProperty(propertyName: String, throwIfNotFound: Boolean = false): Any
  * Just gets the freeCompilerArgs.
  */
 fun resolveKotlinCompilerOptions(task: Task): List<String> {
-    return try {
-        // Try getting it from compilerOptions.freeCompilerArgs (KGP 1.7+)
+    val args = mutableListOf<String>()
+    try {
+        // 1. Try compilerOptions (KGP 1.7+)
         val compilerOptions = task.callMethod("getCompilerOptions", throwIfNotFound = false)
         if (compilerOptions != null) {
             val freeCompilerArgs = try {
@@ -123,40 +124,78 @@ fun resolveKotlinCompilerOptions(task: Task): List<String> {
                 null
             }
             if (freeCompilerArgs != null) {
-                if (freeCompilerArgs is org.gradle.api.provider.HasConfigurableValue && freeCompilerArgs is org.gradle.api.provider.Provider<*>) {
-                    val value = freeCompilerArgs.get()
+                if (freeCompilerArgs is org.gradle.api.provider.Provider<*>) {
+                    val value = freeCompilerArgs.orNull
                     if (value is List<*>) {
-                        return value.map { it.toString() }
+                        args.addAll(value.map { it.toString() })
+                    }
+                } else if (freeCompilerArgs is List<*>) {
+                    args.addAll(freeCompilerArgs.map { it.toString() })
+                }
+            }
+
+            val jvmTargetProperty = try {
+                compilerOptions.getProperty("jvmTarget", throwIfNotFound = false)
+            } catch (e: Throwable) {
+                null
+            }
+            if (jvmTargetProperty != null && jvmTargetProperty is org.gradle.api.provider.Provider<*>) {
+                val jvmTargetValue = jvmTargetProperty.orNull
+                if (jvmTargetValue != null) {
+                    val targetString = jvmTargetValue.callMethod("getTarget", throwIfNotFound = false)?.toString()
+                        ?: jvmTargetValue.callMethod("getName", throwIfNotFound = false)?.toString()
+                        ?: jvmTargetValue.toString()
+                    if (!args.contains("-jvm-target")) {
+                        args.add("-jvm-target")
+                        args.add(targetString)
                     }
                 }
+            }
+        }
+
+        // 2. Try kotlinOptions (older KGP)
+        val kotlinOptions = task.callMethod("getKotlinOptions", throwIfNotFound = false)
+        if (kotlinOptions != null) {
+            // Only if not already added
+            if (!args.contains("-jvm-target")) {
+                val jvmTarget = kotlinOptions.getProperty("jvmTarget", throwIfNotFound = false)?.toString()
+                if (jvmTarget != null) {
+                    args.add("-jvm-target")
+                    args.add(jvmTarget)
+                }
+            }
+
+            // Also freeCompilerArgs from kotlinOptions if we didn't get them from compilerOptions
+            if (args.isEmpty() || (args.size == 2 && args[0] == "-jvm-target")) {
+                val freeCompilerArgs = kotlinOptions.getProperty("freeCompilerArgs", throwIfNotFound = false)
                 if (freeCompilerArgs is List<*>) {
-                    return freeCompilerArgs.map { it.toString() }
+                    args.addAll(freeCompilerArgs.map { it.toString() })
                 }
             }
         }
 
-        // Try getting it from task.freeCompilerArgs (older KGP)
-        val freeCompilerArgs = try {
-            task.getProperty("freeCompilerArgs", throwIfNotFound = false)
-        } catch (e: Throwable) {
-            null
-        }
-        if (freeCompilerArgs != null) {
-            if (freeCompilerArgs is org.gradle.api.provider.HasConfigurableValue && freeCompilerArgs is org.gradle.api.provider.Provider<*>) {
-                val value = freeCompilerArgs.get()
-                if (value is List<*>) {
-                    return value.map { it.toString() }
+        // 3. Last fallback: task.freeCompilerArgs (very old KGP)
+        if (args.isEmpty()) {
+            val freeCompilerArgs = try {
+                task.getProperty("freeCompilerArgs", throwIfNotFound = false)
+            } catch (e: Throwable) {
+                null
+            }
+            if (freeCompilerArgs != null) {
+                if (freeCompilerArgs is org.gradle.api.provider.Provider<*>) {
+                    val value = freeCompilerArgs.orNull
+                    if (value is List<*>) {
+                        args.addAll(value.map { it.toString() })
+                    }
+                } else if (freeCompilerArgs is List<*>) {
+                    args.addAll(freeCompilerArgs.map { it.toString() })
                 }
             }
-            if (freeCompilerArgs is List<*>) {
-                return freeCompilerArgs.map { it.toString() }
-            }
         }
-
-        emptyList()
     } catch (e: Throwable) {
-        emptyList()
+        // ignore
     }
+    return args
 }
 
 /**
@@ -359,6 +398,21 @@ allprojects {
 
                         compilerPluginOptions.set(project.provider {
                             resolveKotlinCompilerPluginOptions(kotlinTask)
+                        })
+                    } else {
+                        // Infer JVM target from Java if no Kotlin task is found
+                        compilerArgs.set(project.provider {
+                            val target = if (javaPlugin != null) {
+                                javaPlugin.toolchain.languageVersion.orNull?.asInt()?.toString()
+                                    ?: javaPlugin.targetCompatibility.toString()
+                            } else {
+                                System.getProperty("java.specification.version")
+                            }
+                            if (target != null) {
+                                listOf("-jvm-target", target)
+                            } else {
+                                emptyList()
+                            }
                         })
                     }
                 }
