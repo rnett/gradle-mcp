@@ -13,7 +13,7 @@ For bugs, please include at least:
 * OS
 * A [Develocity Build Scan](https://docs.gradle.org/current/userguide/build_scans.html) of the failure, if at all possible
 * The exact tool command ran, if applicable
-* Recent/related logs from `~/.gradle-mcp/logs` - MAY CONTAIN SECRETS: check them or send them to me confidentially
+* Recent/related logs from `~/.mcps/rnett-gradle-mcp/logs` - MAY CONTAIN SECRETS: check them or send them to me confidentially
 * Ask your agent to prepare a bug report with all relevant information
 
 If you plan to implement something substantial, please open an issue first to discuss the approach before investing time in a PR.

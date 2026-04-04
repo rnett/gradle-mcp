@@ -83,7 +83,7 @@ data class GradleMcpEnvironment(val workingDir: Path) {
 
     companion object {
         fun fromEnv(): GradleMcpEnvironment {
-            val workingDir = System.getenv("GRADLE_MCP_WORKING_DIR") ?: "${System.getProperty("user.home")}/.gradle-mcp"
+            val workingDir = System.getenv("GRADLE_MCP_WORKING_DIR") ?: "${System.getProperty("user.home")}/.mcps/rnett-gradle-mcp"
             return GradleMcpEnvironment(Path(workingDir).toAbsolutePath().normalize())
         }
     }

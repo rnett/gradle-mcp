@@ -6,7 +6,7 @@ Steps are in order, from next to furthest.
 - Dedicated "render this compose preview" tool that takes the file+function name or line number
 - More skills in general.
 - Investigate how tests with `@Ignore` are reported, compare with IDE.
-- Support for tst retry reporting and highlighting flaky tests.
+- Support for test retry reporting and highlighting flaky tests.
 - Kotlin version independent REPL
 - Test with continuous builds
 

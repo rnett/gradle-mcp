@@ -1,10 +1,10 @@
 <configuration>
     <statusListener class="dev.rnett.gradle.mcp.logging.FileStatusListener"/>
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${GRADLE_MCP_LOG_DIR:-${user.home}/.gradle-mcp/logs}/gradle-mcp.log</file>
+        <file>${GRADLE_MCP_LOG_DIR:-${user.home}/.mcps/rnett-gradle-mcp/logs}/gradle-mcp.log</file>
         <immediateFlush>true</immediateFlush>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${GRADLE_MCP_LOG_DIR:-${user.home}/.gradle-mcp/logs}/gradle-mcp-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>${GRADLE_MCP_LOG_DIR:-${user.home}/.mcps/rnett-gradle-mcp/logs}/gradle-mcp-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
             <maxHistory>20</maxHistory>
             <totalSizeCap>100MB</totalSizeCap>

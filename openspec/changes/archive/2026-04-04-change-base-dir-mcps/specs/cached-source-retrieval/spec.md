@@ -1,10 +1,4 @@
-# Capability: cached-source-retrieval
-
-## Purpose
-
-Optimizes dependency source operations by caching resolved sources and skipping expensive Gradle resolution when cached data is available.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Skip Gradle dependency resolution when sources are cached
 
@@ -27,12 +21,3 @@ data is `~/.mcps/rnett-gradle-mcp/cache/` (overridable via `GRADLE_MCP_WORKING_D
 - **WHEN** the `read_dependency_sources` or `search_dependency_sources` tool is called with `fresh = false`
 - **AND** the sources for the specified scope do NOT exist in the local cache
 - **THEN** the system SHALL execute the full Gradle dependency resolution and extraction process as if `fresh = true` was specified
-
-### Requirement: Display last refresh timestamp
-
-The output of `read_dependency_sources` and `search_dependency_sources` SHALL start with a message indicating when the sources for the requested scope were last refreshed (i.e., when the Gradle resolution last ran).
-
-#### Scenario: Displaying timestamp in tool output
-
-- **WHEN** the `read_dependency_sources` or `search_dependency_sources` tool returns its results
-- **THEN** the output SHALL include a header with a nicely formatted local timestamp of the last refresh and the elapsed time since that refresh (e.g., "Sources last refreshed at 2026-03-03 14:00 (15 minutes ago)")
