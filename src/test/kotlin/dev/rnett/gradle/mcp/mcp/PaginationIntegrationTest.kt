@@ -53,7 +53,8 @@ class PaginationIntegrationTest : BaseMcpServerTest() {
         }) as CallToolResult
 
         val text = (response.content.first() as TextContent).text
-        assertTrue(text!!.contains("item 11"))
+        requireNotNull(text)
+        assertTrue(text.contains("item 11"))
         assertTrue(text.contains("item 15"))
         assertTrue(!text.contains("item 10"))
         assertTrue(!text.contains("item 16"))
@@ -75,7 +76,8 @@ class PaginationIntegrationTest : BaseMcpServerTest() {
         }) as CallToolResult
 
         val text = (response.content.first() as TextContent).text
-        assertTrue(text!!.contains("line 6"))
+        requireNotNull(text)
+        assertTrue(text.contains("line 6"))
         assertTrue(text.contains("line 10"))
         assertTrue(!text.contains("line 5"))
         assertTrue(text.contains("Showing lines 6 to 10 of 150"))
@@ -95,7 +97,8 @@ class PaginationIntegrationTest : BaseMcpServerTest() {
         }) as CallToolResult
 
         val text = (response.content.first() as TextContent).text
-        assertTrue(text!!.startsWith("abcdefghij"))
+        requireNotNull(text)
+        assertTrue(text.startsWith("abcdefghij"))
         assertTrue(text.contains("Showing characters 1 to 10 of 26"))
     }
 
@@ -105,7 +108,8 @@ class PaginationIntegrationTest : BaseMcpServerTest() {
         val response = server.client.callTool("list_tool", buildJsonObject { }) as CallToolResult
 
         val text = (response.content.first() as TextContent).text
-        assertTrue(text!!.contains("item 1"))
+        requireNotNull(text)
+        assertTrue(text.contains("item 1"))
         assertTrue(text.contains("item 20"))
         assertTrue(text.contains("Showing items 1 to 20 of 100"))
     }
@@ -119,7 +123,8 @@ class PaginationIntegrationTest : BaseMcpServerTest() {
         }) as CallToolResult
 
         val text = (response.content.first() as TextContent).text
-        assertTrue(text!!.contains("line 1"))
+        requireNotNull(text)
+        assertTrue(text.contains("line 1"))
         assertTrue(text.contains("line 100"))
         assertTrue(text.contains("Showing lines 1 to 100 of 150"))
     }

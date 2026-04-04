@@ -31,7 +31,8 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 - **BE AWARE** that indexing and extraction failures (e.g., `ZipException`) are still propagated and will cause the tool to fail with a descriptive error.
 - **NOTE** that the `dependency` filter targets ONLY the specific library version matched, NOT its transitive dependencies.
 - **BE AWARE** that buildscript (plugin) dependencies are excluded from `search_dependency_sources` and `read_dependency_sources` by default to reduce noise.
-- **ALWAYS** use `sourceSetPath: ":buildscript"` (root project) or `sourceSetPath: ":app:buildscript"` (subproject) to search or read plugin source code. This targets the virtual `buildscript` source set which aggregates all classpath plugins.
+- **ALWAYS** use `sourceSetPath=":buildscript"` (root project) or `sourceSetPath=":app:buildscript"` (subproject) to search or read plugin source code. This targets the virtual `buildscript` source set which aggregates all classpath
+  plugins.
 
 ## Directives
 
@@ -43,6 +44,7 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
     - **GLOB**: Best for finding specific files (XML, properties, etc.) by name or extension. **Case-insensitive**.
 - **Invoke Precisely**: ALWAYS set `searchType` explicitly if the intent is not a general full-text search. This improves result accuracy and reduces noise.
 - **Scope Surgically**: Use `projectPath`, `configurationPath`, or `sourceSetPath` to narrow the search and improve performance if the target library's context is known. To search a plugin, use `sourceSetPath=":buildscript"`.
+- **ALWAYS** scope with a project, configuration, or source set (or use `gradleSource: true`) — unscoped search is no longer supported.
 - **Target Libraries Directly**: Use the `dependency` parameter to search or read from a single library. It supports `group:name:version:variant`, `group:name:version`, `group:name`, or just `group`. This bypasses project-level index
   merging and provides instantaneous results from the global extracted source cache. Note that results will be relative to the targeted library root.
 - **Troubleshoot Targeted Searches**: If a targeted search using the `dependency` parameter fails or returns no matches, use `inspect_dependencies` first to verify the exact coordinates (group, name, version, variant) of the dependency as
@@ -68,9 +70,9 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 ### 1. Tracing a Symbol from Project Code
 
 1. Identify the symbol name (e.g., `JsonConfiguration`) or fully qualified name from an import.
-2. Call `search_dependency_sources(query="<SymbolName>", searchType="DECLARATION")`.
+2. Call `search_dependency_sources(query="<SymbolName>", searchType="DECLARATION", projectPath=":")`.
 3. Identify the correct file path from the results.
-4. Call `read_dependency_sources(path="<path>")` to analyze the implementation.
+4. Call `read_dependency_sources(path="<path>", projectPath=":")` to analyze the implementation.
 
 ### 2. Discovering API Usage through Source
 
@@ -81,20 +83,20 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 ### 3. Searching for Constants or Error Codes
 
 1. Identify the constant name or a snippet of an error message.
-2. Call `search_dependency_sources(query="\"<text>\"")` (defaults to `FULL_TEXT`).
+2. Call `search_dependency_sources(query="\"<text>\"", projectPath=":")` (defaults to `FULL_TEXT`).
 3. Review matches to find where the value is defined or used.
 
 ### Targeted Search for a Single Library
 
 1. Identify the dependency coordinates (e.g., from `inspect_dependencies` or project files).
-2. Call `search_dependency_sources(query="<query>", dependency="<group:artifact>")`.
+2. Call `search_dependency_sources(query="<query>", dependency="<group:artifact>", projectPath=":")`.
 3. The results will be scoped ONLY to that library, ensuring maximum speed and relevance.
 
 **Path Relativity and Targeted Searching**
 
 When using the `dependency` parameter, all file paths and search results are relative to the library's root, omitting the `<group>/<artifact>...` prefix.
 
-* **Merged Scope (No Filter)**: `path = "org/mongodb/mongodb-driver-sync/4.11.1-sources/org/mongodb/client/MongoClient.kt"`
+* **Merged Scope (No Filter)**: `path = "org.mongodb/mongodb-driver-sync/org/mongodb/client/MongoClient.kt"`
 * **Targeted Scope (`dependency="org.mongodb:mongodb-driver-sync"`)**: `path = "org/mongodb/client/MongoClient.kt"`
 
 This approach is significantly faster and simplifies path handling when you are focused on a specific library.
@@ -107,107 +109,121 @@ This approach is significantly faster and simplifies path handling when you are 
 {
   "query": "MongoClient",
   "searchType": "DECLARATION",
-  "dependency": "org.mongodb:mongodb-driver-sync"
+  "dependency": "org.mongodb:mongodb-driver-sync",
+  "projectPath": ":"
 }
-// Reasoning: Using the 'dependency' parameter to target only the 'mongodb-driver-sync' library for a fast, focused search.
 ```
+// Reasoning: Using the 'dependency' parameter to target only the 'mongodb-driver-sync' library for a fast, focused search.
 
 ### Read sources from a specific dependency
 
 ```json
 {
   "dependency": "org.jetbrains.kotlinx:kotlinx-coroutines-core",
-  "path": "kotlinx/coroutines/Job.kt"
+  "path": "kotlinx/coroutines/Job.kt",
+  "projectPath": ":"
 }
-// Reasoning: Reading 'Job.kt' directly from the targeted 'kotlinx-coroutines-core' library. Note the 'group/artifact...' prefix is omitted.
 ```
+// Reasoning: Reading 'Job.kt' directly from the targeted 'kotlinx-coroutines-core' library. Note the 'group/artifact...' prefix is omitted.
 
 ### Search for a specific class definition
 
 ```json
 {
   "query": "JsonConfiguration",
-  "searchType": "DECLARATION"
+  "searchType": "DECLARATION",
+  "projectPath": ":"
 }
-// Reasoning: Using DECLARATION search to find a class named 'JsonConfiguration' across both name and FQN fields.
 ```
+
+// Reasoning: Using DECLARATION search to find a class named 'JsonConfiguration' across both name and FQN fields, scoped to the root project.
 
 ### Search with field-specific precision
 
 ```json
 {
   "query": "fqn:kotlinx.serialization.json.*",
-  "searchType": "DECLARATION"
+  "searchType": "DECLARATION",
+  "projectPath": ":"
 }
-// Reasoning: Using the 'fqn:' prefix with a wildcard to find all declarations within a specific package literal.
 ```
+// Reasoning: Using the 'fqn:' prefix with a wildcard to find all declarations within a specific package literal.
 
 ### Search with name-specific discovery (CamelCase)
 
 ```json
 {
   "query": "name:Configuration",
-  "searchType": "DECLARATION"
+  "searchType": "DECLARATION",
+  "projectPath": ":"
 }
-// Reasoning: Using the 'name:' prefix to find classes like 'JsonConfiguration' via CamelCase tokenization.
 ```
+// Reasoning: Using the 'name:' prefix to find classes like 'JsonConfiguration' via CamelCase tokenization.
 
 ### Trace a method signature using wildcards
 
 ```json
 {
   "query": "encodeTo*",
-  "searchType": "DECLARATION"
+  "searchType": "DECLARATION",
+  "projectPath": ":"
 }
-// Reasoning: Finding all definitions starting with 'encodeTo' across both name and FQN fields.
 ```
+// Reasoning: Finding all definitions starting with 'encodeTo' across both name and FQN fields.
 
 ### Use regular expressions for complex matching
 
 ```json
 {
-  "query": "fqn:/.*\\.internal\\..*/",
-  "searchType": "DECLARATION"
+  "query": "fqn:/.*\.internal\..*/",
+  "searchType": "DECLARATION",
+  "projectPath": ":"
 }
-// Reasoning: Using a regular expression on the 'fqn' field to find all internal declarations.
 ```
+// Reasoning: Using a regular expression on the 'fqn' field to find all internal declarations.
 
 ### Search for a constant value assignment
 
 ```json
 {
-  "query": "DEFAULT_TIMEOUT_MS \\: 5000"
+  "query": "DEFAULT_TIMEOUT_MS \\: 5000",
+  "projectPath": ":"
 }
-// Reasoning: Using FULL_TEXT (default) with escaped colon to find a specific constant assignment.
 ```
+// Reasoning: Using FULL_TEXT (default) with escaped colon to find a specific constant assignment.
 
 ### Locate a specific file by its exact name
 
 ```json
 {
   "query": "**/AndroidManifest.xml",
-  "searchType": "GLOB"
+  "searchType": "GLOB",
+  "projectPath": ":"
 }
-// Reasoning: Using GLOB search to find a specific file by name across the dependency graph.
 ```
+// Reasoning: Using GLOB search to find a specific file by name across the dependency graph.
 
 ### Read a specific dependency source file
 
 ```json
 {
-  "path": "kotlinx/serialization/json/Json.kt"
+  "path": "kotlinx/serialization/json/Json.kt",
+  "projectPath": ":"
 }
-// Reasoning: Reading the implementation of a known class path identified from previous search results.
 ```
+
+// Reasoning: Reading the implementation of a known class path identified from previous search results, scoped to the root project.
 
 ### Explore a package via its FQN
 
 ```json
 {
-  "path": "org.gradle.api"
+  "path": "org.gradle.api",
+  "projectPath": ":"
 }
-// Reasoning: Listing the direct symbols and sub-packages of 'org.gradle.api' using index-backed exploration.
 ```
+
+// Reasoning: Listing the direct symbols and sub-packages of 'org.gradle.api' using index-backed exploration, scoped to the root project.
 
 ## Resources
 

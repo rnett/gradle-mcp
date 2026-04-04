@@ -87,29 +87,31 @@ interface GradleDependencyService {
      * @param fresh whether to force a fresh resolution
      */
     context(progress: ProgressReporter)
-    suspend fun downloadProjectSources(projectRoot: GradleProjectRoot, projectPath: String, dependency: String? = null, fresh: Boolean = false): GradleProjectDependencies
+    suspend fun downloadProjectSources(
+        projectRoot: GradleProjectRoot,
+        projectPath: String,
+        dependency: String? = null,
+        fresh: Boolean = false,
+        includeInternal: Boolean = false
+    ): GradleProjectDependencies
 
-    /**
-     * Download sources for all dependencies in a specific configuration.
-     *
-     * @param projectRoot the Gradle project root
-     * @param configurationPath the absolute Gradle path of the configuration
-     * @param dependency optional dependency coordinate filter
-     * @param fresh whether to force a fresh resolution
-     */
     context(progress: ProgressReporter)
-    suspend fun downloadConfigurationSources(projectRoot: GradleProjectRoot, configurationPath: String, dependency: String? = null, fresh: Boolean = false): GradleConfigurationDependencies
+    suspend fun downloadConfigurationSources(
+        projectRoot: GradleProjectRoot,
+        configurationPath: String,
+        dependency: String? = null,
+        fresh: Boolean = false,
+        includeInternal: Boolean = false
+    ): GradleConfigurationDependencies
 
-    /**
-     * Download sources for all dependencies in a specific source set.
-     *
-     * @param projectRoot the Gradle project root
-     * @param sourceSetPath the absolute Gradle path of the source set
-     * @param dependency optional dependency coordinate filter
-     * @param fresh whether to force a fresh resolution
-     */
     context(progress: ProgressReporter)
-    suspend fun downloadSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, dependency: String? = null, fresh: Boolean = false): GradleSourceSetDependencyReport
+    suspend fun downloadSourceSetSources(
+        projectRoot: GradleProjectRoot,
+        sourceSetPath: String,
+        dependency: String? = null,
+        fresh: Boolean = false,
+        includeInternal: Boolean = false
+    ): GradleSourceSetDependencyReport
 }
 
 private class MutableDep(
@@ -123,6 +125,7 @@ private class MutableDep(
     val isDirect: Boolean = false,
     val fromConfiguration: String? = null,
     val reason: String?,
+    val commonComponentId: String? = null,
     val sourcesFile: String? = null,
     val updatesChecked: Boolean = false,
     val children: MutableList<MutableDep> = mutableListOf()
@@ -138,9 +141,20 @@ private class MutableDep(
             children.map { it.toImmutable(knownChildren, visited + key) }
         }
         return GradleDependency(
-            id, group, name, version, variant, capabilities, latestVersion, isDirect, fromConfiguration, reason, sourcesFile?.let { kotlin.io.path.Path(it) },
-            updatesChecked,
-            immutableChildren
+            id = id,
+            group = group,
+            name = name,
+            version = version,
+            variant = variant,
+            capabilities = capabilities,
+            latestVersion = latestVersion,
+            isDirect = isDirect,
+            fromConfiguration = fromConfiguration,
+            reason = reason,
+            commonComponentId = commonComponentId,
+            sourcesFile = sourcesFile?.let { kotlin.io.path.Path(it) },
+            updatesChecked = updatesChecked,
+            children = immutableChildren
         )
     }
 }
@@ -150,6 +164,7 @@ private class MutableConfig(
     val description: String?,
     val isResolvable: Boolean,
     val extendsFrom: List<String> = emptyList(),
+    val isInternal: Boolean = false,
     val topLevelDeps: MutableList<MutableDep> = mutableListOf()
 )
 
@@ -167,9 +182,45 @@ class DefaultGradleDependencyService(
     companion object {
         private val LOGGER = LoggerFactory.getLogger(DefaultGradleDependencyService::class.java)
         private const val BUILDSCRIPT_SOURCE_SET = "__mcp_buildscript__"
+
+        fun normalizeProjectPath(path: String?): String {
+            if (path.isNullOrEmpty() || path == ":") return ":"
+            return if (path.startsWith(':')) path else ":$path"
+        }
     }
 
     private class ProjectParser(val path: String) {
+        companion object {
+            private const val PROJECT_PATH_INDEX = 1
+            private const val PROJECT_DISPLAY_NAME_INDEX = 2
+
+            private const val REPOSITORY_NAME_INDEX = 1
+            private const val REPOSITORY_URL_INDEX = 2
+
+            private const val SOURCESET_NAME_INDEX = 1
+            private const val SOURCESET_CONFIGS_INDEX = 2
+
+            private const val CONFIGURATION_NAME_INDEX = 1
+            private const val CONFIGURATION_RESOLVABLE_INDEX = 2
+            private const val CONFIGURATION_EXTENDS_FROM_INDEX = 3
+            private const val CONFIGURATION_DESCRIPTION_INDEX = 4
+            private const val CONFIGURATION_IS_INTERNAL_INDEX = 5
+
+            private const val DEP_DEPTH_INDEX = 1
+            private const val DEP_ID_INDEX = 2
+            private const val DEP_GROUP_INDEX = 3
+            private const val DEP_NAME_INDEX = 4
+            private const val DEP_VERSION_INDEX = 5
+            private const val DEP_REASON_INDEX = 6
+            private const val DEP_LATEST_VERSION_INDEX = 7
+            private const val DEP_IS_DIRECT_INDEX = 8
+            private const val DEP_VARIANT_INDEX = 9
+            private const val DEP_CAPABILITIES_INDEX = 10
+            private const val DEP_FROM_CONFIGURATION_INDEX = 11
+            private const val DEP_SOURCES_FILE_INDEX = 12
+            private const val DEP_UPDATES_CHECKED_INDEX = 13
+            private const val DEP_COMMON_ID_INDEX = 14
+        }
         val project = MutableProject(path)
         var currentConfig: MutableConfig? = null
         val depStack = ArrayDeque<MutableDep>()
@@ -182,26 +233,27 @@ class DefaultGradleDependencyService(
                 }
 
                 "REPOSITORY" -> {
-                    val name = parts.getOrNull(1).orEmpty()
-                    val url = parts.getOrNull(2)?.ifBlank { null }
+                    val name = parts.getOrNull(REPOSITORY_NAME_INDEX).orEmpty()
+                    val url = parts.getOrNull(REPOSITORY_URL_INDEX)?.ifBlank { null }
                     project.repositories.add(GradleRepository(name, url))
                 }
 
                 "SOURCESET" -> {
-                    val name = parts.getOrNull(1).orEmpty()
+                    val name = parts.getOrNull(SOURCESET_NAME_INDEX).orEmpty()
                     val mappedName = if (name == BUILDSCRIPT_SOURCE_SET) "buildscript" else name
-                    val configs = parts.getOrNull(2)?.takeIf { it.isNotEmpty() }?.split(",")?.map { it.trim() }
+                    val configs = parts.getOrNull(SOURCESET_CONFIGS_INDEX)?.takeIf { it.isNotEmpty() }?.split(",")?.map { it.trim() }
                         ?: emptyList()
                     project.sourceSets.add(GradleSourceSetDependencies(mappedName, configs))
                 }
 
                 "CONFIGURATION" -> {
-                    val name = parts.getOrNull(1).orEmpty()
-                    val desc = parts.getOrNull(2)?.ifBlank { null }
-                    val resolvable = parts.getOrNull(3)?.toBooleanStrictOrNull() ?: false
-                    val extendsFrom = parts.getOrNull(4)?.takeIf { it.isNotEmpty() }?.split(",")?.map { it.trim() }
+                    val name = parts.getOrNull(CONFIGURATION_NAME_INDEX).orEmpty()
+                    val resolvable = parts.getOrNull(CONFIGURATION_RESOLVABLE_INDEX)?.toBooleanStrictOrNull() ?: false
+                    val extendsFrom = parts.getOrNull(CONFIGURATION_EXTENDS_FROM_INDEX)?.takeIf { it.isNotEmpty() }?.split(",")?.map { it.trim() }
                         ?: emptyList()
-                    val config = MutableConfig(name, desc, resolvable, extendsFrom)
+                    val desc = parts.getOrNull(CONFIGURATION_DESCRIPTION_INDEX)?.ifBlank { null }
+                    val isInternal = parts.getOrNull(CONFIGURATION_IS_INTERNAL_INDEX)?.toBooleanStrictOrNull() ?: false
+                    val config = MutableConfig(name, desc, resolvable, extendsFrom, isInternal)
                     currentConfig = config
                     project.configurations.add(config)
                     depStack.clear()
@@ -210,23 +262,24 @@ class DefaultGradleDependencyService(
                 "DEP" -> {
                     val config = currentConfig ?: return
 
-                    val depthMarkers = parts.getOrNull(1).orEmpty()
+                    val depthMarkers = parts.getOrNull(DEP_DEPTH_INDEX).orEmpty()
                     val level = depthMarkers.count { it == '*' }
 
-                    val id = parts.getOrNull(2).orEmpty()
-                    val group = parts.getOrNull(3)?.ifBlank { null }
-                    val name = parts.getOrNull(4).orEmpty()
-                    val version = parts.getOrNull(5)?.ifBlank { null }
-                    val reason = parts.getOrNull(6)?.ifBlank { null }
+                    val id = parts.getOrNull(DEP_ID_INDEX).orEmpty()
+                    val group = parts.getOrNull(DEP_GROUP_INDEX)?.ifBlank { null }
+                    val name = parts.getOrNull(DEP_NAME_INDEX).orEmpty()
+                    val version = parts.getOrNull(DEP_VERSION_INDEX)?.ifBlank { null }
+                    val reason = parts.getOrNull(DEP_REASON_INDEX)?.ifBlank { null }
 
-                    val latestVersion = parts.getOrNull(7)?.ifBlank { null }
-                    val isDirect = parts.getOrNull(8)?.toBooleanStrictOrNull() ?: false
+                    val latestVersion = parts.getOrNull(DEP_LATEST_VERSION_INDEX)?.ifBlank { null }
+                    val isDirect = parts.getOrNull(DEP_IS_DIRECT_INDEX)?.toBooleanStrictOrNull() ?: false
 
-                    val variant = parts.getOrNull(9)?.ifBlank { null }
-                    val capabilities = parts.getOrNull(10)?.takeIf { it.isNotBlank() }?.split(",") ?: emptyList()
-                    val fromConfiguration = parts.getOrNull(11)?.ifBlank { null }
-                    val sourcesFile = parts.getOrNull(12)?.ifBlank { null }
-                    val updatesChecked = parts.getOrNull(13)?.toBooleanStrictOrNull() ?: false
+                    val variant = parts.getOrNull(DEP_VARIANT_INDEX)?.ifBlank { null }
+                    val capabilities = parts.getOrNull(DEP_CAPABILITIES_INDEX)?.takeIf { it.isNotBlank() }?.split(",") ?: emptyList()
+                    val fromConfiguration = parts.getOrNull(DEP_FROM_CONFIGURATION_INDEX)?.ifBlank { null }
+                    val sourcesFile = parts.getOrNull(DEP_SOURCES_FILE_INDEX)?.ifBlank { null }
+                    val updatesChecked = parts.getOrNull(DEP_UPDATES_CHECKED_INDEX)?.toBooleanStrictOrNull() ?: false
+                    val commonComponentId = parts.getOrNull(DEP_COMMON_ID_INDEX)?.ifBlank { null }
 
                     while (depStack.size >= level) depStack.removeLast()
 
@@ -241,6 +294,7 @@ class DefaultGradleDependencyService(
                         isDirect = isDirect,
                         fromConfiguration = fromConfiguration,
                         reason = reason,
+                        commonComponentId = commonComponentId,
                         sourcesFile = sourcesFile,
                         updatesChecked = updatesChecked
                     )
@@ -274,9 +328,9 @@ class DefaultGradleDependencyService(
 
         // Append custom dependency report task
         val task = if (projectPath != null) {
-            val path = ":" + projectPath.trim(':')
-            if (path == ":") ":mcpDependencyReport"
-            else "$path:mcpDependencyReport"
+            val normalizedPath = normalizeProjectPath(projectPath)
+            if (normalizedPath == ":") ":mcpDependencyReport"
+            else "$normalizedPath:mcpDependencyReport"
         } else {
             "mcpDependencyReport"
         }
@@ -314,7 +368,7 @@ class DefaultGradleDependencyService(
         // Wait for build to complete so console output is finalized
         val finished = running.awaitFinished()
         if (finished.outcome is BuildOutcome.Failed) {
-            println("RAW OUTPUT ON FAILURE:\n${running.consoleOutput}")
+            LOGGER.info("RAW OUTPUT ON FAILURE:\n${running.consoleOutput}")
             val failure = (finished.outcome as BuildOutcome.Failed).failures.firstOrNull()
             val allMessages = failure?.flatten()?.mapNotNull { it.message }?.joinToString("; ") ?: "Unknown error"
             throw IllegalStateException("Gradle build failed: $allMessages")
@@ -323,15 +377,26 @@ class DefaultGradleDependencyService(
         val text = running.consoleOutput.toString()
         val parsed = parseStructuredOutput(text)
 
-        // If client requested configuration or sourceSet filtering, apply here
-        val filtered = if (!options.configuration.isNullOrBlank() || !options.sourceSet.isNullOrBlank()) {
+        // If client requested configuration or sourceSet filtering, or internal configuration filtering, apply here
+        val filtered = if (!options.configuration.isNullOrBlank() || !options.sourceSet.isNullOrBlank() || !options.includeInternal) {
             val result = parsed.copy(
                 projects = parsed.projects.mapNotNull { p ->
-                    val newConfigs = if (!options.configuration.isNullOrBlank()) p.configurations.filter { it.name == options.configuration } else p.configurations
-                    val newSourceSets = if (!options.sourceSet.isNullOrBlank()) {
+                    var newConfigs = if (!options.configuration.isNullOrBlank()) p.configurations.filter { it.name == options.configuration } else p.configurations
+                    if (!options.includeInternal) {
+                        newConfigs = newConfigs.filter { !it.isInternal }
+                    }
+
+                    var newSourceSets = if (!options.sourceSet.isNullOrBlank()) {
                         val sourceSetFilter = if (options.sourceSet == BUILDSCRIPT_SOURCE_SET) "buildscript" else options.sourceSet
                         p.sourceSets.filter { it.name == sourceSetFilter }
                     } else p.sourceSets
+
+                    if (!options.includeInternal) {
+                        val validConfigNames = newConfigs.map { it.name }.toSet()
+                        newSourceSets = newSourceSets.map { ss ->
+                            ss.copy(configurations = ss.configurations.filter { it in validConfigNames })
+                        }.filter { it.configurations.isNotEmpty() }
+                    }
 
                     if (newConfigs.isEmpty() && newSourceSets.isEmpty() && (p.configurations.isNotEmpty() || p.sourceSets.isNotEmpty())) {
                         null
@@ -374,7 +439,7 @@ class DefaultGradleDependencyService(
     ): GradleSourceSetDependencyReport {
         val lastColon = sourceSetPath.lastIndexOf(':')
         require(lastColon != -1) { "sourceSetPath must be an absolute Gradle path (e.g. :project:foo:main)" }
-        val projectPath = if (lastColon == 0) ":" else sourceSetPath.substring(0, lastColon)
+        val projectPath = normalizeProjectPath(if (lastColon == 0) ":" else sourceSetPath.substring(0, lastColon))
         val sourceSetName = sourceSetPath.substring(lastColon + 1)
         val internalSourceSetName = if (sourceSetName == "buildscript") BUILDSCRIPT_SOURCE_SET else sourceSetName
 
@@ -420,8 +485,8 @@ class DefaultGradleDependencyService(
     ): GradleConfigurationDependencies {
         val lastColon = configurationPath.lastIndexOf(':')
         require(lastColon != -1) { "configurationPath must be an absolute Gradle path (e.g. :project:foo:implementation)" }
-        
-        val parsedProject = if (lastColon == 0) ":" else configurationPath.substring(0, lastColon)
+
+        val parsedProject = normalizeProjectPath(if (lastColon == 0) ":" else configurationPath.substring(0, lastColon))
         val parsedName = configurationPath.substring(lastColon + 1)
 
         // Disambiguate between virtual buildscript configuration and real project named 'buildscript'
@@ -480,21 +545,23 @@ class DefaultGradleDependencyService(
         projectRoot: GradleProjectRoot,
         projectPath: String,
         dependency: String?,
-        fresh: Boolean
+        fresh: Boolean,
+        includeInternal: Boolean
     ): GradleProjectDependencies {
+        val normalizedPath = normalizeProjectPath(projectPath)
         val report = getDependencies(
             projectRoot = projectRoot,
-            projectPath = projectPath,
+            projectPath = normalizedPath,
             options = DependencyRequestOptions(
                 dependency = dependency,
                 downloadSources = true,
                 excludeBuildscript = true,
-                fresh = fresh
+                fresh = fresh,
+                includeInternal = includeInternal
             )
         )
-        val path = if (projectPath.startsWith(":")) projectPath else ":$projectPath"
-        return report.projects.find { it.path == path }
-            ?: throw IllegalArgumentException("Project not found in report: $path")
+        return report.projects.find { it.path == normalizedPath }
+            ?: throw IllegalArgumentException("Project not found in report: $normalizedPath")
     }
 
     context(progress: ProgressReporter)
@@ -502,7 +569,8 @@ class DefaultGradleDependencyService(
         projectRoot: GradleProjectRoot,
         configurationPath: String,
         dependency: String?,
-        fresh: Boolean
+        fresh: Boolean,
+        includeInternal: Boolean
     ): GradleConfigurationDependencies {
         return getConfigurationDependencies(
             projectRoot = projectRoot,
@@ -511,7 +579,8 @@ class DefaultGradleDependencyService(
                 dependency = dependency,
                 downloadSources = true,
                 excludeBuildscript = false, // Design Decision 3: Inclusion is handled by configuration target
-                fresh = fresh
+                fresh = fresh,
+                includeInternal = includeInternal
             )
         )
     }
@@ -521,7 +590,8 @@ class DefaultGradleDependencyService(
         projectRoot: GradleProjectRoot,
         sourceSetPath: String,
         dependency: String?,
-        fresh: Boolean
+        fresh: Boolean,
+        includeInternal: Boolean
     ): GradleSourceSetDependencyReport {
         return getSourceSetDependencies(
             projectRoot = projectRoot,
@@ -530,7 +600,8 @@ class DefaultGradleDependencyService(
                 dependency = dependency,
                 downloadSources = true,
                 excludeBuildscript = false, // Design Decision 3: Inclusion is handled by virtual source set target
-                fresh = fresh
+                fresh = fresh,
+                includeInternal = includeInternal
             )
         )
     }
@@ -586,7 +657,8 @@ class DefaultGradleDependencyService(
                             c.description,
                             c.isResolvable,
                             c.extendsFrom,
-                            c.topLevelDeps.map { it.toImmutable(knownChildren) }
+                            c.topLevelDeps.map { it.toImmutable(knownChildren) },
+                            c.isInternal
                         )
                     }
                 )

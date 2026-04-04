@@ -174,5 +174,5 @@ Providing a task path **with a leading colon** (e.g., `:test`, `:app:test`) targ
 
 ## Resources
 
-- [Background Monitoring](./references/background_monitoring.md)
-- [Failure Analysis](./references/failure_analysis.md)
+- [Background Monitoring](references/background_monitoring.md)
+- [Failure Analysis](references/failure_analysis.md)

@@ -1,6 +1,5 @@
 package dev.rnett.gradle.mcp.tools.dependencies
 
-import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.DependencyRequestOptions
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
@@ -119,6 +118,7 @@ class GradleDependencyTools(
         val includedConfigs = project.configurations.associateBy { it.name }
 
         sortedConfigs.forEach { config ->
+            if (config.isInternal) return@forEach
             appendLine("  Configuration: ${config.name}${config.description?.let { " ($it)" } ?: ""}")
             if (config.extendsFrom.isNotEmpty()) {
                 appendLine("    Extends from: ${config.extendsFrom.joinToString(", ")}")

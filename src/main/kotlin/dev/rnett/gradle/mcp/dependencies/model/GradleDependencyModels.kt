@@ -79,15 +79,19 @@ data class GradleProjectDependencies(
         val config = configurations.find { it.name == name } ?: return 0
         if (config.extendsFrom.isEmpty()) return 0
 
-        val visited = mutableSetOf<String>()
-        fun getTransitiveParents(current: String): Set<String> {
-            if (current in visited) return emptySet()
-            visited.add(current)
-            val c = configurations.find { it.name == current } ?: return emptySet()
-            return c.extendsFrom.toSet() + c.extendsFrom.flatMap { getTransitiveParents(it) }
-        }
+        val result = mutableSetOf<String>()
+        val stack = ArrayDeque<String>()
+        stack.addAll(config.extendsFrom)
 
-        return config.extendsFrom.flatMap { getTransitiveParents(it) }.toSet().size + config.extendsFrom.size
+        while (stack.isNotEmpty()) {
+            val current = stack.removeFirst()
+            if (result.add(current)) {
+                configurations.find { it.name == current }?.extendsFrom?.let {
+                    stack.addAll(it)
+                }
+            }
+        }
+        return result.size
     }
 
     fun transitiveExtendsFrom(name: String): Set<String> {
@@ -127,10 +131,18 @@ data class GradleConfigurationDependencies(
     val description: String?,
     val isResolvable: Boolean,
     val extendsFrom: List<String> = emptyList(),
-    val dependencies: List<GradleDependency>
+    val dependencies: List<GradleDependency>,
+    val isInternal: Boolean = false
 ) {
-    fun allDependencies(): Sequence<GradleDependency> {
-        return dependencies.asSequence().flatMap { it.allDependencies() }
+    fun allDependencies(): Sequence<GradleDependency> = sequence {
+        val stack = dependencies.reversed().toMutableList()
+        while (stack.isNotEmpty()) {
+            val current = stack.removeLast()
+            yield(current)
+            for (i in current.children.indices.reversed()) {
+                stack.add(current.children[i])
+            }
+        }
     }
 }
 
@@ -145,28 +157,31 @@ data class GradleDependency(
     val isDirect: Boolean = false,
     val fromConfiguration: String? = null,
     val reason: String? = null,
+    val commonComponentId: String? = null,
     val sourcesFile: Path? = null,
     val updatesChecked: Boolean = false,
     val children: List<GradleDependency> = emptyList()
 ) {
-    val hasSources: Boolean get() = sourcesFile != null && group != null && version != null
+    val hasSources: Boolean get() = sourcesFile != null
 
     /**
      * The relative path prefix for this dependency's sources in the session view.
-     * Format: `deps/{name}/{version}` — clearly non-package-like, making paths unambiguous.
-     * The junction at this prefix points to the CAS `v1/` normalized directory.
+     * Format: `{group}/{name}` — scopes libraries by their group and name.
+     * The junction at this prefix points to the CAS `v2/` normalized directory.
      */
     val relativePrefix: String? by lazy {
-        val v = version ?: return@lazy null
         if (sourcesFile == null) return@lazy null
-        "deps/$name/$v"
+        val g = group?.takeIf { it.isNotBlank() } ?: "no-group"
+        "$g/$name"
     }
 
-    fun allDependencies(): Sequence<GradleDependency> {
-        return sequence {
-            yield(this@GradleDependency)
-            children.forEach {
-                yieldAll(it.allDependencies())
+    fun allDependencies(): Sequence<GradleDependency> = sequence {
+        val stack = mutableListOf(this@GradleDependency)
+        while (stack.isNotEmpty()) {
+            val current = stack.removeLast()
+            yield(current)
+            for (i in current.children.indices.reversed()) {
+                stack.add(current.children[i])
             }
         }
     }

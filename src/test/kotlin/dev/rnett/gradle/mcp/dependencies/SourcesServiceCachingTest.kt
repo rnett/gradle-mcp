@@ -25,6 +25,7 @@ import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createFile
+import kotlin.io.path.writeText
 import kotlin.test.assertSame
 
 class SourcesServiceCachingTest {
@@ -83,9 +84,9 @@ class SourcesServiceCachingTest {
                     configurations = listOf(
                         GradleConfigurationDependencies(
                             name = "compile",
+                            description = null,
                             dependencies = listOf(dep),
-                            isResolvable = true,
-                            description = null
+                            isResolvable = true
                         )
                     )
                 )
@@ -99,9 +100,8 @@ class SourcesServiceCachingTest {
 
         coEvery {
             val p = any<ProgressReporter>()
-            with(p) { depService.downloadAllSources(any(), any(), any()) }
-        } returns report
-
+            with(p) { depService.downloadProjectSources(any(), any(), any(), any(), any()) }
+        } returns report.projects.first()
         coEvery {
             val p = any<ProgressReporter>()
             with(p) { indexService.indexFiles(any(), any(), any()) }
@@ -117,27 +117,27 @@ class SourcesServiceCachingTest {
 
         // 1. First call - should populate cache
         val result1 = with(progress) {
-            sourcesService.resolveAndProcessAllSources(root, dependency = filter)
+            sourcesService.resolveAndProcessProjectSources(root, ":", dependency = filter)
         }
 
         assertSame(sessionView, result1)
         coVerify(exactly = 1) {
             with(any<ProgressReporter>()) {
-                depService.downloadAllSources(any(), any(), any())
+                depService.downloadProjectSources(any(), any(), any(), any(), any())
             }
         }
         coVerify(exactly = 1) { storageService.createSessionView(any(), any()) }
 
         // 2. Second call - should hit cache
         val result2 = with(progress) {
-            sourcesService.resolveAndProcessAllSources(root, dependency = filter)
+            sourcesService.resolveAndProcessProjectSources(root, ":", dependency = filter)
         }
 
         assertSame(result1, result2)
         // Verify no new resolution or view creation happened
         coVerify(exactly = 1) {
             with(any<ProgressReporter>()) {
-                depService.downloadAllSources(any(), any(), any())
+                depService.downloadProjectSources(any(), any(), any(), any(), any())
             }
         }
         coVerify(exactly = 1) { storageService.createSessionView(any(), any()) }
@@ -149,14 +149,14 @@ class SourcesServiceCachingTest {
         every { provider.resolveIndexDir(any()) } returns tempDir.resolve("provider-idx")
 
         val result3 = with(progress) {
-            sourcesService.resolveAndProcessAllSources(root, dependency = filter, providerToIndex = provider)
+            sourcesService.resolveAndProcessProjectSources(root, ":", dependency = filter, providerToIndex = provider)
         }
 
         assertSame(result1, result3)
         // Gradle build still skipped
         coVerify(exactly = 1) {
             with(any<ProgressReporter>()) {
-                depService.downloadAllSources(any(), any(), any())
+                depService.downloadProjectSources(any(), any(), any(), any(), any())
             }
         }
         // BUT indexService was used
@@ -165,5 +165,80 @@ class SourcesServiceCachingTest {
                 indexService.indexFiles(any(), any(), any())
             }
         }
+    }
+
+    @Test
+    fun `test KMP platform artifact isolation`() = runTest {
+        val root = GradleProjectRoot(tempDir.resolve("project").toString())
+
+        val commonSourcesJar = tempDir.resolve("common-sources.jar").createFile()
+        val commonDep = GradleDependency(
+            id = "org.test:test-lib-metadata:1.0.0",
+            group = "org.test",
+            name = "test-lib-metadata",
+            version = "1.0.0",
+            commonComponentId = null,
+            sourcesFile = commonSourcesJar
+        )
+
+        val jvmSourcesJar = tempDir.resolve("jvm-sources.jar").createFile()
+        val platformDep = GradleDependency(
+            id = "org.test:test-lib-jvm:1.0.0",
+            group = "org.test",
+            name = "test-lib-jvm",
+            version = "1.0.0",
+            commonComponentId = "org.test:test-lib-metadata:1.0.0",
+            sourcesFile = jvmSourcesJar
+        )
+
+        val commonCasBase = tempDir.resolve("common-cas").createDirectories()
+        val commonCas = CASDependencySourcesDir("common-hash", commonCasBase)
+        commonCas.baseCompletedMarker.createFile()
+        commonCas.sourceSetsFile.writeText("commonMain")
+
+        val platformCasBase = tempDir.resolve("platform-cas").createDirectories()
+        val platformCas = CASDependencySourcesDir("platform-hash", platformCasBase)
+
+        val report = GradleProjectDependencies(
+            path = ":",
+            sourceSets = emptyList(),
+            repositories = emptyList(),
+            configurations = listOf(
+                GradleConfigurationDependencies(
+                    name = "compile",
+                    description = null,
+                    dependencies = listOf(commonDep, platformDep),
+                    isResolvable = true
+                )
+            )
+        )
+
+        coEvery {
+            with(any<ProgressReporter>()) { depService.downloadProjectSources(any(), any(), any(), any(), any()) }
+        } returns report
+
+        coEvery { storageService.calculateHash(commonDep) } returns "common-hash"
+        coEvery { storageService.calculateHash(platformDep) } returns "platform-hash"
+        coEvery { storageService.getCASDependencySourcesDir("common-hash") } returns commonCas
+        coEvery { storageService.getCASDependencySourcesDir("platform-hash") } returns platformCas
+
+        coEvery { storageService.waitForBase(commonCas, any()) } returns true
+
+        coEvery {
+            with(any<ProgressReporter>()) { storageService.extractSources(any(), any(), any()) }
+        } answers {
+            val dir = it.invocation.args[1] as Path
+            dir.createDirectories()
+        }
+
+        coEvery { storageService.createSessionView(any(), any()) } returns mockk()
+        coEvery { storageService.pruneSessionViews() } just Runs
+        coEvery { storageService.getLockFile(any()) } returns tempDir.resolve("lock")
+
+        with(progress) {
+            sourcesService.resolveAndProcessProjectSources(root, ":")
+        }
+
+        coVerify { storageService.waitForBase(commonCas, any()) }
     }
 }

@@ -80,7 +80,7 @@ abstract class SearchIntegrationTestBase {
                 )
             )
         )
-        coEvery { with(any<ProgressReporter>()) { dependencyService.downloadAllSources(projectRoot, any(), any()) } } returns report
+        coEvery { with(any<ProgressReporter>()) { dependencyService.downloadProjectSources(projectRoot, any(), any(), any(), any()) } } returns report.projects.first()
     }
 
     @Test
@@ -105,7 +105,7 @@ abstract class SearchIntegrationTestBase {
         )
 
         val sourcesDir = with(ProgressReporter.NONE) {
-            sourcesService.resolveAndProcessAllSources(projectRoot, providerToIndex = searchProvider)
+            sourcesService.resolveAndProcessProjectSources(projectRoot, ":", providerToIndex = searchProvider)
         }
 
         // MyClass should be found (it's .kt)

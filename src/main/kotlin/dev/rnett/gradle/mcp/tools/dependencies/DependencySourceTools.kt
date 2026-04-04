@@ -56,7 +56,7 @@ class DependencySourceTools(
     @Serializable
     data class ReadDependencySourcesArgs(
         val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
-        @Description("Targeting a specific project path (e.g., ':app'). If null, all dependencies are included.")
+        @Description("Targeting a specific project path (e.g., ':app').")
         val projectPath: String? = null,
         @Description("Authoritatively targeting a configuration (e.g., ':app:debugCompileClasspath'). Higher precedence.")
         val configurationPath: String? = null,
@@ -83,11 +83,11 @@ class DependencySourceTools(
             |Supports dot-separated package paths via the symbol index. Use `${ToolNames.SEARCH_DEPENDENCY_SOURCES}` to find paths first.
             |`path` without `dependency`: must include group/artifact prefix. With `dependency`: relative to library root.
             |Sources are CAS-cached (immutable). Use `fresh=true` for dependency changes; `forceDownload=true` only to recover corrupt/missing files.
-            |ALWAYS scope with `dependency`, `projectPath`, `configurationPath`, or `sourceSetPath` — unscoped access indexes ALL dependencies and is VERY EXPENSIVE on large projects.
+            |ALWAYS scope with a project, configuration, or source set (or use `gradleSource: true`) — unscoped access is no longer supported.
             |Returns the absolute path of the sources root. Dependency directories are symlinked; pass `--follow` to `rg` (e.g., `rg --follow <pattern> <path>`).
             |
             |### Examples
-            |- Browse all deps: `{}`
+            |- Browse project deps: `{ projectPath: ":" }`
             |- Browse single dep: `{ dependency: "org.jetbrains.kotlin:kotlin-stdlib" }`
             |- Read file: `{ dependency: "org.jetbrains.kotlin:kotlin-stdlib", path: "kotlin/collections/List.kt" }`
             |- Read package: `{ dependency: "org.jetbrains.kotlin:kotlin-stdlib", path: "kotlin.collections" }`
@@ -149,7 +149,7 @@ class DependencySourceTools(
     @Serializable
     data class SearchDependencySourcesArgs(
         val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,
-        @Description("Targeting a specific project path (e.g., ':app'). If null, all dependencies are searched.")
+        @Description("Targeting a specific project path (e.g., ':app').")
         val projectPath: String? = null,
         @Description("Authoritatively targeting a configuration (e.g., ':app:debugCompileClasspath'). Higher precedence.")
         val configurationPath: String? = null,
@@ -176,7 +176,7 @@ class DependencySourceTools(
             |Searches for symbols or text across the source code of ALL external library dependencies, plugins, or Gradle's internal engine; use instead of shell grep which cannot find remote dependency sources.
             |Buildscript (plugin) dependencies are excluded by default to reduce noise. To search plugins, use `sourceSetPath: ":buildscript"` (root project) or `sourceSetPath: ":app:buildscript"` (subproject).
             |Sources are CAS-cached (immutable). Use `fresh=true` for dependency changes; `forceDownload=true` only to recover corrupt/missing files.
-            |ALWAYS scope with `dependency`, `projectPath`, `configurationPath`, or `sourceSetPath` — unscoped search indexes ALL dependencies and is VERY EXPENSIVE on large projects.
+            |ALWAYS scope with a project, configuration, or source set (or use `gradleSource: true`) — unscoped search is no longer supported.
             |Returns the absolute path of the sources root. Dependency directories are symlinked; pass `--follow` to `rg` (e.g., `rg --follow <pattern> <path>`).
             |
             |### Search Modes
@@ -328,7 +328,8 @@ class DependencySourceTools(
             sourceSetPath != null -> sourcesService.resolveAndProcessSourceSetSources(root, sourceSetPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)
             configurationPath != null -> sourcesService.resolveAndProcessConfigurationSources(root, configurationPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)
             projectPath != null -> sourcesService.resolveAndProcessProjectSources(root, projectPath, dependency = dependency, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)
-            else -> sourcesService.resolveAndProcessAllSources(root, dependency = dependency, forceDownload = forceDownload, fresh = fresh, providerToIndex = providerToIndex)
+            dependency != null -> throw IllegalArgumentException("Must specify a scope (projectPath, configurationPath, or sourceSetPath) when filtering by dependency.")
+            else -> throw IllegalArgumentException("Must specify a scope: projectPath, configurationPath, sourceSetPath, or set gradleSource=true.")
         }
     }
 }

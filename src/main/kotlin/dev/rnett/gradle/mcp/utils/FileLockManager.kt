@@ -97,7 +97,7 @@ object FileLockManager {
      * Returns an [AdvisoryLock] if successful, or null if denied.
      * The lock is released when [AdvisoryLock.close] is called.
      */
-    fun tryLockAdvisory(lockFile: Path): AdvisoryLock? {
+    fun tryLockAdvisory(lockFile: Path, shared: Boolean = false): AdvisoryLock? {
         val absolutePath = lockFile.toAbsolutePath()
         try {
             absolutePath.parent.createDirectories()
@@ -108,7 +108,7 @@ object FileLockManager {
                 StandardOpenOption.WRITE
             )
             val lock = try {
-                channel.tryLock()
+                channel.tryLock(0L, Long.MAX_VALUE, shared)
             } catch (e: OverlappingFileLockException) {
                 null
             } catch (e: Exception) {

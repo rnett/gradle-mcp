@@ -50,7 +50,7 @@ fun String.expandPath(): String {
 fun ByteArray.hash(): String {
     val md = MessageDigest.getInstance("SHA-256")
     val digest = md.digest(this)
-    return digest.fold("") { str, it -> str + "%02x".format(it) }.take(8)
+    return digest.fold("") { str, it -> str + "%02x".format(it) }.take(32)
 }
 
 data class GradleMcpEnvironment(val workingDir: Path) {

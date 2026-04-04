@@ -13,6 +13,7 @@ package dev.rnett.gradle.mcp.dependencies
  * @property downloadSources Whether to download and include source artifacts.
  * @property excludeBuildscript Whether to exclude buildscript dependencies from the report. Defaults to true.
  * @property fresh Whether to force a fresh dependency resolution.
+ * @property includeInternal Whether to include internal configurations (e.g. KMP metadata) in the report. Defaults to false.
  */
 data class DependencyRequestOptions(
     val configuration: String? = null,
@@ -24,5 +25,6 @@ data class DependencyRequestOptions(
     val onlyDirect: Boolean = false,
     val downloadSources: Boolean = false,
     val excludeBuildscript: Boolean = true,
-    val fresh: Boolean = false
+    val fresh: Boolean = false,
+    val includeInternal: Boolean = false
 )

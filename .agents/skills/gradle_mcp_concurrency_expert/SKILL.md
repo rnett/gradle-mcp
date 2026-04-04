@@ -27,6 +27,8 @@ This skill provides expert guidance on Kotlin Coroutines, Flow usage, and specia
 - **Job Tracking**: Ensure `currentJob` is correctly tracked through `withContext` calls, as every `withContext` creates a new `Job`.
 - **Lock Upgrades**: Explicitly detect and fail Shared-to-Exclusive lock upgrade attempts. NIO `FileLock` does not support upgrades within the same JVM process and will trigger an `OverlappingFileLockException`.
 - **Multi-Lock Avoidance**: Avoid implementing utilities that acquire multiple file locks simultaneously (`withLocks`) in a coroutine environment, especially within tests, to reduce deadlock risks.
+- **Lock Release Polling**: When using `FileLockManager.tryLockAdvisory` in a polling loop to wait for another process to release a lock, ALWAYS close the acquired lock (e.g., `lock?.close()`) immediately. This prevents the waiting process
+  from accidentally blocking other siblings by holding the lock it is trying to observe.
 - **Context Parameters & Mockk**: To mock functions with context parameters, use `any<ContextParamType>()` for each parameter in the `context` block.
 
 ## Testing Asynchronous Events

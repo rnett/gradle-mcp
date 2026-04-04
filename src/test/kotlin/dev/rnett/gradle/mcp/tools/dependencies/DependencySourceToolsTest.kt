@@ -38,7 +38,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         every { mockSources.lastRefresh() } returns null
         every { mockSources.resolveIndexDirs(any()) } returns emptyList()
 
-        coEvery { with(any<ProgressReporter>()) { sourcesService.resolveAndProcessAllSources(any(), any(), any(), any(), any()) } } returns mockSources
+        coEvery { with(any<ProgressReporter>()) { sourcesService.resolveAndProcessProjectSources(any(), any(), any(), any(), any(), any()) } } returns mockSources
 
         server.setServerRoots(Root(tempDir.toUri().toString(), "root"))
     }
@@ -51,7 +51,9 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
     @Test
     fun `read_dependency_sources success path includes Sources root header`() = runTest {
         val result = server.client.callTool(
-            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {}
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectPath", ":")
+            }
         ) as CallToolResult
 
         assertContains(resultText(result), "Sources root:")
@@ -63,6 +65,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         val result = server.client.callTool(
             ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
                 put("path", "../../etc/passwd")
+                put("projectPath", ":")
             }
         ) as CallToolResult
 
@@ -78,6 +81,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         val result = server.client.callTool(
             ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
                 put("path", "nonexistent/path/file.kt")
+                put("projectPath", ":")
             }
         ) as CallToolResult
 
@@ -97,6 +101,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         val result = server.client.callTool(
             ToolNames.SEARCH_DEPENDENCY_SOURCES, buildJsonObject {
                 put("query", "SomeClass")
+                put("projectPath", ":")
             }
         ) as CallToolResult
 
@@ -113,6 +118,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         val result = server.client.callTool(
             ToolNames.SEARCH_DEPENDENCY_SOURCES, buildJsonObject {
                 put("query", "SomeClass")
+                put("projectPath", ":")
             }
         ) as CallToolResult
 
@@ -131,6 +137,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         val result = server.client.callTool(
             ToolNames.SEARCH_DEPENDENCY_SOURCES, buildJsonObject {
                 put("query", "SomeClass")
+                put("projectPath", ":")
             }
         ) as CallToolResult
 

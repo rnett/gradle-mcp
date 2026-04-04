@@ -1,3 +1,4 @@
+@file:OptIn(ExperimentalUuidApi::class)
 package dev.rnett.gradle.mcp.dependencies
 
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
@@ -8,13 +9,13 @@ import dev.rnett.gradle.mcp.dependencies.model.ManifestDependency
 import dev.rnett.gradle.mcp.dependencies.model.ProjectManifest
 import dev.rnett.gradle.mcp.dependencies.model.SessionViewSourcesDir
 import dev.rnett.gradle.mcp.hash
+import dev.rnett.gradle.mcp.utils.FileLockManager
 import dev.rnett.gradle.mcp.utils.FileUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
-import java.util.UUID
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.copyToRecursively
 import kotlin.io.path.createDirectories
@@ -27,6 +28,8 @@ import kotlin.io.path.writeText
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 /**
  * Manages the physical layout and file system operations for dependency sources.
@@ -83,9 +86,11 @@ interface SourceStorageService {
     fun normalizeRelativePath(prefix: Path, path: String): String
 
     /**
-     * Polls for a CAS directory to be completed by another process.
+     * Waits for base sources (extraction/normalization) to be completed by another process.
+     * Uses a shared lock to detect when the exclusive extraction lock is released.
+     * Returns true if successfully completed, false if the lock was released but the marker is missing (failure).
      */
-    suspend fun waitForCAS(casDir: CASDependencySourcesDir, timeout: Duration = 120.seconds)
+    suspend fun waitForBase(casDir: CASDependencySourcesDir, timeout: Duration = 300.seconds): Boolean
 
     /**
      * Prunes session views older than the specified [maxAge].
@@ -97,8 +102,12 @@ interface SourceStorageService {
 class DefaultSourceStorageService(private val environment: GradleMcpEnvironment) : SourceStorageService {
     private val logger = LoggerFactory.getLogger(DefaultSourceStorageService::class.java)
 
-    private val casDir = environment.cacheDir.resolve("cas")
+    private val casDir = environment.cacheDir.resolve("cas").resolve(CAS_VERSION)
     private val sessionViewsDir = environment.cacheDir.resolve("views")
+
+    companion object {
+        private const val CAS_VERSION = "v2"
+    }
 
     init {
         casDir.createDirectories()
@@ -130,7 +139,7 @@ class DefaultSourceStorageService(private val environment: GradleMcpEnvironment)
                         }
                     }
                 }
-                md.digest().fold("") { str, it -> str + "%02x".format(it) }.take(8)
+                md.digest().joinToString("") { "%02x".format(it) }.take(32)
             } else {
                 "${dep.id}:${sourcesFile.fileName}".toByteArray().hash()
             }
@@ -158,17 +167,36 @@ class DefaultSourceStorageService(private val environment: GradleMcpEnvironment)
     }
 
     override suspend fun createSessionView(deps: Map<GradleDependency, CASDependencySourcesDir>, force: Boolean): SessionViewSourcesDir = withContext(Dispatchers.IO) {
-        val sessionId = UUID.randomUUID().toString()
+        val sessionId = Uuid.random().toString()
         val timestamp = Clock.System.now().toString().replace(Regex("[^a-zA-Z0-9]"), "_")
         val viewBaseDir = sessionViewsDir.resolve("${timestamp}_$sessionId")
         val viewSourcesDir = viewBaseDir.resolve("sources")
         viewSourcesDir.createDirectories()
 
+        val depIdsInScope = deps.keys.map { it.id }.toSet()
+
         deps.forEach { (dep, casDir) ->
             val linkPath = viewSourcesDir.resolve(requireNotNull(dep.relativePrefix))
             linkPath.createParentDirectories()
-            // Prefer the pre-normalized v1/ dir; fall back to raw sources/ for legacy CAS entries
-            val linkTarget = if (casDir.normalizedDir.exists()) casDir.normalizedDir else casDir.sources
+
+            val commonId = dep.commonComponentId
+            val hasCommonSibling = commonId != null && commonId in depIdsInScope
+
+            if (hasCommonSibling && !casDir.normalizedTargetDir.exists()) {
+                // Skip creating link, it has no platform-specific sources and its common sibling provides them
+                return@forEach
+            }
+
+            // Prefer normalized-target/ if it's a platform artifact with its common sibling present.
+            // Otherwise prefer pre-normalized normalized/ dir; fall back to raw sources/ for legacy CAS entries
+            val linkTarget = if (hasCommonSibling) {
+                casDir.normalizedTargetDir
+            } else if (casDir.normalizedDir.exists()) {
+                casDir.normalizedDir
+            } else {
+                casDir.sources
+            }
+
             if (!FileUtils.createSymbolicLink(linkPath, linkTarget)) {
                 logger.warn("Failed to create symlink/junction for ${dep.id} in session view. Falling back to copy.")
                 linkTarget.copyToRecursively(linkPath, followLinks = false, overwrite = true)
@@ -178,12 +206,18 @@ class DefaultSourceStorageService(private val environment: GradleMcpEnvironment)
         val manifest = ProjectManifest(
             sessionId = sessionId,
             timestamp = Clock.System.now().toString(),
-            dependencies = deps.map { (dep, casDir) ->
-                ManifestDependency(
-                    id = dep.id,
-                    hash = casDir.hash,
-                    relativePath = requireNotNull(dep.relativePrefix).replace('\\', '/')
-                )
+            dependencies = deps.mapNotNull { (dep, casDir) ->
+                val commonId = dep.commonComponentId
+                val hasCommonSibling = commonId != null && commonId in depIdsInScope
+                if (hasCommonSibling && !casDir.normalizedTargetDir.exists()) {
+                    null
+                } else {
+                    ManifestDependency(
+                        id = dep.id,
+                        hash = casDir.hash,
+                        relativePath = requireNotNull(dep.relativePrefix).replace('\\', '/')
+                    )
+                }
             }
         )
 
@@ -200,7 +234,7 @@ class DefaultSourceStorageService(private val environment: GradleMcpEnvironment)
         onFileExtracted: (suspend (String, ByteArray) -> Unit)?
     ) {
         try {
-            ArchiveExtractor.extractInto(dir, requireNotNull(dep.sourcesFile), skipSingleFirstDir = true, writeFiles = true) { path, contentBytes ->
+            ArchiveExtractor.extractInto(dir, requireNotNull(dep.sourcesFile), skipSingleFirstDir = false, writeFiles = true) { path, contentBytes ->
                 onFileExtracted?.invoke(path, contentBytes)
             }
         } catch (e: Exception) {
@@ -209,15 +243,27 @@ class DefaultSourceStorageService(private val environment: GradleMcpEnvironment)
         }
     }
 
-    override suspend fun waitForCAS(casDir: CASDependencySourcesDir, timeout: Duration) {
+    override suspend fun waitForBase(casDir: CASDependencySourcesDir, timeout: Duration): Boolean {
         val start = Clock.System.now()
-        while (!casDir.completionMarker.exists()) {
+        while (true) {
+            if (casDir.baseCompletedMarker.exists()) return true
+
+            // Try to acquire shared lock to see if the exclusive lock is released
+            val lock = FileLockManager.tryLockAdvisory(casDir.baseLockFile, shared = true)
+            if (lock != null) {
+                lock.close() // Release immediately
+                // If we got the shared lock, it means NO ONE has the exclusive lock.
+                // Re-check marker one last time.
+                return casDir.baseCompletedMarker.exists()
+            }
+
             if (Clock.System.now() - start > timeout) {
-                throw java.io.IOException("Timed out waiting for CAS directory ${casDir.hash} to be completed by another process after ${timeout}")
+                throw java.io.IOException("Timed out waiting for base CAS sources for ${casDir.hash} after ${timeout}")
             }
             kotlinx.coroutines.delay(500)
         }
     }
+
 
     override suspend fun pruneSessionViews(maxAge: Duration) = withContext(Dispatchers.IO) {
         if (!sessionViewsDir.exists()) return@withContext
@@ -236,4 +282,3 @@ class DefaultSourceStorageService(private val environment: GradleMcpEnvironment)
         }
     }
 }
-

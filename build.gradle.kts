@@ -49,7 +49,7 @@ tasks.check {
 }
 
 val zipSkills by tasks.registering(Zip::class) {
-    from("skills")
+    from("src/main/skills")
     archiveFileName.set("skills.zip")
     destinationDirectory.set(layout.buildDirectory.dir("generated/resources/skills"))
 }
@@ -114,6 +114,8 @@ dependencies {
     testFixturesApi(libs.ktor.client.cio)
     testFixturesApi(libs.ktor.client.content.negotiation)
     testFixturesApi(libs.ktor.client.mock)
+
+    testImplementation(testFixtures(project))
 }
 
 kotlin {
@@ -212,7 +214,7 @@ buildConfig {
 // Ensure build is re-run if init scripts, skills, or bundled jars change
     project.tasks.matching { it.name == "generateBuildConfig" }.configureEach {
         inputs.dir("src/main/resources")
-        inputs.dir("skills")
+        inputs.dir("src/main/skills")
     }
 }
 

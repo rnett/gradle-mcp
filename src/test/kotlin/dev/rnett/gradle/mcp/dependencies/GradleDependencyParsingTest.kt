@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.dependencies
 
+import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
@@ -7,13 +8,16 @@ import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleResult
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
+import kotlinx.coroutines.test.runTest
 import org.gradle.tooling.events.OperationType
 import org.gradle.tooling.events.ProgressListener
 import org.gradle.tooling.model.Model
 import org.junit.jupiter.api.Test
 import kotlin.reflect.KClass
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class GradleDependencyParsingTest {
 
@@ -23,11 +27,11 @@ class GradleDependencyParsingTest {
             PROJECT: : | project ':'
             REPOSITORY: : | MavenRepo | https://repo.maven.apache.org/maven2/
             SOURCESET: : | main | implementation,runtimeOnly,compileClasspath,runtimeClasspath
-            CONFIGURATION: : | implementation | Implementation only dependencies for source set 'main'. | true
+            CONFIGURATION: : | implementation | true | | Implementation only dependencies for source set 'main'. | false
             DEP: : | * | project : | project | : | | | | false
             DEP: : | ** | org.jetbrains.kotlin:kotlin-stdlib:1.9.22 | org.jetbrains.kotlin | kotlin-stdlib | 1.9.22 | | | false
             DEP: : | *** | org.jetbrains:annotations:13.0 | org.jetbrains | annotations | 13.0 | | | false
-            CONFIGURATION: : | testImplementation | Implementation only dependencies for source set 'test'. | true
+            CONFIGURATION: : | testImplementation | true | | Implementation only dependencies for source set 'test'. | false
             DEP: : | * | project : | project | : | | | | false
             DEP: : | ** | org.junit.jupiter:junit-jupiter:5.10.1 | org.junit.jupiter | junit-jupiter | 5.10.1 | | | false
             DEP: : | *** | org.junit.jupiter:junit-jupiter-api:5.10.1 | org.junit.jupiter | junit-jupiter-api | 5.10.1 | | | false
@@ -65,7 +69,7 @@ class GradleDependencyParsingTest {
     fun `can parse already visited dependencies`() {
         val output = """
             PROJECT: : | project ':'
-            CONFIGURATION: : | implementation | Implementation only dependencies for source set 'main'. | true
+            CONFIGURATION: : | implementation | true | | Implementation only dependencies for source set 'main'. | false
             DEP: : | * | project : | project | : | | | | false
             DEP: : | ** | org.jetbrains.kotlin:kotlin-stdlib:1.9.22 | org.jetbrains.kotlin | kotlin-stdlib | 1.9.22 | | | false
             DEP: : | *** | org.jetbrains:annotations:13.0 | org.jetbrains | annotations | 13.0 | | | false
@@ -93,7 +97,7 @@ class GradleDependencyParsingTest {
     fun `can parse already visited dependencies with children`() {
         val output = """
             PROJECT: : | project ':'
-            CONFIGURATION: : | implementation | Implementation only dependencies for source set 'main'. | true
+            CONFIGURATION: : | implementation | true | | Implementation only dependencies for source set 'main'. | false
             DEP: : | * | A | group | A | 1.0 | | | false
             DEP: : | ** | B | group | B | 1.0 | | | false
             DEP: : | *** | C | group | C | 1.0 | | | false
@@ -132,8 +136,8 @@ class GradleDependencyParsingTest {
         val output = """
             PROJECT: :app | project ':app'
             PROJECT: :lib | project ':lib'
-            CONFIGURATION: :app | implementation | App dependencies | true
-            CONFIGURATION: :lib | implementation | Lib dependencies | true
+            CONFIGURATION: :app | implementation | true | | App dependencies | false
+            CONFIGURATION: :lib | implementation | true | | Lib dependencies | false
             DEP: :app | * | :lib | project | :lib | | | | false
             DEP: :lib | * | org.jetbrains.kotlin:kotlin-stdlib:1.9.22 | org.jetbrains.kotlin | kotlin-stdlib | 1.9.22 | | | false
             DEP: :app | ** | org.jetbrains.kotlin:kotlin-stdlib:1.9.22 | org.jetbrains.kotlin | kotlin-stdlib | 1.9.22 | | | false
@@ -166,7 +170,7 @@ class GradleDependencyParsingTest {
         val output = """
             PROJECT: : | project ':'
             SOURCESET: : | buildscript | buildscript:classpath
-            CONFIGURATION: : | buildscript:classpath | | true
+            CONFIGURATION: : | buildscript:classpath | true | | | false
             DEP: : | * | com.google.guava:guava:32.1.2-jre | com.google.guava | guava | 32.1.2-jre | | | false
         """.trimIndent()
 
@@ -185,7 +189,81 @@ class GradleDependencyParsingTest {
         assertEquals("com.google.guava:guava:32.1.2-jre", config.dependencies[0].id)
     }
 
-    private class MockGradleProvider : GradleProvider {
+    @Test
+    fun `can parse internal configurations`() {
+        val output = """
+            PROJECT: : | project ':'
+            CONFIGURATION: : | implementation | true | | Implementation | false
+            CONFIGURATION: : | jvmMainApiDependenciesMetadata | true | | Internal | true
+            DEP: : | * | org.jetbrains.kotlin:kotlin-stdlib:1.9.22 | org.jetbrains.kotlin | kotlin-stdlib | 1.9.22 | | | false
+        """.trimIndent()
+
+        val service = DefaultGradleDependencyService(MockGradleProvider())
+        val report = service.parseStructuredOutput(output)
+
+        val project = report.projects[0]
+        assertEquals(2, project.configurations.size)
+
+        val normal = project.configurations.find { it.name == "implementation" }!!
+        assertFalse(normal.isInternal)
+
+        val internal = project.configurations.find { it.name == "jvmMainApiDependenciesMetadata" }!!
+        assertTrue(internal.isInternal)
+    }
+
+    @Test
+    fun `getDependencies filters internal configurations by default`() = runTest {
+        val output = """
+            PROJECT: : | project ':'
+            CONFIGURATION: : | implementation | true | | Implementation | false
+            DEP: : | * | a:a:1.0 | a | a | 1.0 | | | false
+            CONFIGURATION: : | jvmMainApiDependenciesMetadata | true | | Internal | true
+            DEP: : | * | b:b:1.0 | b | b | 1.0 | | | false
+        """.trimIndent()
+
+        val provider = object : MockGradleProvider() {
+            override fun runBuild(
+                projectRoot: GradleProjectRoot,
+                args: GradleInvocationArguments,
+                additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
+                stdoutLineHandler: ((String) -> Unit)?,
+                stderrLineHandler: ((String) -> Unit)?,
+                progress: ProgressReporter
+            ): RunningBuild {
+                val rb = RunningBuild(
+                    id = dev.rnett.gradle.mcp.gradle.BuildId("test"),
+                    args = args,
+                    startTime = kotlin.time.Clock.System.now(),
+                    projectRoot = java.nio.file.Path.of(""),
+                    cancellationTokenSource = org.gradle.tooling.GradleConnector.newCancellationTokenSource(),
+                    scope = this@runTest
+                )
+                rb.logBuffer.append(output)
+                rb.finish(null) { }
+                return rb
+            }
+        }
+
+        val service = DefaultGradleDependencyService(provider)
+
+        with(ProgressReporter.PRINTLN) {
+            val report = service.getDependencies(GradleProjectRoot(""), options = DependencyRequestOptions(includeInternal = false))
+            val project = report.projects[0]
+            assertEquals(1, project.configurations.size)
+            assertEquals("implementation", project.configurations[0].name)
+
+            val allDeps = project.allDependencies().map { it.id }.toList()
+            assertTrue("a:a:1.0" in allDeps)
+            assertFalse("b:b:1.0" in allDeps)
+
+            val reportWithInternal = service.getDependencies(GradleProjectRoot(""), options = DependencyRequestOptions(includeInternal = true))
+            val projectWithInternal = reportWithInternal.projects[0]
+            assertEquals(2, projectWithInternal.configurations.size)
+            assertTrue(projectWithInternal.allDependencies().any { it.id == "b:b:1.0" })
+        }
+    }
+
+    private open class MockGradleProvider : GradleProvider {
         override suspend fun <T : Model> getBuildModel(
             projectRoot: GradleProjectRoot,
             kClass: KClass<T>,

@@ -1,3 +1,4 @@
+@file:OptIn(ExperimentalUuidApi::class)
 package dev.rnett.gradle.mcp.utils
 
 import kotlinx.coroutines.Dispatchers
@@ -11,6 +12,8 @@ import kotlin.io.path.deleteIfExists
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 object FileUtils {
     private val LOGGER = LoggerFactory.getLogger(FileUtils::class.java)
@@ -116,7 +119,7 @@ object FileUtils {
     suspend fun atomicReplaceDirectory(source: Path, target: Path) {
         withContext(Dispatchers.IO) {
             if (!source.exists()) return@withContext
-            val tempOld = target.resolveSibling("${target.fileName}.old.${java.util.UUID.randomUUID()}")
+            val tempOld = target.resolveSibling("${target.fileName}.old.${Uuid.random()}")
             var movedToTemp = false
 
             try {

@@ -65,7 +65,7 @@ For deep-dives into specific problems (e.g., deprecations, plugin issues), use `
 - **Resolve dependencies precisely**: Use `inspect_dependencies` and `managing_gradle_dependencies` for auditing and updates.
   - **Default Exclusion**: Buildscript (plugin) dependencies are excluded by default from reports and searches. Use `excludeBuildscript: false` to include them in reports.
   - **Virtual Buildscript Source Set**: Use `sourceSetPath = ":buildscript"` (or `:app:buildscript`) to precisely audit the plugin classpath. This aggregates all `buildscript { ... }` configurations.
-- **Consult best practices**: Refer to the [Best Practices Snapshot](./references/best_practices.md) for a high-level overview. **ALWAYS** use `gradle_docs` with `tag:best-practices` to retrieve the latest and most comprehensive
+- **Consult best practices**: Refer to the [Best Practices Snapshot](references/best_practices.md) for a high-level overview. **ALWAYS** use `gradle_docs` with `tag:best-practices` to retrieve the latest and most comprehensive
   guidelines from the official documentation.
 - **Use `envSource: SHELL` if environment variables are missing**: If Gradle fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
   fully loaded. Set `invocationArguments: { envSource: "SHELL" }` to force a new shell process to query the environment.
@@ -142,6 +142,6 @@ Tool: `search_dependency_sources`
 
 ## Resources
 
-- [Best Practices](./references/best_practices.md)
-- [Common Build Patterns](./references/common_build_patterns.md)
-- [Internal Research Guidelines](./references/internal_research_guidelines.md)
+- [Best Practices](references/best_practices.md)
+- [Common Build Patterns](references/common_build_patterns.md)
+- [Internal Research Guidelines](references/internal_research_guidelines.md)

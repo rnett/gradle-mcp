@@ -30,7 +30,7 @@ Uncovers project modules, discovers runnable tasks, and gain total visibility in
 - **Query task metadata**: ALWAYS use `help --task <name>` to retrieve descriptions, types, and available command-line options for any task.
 - **Extract properties precisely**: ALWAYS use the `properties` task with the `--property` flag to isolate a single value and avoid massive console output.
 - **Audit dependencies**: Use `inspect_dependencies` for a searchable tree and update check. For low-level variant or transformation analysis, use the built-in diagnostic tasks.
-- **Refer to diagnostic guides**: For a complete list of introspection commands, see the [Diagnostic Tasks](./references/diagnostic_tasks.md) reference.
+- **Refer to diagnostic guides**: For a complete list of introspection commands, see the [Diagnostic Tasks](references/diagnostic_tasks.md) reference.
 
 ## Authoritative Task Path Syntax
 
@@ -108,4 +108,4 @@ To inspect a **single specific project**, always use a leading colon.
 
 ## Resources
 
-- [Diagnostic Tasks](./references/diagnostic_tasks.md)
+- [Diagnostic Tasks](references/diagnostic_tasks.md)

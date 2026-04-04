@@ -1,0 +1,94 @@
+package dev.rnett.gradle.mcp.dependencies.search
+
+import dev.rnett.gradle.mcp.GradleMcpEnvironment
+import dev.rnett.gradle.mcp.PRINTLN
+import dev.rnett.gradle.mcp.ProgressReporter
+import dev.rnett.gradle.mcp.TestFixturesBuildConfig
+import dev.rnett.gradle.mcp.dependencies.DefaultGradleDependencyService
+import dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService
+import dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService
+import dev.rnett.gradle.mcp.dependencies.DefaultSourcesService
+import dev.rnett.gradle.mcp.dependencies.model.SessionViewSourcesDir
+import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
+import dev.rnett.gradle.mcp.gradle.BuildManager
+import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
+import dev.rnett.gradle.mcp.gradle.GradleConfiguration
+import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
+import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.minutes
+
+class KmpSearchIntegrationTest {
+
+    @TempDir
+    lateinit var tempDir: Path
+
+    @Test
+    fun `test that common KMP symbols return only one result`() = runTest(timeout = 15.minutes) {
+        val mcpDir = tempDir.resolve("mcp")
+        val environment = GradleMcpEnvironment(mcpDir)
+        val provider = DefaultGradleProvider(
+            config = GradleConfiguration(),
+            buildManager = BuildManager()
+        )
+        val depService = DefaultGradleDependencyService(provider)
+        val storageService = DefaultSourceStorageService(environment)
+        val indexService = DefaultSourceIndexService(dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(environment))
+        val sourcesService = DefaultSourcesService(depService, storageService, dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(environment))
+
+        testGradleProject {
+            useKotlinDsl(true)
+            buildScript(
+                """
+                plugins { id("org.jetbrains.kotlin.multiplatform") version "${TestFixturesBuildConfig.KOTLIN_VERSION}" }
+                repositories { mavenCentral() }
+                kotlin {
+                    jvm()
+                    linuxX64()
+                    sourceSets {
+                        commonMain {
+                            dependencies {
+                                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${TestFixturesBuildConfig.KOTLINX_SERIALIZATION_VERSION}")
+                            }
+                        }
+                    }
+                }
+            """.trimIndent()
+            )
+        }.use { project ->
+            val projectRoot = GradleProjectRoot(project.pathString())
+
+            // Resolve and process sources
+            val sourcesDir = with(ProgressReporter.PRINTLN) {
+                sourcesService.resolveAndProcessProjectSources(projectRoot, ":", providerToIndex = DeclarationSearch)
+            }
+
+            assertNotNull(sourcesDir)
+            assertTrue(sourcesDir is SessionViewSourcesDir)
+            val sessionView = sourcesDir as SessionViewSourcesDir
+
+            // Search for 'Json' interface in kotlinx.serialization.json
+            // It's defined in commonMain.
+            val searchResponse = indexService.search(sessionView, DeclarationSearch, "fqn:kotlinx.serialization.json.Json")
+
+            println("Search results for 'Json':")
+            searchResponse.results.forEach { println("  ${it.relativePath} at line ${it.line}") }
+
+            // Should have results only from the common artifact if deduplication and isolation work correctly.
+            // There might be multiple results (e.g. class and factory function), but they must be from the same artifact.
+            assertTrue(searchResponse.results.isNotEmpty(), "Should find results for 'Json' in common artifact. Found none.")
+
+            searchResponse.results.forEach { result ->
+                assertTrue(result.relativePath.contains("kotlinx-serialization-json/"), "Result ${result.relativePath} should be from common artifact")
+                assertFalse(result.relativePath.contains("-jvm/"), "Result ${result.relativePath} should NOT be from JVM platform artifact")
+                assertFalse(result.relativePath.contains("-linuxx64/"), "Result ${result.relativePath} should NOT be from Linux platform artifact")
+            }
+        }
+        provider.close()
+    }
+}

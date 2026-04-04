@@ -18,6 +18,10 @@ This skill provides expert guidance on the heavy caching infrastructure used for
 - **Cache Invalidation**: When implementing re-extraction or re-indexing logic with `forceDownload`, explicitly propagate the flag to all underlying services (like `IndexService`) to ensure stale caches are invalidated.
 - **Expensive Operations**: In `withSources` (and similar cached operations), perform expensive external calls (like Gradle `resolve()`) exactly once under an exclusive lock, and only after checking a shared lock for a fresh cache.
 - **Lock File Naming**: Include the group name or a hash of the full path in global lock file names for shared resources to prevent collisions across different organizations.
+- **Granular Locking Strategy**: For multi-stage resource processing (like source extraction -> indexing), employ a two-level locking strategy: a 'Base' lock for shared initialization and Facet-specific 'Provider' locks for independent
+  parallel work. This maximizes concurrent throughput.
+- **Fail-Fast via Shared Locks**: Use a shared lock acquisition on a 'Base' lock file to detect when an exclusive worker (e.g., source downloader) has released its lock. Then, check for a success marker (like a `manifest.json`) to
+  distinguish a successful completion from a process crash or failure.
 
 ## Multi-Layer Filtering
 

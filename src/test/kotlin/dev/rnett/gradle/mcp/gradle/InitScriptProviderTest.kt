@@ -25,7 +25,7 @@ class InitScriptProviderTest {
         val baseName = name.removeSuffix(".init.gradle.kts")
         assert(baseName.contains("-"))
         val hash = baseName.substringAfterLast("-")
-        assert(hash.length == 8)
+        assert(hash.length == 32)
     }
 
     @Test

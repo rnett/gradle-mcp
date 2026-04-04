@@ -1,5 +1,6 @@
 Steps are in order, from next to furthest.
 
+- Change base dir to ~/.mcps/rnett-gradle-mcp
 - Include https://docs.gradle.org/9.5.0-rc-1/release-notes.html#task-provenance-in-reports-and-failure-messages.
 - A "Gradle doctor" like skill with best practices embedded in it (via gradle task), or enhance the expert skill.
 - Dedicated "render this compose preview" tool that takes the file+function name or line number

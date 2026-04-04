@@ -33,11 +33,15 @@ This repository contains a Model Context Protocol (MCP) server written in Kotlin
 - **Virtual Searching**: Leverages Lucene `MultiReader` to search across multiple dependency indices without physical merging.
 - **Isolated State**: Each tool call operates on a unique session view, ensuring stability during concurrent updates.
 - **Kotlin & Koin**: Leverage Gradle's type system; isolated Koin prevents global state leakage.
-- **Testing**: Use **Power Assert** for rich failure messages (avoid overly nested assertions to prevent compiler crashes). Reuse class-level test resources for speed. When asserting on the output of an MCP tool that passes through a
-  service layer, verify the final re-rendered format (e.g., `Project: :path`) rather than the raw task output format (e.g., `PROJECT: :path`) to prevent false negatives caused by formatting layers.
+- **Testing**: Use **Power Assert** for rich failure messages (avoid overly nested assertions to prevent compiler crashes). Reuse class-level test resources for speed. Avoid using the `!!` operator on test results before assertion (e.g.,
+  use `assertTrue(result.property.contains(...))` directly on nullable properties) to ensure Power Assert can display the actual values in failure reports. When asserting on the output of an MCP tool that passes through a service layer,
+  verify the final re-rendered format (e.g., `Project: :path`) rather than the raw task output format (e.g., `PROJECT: :path`) to prevent false negatives caused by formatting layers.
 - **Mocking & Future-Proofing**: When refactoring service interfaces mocked in many tests, prioritize using a **data class for parameters** (e.g., `DependencyRequestOptions`). This avoids "boolean blindness" and allows adding new configuration flags with defaults without breaking existing test call sites.
 - **MCP Design**: Return structured Markdown for LLM reasoning. Use Tooling API for stability. MCP tool descriptions must be self-sufficient enough for standalone use, while skills remain the primary "agentic" interface.
 - **Ambiguity Reporting**: Use "exact match -> unique prefix match -> ambiguous prefix match" flow for lookup tools.
+- **Granular Advisory Locking**: Employ a two-level locking strategy (Shared 'Base' lock + Exclusive 'Provider' locks) for multi-stage resource processing. This maximizes concurrent throughput by allowing independent facet-level work to
+  proceed once the base structure is finalized.
+- **Failure Detection via Shared Locks**: Distinguish successful completion from process crashes by checking for a completion marker after a shared lock on a 'Base' file is released (indicating the exclusive worker finished).
 
 ---
 
@@ -69,6 +73,7 @@ Detailed operational guidance is offloaded to specialized **Expert Skills** to m
   have a `fromConfiguration` marker. This prevents missing top-level dependencies in reports for complex projects (like KMP) where most dependencies are declared in non-resolvable parent configurations.
 - **Integration Test Project Dependency Reporting**: For project dependencies in integration tests, consistently use a specific group (e.g., `"project"`) and the project path as the name in the report. This ensures compatibility with
   existing test assertions, as changing project dependencies to report their actual `ModuleVersionIdentifier` (group/name/version) can break tests reliant on path-based naming conventions.
+- **Gradle Project Path Normalization**: Prefer a simple `startsWith(':')` check and early returns for null/empty/":" over more expensive `trim(':')` operations for standardizing project paths to reduce unnecessary string allocations.
 
 ---
 

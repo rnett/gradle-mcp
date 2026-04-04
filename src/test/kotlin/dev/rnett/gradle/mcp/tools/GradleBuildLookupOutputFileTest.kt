@@ -70,7 +70,8 @@ class GradleBuildLookupOutputFileTest : BaseMcpServerTest() {
             put("outputFile", tempFile.toString())
         }) as CallToolResult
 
-        val text = (response.content.first() as TextContent).text!!
+        val text = (response.content.first() as TextContent).text
+        requireNotNull(text)
         assertTrue(text.startsWith("Output written to"))
         assertTrue(text.contains(tempFile.toString()))
         assertTrue(text.contains("characters"))
@@ -98,7 +99,8 @@ class GradleBuildLookupOutputFileTest : BaseMcpServerTest() {
             put("outputFile", tempFile.toString())
         }) as CallToolResult
 
-        val text = (response.content.first() as TextContent).text!!
+        val text = (response.content.first() as TextContent).text
+        requireNotNull(text)
         assertTrue(text.startsWith("Output written to"))
         assertTrue(text.contains(tempFile.toString()))
 
@@ -125,7 +127,8 @@ class GradleBuildLookupOutputFileTest : BaseMcpServerTest() {
             put("outputFile", tempFile.toString())
         }) as CallToolResult
 
-        val text = (response.content.first() as TextContent).text!!
+        val text = (response.content.first() as TextContent).text
+        requireNotNull(text)
         assertTrue(text.startsWith("Output written to"))
         assertTrue(text.contains(tempFile.toString()))
 
@@ -151,7 +154,8 @@ class GradleBuildLookupOutputFileTest : BaseMcpServerTest() {
             put("outputFile", invalidPath)
         }) as CallToolResult
 
-        val text = (response.content.first() as TextContent).text!!
+        val text = (response.content.first() as TextContent).text
+        requireNotNull(text)
         assertTrue(text.startsWith("Error writing to file"))
         assertTrue(text.contains(invalidPath))
     }
@@ -166,7 +170,8 @@ class GradleBuildLookupOutputFileTest : BaseMcpServerTest() {
             put("mode", "summary")
         }) as CallToolResult
 
-        val text = (response.content.first() as TextContent).text!!
+        val text = (response.content.first() as TextContent).text
+        requireNotNull(text)
         // Should NOT contain "Output written to"
         assertTrue(!text.startsWith("Output written to"))
         // Should contain the actual build output

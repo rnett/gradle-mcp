@@ -4,7 +4,7 @@
 
 TBD
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Search Result Import and Package De-prioritization
 
@@ -25,4 +25,13 @@ The system SHALL provide clean snippets in search results that focus on the matc
 
 - **WHEN** formatting a search result for display
 - **THEN** the snippet content SHALL contain only the lines of source code
-- **AND** no internal line number labels SHALL be added to the snippet text itself
+
+### Requirement: Deterministic Project Path Resolution
+
+The system SHALL require a specific project path (or root `:`) when resolving and searching dependency sources to ensure deterministic resolution.
+
+#### Scenario: Searching sources with project path
+
+- **WHEN** a user searches dependency sources providing a specific project path
+- **THEN** the system SHALL resolve dependencies against that specific project's configuration
+- **AND** return search results from those resolved dependencies

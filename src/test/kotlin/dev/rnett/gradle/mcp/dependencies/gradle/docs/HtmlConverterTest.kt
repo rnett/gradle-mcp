@@ -17,44 +17,44 @@ class HtmlConverterTest {
         return File(testResourcesDir, path).readText()
     }
 
-    private fun testSnapshot(relPath: String, kind: DocsKind) {
+    fun `test snapshot`(relPath: String, kind: DocsKind) {
         val html = readSample(relPath)
         val actual = htmlConverter.convert(html, kind)
         harness.assertSnapshot(relPath.replace(".html", ".md.txt"), actual)
     }
 
     @Test
-    fun `userguideSnapshot`() {
-        testSnapshot("userguide/command_line_interface.html", DocsKind.USERGUIDE)
+    fun `userguide snapshot`() {
+        `test snapshot`("userguide/command_line_interface.html", DocsKind.USERGUIDE)
     }
 
     @Test
-    fun `dslSnapshot`() {
-        testSnapshot("dsl/org.gradle.api.Project.html", DocsKind.DSL)
+    fun `dsl snapshot`() {
+        `test snapshot`("dsl/org.gradle.api.Project.html", DocsKind.DSL)
     }
 
     @Test
-    fun `kotlinDslSnapshot`() {
-        testSnapshot("kotlin-dsl/gradle/org.gradle/-build-adapter/index.html", DocsKind.KOTLIN_DSL)
+    fun `kotlin dsl snapshot`() {
+        `test snapshot`("kotlin-dsl/gradle/org.gradle/-build-adapter/index.html", DocsKind.KOTLIN_DSL)
     }
 
     @Test
-    fun `javadocSnapshot`() {
-        testSnapshot("javadoc/org/gradle/api/Project.html", DocsKind.JAVADOC)
+    fun `javadoc snapshot`() {
+        `test snapshot`("javadoc/org/gradle/api/Project.html", DocsKind.JAVADOC)
     }
 
     @Test
-    fun `javadocIndexSnapshot`() {
-        testSnapshot("javadoc/allclasses-index.html", DocsKind.JAVADOC)
+    fun `javadoc index snapshot`() {
+        `test snapshot`("javadoc/allclasses-index.html", DocsKind.JAVADOC)
     }
 
     @Test
-    fun `sampleSnapshot`() {
-        testSnapshot("samples/sample_building_java_applications.html", DocsKind.SAMPLES)
+    fun `sample snapshot`() {
+        `test snapshot`("samples/sample_building_java_applications.html", DocsKind.SAMPLES)
     }
 
     @Test
-    fun `releaseNotesSnapshot`() {
-        testSnapshot("release-notes.html", DocsKind.RELEASE_NOTES)
+    fun `release notes snapshot`() {
+        `test snapshot`("release-notes.html", DocsKind.RELEASE_NOTES)
     }
 }

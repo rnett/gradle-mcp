@@ -26,16 +26,34 @@ data class CASDependencySourcesDir(
     val index: Path = baseDir.resolve("index")
 
     /** Pre-normalized, merged source tree (all source sets flattened, platform files renamed). */
-    val normalizedDir: Path = baseDir.resolve("v1")
-    override val rootForSearch: Path = sources
-
-    val advisoryLockFile: Path = baseDir.resolveSibling("$hash.lock")
+    val normalizedDir: Path = baseDir.resolve("normalized")
 
     /**
-     * Versioned completion marker. Using `.completed-v1` means old `.completed` entries are
-     * automatically treated as stale and will be re-normalized on next access (without re-downloading).
+     * Optional directory containing only files unique to this platform artifact (diffed against common sibling).
+     * Used in KMP projects to eliminate redundant common sources in the session view.
      */
-    val completionMarker: Path = baseDir.resolve(".completed-v1")
+    val normalizedTargetDir: Path = baseDir.resolve("normalized-target")
+
+    /** File storing the list of detected source set folder names. */
+    val sourceSetsFile: Path = baseDir.resolve("source-sets.txt")
+    override val rootForSearch: Path = sources
+
+    /** Lock for base structure (extraction/normalization). */
+    val baseLockFile: Path = baseDir.resolveSibling("${baseDir.fileName}.base.lock")
+
+    /** Lock for a specific index provider. */
+    fun indexLockFile(providerName: String): Path = baseDir.resolveSibling("${baseDir.fileName}.index.$providerName.lock")
+
+    @Deprecated("Use baseLockFile", ReplaceWith("baseLockFile"))
+    val advisoryLockFile: Path get() = baseLockFile
+
+    /**
+     * Completion marker indicating this CAS entry's base sources (sources/, normalized/) are ready.
+     */
+    val baseCompletedMarker: Path = baseDir.resolve(".base-completed")
+
+    @Deprecated("Use baseCompletedMarker", ReplaceWith("baseCompletedMarker"))
+    val completionMarker: Path get() = baseCompletedMarker
 
     override fun lastRefresh(): kotlin.time.Instant? {
         if (completionMarker.exists()) {
@@ -79,7 +97,7 @@ data class SessionViewSourcesDir(
         return manifest.dependencies.mapNotNull { dep ->
             val idxDir = casBaseDir.resolve(dep.hash.take(2)).resolve(dep.hash).resolve("index").resolve(providerName)
             if (idxDir.exists()) idxDir else null
-        }
+        }.distinct()
     }
 }
 
