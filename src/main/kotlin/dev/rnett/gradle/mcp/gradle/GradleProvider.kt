@@ -137,75 +137,82 @@ class DefaultGradleProvider(
         ).also { buildManager.registerBuild(it) }
 
         val deferred = scope.async {
-            val outcome: Result<R> = try {
-                if (args.isHelp) {
-                    val model = getBuildModel(
-                        projectRootInput,
-                        org.gradle.tooling.model.build.Help::class,
-                        args.copy(
-                            additionalArguments = emptyList(),
-                            publishScan = false,
-                            requestedInitScripts = emptyList()
-                        ),
-                        additionalProgressListeners,
-                        stdoutLineHandler,
-                        stderrLineHandler,
-                        progress,
-                        requiresGradleProject
-                    )
-                    val text = model.value.getOrThrow().renderedText
-                    runningBuild.addLogLine(text)
-                    stdoutLineHandler?.invoke(text)
-                    Result.failure(InterceptedSpecialCommandException("Help command intercepted, result is in console output."))
-                } else if (args.isVersion) {
-                    val model = getBuildModel(
-                        projectRootInput,
-                        BuildEnvironment::class,
-                        args.copy(
-                            additionalArguments = emptyList(),
-                            publishScan = false,
-                            requestedInitScripts = emptyList()
-                        ),
-                        additionalProgressListeners,
-                        stdoutLineHandler,
-                        stderrLineHandler,
-                        progress,
-                        requiresGradleProject
-                    )
-                    val text = model.value.getOrThrow().versionInfo
-                    runningBuild.addLogLine(text)
-                    stdoutLineHandler?.invoke(text)
-                    Result.failure(InterceptedSpecialCommandException("Version command intercepted, result is in console output."))
-                } else {
-                    connectionService.connect(projectRoot).use { connection ->
-                        try {
-                            val launcher = launcherProvider(connection)
-                            Result.success(
-                                executionService.invokeBuild(
-                                    launcher,
-                                    args,
-                                    additionalProgressListeners,
-                                    stdoutLineHandler,
-                                    stderrLineHandler,
-                                    progress,
-                                    buildId,
-                                    runningBuild,
-                                    invoker
+            var outcome: Result<R>? = null
+            try {
+                outcome = try {
+                    if (args.isHelp) {
+                        val model = getBuildModel(
+                            projectRootInput,
+                            org.gradle.tooling.model.build.Help::class,
+                            args.copy(
+                                additionalArguments = emptyList(),
+                                publishScan = false,
+                                requestedInitScripts = emptyList()
+                            ),
+                            additionalProgressListeners,
+                            stdoutLineHandler,
+                            stderrLineHandler,
+                            progress,
+                            requiresGradleProject
+                        )
+                        val text = model.value.getOrThrow().renderedText
+                        runningBuild.addLogLine(text)
+                        stdoutLineHandler?.invoke(text)
+                        Result.failure(InterceptedSpecialCommandException("Help command intercepted, result is in console output."))
+                    } else if (args.isVersion) {
+                        val model = getBuildModel(
+                            projectRootInput,
+                            BuildEnvironment::class,
+                            args.copy(
+                                additionalArguments = emptyList(),
+                                publishScan = false,
+                                requestedInitScripts = emptyList()
+                            ),
+                            additionalProgressListeners,
+                            stdoutLineHandler,
+                            stderrLineHandler,
+                            progress,
+                            requiresGradleProject
+                        )
+                        val text = model.value.getOrThrow().versionInfo
+                        runningBuild.addLogLine(text)
+                        stdoutLineHandler?.invoke(text)
+                        Result.failure(InterceptedSpecialCommandException("Version command intercepted, result is in console output."))
+                    } else {
+                        connectionService.connect(projectRoot).use { connection ->
+                            try {
+                                val launcher = launcherProvider(connection)
+                                Result.success(
+                                    executionService.invokeBuild(
+                                        launcher,
+                                        args,
+                                        additionalProgressListeners,
+                                        stdoutLineHandler,
+                                        stderrLineHandler,
+                                        progress,
+                                        buildId,
+                                        runningBuild,
+                                        invoker
+                                    )
                                 )
-                            )
-                        } catch (e: Exception) {
-                            Result.failure(e)
+                            } catch (e: Exception) {
+                                Result.failure(e)
+                            }
                         }
                     }
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Result.failure(e)
                 }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                Result.failure(e)
+            } finally {
+                // Always finalize the build so RunningBuild never stays in Running state
+                // indefinitely. When outcome is null the scope was cancelled (server shutdown).
+                val finalOutcome = outcome ?: Result.failure(CancellationException("Build coroutine cancelled"))
+                runningBuild.finish(exception = finalOutcome.exceptionOrNull() as? org.gradle.tooling.GradleConnectionException) {
+                    buildManager.storeResult(it)
+                }
             }
 
-            runningBuild.finish(exception = outcome.exceptionOrNull() as? org.gradle.tooling.GradleConnectionException) {
-                buildManager.storeResult(it)
-            }
             outcome
         }
         return runningBuild to deferred

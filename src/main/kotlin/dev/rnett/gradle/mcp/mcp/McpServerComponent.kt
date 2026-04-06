@@ -8,7 +8,10 @@ import io.modelcontextprotocol.kotlin.sdk.TextContent
 import io.modelcontextprotocol.kotlin.sdk.Tool
 import io.modelcontextprotocol.kotlin.sdk.ToolAnnotations
 import io.modelcontextprotocol.kotlin.sdk.WithMeta
+import kotlinx.coroutines.async
 import kotlinx.serialization.serializer
+import kotlin.coroutines.cancellation.CancellationException
+import kotlin.coroutines.coroutineContext
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
@@ -88,10 +91,32 @@ abstract class McpServerComponent(val name: String, val description: String) {
         ) { request ->
             McpToolHelper.logger.info("Executing tool call {} (request={})", tool.name, request)
             val input = server.json.decodeFromJsonElement(inputSerializer, request.arguments)
-            val (output, aux) = McpToolContext(server, request, request).use {
-                runCatchingExceptCancellation { handler(it, input) } to it.auxiliaryResults()
+
+            // The request ID was injected into the coroutine context by McpServer's transport
+            // interceptor — the only point where the raw JSONRPCRequest.id is accessible.
+            val requestId = coroutineContext[ToolCallRequestId]?.value
+
+            // Launch the handler in server.scope so it can be cancelled independently of the
+            // SDK's message-processing coroutine. This allows notifications/cancelled to unblock
+            // the message loop by cancelling this deferred, even when the tool is waiting on a
+            // long-running operation (e.g., awaitFinished() on a hung build).
+            val deferred = server.scope.async {
+                McpToolContext(server, request, request).use {
+                    runCatchingExceptCancellation { handler(it, input) } to it.auxiliaryResults()
+                }
             }
-            McpToolHelper.logger.info("Finished tool call {} (request={})", tool.name, request)
+            server.registerToolCallJob(requestId, deferred)
+
+            val (output, aux) = try {
+                deferred.await()
+            } catch (e: CancellationException) {
+                // Re-throw so Protocol.onRequest's catch(Throwable) sends an error response
+                // and the message processing loop can resume for the next request.
+                throw e
+            } finally {
+                server.unregisterToolCallJob(requestId)
+                McpToolHelper.logger.info("Finished tool call {} (request={})", tool.name, request)
+            }
             output.fold(
                 {
 
