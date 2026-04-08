@@ -19,6 +19,8 @@ This skill provides expert guidance on Kotlin Coroutines, Flow usage, and specia
 - **Naming Conventions**: Explicitly name non-deterministic parallelism utilities (e.g., `unorderedParallelMap`) to signal that input order is not preserved.
 - **Flow Draining**: Always ensure that indexing operations consume the entire file flow, even if the index is already up-to-date, when using a `Channel` based extraction pipeline to prevent deadlocks.
 - **Wait Policy**: ALWAYS use `runTest` for suspending tests, NEVER `runBlocking`.
+- **Test Timeouts**: Always specify a generous timeout (e.g., 10 minutes) for integration tests using `runTest` that trigger Gradle builds or start external processes. This prevents flaky failures due to the default 60-second timeout being
+  exceeded during parallel execution or on slow machines.
 
 ## Locking & Re-entrancy
 

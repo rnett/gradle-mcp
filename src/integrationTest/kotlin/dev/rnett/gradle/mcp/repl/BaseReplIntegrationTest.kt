@@ -65,6 +65,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.TestInstance
+import org.koin.core.scope.Scope
 import org.koin.dsl.bind
 import org.koin.dsl.module
 import java.nio.file.Files
@@ -131,6 +132,15 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         )
     }
 
+    override fun Scope.createProvider(): GradleProvider {
+        return DefaultGradleProvider(
+            config = get<GradleConfiguration>(),
+            connectionService = get<GradleConnectionService>(),
+            executionService = get<BuildExecutionService>(),
+            buildManager = get<BuildManager>()
+        )
+    }
+
     override fun createTestModule() = module {
         single { DI.json }
         single { DI.xml }
@@ -163,16 +173,32 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single<SourceIndexService> { DefaultSourceIndexService(get()) }
         single<SourcesService> { DefaultSourcesService(get(), get(), get(), get()) }
         single<GradleSourceService> { DefaultGradleSourceService(get(), get(), get(), get(), get()) }
-        single<GradleProvider> {
-            DefaultGradleProvider(
-                get(),
-                connectionService = get(),
-                executionService = get(),
-                buildManager = get()
-            )
-        }
+        single<GradleProvider> { createProvider() }
         single {
-            DI.components(get(), get(), get(), get(), get(), get(), get(), get(), get(), get())
+            val provider: GradleProvider = get()
+            val replManager: ReplManager = get()
+            val replEnvironmentService: ReplEnvironmentService = get()
+            val envProvider: EnvProvider = get()
+            val gradleDocsService: GradleDocsService = get()
+            val gradleVersionService: GradleVersionService = get()
+            val gradleDependencyService: GradleDependencyService = get()
+            val depsDevService: DepsDevService = get()
+            val sourcesService: SourcesService = get()
+            val gradleSourceService: GradleSourceService = get()
+            val indexService: SourceIndexService = get()
+            DI.components(
+                provider,
+                replManager,
+                replEnvironmentService,
+                envProvider,
+                gradleDocsService,
+                gradleVersionService,
+                gradleDependencyService,
+                depsDevService,
+                sourcesService,
+                gradleSourceService,
+                indexService
+            )
         }
         single {
             val components: List<McpServerComponent> = get()

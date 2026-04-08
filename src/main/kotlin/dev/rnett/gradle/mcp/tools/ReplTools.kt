@@ -1,11 +1,13 @@
 package dev.rnett.gradle.mcp.tools
 
+import dev.rnett.gradle.mcp.gradle.EnvSource
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.ReplManager
 import dev.rnett.gradle.mcp.repl.ReplRequest
 import dev.rnett.gradle.mcp.repl.ReplResponse
+import dev.rnett.gradle.mcp.utils.EnvProvider
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import io.modelcontextprotocol.kotlin.sdk.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.ImageContent
@@ -19,7 +21,8 @@ import kotlin.time.ExperimentalTime
 class ReplTools(
     val gradle: GradleProvider,
     val replManager: ReplManager,
-    val replEnvironmentService: ReplEnvironmentService
+    val replEnvironmentService: ReplEnvironmentService,
+    private val envProvider: EnvProvider
 ) : McpServerComponent("REPL Tools", "Tools for interacting with a Kotlin REPL session.") {
     companion object {
         val LOGGER = LoggerFactory.getLogger(ReplTools::class.java)!!
@@ -49,6 +52,10 @@ class ReplTools(
         val additionalDependencies: List<String> = emptyList(),
         @Description("Environment variables for the REPL worker process.")
         val env: Map<String, String> = emptyMap(),
+        @Description("Where to get the base environment variables from. Defaults to INHERIT.")
+        val envSource: EnvSource = EnvSource.INHERIT,
+        @Description("List of annotations to opt-in to (e.g., 'kotlinx.coroutines.ExperimentalCoroutinesApi').")
+        val optIn: List<String> = emptyList(),
         @Description("Kotlin snippet to execute. Required for 'run'.")
         val code: String? = null
     )
@@ -103,8 +110,25 @@ class ReplTools(
             return CallToolResult(listOf(TextContent(e.message ?: "Failed to resolve REPL environment")), isError = true)
         }
 
+        currentReplSessionId?.let {
+            replManager.terminateSession(it)
+        }
+
         val sessionId = UUID.randomUUID().toString()
-        val config = envResult.config.copy(env = args.env)
+
+        val baseEnv = when (args.envSource) {
+            EnvSource.NONE -> emptyMap()
+            EnvSource.INHERIT -> envProvider.getInheritedEnvironment()
+            EnvSource.SHELL -> envProvider.getShellEnvironment()
+        }
+
+        val mergedEnv = baseEnv + args.env
+        val optInArgs = args.optIn.map { "-opt-in=$it" }
+
+        val config = envResult.config.copy(
+            env = mergedEnv,
+            compilerArgs = envResult.config.compilerArgs + optInArgs
+        )
 
         replManager.startSession(sessionId, config, envResult.javaExecutable)
         currentReplSessionId = sessionId

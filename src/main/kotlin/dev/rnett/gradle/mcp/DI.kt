@@ -152,6 +152,7 @@ object DI {
             val provider: GradleProvider = get()
             val replManager: ReplManager = get()
             val replEnvironmentService: ReplEnvironmentService = get()
+            val envProvider: EnvProvider = get()
             val gradleDocsService: GradleDocsService = get()
             val gradleVersionService: GradleVersionService = get()
             val gradleDependencyService: GradleDependencyService = get()
@@ -163,6 +164,7 @@ object DI {
                 provider,
                 replManager,
                 replEnvironmentService,
+                envProvider,
                 gradleDocsService,
                 gradleVersionService,
                 gradleDependencyService,
@@ -200,6 +202,7 @@ object DI {
         provider: GradleProvider,
         replManager: ReplManager,
         replEnvironmentService: ReplEnvironmentService,
+        envProvider: EnvProvider,
         gradleDocsService: GradleDocsService,
         gradleVersionService: GradleVersionService,
         gradleDependencyService: GradleDependencyService,
@@ -209,7 +212,7 @@ object DI {
         indexService: SourceIndexService
     ): List<McpServerComponent> = listOf(
         GradleExecutionTools(provider),
-        ReplTools(provider, replManager, replEnvironmentService),
+        ReplTools(provider, replManager, replEnvironmentService, envProvider),
         GradleBuildLookupTools(provider.buildManager),
         GradleDocsTools(gradleDocsService, gradleVersionService),
         GradleDependencyTools(gradleDependencyService),

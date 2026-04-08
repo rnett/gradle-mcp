@@ -44,6 +44,8 @@ import dev.rnett.gradle.mcp.repl.DefaultReplManager
 import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.ReplManager
 import dev.rnett.gradle.mcp.tools.ToolNames
+import dev.rnett.gradle.mcp.utils.DefaultEnvProvider
+import dev.rnett.gradle.mcp.utils.EnvProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -62,6 +64,7 @@ import java.io.ByteArrayOutputStream
 import java.util.zip.ZipOutputStream
 import kotlin.io.path.exists
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.minutes
 
 
 class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
@@ -71,6 +74,7 @@ class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
     override fun createTestModule() = module {
         single { DI.json }
         single { DI.xml }
+        single<EnvProvider> { DefaultEnvProvider }
 
         val mockClient = HttpClient(MockEngine) {
             install(ContentNegotiation) { json(DI.json) }
@@ -143,6 +147,7 @@ class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
             val provider: GradleProvider = get()
             val replManager: ReplManager = get()
             val replEnvironmentService: ReplEnvironmentService = get()
+            val envProvider: EnvProvider = get()
             val gradleDocsService: GradleDocsService = get()
             val gradleVersionService: GradleVersionService = get()
             val gradleDependencyService: GradleDependencyService = get()
@@ -153,7 +158,7 @@ class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
             DI.components(
                 provider,
                 replManager,
-                replEnvironmentService,
+                replEnvironmentService, envProvider,
                 gradleDocsService,
                 gradleVersionService,
                 gradleDependencyService,
@@ -171,7 +176,7 @@ class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `calling docs tool with current resolves to concrete version and creates versioned cache dir`() = runTest {
+    fun `calling docs tool with current resolves to concrete version and creates versioned cache dir`() = runTest(timeout = 10.minutes) {
         val env = server.koin.get<GradleMcpEnvironment>()
 
         // Call a tool that triggers version resolution

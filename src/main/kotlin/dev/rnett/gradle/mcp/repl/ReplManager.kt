@@ -84,9 +84,13 @@ class DefaultReplManager(
 
         fun addOutput(line: String) {
             outputBuffer.add(line)
-            while (outputBuffer.size > 50) {
+            while (outputBuffer.size > 100) {
                 outputBuffer.poll()
             }
+        }
+
+        fun getRecentOutput(limit: Int = 10): String {
+            return outputBuffer.toList().takeLast(limit).joinToString("\n")
         }
     }
 
@@ -135,10 +139,15 @@ class DefaultReplManager(
                 process.onExit().asDeferred().await()
                 if (isActive && session.terminalError == null) {
                     val exitCode = process.exitValue()
+                    val recentOutput = session.getRecentOutput()
+                    val message = buildString {
+                        append("The REPL worker process terminated unexpectedly with exit code $exitCode.")
+                        if (recentOutput.isNotEmpty()) {
+                            append("\n\nRecent output (last 10 lines):\n$recentOutput")
+                        }
+                    }
                     session.emitResponse(
-                        ReplResponse.Result.InternalError(
-                            "The REPL worker process terminated unexpectedly with exit code $exitCode."
-                        )
+                        ReplResponse.Result.InternalError(message)
                     )
                 }
             }
@@ -270,9 +279,14 @@ class DefaultReplManager(
 
         if (!session.process.isAlive) {
             val exitCode = session.process.exitValue()
-            val error = ReplResponse.Result.InternalError(
-                "The REPL worker process terminated unexpectedly with exit code $exitCode."
-            )
+            val recentOutput = session.getRecentOutput()
+            val message = buildString {
+                append("The REPL worker process terminated unexpectedly with exit code $exitCode.")
+                if (recentOutput.isNotEmpty()) {
+                    append("\n\nRecent output (last 10 lines):\n$recentOutput")
+                }
+            }
+            val error = ReplResponse.Result.InternalError(message)
             session.emitResponse(error)
             emit(error)
             return@flow
@@ -302,10 +316,17 @@ class DefaultReplManager(
                 null
             }
 
+            val recentOutput = session.getRecentOutput()
             val errorMessage = if (exitCode != null) {
-                "The REPL worker process terminated unexpectedly with exit code $exitCode. " +
-                        "This usually indicates a fatal error during initialization or code execution. " +
-                        "Check the logs for details."
+                buildString {
+                    append("The REPL worker process terminated unexpectedly with exit code $exitCode. ")
+                    append("This usually indicates a fatal error during initialization or code execution. ")
+                    if (recentOutput.isNotEmpty()) {
+                        append("\n\nRecent output (last 10 lines):\n$recentOutput")
+                    } else {
+                        append("Check the logs for details.")
+                    }
+                }
             } else {
                 "Failed to send request to REPL worker: ${e.message}"
             }

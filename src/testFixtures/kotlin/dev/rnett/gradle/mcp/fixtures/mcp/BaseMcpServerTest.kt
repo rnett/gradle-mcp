@@ -25,6 +25,8 @@ import dev.rnett.gradle.mcp.repl.DefaultReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.DefaultReplManager
 import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.ReplManager
+import dev.rnett.gradle.mcp.utils.DefaultEnvProvider
+import dev.rnett.gradle.mcp.utils.EnvProvider
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -52,6 +54,7 @@ abstract class BaseMcpServerTest {
     protected open fun createTestModule(): Module = module {
         single { DI.json }
         single { DI.xml }
+        single<EnvProvider> { DefaultEnvProvider }
         single { DI.createHttpClient(get(), get()) }
         single<GradleConfiguration> {
             GradleConfiguration()
@@ -79,6 +82,7 @@ abstract class BaseMcpServerTest {
 
         factory {
             val provider: GradleProvider = get()
+            val envProvider: EnvProvider = get()
             val replManager: ReplManager = get()
             val replEnvironmentService: ReplEnvironmentService = get()
             val gradleDocsService: GradleDocsService = get()
@@ -88,7 +92,19 @@ abstract class BaseMcpServerTest {
             val sourcesService: SourcesService = get()
             val gradleSourceService: GradleSourceService = get()
             val indexService: dev.rnett.gradle.mcp.dependencies.SourceIndexService = get()
-            DI.components(provider, replManager, replEnvironmentService, gradleDocsService, gradleVersionService, gradleDependencyService, depsDevService, sourcesService, gradleSourceService, indexService)
+            DI.components(
+                provider,
+                replManager,
+                replEnvironmentService,
+                envProvider,
+                gradleDocsService,
+                gradleVersionService,
+                gradleDependencyService,
+                depsDevService,
+                sourcesService,
+                gradleSourceService,
+                indexService
+            )
         }
 
         single {

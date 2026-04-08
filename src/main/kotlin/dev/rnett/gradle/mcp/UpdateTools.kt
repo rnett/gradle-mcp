@@ -33,6 +33,7 @@ import dev.rnett.gradle.mcp.repl.ReplRequest
 import dev.rnett.gradle.mcp.repl.ReplResponse
 import dev.rnett.gradle.mcp.repl.ReplSession
 import dev.rnett.gradle.mcp.tools.PaginationInput
+import dev.rnett.gradle.mcp.utils.EnvProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
 import org.gradle.tooling.events.OperationType
@@ -91,6 +92,7 @@ object UpdateTools {
             ThrowingGradleProvider,
             ThrowingReplManager,
             ThrowingReplEnvironmentService,
+            ThrowingEnvProvider,
             ThrowingGradleDocsService,
             ThrowingGradleVersionService,
             ThrowingGradleDependencyService,
@@ -196,6 +198,11 @@ object UpdateTools {
             println(text)
         }
     }
+}
+
+private object ThrowingEnvProvider : EnvProvider {
+    override fun getShellEnvironment(): Map<String, String> = throw UnsupportedOperationException("Not supported in tool generator")
+    override fun getInheritedEnvironment(): Map<String, String> = throw UnsupportedOperationException("Not supported in tool generator")
 }
 
 private object ThrowingSourcesService : SourcesService {

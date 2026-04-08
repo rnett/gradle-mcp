@@ -23,6 +23,8 @@ Probes project logic, tests utility functions, and interacts with the JVM runtim
 - **ALWAYS** restart the REPL (`stop` then `start`) after modifying project source code to pick up changes in the classpath.
 - **ALWAYS** use the `responder` API for rich output (images, markdown) to improve diagnostic visibility.
 - **NEVER** leave a REPL session running indefinitely; use `stop` when finished.
+- **REPL Session Management**: Explicitly terminate previous REPL sessions in `ReplTools` before starting new ones when session IDs are regenerated. This prevents leaking worker processes and ensures stable session management during
+  concurrent or sequential tool calls.
 
 ## Directives
 
@@ -31,7 +33,7 @@ Probes project logic, tests utility functions, and interacts with the JVM runtim
 - **ALWAYS use project-aware REPL**: Only the `kotlin_repl` tool provides full access to the project's exact classpath, dependencies, and source sets. NEVER attempt to use standalone runners for project-internal logic.
 - **Identify the environment**: When starting a session, ALWAYS ensure you select the appropriate `projectPath` (e.g., `:app`) and `sourceSet` (e.g., `main` for application code, `test` for test utility access).
 - **Pick up source changes**: The REPL uses a static snapshot of the classpath. If you change project code, you MUST `stop` and then `start` the session again to pick up the updated classes.
-- **Utilize the `responder`**: ALWAYS use `responder.render(value)` or specialized methods (`markdown`, `image`, `html`) to return rich content.
+- **Utilize the `responder`**: ALWAYS use `responder.render()` or specialized methods (`markdown`, `image`, `html`) to return rich content.
 - **Import necessary classes**: ALWAYS provide explicit imports for project-specific and library classes.
 - **Use `envSource: SHELL` if environment variables are missing**: If the REPL fails to find expected environment variables (e.g., `JAVA_HOME` or specific JDKs), it may be because the host process started before the shell environment was
   fully loaded. Set `env: { envSource: "SHELL" }` when calling `start` to force a new shell process to query the environment.

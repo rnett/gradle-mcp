@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.maven
 
 import dev.rnett.gradle.mcp.DI
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import kotlin.test.assertContains
@@ -14,6 +15,11 @@ class MavenServicesIntegrationTest {
 
     private val mavenService = DefaultMavenRepoService(client)
     private val mavenCentralService = DefaultMavenCentralService(client)
+
+    @AfterEach
+    fun cleanup() {
+        client.close()
+    }
 
     @Test
     fun `DefaultMavenCentralService searchCentral returns real results`() = runTest {

@@ -64,6 +64,22 @@ After modifying project source code, `stop` then `start` to pick up classpath ch
       },
       "description": "Environment variables for the REPL worker process."
     },
+    "envSource": {
+      "enum": [
+        "NONE",
+        "INHERIT",
+        "SHELL"
+      ],
+      "description": "Where to get the base environment variables from. Defaults to INHERIT.",
+      "type": "string"
+    },
+    "optIn": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of annotations to opt-in to (e.g., 'kotlinx.coroutines.ExperimentalCoroutinesApi')."
+    },
     "code": {
       "type": [
         "string",

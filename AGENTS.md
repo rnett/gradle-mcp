@@ -35,10 +35,14 @@ This repository contains a Model Context Protocol (MCP) server written in Kotlin
 - **Kotlin & Koin**: Leverage Gradle's type system; isolated Koin prevents global state leakage.
 - **Testing**: Use **Power Assert** for rich failure messages (avoid overly nested assertions to prevent compiler crashes). Reuse class-level test resources for speed. Avoid using the `!!` operator on test results before assertion (e.g.,
   use `assertTrue(result.property.contains(...))` directly on nullable properties) to ensure Power Assert can display the actual values in failure reports. When asserting on the output of an MCP tool that passes through a service layer,
-  verify the final re-rendered format (e.g., `Project: :path`) rather than the raw task output format (e.g., `PROJECT: :path`) to prevent false negatives caused by formatting layers.
+  verify the final re-rendered format (e.g., `Project: :path`) rather than the raw task output format (e.g., `PROJECT: :path`) to prevent false negatives caused by formatting layers. When calling MCP tools from tests using
+  `server.client.callTool`, always use `kotlinx.serialization.json.buildJsonObject` for arguments containing complex types like `List` or `Map` to prevent serialization mismatches. Any integration test class inheriting from
+  `BaseReplIntegrationTest` must ensure `createProvider()` is overridden to return a `DefaultGradleProvider` instead of a relaxed mock, as the REPL environment resolution relies on real Gradle builds.
 - **Mocking & Future-Proofing**: When refactoring service interfaces mocked in many tests, prioritize using a **data class for parameters** (e.g., `DependencyRequestOptions`). This avoids "boolean blindness" and allows adding new configuration flags with defaults without breaking existing test call sites.
 - **MCP Design**: Return structured Markdown for LLM reasoning. Use Tooling API for stability. MCP tool descriptions must be self-sufficient enough for standalone use, while skills remain the primary "agentic" interface.
 - **Ambiguity Reporting**: Use "exact match -> unique prefix match -> ambiguous prefix match" flow for lookup tools.
+- **Worker Diagnostics via Stderr Buffering**: When managing external worker processes (like the REPL worker), implement a small circular buffer for `stderr` lines in the manager's session state. This provides immediate, high-context
+  feedback in tool responses when a process terminates unexpectedly (e.g., exit code 0 or JVM crashes), which is otherwise swallowed by standard logging.
 - **Granular Advisory Locking**: Employ a two-level locking strategy (Shared 'Base' lock + Exclusive 'Provider' locks) for multi-stage resource processing. This maximizes concurrent throughput by allowing independent facet-level work to
   proceed once the base structure is finalized.
 - **Failure Detection via Shared Locks**: Distinguish successful completion from process crashes by checking for a completion marker after a shared lock on a 'Base' file is released (indicating the exclusive worker finished).
@@ -74,6 +78,13 @@ Detailed operational guidance is offloaded to specialized **Expert Skills** to m
 - **Integration Test Project Dependency Reporting**: For project dependencies in integration tests, consistently use a specific group (e.g., `"project"`) and the project path as the name in the report. This ensures compatibility with
   existing test assertions, as changing project dependencies to report their actual `ModuleVersionIdentifier` (group/name/version) can break tests reliant on path-based naming conventions.
 - **Gradle Project Path Normalization**: Prefer a simple `startsWith(':')` check and early returns for null/empty/":" over more expensive `trim(':')` operations for standardizing project paths to reduce unnecessary string allocations.
+- **Integration Test Timeouts**: Always specify a generous timeout (e.g., 10 minutes) for integration tests using `runTest` that trigger Gradle builds or start external processes. This prevents flaky failures due to the default 60-second
+  timeout being exceeded during parallel execution or on slow machines.
+- **Test Resource Management**: Ensure `HttpClient` instances created manually in tests are explicitly closed using `@AfterEach` or `AutoCloseable` to prevent resource leaks (threads, file descriptors) that can cause subsequent tests to
+  fail or hang, especially during parallel execution.
+- **REPL Session Management**: Explicitly terminate previous REPL sessions in `ReplTools` before starting new ones when session IDs are regenerated. This prevents leaking worker processes and ensures stable session management during
+  concurrent or sequential tool calls.
+- **Test Search Syntax**: Use simple name prefixes without parentheses when searching for tests with `inspect_build`. This avoids matching issues caused by JUnit 5's addition of parentheses to test method names in report outputs.
 
 ---
 
