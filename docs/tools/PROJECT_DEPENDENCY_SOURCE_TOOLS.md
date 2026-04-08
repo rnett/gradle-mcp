@@ -9,7 +9,7 @@ Tools for searching and inspecting source code of Gradle dependencies.
 Reads source files and explores directory structures of external library dependencies, plugins, or Gradle's internal engine; use instead of shell tools which cannot locate remote dependency sources.
 Buildscript (plugin) dependencies are excluded by default to reduce noise. To search plugins, use `sourceSetPath: ":buildscript"` (root project) or `sourceSetPath: ":app:buildscript"` (subproject).
 Supports dot-separated package paths via the symbol index. Use `search_dependency_sources` to find paths first.
-`path` without `dependency`: must include group/artifact prefix. With `dependency`: relative to library root.
+Strongly recommended: Use the `{group}/{artifact}/...` syntax for `path`. The `dependency` parameter should primarily be used to filter the scope for performance, not as a shortcut for path specification.
 Sources are CAS-cached (immutable). Use `fresh=true` for dependency changes; `forceDownload=true` only to recover corrupt/missing files.
 ALWAYS scope with a project, configuration, or source set (or use `gradleSource: true`) — unscoped access is no longer supported.
 Returns the absolute path of the sources root. Dependency directories are symlinked; pass `--follow` to `rg` (e.g., `rg --follow <pattern> <path>`).
@@ -17,8 +17,8 @@ Returns the absolute path of the sources root. Dependency directories are symlin
 ### Examples
 - Browse project deps: `{ projectPath: ":" }`
 - Browse single dep: `{ dependency: "org.jetbrains.kotlin:kotlin-stdlib" }`
-- Read file: `{ dependency: "org.jetbrains.kotlin:kotlin-stdlib", path: "kotlin/collections/List.kt" }`
-- Read package: `{ dependency: "org.jetbrains.kotlin:kotlin-stdlib", path: "kotlin.collections" }`
+- Read file: `{ path: "org.jetbrains.kotlin/kotlin-stdlib/kotlin/collections/List.kt" }`
+- Read package: `{ path: "org.jetbrains.kotlin/kotlin-stdlib/kotlin.collections" }`
 - Plugins: `{ sourceSetPath: ":buildscript" }`
 - Gradle internals: `{ gradleSource: true }`
 
@@ -60,7 +60,7 @@ Returns the absolute path of the sources root. Dependency directories are symlin
         "string",
         "null"
       ],
-      "description": "Single dependency filter by GAV (e.g., 'group:name'). Excludes transitive dependencies."
+      "description": "Optional filter to scope the read to a single dependency by GAV (e.g., 'group:name'). Use this for performance/focus. Not recommended for general path specification; use `{group}/{artifact}/...` in `path` instead."
     },
     "gradleSource": {
       "type": "boolean",
@@ -71,7 +71,7 @@ Returns the absolute path of the sources root. Dependency directories are symlin
         "string",
         "null"
       ],
-      "description": "File, dir, or package path. Requires group/artifact prefix unless 'dependency' is set."
+      "description": "File, dir, or package path. Strongly recommended to use the `{group}/{artifact}/...` prefix (e.g. 'org.jetbrains.kotlin/kotlin-stdlib/kotlin/collections/List.kt')."
     },
     "forceDownload": {
       "type": "boolean",
@@ -177,7 +177,7 @@ Once found, read content with `read_dependency_sources`.
         "string",
         "null"
       ],
-      "description": "Single dependency filter by GAV (e.g., 'group:name'). Excludes transitive dependencies."
+      "description": "Optional filter to scope the search to a single dependency by GAV (e.g., 'group:name'). Use this to focus the search and improve performance."
     },
     "gradleSource": {
       "type": "boolean",

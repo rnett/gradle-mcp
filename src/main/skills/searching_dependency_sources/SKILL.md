@@ -19,8 +19,8 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 - **ALWAYS** use `search_dependency_sources` as the primary discovery tool for external library and plugin code.
 - **ALWAYS** prefer reading source code over interactive REPL exploration for understanding unfamiliar library APIs.
 - **ALWAYS** provide absolute paths for `projectRoot`.
-- **ALWAYS** use the `dependency` parameter to target a single library (e.g., `dependency="org.mongodb:mongodb-driver-sync"`) when the target is known. This is significantly faster and more focused than searching the entire project graph.
-  Note that when `dependency` is used in `search_dependency_sources` or `read_dependency_sources`, the `path` and all results are relative to the library root (omitting the `<group>/<artifact>...` prefix).
+- **ALWAYS** use the `{group}/{artifact}` prefix for reading specific files (e.g., `path="org.mongodb/mongodb-driver-sync/org/mongodb/client/MongoClient.kt"`). The `dependency` parameter should only be used to filter the search scope for
+  performance when searching across libraries, not as the primary way to specify a path.
 - **NEVER** use `gradleSource: true` in this skill; use `researching_gradle_internals` for Gradle's internal implementation.
 - **NEVER** use generic shell tools like `grep` or `find` to *locate* dependency sources; they reside in remote caches whose paths are not predictable in advance.
 - **MAY** use shell tools like `rg` or `ast-grep` to *operate on* a sources root path explicitly returned by `read_dependency_sources` or `search_dependency_sources` in the `Sources root: <path>` header line. Dependency directories inside
@@ -45,8 +45,8 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 - **Invoke Precisely**: ALWAYS set `searchType` explicitly if the intent is not a general full-text search. This improves result accuracy and reduces noise.
 - **Scope Surgically**: Use `projectPath`, `configurationPath`, or `sourceSetPath` to narrow the search and improve performance if the target library's context is known. To search a plugin, use `sourceSetPath=":buildscript"`.
 - **ALWAYS** scope with a project, configuration, or source set (or use `gradleSource: true`) — unscoped search is no longer supported.
-- **Target Libraries Directly**: Use the `dependency` parameter to search or read from a single library. It supports `group:name:version:variant`, `group:name:version`, `group:name`, or just `group`. This bypasses project-level index
-  merging and provides instantaneous results from the global extracted source cache. Note that results will be relative to the targeted library root.
+- **Target Libraries Directly**: Use the `dependency` parameter to filter searches to a single library. It supports `group:name:version:variant`, `group:name:version`, `group:name`, or just `group`. This bypasses project-level index
+  merging and provides instantaneous results from the global extracted source cache.
 - **Troubleshoot Targeted Searches**: If a targeted search using the `dependency` parameter fails or returns no matches, use `inspect_dependencies` first to verify the exact coordinates (group, name, version, variant) of the dependency as
   resolved by Gradle.
 - **Refresh Indices**: Use `fresh: true` if project dependencies have recently changed to ensure the index is up-to-date.
@@ -92,14 +92,10 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 2. Call `search_dependency_sources(query="<query>", dependency="<group:artifact>", projectPath=":")`.
 3. The results will be scoped ONLY to that library, ensuring maximum speed and relevance.
 
-**Path Relativity and Targeted Searching**
+**Path Syntax and Targeted Searching**
 
-When using the `dependency` parameter, all file paths and search results are relative to the library's root, omitting the `<group>/<artifact>...` prefix.
-
-* **Merged Scope (No Filter)**: `path = "org.mongodb/mongodb-driver-sync/org/mongodb/client/MongoClient.kt"`
-* **Targeted Scope (`dependency="org.mongodb:mongodb-driver-sync"`)**: `path = "org/mongodb/client/MongoClient.kt"`
-
-This approach is significantly faster and simplifies path handling when you are focused on a specific library.
+When reading specific dependency source files, it is STRONGLY RECOMMENDED to use the full path syntax including the `{group}/{artifact}` prefix (e.g., `path = "org.mongodb/mongodb-driver-sync/org/mongodb/client/MongoClient.kt"`). The
+`dependency` parameter should be reserved for filtering the scope of `search_dependency_sources` for performance, rather than as a way to shorten paths. This explicitly avoids Windows file system issues with colons.
 
 ## Examples
 
@@ -119,12 +115,12 @@ This approach is significantly faster and simplifies path handling when you are 
 
 ```json
 {
-  "dependency": "org.jetbrains.kotlinx:kotlinx-coroutines-core",
-  "path": "kotlinx/coroutines/Job.kt",
+  "path": "org.jetbrains.kotlinx/kotlinx-coroutines-core/kotlinx/coroutines/Job.kt",
   "projectPath": ":"
 }
 ```
-// Reasoning: Reading 'Job.kt' directly from the targeted 'kotlinx-coroutines-core' library. Note the 'group/artifact...' prefix is omitted.
+
+// Reasoning: Reading 'Job.kt' using the recommended `{group}/{artifact}` syntax.
 
 ### Search for a specific class definition
 
