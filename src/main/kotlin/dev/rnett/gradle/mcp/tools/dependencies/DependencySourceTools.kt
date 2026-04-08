@@ -6,6 +6,7 @@ import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
 import dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch
 import dev.rnett.gradle.mcp.dependencies.search.FullTextSearch
 import dev.rnett.gradle.mcp.dependencies.search.GlobSearch
+import dev.rnett.gradle.mcp.dependencies.search.NestedPackageContents
 import dev.rnett.gradle.mcp.dependencies.search.PackageContents
 import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
 import dev.rnett.gradle.mcp.dependencies.search.SearchResponse
@@ -128,7 +129,9 @@ class DependencySourceTools(
                 }
 
                 if (packageContents != null) {
-                    return@tool "$sourcesHeader\n\nPackage: ${args.path}\n\n" + paginateText(formatPackageContents(packageContents), args.pagination)
+                    val nested = indexService.listNestedPackageContents(sources, args.path)
+                    val formatted = if (nested != null) formatNestedPackageContents(nested) else formatPackageContents(packageContents)
+                    return@tool "$sourcesHeader\n\nPackage: ${args.path}\n\n" + paginateText(formatted, args.pagination)
                 }
                 return@tool "$sourcesHeader\n\nPath not found: ${args.path}"
             }
@@ -271,6 +274,32 @@ class DependencySourceTools(
         }.trim()
     }
 
+    private fun formatNestedPackageContents(contents: NestedPackageContents): String {
+        return buildString {
+            if (contents.tooManySubPackages) {
+                appendLine("Sub-packages (too many sub-packages to expand; use a more specific path):")
+                contents.subPackages.forEach { appendLine("- ${it.name}/") }
+            } else if (contents.subPackages.isNotEmpty()) {
+                appendLine("Sub-packages:")
+                for (sub in contents.subPackages) {
+                    if (sub.symbols.isEmpty() && sub.subPackages.isEmpty()) {
+                        appendLine("- ${sub.name}/")
+                    } else if (sub.symbols.isEmpty()) {
+                        appendLine("- ${sub.name}/  (${sub.subPackages.size} sub-packages)")
+                    } else {
+                        appendLine("- ${sub.name}/  (${sub.symbols.size} symbols)")
+                    }
+                    sub.symbols.forEach { appendLine("    - $it") }
+                }
+            }
+            if (contents.symbols.isNotEmpty()) {
+                if (contents.subPackages.isNotEmpty()) appendLine()
+                appendLine("Symbols:")
+                contents.symbols.forEach { appendLine("- $it") }
+            }
+        }.trim()
+    }
+
     private fun walkDirectory(dir: Path, maxDepth: Int = 2): String {
         return buildString {
             appendLine(dir.name + "/")
@@ -303,8 +332,10 @@ class DependencySourceTools(
         for ((index, child) in children.withIndex()) {
             val isLast = index == children.lastIndex
             val marker = if (isLast) "└── " else "├── "
-            appendLine(prefix + marker + child.name + if (child.isDirectory()) "/" else "")
-            if (child.isDirectory()) {
+            val atDepthLimit = child.isDirectory() && depth + 1 >= maxDepth
+            val countSuffix = if (atDepthLimit) "  (${child.listDirectoryEntries().size} items)" else ""
+            appendLine(prefix + marker + child.name + if (child.isDirectory()) "/$countSuffix" else "")
+            if (child.isDirectory() && !atDepthLimit) {
                 val childPrefix = prefix + if (isLast) "    " else "│   "
                 walkDirectoryImpl(root, child, childPrefix, depth + 1, maxDepth)
             }

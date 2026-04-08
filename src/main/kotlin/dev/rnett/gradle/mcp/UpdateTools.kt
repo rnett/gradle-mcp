@@ -230,6 +230,10 @@ private object ThrowingSourceIndexService : dev.rnett.gradle.mcp.dependencies.So
     override suspend fun listPackageContents(sources: SourcesDir, packageName: String): PackageContents? {
         throw UnsupportedOperationException("Not used for tool listing")
     }
+
+    override suspend fun listNestedPackageContents(sources: SourcesDir, packageName: String): dev.rnett.gradle.mcp.dependencies.search.NestedPackageContents? {
+        throw UnsupportedOperationException("Not used for tool listing")
+    }
 }
 
 private object ThrowingGradleProvider : GradleProvider {

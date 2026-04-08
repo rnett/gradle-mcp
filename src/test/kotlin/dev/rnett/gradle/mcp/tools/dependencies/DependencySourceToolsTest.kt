@@ -4,8 +4,11 @@ import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.SourceIndexService
 import dev.rnett.gradle.mcp.dependencies.SourcesService
 import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
+import dev.rnett.gradle.mcp.dependencies.search.NestedPackageContents
+import dev.rnett.gradle.mcp.dependencies.search.PackageContents
 import dev.rnett.gradle.mcp.dependencies.search.SearchResponse
 import dev.rnett.gradle.mcp.dependencies.search.SearchResult
+import dev.rnett.gradle.mcp.dependencies.search.SubPackageContents
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.mockk.coEvery
@@ -19,6 +22,8 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import kotlin.io.path.createDirectories
+import kotlin.io.path.createFile
 import kotlin.test.assertContains
 import kotlin.test.assertFalse
 
@@ -143,5 +148,132 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         // Should not expose internal error branch (dead code removed)
         assertFalse(result.isError == true)
+    }
+
+    // ─── walkDirectory: depth-limit annotations ────────────────────────────────
+
+    @Test
+    fun `walkDirectory annotates directories at the depth limit with item count`() = runTest {
+        // Create: tempDir/level1/level2/ with 3 children
+        val level1 = tempDir.resolve("level1").createDirectories()
+        val level2 = level1.resolve("level2").createDirectories()
+        level2.resolve("a.kt").createFile()
+        level2.resolve("b.kt").createFile()
+        level2.resolve("c.kt").createFile()
+
+        val result = server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectPath", ":")
+            }
+        ) as CallToolResult
+
+        val text = resultText(result)
+        // level2 is at depth 2 (the limit for maxDepth=2), so it should get "(3 items)"
+        assertContains(text, "(3 items)")
+    }
+
+    @Test
+    fun `walkDirectory does NOT annotate directories within the depth limit`() = runTest {
+        // Create: tempDir/level1/ with one child file
+        val level1 = tempDir.resolve("level1").createDirectories()
+        level1.resolve("file.kt").createFile()
+
+        val result = server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectPath", ":")
+            }
+        ) as CallToolResult
+
+        val text = resultText(result)
+        // level1 is at depth 1 (within limit), its children will be walked — no count suffix
+        assertFalse(text.contains("level1/  ("))
+    }
+
+    @Test
+    fun `walkDirectory annotates empty directory at depth limit with 0 items`() = runTest {
+        val level1 = tempDir.resolve("level1").createDirectories()
+        level1.resolve("emptyDir").createDirectories()
+
+        val result = server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectPath", ":")
+            }
+        ) as CallToolResult
+
+        assertContains(resultText(result), "(0 items)")
+    }
+
+    // ─── nested package listing ────────────────────────────────────────────────
+
+    @Test
+    fun `nested package listing shows sub-packages with their symbol count`() = runTest {
+        coEvery { indexService.listPackageContents(any(), any()) } returns PackageContents(
+            symbols = emptyList(),
+            subPackages = listOf("collections", "coroutines")
+        )
+        coEvery { indexService.listNestedPackageContents(any(), any()) } returns NestedPackageContents(
+            symbols = emptyList(),
+            subPackages = listOf(
+                SubPackageContents(name = "collections", symbols = listOf("List", "Map", "Set"), subPackages = emptyList()),
+                SubPackageContents(name = "coroutines", symbols = listOf("launch", "async"), subPackages = emptyList())
+            )
+        )
+
+        val result = server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("path", "kotlin.stdlib")
+                put("projectPath", ":")
+            }
+        ) as CallToolResult
+
+        val text = resultText(result)
+        assertContains(text, "collections/  (3 symbols)")
+        assertContains(text, "coroutines/  (2 symbols)")
+    }
+
+    @Test
+    fun `nested package listing shows sub-package count for entries with no direct symbols`() = runTest {
+        coEvery { indexService.listPackageContents(any(), any()) } returns PackageContents(
+            symbols = emptyList(),
+            subPackages = listOf("io")
+        )
+        coEvery { indexService.listNestedPackageContents(any(), any()) } returns NestedPackageContents(
+            symbols = emptyList(),
+            subPackages = listOf(
+                SubPackageContents(name = "io", symbols = emptyList(), subPackages = listOf("ktor", "okhttp"))
+            )
+        )
+
+        val result = server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("path", "kotlin.stdlib")
+                put("projectPath", ":")
+            }
+        ) as CallToolResult
+
+        assertContains(resultText(result), "io/  (2 sub-packages)")
+    }
+
+    @Test
+    fun `nested package listing with too many sub-packages shows flat list with note`() = runTest {
+        val manySubPackages = (1..31).map { "pkg$it" }
+        coEvery { indexService.listPackageContents(any(), any()) } returns PackageContents(
+            symbols = emptyList(),
+            subPackages = manySubPackages
+        )
+        coEvery { indexService.listNestedPackageContents(any(), any()) } returns NestedPackageContents(
+            symbols = emptyList(),
+            subPackages = manySubPackages.map { SubPackageContents(name = it, symbols = emptyList(), subPackages = emptyList()) },
+            tooManySubPackages = true
+        )
+
+        val result = server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("path", "kotlin.stdlib")
+                put("projectPath", ":")
+            }
+        ) as CallToolResult
+
+        assertContains(resultText(result), "too many sub-packages to expand")
     }
 }

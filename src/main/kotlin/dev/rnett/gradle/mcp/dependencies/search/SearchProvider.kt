@@ -56,6 +56,32 @@ data class PackageContents(
     val subPackages: List<String>
 )
 
+/**
+ * Contents of a single sub-package at depth 1, fetched for nested listing.
+ *
+ * @property name The simple segment name of this sub-package.
+ * @property symbols Direct symbols declared in this sub-package.
+ * @property subPackages Immediate sub-package segments of this sub-package (depth 2).
+ */
+data class SubPackageContents(
+    val name: String,
+    val symbols: List<String>,
+    val subPackages: List<String>
+)
+
+/**
+ * A 2-level nested view of a package for richer navigation output.
+ *
+ * @property symbols Direct symbols in the root package.
+ * @property subPackages Expanded sub-packages (depth 1), each containing their own symbols and sub-package names.
+ * @property tooManySubPackages True when expansion was skipped because the sub-package count exceeded the cap.
+ */
+data class NestedPackageContents(
+    val symbols: List<String>,
+    val subPackages: List<SubPackageContents>,
+    val tooManySubPackages: Boolean = false
+)
+
 data class SearchResponse<T>(
     val results: List<T>,
     val interpretedQuery: String? = null,
