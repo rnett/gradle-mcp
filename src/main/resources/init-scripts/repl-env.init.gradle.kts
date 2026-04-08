@@ -52,12 +52,12 @@ abstract class ResolveReplEnvironmentTask : DefaultTask() {
         println("[gradle-mcp] [PROGRESS] [RESOLUTION]: 1/1: Resolved runtime classpath")
 
         // Output format is recognized by the gradle-mcp client
-        println("[gradle-mcp-repl-env] projectRoot=${projectRootPath.get()}")
-        println("[gradle-mcp-repl-env] classpath=${currentClasspathFiles.joinToString(";") { it.absolutePath }}")
-        println("[gradle-mcp-repl-env] javaExecutable=${javaExecutable.getOrElse(System.getProperty("java.home") + "/bin/java")}")
-        println("[gradle-mcp-repl-env] pluginsClasspath=${pluginsClasspath.getOrElse(emptySet()).joinToString(";")}")
-        println("[gradle-mcp-repl-env] compilerPluginOptions=${compilerPluginOptions.getOrElse(emptyList()).joinToString(";")}")
-        println("[gradle-mcp-repl-env] compilerArgs=${compilerArgs.getOrElse(emptyList()).joinToString(";")}")
+        println("[gradle-mcp] [repl-env] projectRoot=${projectRootPath.get()}")
+        println("[gradle-mcp] [repl-env] classpath=${currentClasspathFiles.joinToString(";") { it.absolutePath }}")
+        println("[gradle-mcp] [repl-env] javaExecutable=${javaExecutable.getOrElse(System.getProperty("java.home") + "/bin/java")}")
+        println("[gradle-mcp] [repl-env] pluginsClasspath=${pluginsClasspath.getOrElse(emptySet()).joinToString(";")}")
+        println("[gradle-mcp] [repl-env] compilerPluginOptions=${compilerPluginOptions.getOrElse(emptyList()).joinToString(";")}")
+        println("[gradle-mcp] [repl-env] compilerArgs=${compilerArgs.getOrElse(emptyList()).joinToString(";")}")
     }
 }
 

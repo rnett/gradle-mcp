@@ -28,7 +28,7 @@ class DefaultReplEnvironmentService(private val gradle: GradleProvider) : ReplEn
 
     companion object {
         private val LOGGER = LoggerFactory.getLogger(DefaultReplEnvironmentService::class.java)
-        private const val ENV_MARKER = "[gradle-mcp-repl-env]"
+        private const val ENV_MARKER = "[gradle-mcp] [repl-env]"
     }
 
     context(progress: ProgressReporter)

@@ -24,20 +24,20 @@ class GradleDependencyParsingTest {
     @Test
     fun `can parse structured output`() {
         val output = """
-            PROJECT: : | project ':'
-            REPOSITORY: : | MavenRepo | https://repo.maven.apache.org/maven2/
-            SOURCESET: : | main | implementation,runtimeOnly,compileClasspath,runtimeClasspath
-            CONFIGURATION: : | implementation | true | | Implementation only dependencies for source set 'main'. | false
-            DEP: : | * | project : | project | : | | | | false
-            DEP: : | ** | org.jetbrains.kotlin:kotlin-stdlib:1.9.22 | org.jetbrains.kotlin | kotlin-stdlib | 1.9.22 | | | false
-            DEP: : | *** | org.jetbrains:annotations:13.0 | org.jetbrains | annotations | 13.0 | | | false
-            CONFIGURATION: : | testImplementation | true | | Implementation only dependencies for source set 'test'. | false
-            DEP: : | * | project : | project | : | | | | false
-            DEP: : | ** | org.junit.jupiter:junit-jupiter:5.10.1 | org.junit.jupiter | junit-jupiter | 5.10.1 | | | false
-            DEP: : | *** | org.junit.jupiter:junit-jupiter-api:5.10.1 | org.junit.jupiter | junit-jupiter-api | 5.10.1 | | | false
-            DEP: : | *** | org.junit.jupiter:junit-jupiter-params:5.10.1 | org.junit.jupiter | junit-jupiter-params | 5.10.1 | | | false
-            DEP: : | *** | org.junit.jupiter:junit-jupiter-engine:5.10.1 | org.junit.jupiter | junit-jupiter-engine | 5.10.1 | | | false
-            DEP: : | **** | org.junit.platform:junit-platform-engine:1.10.1 | org.junit.platform | junit-platform-engine | 1.10.1 | | | false
+            [gradle-mcp] [DEPENDENCIES] PROJECT | : | project ':'
+            [gradle-mcp] [DEPENDENCIES] REPOSITORY | : | MavenRepo | https://repo.maven.apache.org/maven2/
+            [gradle-mcp] [DEPENDENCIES] SOURCESET | : | main | implementation,runtimeOnly,compileClasspath,runtimeClasspath
+            [gradle-mcp] [DEPENDENCIES] CONFIGURATION | : | implementation | true | | Implementation only dependencies for source set 'main'. | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | * | project : | project | : | | | | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | ** | org.jetbrains.kotlin:kotlin-stdlib:1.9.22 | org.jetbrains.kotlin | kotlin-stdlib | 1.9.22 | | | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | *** | org.jetbrains:annotations:13.0 | org.jetbrains | annotations | 13.0 | | | false
+            [gradle-mcp] [DEPENDENCIES] CONFIGURATION | : | testImplementation | true | | Implementation only dependencies for source set 'test'. | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | * | project : | project | : | | | | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | ** | org.junit.jupiter:junit-jupiter:5.10.1 | org.junit.jupiter | junit-jupiter | 5.10.1 | | | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | *** | org.junit.jupiter:junit-jupiter-api:5.10.1 | org.junit.jupiter | junit-jupiter-api | 5.10.1 | | | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | *** | org.junit.jupiter:junit-jupiter-params:5.10.1 | org.junit.jupiter | junit-jupiter-params | 5.10.1 | | | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | *** | org.junit.jupiter:junit-jupiter-engine:5.10.1 | org.junit.jupiter | junit-jupiter-engine | 5.10.1 | | | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | **** | org.junit.platform:junit-platform-engine:1.10.1 | org.junit.platform | junit-platform-engine | 1.10.1 | | | false
         """.trimIndent()
 
         val service = DefaultGradleDependencyService(MockGradleProvider())
@@ -68,12 +68,12 @@ class GradleDependencyParsingTest {
     @Test
     fun `can parse already visited dependencies`() {
         val output = """
-            PROJECT: : | project ':'
-            CONFIGURATION: : | implementation | true | | Implementation only dependencies for source set 'main'. | false
-            DEP: : | * | project : | project | : | | | | false
-            DEP: : | ** | org.jetbrains.kotlin:kotlin-stdlib:1.9.22 | org.jetbrains.kotlin | kotlin-stdlib | 1.9.22 | | | false
-            DEP: : | *** | org.jetbrains:annotations:13.0 | org.jetbrains | annotations | 13.0 | | | false
-            DEP: : | ** | org.jetbrains:annotations:13.0 | org.jetbrains | annotations | 13.0 | | | false
+            [gradle-mcp] [DEPENDENCIES] PROJECT | : | project ':'
+            [gradle-mcp] [DEPENDENCIES] CONFIGURATION | : | implementation | true | | Implementation only dependencies for source set 'main'. | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | * | project : | project | : | | | | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | ** | org.jetbrains.kotlin:kotlin-stdlib:1.9.22 | org.jetbrains.kotlin | kotlin-stdlib | 1.9.22 | | | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | *** | org.jetbrains:annotations:13.0 | org.jetbrains | annotations | 13.0 | | | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | ** | org.jetbrains:annotations:13.0 | org.jetbrains | annotations | 13.0 | | | false
         """.trimIndent()
 
         val service = DefaultGradleDependencyService(MockGradleProvider())
@@ -96,13 +96,13 @@ class GradleDependencyParsingTest {
     @Test
     fun `can parse already visited dependencies with children`() {
         val output = """
-            PROJECT: : | project ':'
-            CONFIGURATION: : | implementation | true | | Implementation only dependencies for source set 'main'. | false
-            DEP: : | * | A | group | A | 1.0 | | | false
-            DEP: : | ** | B | group | B | 1.0 | | | false
-            DEP: : | *** | C | group | C | 1.0 | | | false
-            DEP: : | * | D | group | D | 1.0 | | | false
-            DEP: : | ** | B | group | B | 1.0 | | | false
+            [gradle-mcp] [DEPENDENCIES] PROJECT | : | project ':'
+            [gradle-mcp] [DEPENDENCIES] CONFIGURATION | : | implementation | true | | Implementation only dependencies for source set 'main'. | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | * | A | group | A | 1.0 | | | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | ** | B | group | B | 1.0 | | | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | *** | C | group | C | 1.0 | | | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | * | D | group | D | 1.0 | | | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | ** | B | group | B | 1.0 | | | false
         """.trimIndent()
 
         val service = DefaultGradleDependencyService(MockGradleProvider())
@@ -134,13 +134,13 @@ class GradleDependencyParsingTest {
     @Test
     fun `can parse interleaved output from multiple projects`() {
         val output = """
-            PROJECT: :app | project ':app'
-            PROJECT: :lib | project ':lib'
-            CONFIGURATION: :app | implementation | true | | App dependencies | false
-            CONFIGURATION: :lib | implementation | true | | Lib dependencies | false
-            DEP: :app | * | :lib | project | :lib | | | | false
-            DEP: :lib | * | org.jetbrains.kotlin:kotlin-stdlib:1.9.22 | org.jetbrains.kotlin | kotlin-stdlib | 1.9.22 | | | false
-            DEP: :app | ** | org.jetbrains.kotlin:kotlin-stdlib:1.9.22 | org.jetbrains.kotlin | kotlin-stdlib | 1.9.22 | | | false
+            [gradle-mcp] [DEPENDENCIES] PROJECT | :app | project ':app'
+            [gradle-mcp] [DEPENDENCIES] PROJECT | :lib | project ':lib'
+            [gradle-mcp] [DEPENDENCIES] CONFIGURATION | :app | implementation | true | | App dependencies | false
+            [gradle-mcp] [DEPENDENCIES] CONFIGURATION | :lib | implementation | true | | Lib dependencies | false
+            [gradle-mcp] [DEPENDENCIES] DEP | :app | * | :lib | project | :lib | | | | false
+            [gradle-mcp] [DEPENDENCIES] DEP | :lib | * | org.jetbrains.kotlin:kotlin-stdlib:1.9.22 | org.jetbrains.kotlin | kotlin-stdlib | 1.9.22 | | | false
+            [gradle-mcp] [DEPENDENCIES] DEP | :app | ** | org.jetbrains.kotlin:kotlin-stdlib:1.9.22 | org.jetbrains.kotlin | kotlin-stdlib | 1.9.22 | | | false
         """.trimIndent()
 
         val service = DefaultGradleDependencyService(MockGradleProvider())
@@ -168,10 +168,10 @@ class GradleDependencyParsingTest {
     @Test
     fun `can parse buildscript source set`() {
         val output = """
-            PROJECT: : | project ':'
-            SOURCESET: : | buildscript | buildscript:classpath
-            CONFIGURATION: : | buildscript:classpath | true | | | false
-            DEP: : | * | com.google.guava:guava:32.1.2-jre | com.google.guava | guava | 32.1.2-jre | | | false
+            [gradle-mcp] [DEPENDENCIES] PROJECT | : | project ':'
+            [gradle-mcp] [DEPENDENCIES] SOURCESET | : | buildscript | buildscript:classpath
+            [gradle-mcp] [DEPENDENCIES] CONFIGURATION | : | buildscript:classpath | true | | | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | * | com.google.guava:guava:32.1.2-jre | com.google.guava | guava | 32.1.2-jre | | | false
         """.trimIndent()
 
         val service = DefaultGradleDependencyService(MockGradleProvider())
@@ -192,10 +192,10 @@ class GradleDependencyParsingTest {
     @Test
     fun `can parse internal configurations`() {
         val output = """
-            PROJECT: : | project ':'
-            CONFIGURATION: : | implementation | true | | Implementation | false
-            CONFIGURATION: : | jvmMainApiDependenciesMetadata | true | | Internal | true
-            DEP: : | * | org.jetbrains.kotlin:kotlin-stdlib:1.9.22 | org.jetbrains.kotlin | kotlin-stdlib | 1.9.22 | | | false
+            [gradle-mcp] [DEPENDENCIES] PROJECT | : | project ':'
+            [gradle-mcp] [DEPENDENCIES] CONFIGURATION | : | implementation | true | | Implementation | false
+            [gradle-mcp] [DEPENDENCIES] CONFIGURATION | : | jvmMainApiDependenciesMetadata | true | | Internal | true
+            [gradle-mcp] [DEPENDENCIES] DEP | : | * | org.jetbrains.kotlin:kotlin-stdlib:1.9.22 | org.jetbrains.kotlin | kotlin-stdlib | 1.9.22 | | | false
         """.trimIndent()
 
         val service = DefaultGradleDependencyService(MockGradleProvider())
@@ -214,11 +214,11 @@ class GradleDependencyParsingTest {
     @Test
     fun `getDependencies filters internal configurations by default`() = runTest {
         val output = """
-            PROJECT: : | project ':'
-            CONFIGURATION: : | implementation | true | | Implementation | false
-            DEP: : | * | a:a:1.0 | a | a | 1.0 | | | false
-            CONFIGURATION: : | jvmMainApiDependenciesMetadata | true | | Internal | true
-            DEP: : | * | b:b:1.0 | b | b | 1.0 | | | false
+            [gradle-mcp] [DEPENDENCIES] PROJECT | : | project ':'
+            [gradle-mcp] [DEPENDENCIES] CONFIGURATION | : | implementation | true | | Implementation | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | * | a:a:1.0 | a | a | 1.0 | | | false
+            [gradle-mcp] [DEPENDENCIES] CONFIGURATION | : | jvmMainApiDependenciesMetadata | true | | Internal | true
+            [gradle-mcp] [DEPENDENCIES] DEP | : | * | b:b:1.0 | b | b | 1.0 | | | false
         """.trimIndent()
 
         val provider = object : MockGradleProvider() {
@@ -239,7 +239,7 @@ class GradleDependencyParsingTest {
                     scope = this@runTest
                 )
                 rb.logBuffer.append(output)
-                rb.finish(null) { }
+                rb.finish(null) {}
                 return rb
             }
         }

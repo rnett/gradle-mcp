@@ -135,7 +135,9 @@ private class MutableDep(
         visited: Set<Triple<String, String?, List<String>>> = emptySet()
     ): GradleDependency {
         val key = Triple(id, variant, capabilities)
-        val immutableChildren = if (children.isEmpty() && key in knownChildren && key !in visited) {
+        val immutableChildren = if (key in visited) {
+            emptyList()
+        } else if (children.isEmpty() && key in knownChildren) {
             knownChildren[key] ?: emptyList()
         } else {
             children.map { it.toImmutable(knownChildren, visited + key) }
@@ -323,7 +325,7 @@ class DefaultGradleDependencyService(
 
         val additional = mutableListOf<String>()
         if (options.fresh) {
-            additional += "--rerun-tasks"
+            additional += "--refresh-dependencies"
         }
 
         // Append custom dependency report task
@@ -610,12 +612,17 @@ class DefaultGradleDependencyService(
         val projectParsers = mutableMapOf<String, ProjectParser>()
         val projectOrder = mutableListOf<String>()
 
+        val marker = "[gradle-mcp] [DEPENDENCIES]"
+
         output.lineSequence().forEach { rawLine ->
             val line = rawLine.trim()
-            if (line.isEmpty()) return@forEach
+            if (!line.startsWith(marker)) return@forEach
 
-            val type = line.substringBefore(":").trim().uppercase()
-            val remaining = line.substringAfter(":").trim()
+            val data = line.substringAfter(marker).trim()
+            if (data.isEmpty()) return@forEach
+
+            val type = data.substringBefore("|").trim().uppercase()
+            val remaining = data.substringAfter("|").trim()
             val parts = remaining.split("|").map { it.trim() }
 
             if (type !in setOf("PROJECT", "REPOSITORY", "SOURCESET", "CONFIGURATION", "DEP")) return@forEach
@@ -634,10 +641,12 @@ class DefaultGradleDependencyService(
             requireNotNull(projectParsers[it]) { "No parser found for project $it" }.project
         }
 
-        // Collect known children from fully explored nodes using composite key
         val knownChildren = mutableMapOf<Triple<String, String?, List<String>>, List<GradleDependency>>()
+        val visited = mutableSetOf<Triple<String, String?, List<String>>>()
         fun recordKnown(dep: MutableDep) {
             val key = Triple(dep.id, dep.variant, dep.capabilities)
+            if (!visited.add(key)) return
+
             if (dep.children.isNotEmpty() && key !in knownChildren) {
                 knownChildren[key] = dep.children.map { it.toImmutable(emptyMap()) }
             }

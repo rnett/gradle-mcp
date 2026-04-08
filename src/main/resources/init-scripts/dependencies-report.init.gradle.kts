@@ -7,7 +7,7 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskAction
-import org.gradle.internal.logging.text.StyledTextOutput
+import org.gradle.api.tasks.UntrackedTask
 
 class McpRepositoryData(
     val name: String,
@@ -53,6 +53,7 @@ class McpResolvedGraph(
     val components: HashMap<String, McpResolvedComponent>
 ) : java.io.Serializable
 
+@UntrackedTask(because = "Reporting task")
 abstract class McpDependencyReportTask : DefaultTask() {
     companion object {
         const val BUILDSCRIPT_PREFIX = "buildscript:"
@@ -130,6 +131,7 @@ abstract class McpDependencyReportTask : DefaultTask() {
     init {
         group = "help"
         description = "Generates a structured dependency report for MCP."
+        outputs.upToDateWhen { false }
     }
 
     fun extractConfigurationsMetadata(configs: Iterable<org.gradle.api.artifacts.Configuration>): Map<String, McpConfigurationMetadata> = buildMap {
@@ -196,8 +198,6 @@ abstract class McpDependencyReportTask : DefaultTask() {
     @TaskAction
     fun generate() {
         val mcpRenderer = McpDependencyReportRenderer()
-        mcpRenderer.setOutput(services.get(org.gradle.internal.logging.text.StyledTextOutputFactory::class.java).create(McpDependencyReportTask::class.java))
-
         mcpRenderer.configurationsMetadata = configurationsMetadata.get()
         mcpRenderer.buildscriptConfigurationsMetadata = buildscriptConfigurationsMetadata.get()
 
@@ -318,7 +318,6 @@ abstract class McpDependencyReportTask : DefaultTask() {
 }
 
 class McpDependencyReportRenderer {
-    private var output: StyledTextOutput? = null
     var latestVersions: Map<String, String> = emptyMap()
     var sourcesFiles: Map<String, String> = emptyMap()
 
@@ -339,22 +338,18 @@ class McpDependencyReportRenderer {
     private val hierarchyCache = mutableMapOf<String, List<String>>()
     private val declaringConfigCache = mutableMapOf<Pair<String, String>, String?>()
 
-    fun setOutput(textOutput: StyledTextOutput) {
-        this.output = textOutput
-    }
-
     private fun String.escape() = this.replace("|", "\\|")
 
     fun outputProject(path: String, displayName: String) {
-        output?.println("PROJECT: ${path.escape()} | ${displayName.escape()}")
+        println("[gradle-mcp] [DEPENDENCIES] PROJECT | ${path.escape()} | ${displayName.escape()}")
     }
 
     fun outputRepository(path: String, name: String, url: String) {
-        output?.println("REPOSITORY: ${path.escape()} | ${name.escape()} | ${url.escape()}")
+        println("[gradle-mcp] [DEPENDENCIES] REPOSITORY | ${path.escape()} | ${name.escape()} | ${url.escape()}")
     }
 
     fun outputSourceSet(path: String, name: String, configurations: List<String>) {
-        output?.println("SOURCESET: ${path.escape()} | ${name.escape()} | ${configurations.joinToString(",").escape()}")
+        println("[gradle-mcp] [DEPENDENCIES] SOURCESET | ${path.escape()} | ${name.escape()} | ${configurations.joinToString(",").escape()}")
     }
 
     fun startProject(path: String, displayName: String) {}
@@ -365,7 +360,7 @@ class McpDependencyReportRenderer {
         this.currentConfigurationName = name
         val prefix = if (inBuildscript) McpDependencyReportTask.BUILDSCRIPT_PREFIX else ""
         val extendsFrom = metadata.extendsFrom.map { if (inBuildscript) "${McpDependencyReportTask.BUILDSCRIPT_PREFIX}$it" else it }.joinToString(",")
-        output?.println("CONFIGURATION: ${projectPath.escape()} | $prefix${name.escape()} | ${metadata.isCanBeResolved} | ${extendsFrom.escape()} | ${metadata.description?.escape() ?: ""} | ${metadata.isInternal}")
+        println("[gradle-mcp] [DEPENDENCIES] CONFIGURATION | ${projectPath.escape()} | $prefix${name.escape()} | ${metadata.isCanBeResolved} | ${extendsFrom.escape()} | ${metadata.description?.escape() ?: ""} | ${metadata.isInternal}")
     }
 
     fun render(projectPath: String, graph: McpResolvedGraph, configName: String) {
@@ -400,7 +395,7 @@ class McpDependencyReportRenderer {
 
             val markers = "*"
             val requested = if (group == "project") "project $name" else if (group != null) "$group:$name" else name
-            output?.println("DEP: ${projectPath.escape()} | $markers | UNRESOLVED:${requested.escape()} | ${(group ?: "").escape()} | ${name.escape()} | | UNRESOLVABLE CONFIGURATION | | true | | | | | false")
+            println("[gradle-mcp] [DEPENDENCIES] DEP | ${projectPath.escape()} | $markers | UNRESOLVED:${requested.escape()} | ${(group ?: "").escape()} | ${name.escape()} | | UNRESOLVABLE CONFIGURATION | | true | | | | | false")
         }
     }
 
@@ -470,8 +465,8 @@ class McpDependencyReportRenderer {
             }
 
             if (variant != null) {
-                output?.println(
-                    "DEP: ${projectPath.escape()} | $markers | ${selected.id.escape()} | ${selected.group.escape()} | ${selected.name.escape()} | ${selected.version.escape()} | ${reason.escape()} | ${latestVersion.escape()} | ${depth == 1} | ${variant.name.escape()} | ${
+                println(
+                    "[gradle-mcp] [DEPENDENCIES] DEP | ${projectPath.escape()} | $markers | ${selected.id.escape()} | ${selected.group.escape()} | ${selected.name.escape()} | ${selected.version.escape()} | ${reason.escape()} | ${latestVersion.escape()} | ${depth == 1} | ${variant.name.escape()} | ${
                         variant.capabilities.joinToString(
                             ","
                         ).escape()
@@ -484,7 +479,7 @@ class McpDependencyReportRenderer {
                     }
                 }
             } else {
-                output?.println("DEP: ${projectPath.escape()} | $markers | ${selected.id.escape()} | ${selected.group.escape()} | ${selected.name.escape()} | ${selected.version.escape()} | ${reason.escape()} | ${latestVersion.escape()} | ${depth == 1} | | | ${(fromConfiguration ?: "").escape()} | ${sourcesFile.escape()} | $updatesChecked | ${(selected.commonComponentId ?: "").escape()}")
+                println("[gradle-mcp] [DEPENDENCIES] DEP | ${projectPath.escape()} | $markers | ${selected.id.escape()} | ${selected.group.escape()} | ${selected.name.escape()} | ${selected.version.escape()} | ${reason.escape()} | ${latestVersion.escape()} | ${depth == 1} | | | ${(fromConfiguration ?: "").escape()} | ${sourcesFile.escape()} | $updatesChecked | ${(selected.commonComponentId ?: "").escape()}")
             }
         } else {
             // Unresolved
@@ -496,7 +491,7 @@ class McpDependencyReportRenderer {
             val name = if (parts.size >= 2) parts[1] else parts[0]
             val version = if (parts.size >= 3) parts[2] else ""
 
-            output?.println("DEP: ${projectPath.escape()} | $markers | UNRESOLVED:${requested.escape()} | ${group.escape()} | ${name.escape()} | ${version.escape()} | ${(dep.failure ?: "unknown").escape()} | | ${depth == 1} | | | ${(fromConfiguration ?: "").escape()} | | false |")
+            println("[gradle-mcp] [DEPENDENCIES] DEP | ${projectPath.escape()} | $markers | UNRESOLVED:${requested.escape()} | ${group.escape()} | ${name.escape()} | ${version.escape()} | ${(dep.failure ?: "unknown").escape()} | | ${depth == 1} | | | ${(fromConfiguration ?: "").escape()} | | false |")
         }
     }
 

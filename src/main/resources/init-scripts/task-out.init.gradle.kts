@@ -61,14 +61,14 @@ if (gradle.parent == null) {
                                 if (taskPath != null) {
                                     val lines = text.split("\n")
                                     for (line in lines) {
-                                        System.out.println("[gradle-mcp] [${taskPath}] [${event.category}]: ${line.trimEnd('\r')}")
+                                        System.out.println("[gradle-mcp] [task-output] [${taskPath}] [${event.category}]: ${line.trimEnd('\r')}")
                                     }
                                 } else {
                                     // If we can't find a task path, it might be build-level output.
                                     // We don't prefix it, so it will be handled as raw output in the provider.
                                     // But let's log the hierarchy to help debug.
                                     if (gradle.startParameter.projectProperties.containsKey("gradle-mcp.init-scripts.debug")) {
-                                        System.err.println("[gradle-mcp-debug] No task path found for output. Category: ${event.category}, Text: ${text.take(20)}, Hierarchy: ${hierarchy.joinToString(" -> ")}")
+                                        System.err.println("[gradle-mcp] [debug] No task path found for output. Category: ${event.category}, Text: ${text.take(20)}, Hierarchy: ${hierarchy.joinToString(" -> ")}")
                                     }
                                 }
                             }

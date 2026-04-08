@@ -2,7 +2,6 @@ package dev.rnett.gradle.mcp.repl
 
 import dev.rnett.gradle.mcp.TestFixturesBuildConfig
 import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -12,7 +11,7 @@ import kotlin.time.Duration.Companion.minutes
 class JvmTargetReplIntegrationTest : BaseReplIntegrationTest() {
 
     @BeforeAll
-    fun setupProject() = runBlocking {
+    fun setupProject() = runTest(timeout = 10.minutes) {
         initProject(testGradleProject {
             settings(
                 """

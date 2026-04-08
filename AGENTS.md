@@ -85,6 +85,14 @@ Detailed operational guidance is offloaded to specialized **Expert Skills** to m
 - **REPL Session Management**: Explicitly terminate previous REPL sessions in `ReplTools` before starting new ones when session IDs are regenerated. This prevents leaking worker processes and ensures stable session management during
   concurrent or sequential tool calls.
 - **Test Search Syntax**: Use simple name prefixes without parentheses when searching for tests with `inspect_build`. This avoids matching issues caused by JUnit 5's addition of parentheses to test method names in report outputs.
+- **Unified Gradle Output Parsing**: When implementing internal Gradle output intercepted via init scripts, always use the `[gradle-mcp] [category] ...` format. This allows for centralized parsing in
+  `DefaultBuildExecutionService.processTaskOutput` and simplifies logic across different service layers.
+- **Surgical Init Script Updates**: When modifying Gradle init scripts, ensure that object initializations (like `val mcpRenderer = ...`) are preserved during refactoring, as these scripts are often evaluated in a restrictive context where
+  missing references cause full configuration failures.
+- **Regex Escaping for Literal Brackets**: In Kotlin `Regex` strings, literal brackets MUST be escaped (`\[`, `\]`) even if they are within a raw string if they could be interpreted as character classes. This is critical for matching
+  structured log prefixes like `[task-output]`.
+- **Sequential Parsing of Bracketed Content**: When parsing multiple bracketed fields in a log line, use `substringAfter("]").trim()` sequentially to move past each field, rather than multiple `substringAfter("[")` calls, which only find
+  the first occurrence.
 
 ---
 

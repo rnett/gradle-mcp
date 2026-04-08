@@ -37,8 +37,8 @@ class ReplToolTest : BaseMcpServerTest() {
         server.setServerRoots(Root(tempDir.toUri().toString(), "root"))
 
         val consoleOutput = """
-            [gradle-mcp-repl-env] classpath=cp1;cp2
-            [gradle-mcp-repl-env] javaExecutable=$javaExec
+            [gradle-mcp] [repl-env] classpath=cp1;cp2
+            [gradle-mcp] [repl-env] javaExecutable=$javaExec
         """.trimIndent()
 
         val finishedBuild = mockk<FinishedBuild>(relaxed = true)
@@ -74,10 +74,10 @@ class ReplToolTest : BaseMcpServerTest() {
         val javaExec = "java"
 
         val consoleOutput = """
-            [gradle-mcp-repl-env] classpath=cp1;cp2
-            [gradle-mcp-repl-env] javaExecutable=$javaExec
-            [gradle-mcp-repl-env] pluginsClasspath=p1;p2
-            [gradle-mcp-repl-env] compilerArgs=a1;a2
+            [gradle-mcp] [repl-env] classpath=cp1;cp2
+            [gradle-mcp] [repl-env] javaExecutable=$javaExec
+            [gradle-mcp] [repl-env] pluginsClasspath=p1;p2
+            [gradle-mcp] [repl-env] compilerArgs=a1;a2
         """.trimIndent()
 
         val finishedBuild = mockk<FinishedBuild>(relaxed = true)
@@ -106,7 +106,7 @@ class ReplToolTest : BaseMcpServerTest() {
     fun `stop command works`() = runTest {
         // Start a session first (we need to mock the build again)
         val javaExec = "java"
-        val consoleOutput = "[gradle-mcp-repl-env] javaExecutable=$javaExec"
+        val consoleOutput = "[gradle-mcp] [repl-env] javaExecutable=$javaExec"
         val finishedBuild = mockk<FinishedBuild>(relaxed = true)
         every { finishedBuild.outcome } returns BuildOutcome.Success
         every { finishedBuild.id } returns buildManager.newId()
@@ -148,8 +148,8 @@ class ReplToolTest : BaseMcpServerTest() {
         val sourceSet = "main"
 
         val consoleOutput = """
-            [gradle-mcp-repl-env] projectRoot=C:\path\to\project
-            [gradle-mcp-repl-env] classpath=cp1;cp2
+            [gradle-mcp] [repl-env] projectRoot=C:\path\to\project
+            [gradle-mcp] [repl-env] classpath=cp1;cp2
         """.trimIndent()
 
         val finishedBuild = mockk<FinishedBuild>(relaxed = true)

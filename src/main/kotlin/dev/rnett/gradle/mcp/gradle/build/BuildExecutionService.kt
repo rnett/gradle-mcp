@@ -7,6 +7,7 @@ import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleStdoutWriter
+import dev.rnett.gradle.mcp.gradle.LineEmittingWriter
 import dev.rnett.gradle.mcp.localSupervisorScope
 import dev.rnett.gradle.mcp.utils.EnvProvider
 import kotlinx.coroutines.CancellationException
@@ -64,7 +65,6 @@ class DefaultBuildExecutionService(
 
     companion object {
         private val LOGGER = LoggerFactory.getLogger(DefaultBuildExecutionService::class.java)
-        private val TASK_OUTPUT_REGEX = Regex("""\[gradle-mcp] \[(.+)] \[(.+)]: (.*)""")
 
         private fun findTaskPath(descriptor: OperationDescriptor?): String? {
             var current = descriptor
@@ -98,7 +98,7 @@ class DefaultBuildExecutionService(
 
             registerProgressListeners(launcher, runningBuild, additionalProgressListeners)
 
-            setupOutputRedirection(launcher, runningBuild, buildId, stdoutLineHandler, stderrLineHandler)
+            val (stdout, stderr) = setupOutputRedirection(launcher, runningBuild, buildId, stdoutLineHandler, stderrLineHandler)
 
             // Collect progress from the tracker and report it
             scope.launch {
@@ -110,10 +110,25 @@ class DefaultBuildExecutionService(
             val result = scope.async {
                 LOGGER.info("Starting Gradle build (buildId={}, args={})", buildId, args.allAdditionalArguments)
                 withContext(Dispatchers.IO) {
-                    invoker(launcher)
+                    try {
+                        invoker(launcher)
+                    } finally {
+                        LOGGER.info("Gradle build finished (buildId={})", buildId)
+                        try {
+                            stdout.flush()
+                            stdout.close()
+                        } catch (e: Exception) {
+                            LOGGER.warn("Error closing stdout for build $buildId", e)
+                        }
+                        try {
+                            stderr.flush()
+                            stderr.close()
+                        } catch (e: Exception) {
+                            LOGGER.warn("Error closing stderr for build $buildId", e)
+                        }
+                    }
                 }
             }.await()
-            LOGGER.info("Gradle build finished (buildId={})", buildId)
             result
         }
     }
@@ -267,33 +282,35 @@ class DefaultBuildExecutionService(
         buildId: BuildId,
         stdoutLineHandler: ((String) -> Unit)?,
         stderrLineHandler: ((String) -> Unit)?
-    ) {
-        launcher.setStandardOutput(
-            WriterOutputStream.builder().apply {
-                charset = StandardCharsets.UTF_8
-                bufferSize = 8192
-                writer = object : GradleStdoutWriter({
-                    if (it.contains("Failed to set up gradle-mcp output capturing", ignoreCase = true)) {
-                        runningBuild.taskOutputCapturingFailed = true
-                    }
-                    processTaskOutput(it, runningBuild, false, buildId, stdoutLineHandler)
-                }) {
-                    override fun onScanPublication(url: String) {
-                        runningBuild.publishedScansInternal += GradleBuildScan.fromUrl(url)
-                    }
+    ): Pair<java.io.OutputStream, java.io.OutputStream> {
+        val stdoutWriterStream = WriterOutputStream.builder().apply {
+            charset = StandardCharsets.UTF_8
+            bufferSize = 8192
+            writer = object : GradleStdoutWriter({
+                if (it.contains("Failed to set up gradle-mcp output capturing", ignoreCase = true)) {
+                    runningBuild.taskOutputCapturingFailed = true
                 }
-            }.get().buffered()
-        )
+                processTaskOutput(it, runningBuild, false, buildId, stdoutLineHandler)
+            }) {
+                override fun onScanPublication(url: String) {
+                    runningBuild.publishedScansInternal += GradleBuildScan.fromUrl(url)
+                }
+            }
+        }.get()
 
-        launcher.setStandardError(
-            WriterOutputStream.builder().apply {
-                charset = StandardCharsets.UTF_8
-                bufferSize = 8192
-                writer = dev.rnett.gradle.mcp.gradle.LineEmittingWriter {
-                    processTaskOutput(it, runningBuild, true, buildId, stderrLineHandler)
-                }
-            }.get().buffered()
-        )
+        launcher.setStandardOutput(stdoutWriterStream)
+
+        val stderrWriterStream = WriterOutputStream.builder().apply {
+            charset = StandardCharsets.UTF_8
+            bufferSize = 8192
+            writer = LineEmittingWriter {
+                processTaskOutput(it, runningBuild, true, buildId, stderrLineHandler)
+            }
+        }.get()
+
+        launcher.setStandardError(stderrWriterStream)
+
+        return stdoutWriterStream to stderrWriterStream
     }
 
     private fun processTaskOutput(
@@ -303,20 +320,36 @@ class DefaultBuildExecutionService(
         buildId: BuildId,
         lineHandler: ((String) -> Unit)?
     ) {
-        val taskMatch = TASK_OUTPUT_REGEX.matchEntire(line)
-        if (taskMatch != null) {
-            val taskPath = taskMatch.groupValues[1]
-            val category = taskMatch.groupValues[2]
-            val text = taskMatch.groupValues[3]
+        val marker = "[gradle-mcp]"
+        if (line.startsWith(marker)) {
+            val remaining = line.substringAfter(marker).trim()
+            val category = remaining.substringBefore("]").removePrefix("[").trim()
+            val content = remaining.substringAfter("]").trim()
 
-            if (taskPath == "PROGRESS") {
-                runningBuild.progressTracker.handleProgressLine(category, text)
-            } else {
-                val type = if (category == "system.err") "ERR" else "OUT"
-                val formattedLine = "$taskPath $type $text"
+            when (category) {
+                "PROGRESS" -> {
+                    val subCategory = content.substringBefore(":").removePrefix("[").removeSuffix("]").trim()
+                    val text = content.substringAfter(":").trim()
+                    runningBuild.progressTracker.handleProgressLine(subCategory, text)
+                }
 
-                runningBuild.addTaskOutput(taskPath, text)
-                runningBuild.replaceLastLogLine(text, formattedLine)
+                "task-output" -> {
+                    val taskPath = content.substringBefore("]").removePrefix("[").trim()
+                    val remainingAfterTaskPath = content.substringAfter("]").trim()
+                    val taskCategory = remainingAfterTaskPath.substringBefore("]").removePrefix("[").trim()
+                    val text = remainingAfterTaskPath.substringAfter("]:").trim()
+
+                    val type = if (taskCategory == "system.err") "ERR" else "OUT"
+                    val formattedLine = "$taskPath $type $text"
+
+                    runningBuild.addTaskOutput(taskPath, text)
+                    runningBuild.replaceLastLogLine(text, formattedLine)
+                }
+
+                else -> {
+                    val logLine = if (isError) "STDERR: $line" else line
+                    runningBuild.addLogLine(logLine)
+                }
             }
         } else {
             val logLine = if (isError) "STDERR: $line" else line

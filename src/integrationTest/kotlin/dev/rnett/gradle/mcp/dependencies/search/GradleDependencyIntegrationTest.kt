@@ -4,9 +4,11 @@ import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.TestFixturesBuildConfig
-import dev.rnett.gradle.mcp.dependencies.DependencyRequestOptions
 import dev.rnett.gradle.mcp.dependencies.DefaultGradleDependencyService
+import dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService
+import dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourcesService
+import dev.rnett.gradle.mcp.dependencies.DependencyRequestOptions
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
@@ -53,9 +55,9 @@ class GradleDependencyIntegrationTest {
         )
         service = DefaultGradleDependencyService(provider)
         indexService = DefaultIndexService(environment)
-        val storageService = dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService(environment)
-        sourceIndexService = dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService(indexService)
-        sourcesService = dev.rnett.gradle.mcp.dependencies.DefaultSourcesService(service, storageService, indexService)
+        val storageService = DefaultSourceStorageService(environment)
+        sourceIndexService = DefaultSourceIndexService(indexService)
+        sourcesService = DefaultSourcesService(service, storageService, indexService)
 
         // A single complex project to cover all test cases
         complexProject = testGradleProject {
