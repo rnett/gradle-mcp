@@ -10,6 +10,7 @@ copyright: 'Copyright &copy; 2025 Ryan Nett'
 
 theme:
   name: 'material'
+  custom_dir: docs/overrides
   palette:
     - media: '(prefers-color-scheme: light)'
       scheme: default
