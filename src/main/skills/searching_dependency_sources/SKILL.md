@@ -1,9 +1,10 @@
 ---
 name: searching_dependency_sources
 description: >-
-  Explores and searches source code of all external library dependencies, plugins, and Gradle internals
-  via indexed symbol, full-text, and glob search; STRONGLY PREFERRED for understanding APIs, finding class/method definitions, and reading implementation logic.
-  Do NOT use for project source code (use grep), Gradle documentation (use `researching_gradle_internals`), or Maven Central discovery (use `managing_gradle_dependencies`).
+  Reads and searches source code of external library dependencies, plugins, and Gradle internals.
+  Use this whenever you need to UNDERSTAND an API: its shape, signature, parameters, overloads, or implementation — before writing any code that calls it.
+  Prefer this over the REPL for all API research; reading source is instantaneous and complete.
+  Do NOT use for project source code (use grep/tilth), Gradle documentation (use `researching_gradle_internals`), or Maven Central discovery (use `managing_gradle_dependencies`).
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
@@ -58,6 +59,8 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 - **Trace Symbols Authoritatively**: When encountering an unknown symbol, use `DECLARATION` search to jump directly to its definition in the library. This is the only reliable way to understand exact behavior and available methods.
 
 ## When to Use
+
+> **Decision rule**: If the question is *"what does this API look like or how does it work?"* — use this skill. If you need to *run* code to see what it does at runtime — use `interacting_with_project_runtime` (REPL). Read before you run.
 
 - **API & Symbol Discovery**: When you need to find the implementation, signature, or documentation of a class, interface, or method imported from a library.
 - **Library Usage Research**: When understanding how to use a library's API by reading its internal implementation or looking for usage patterns in its source.

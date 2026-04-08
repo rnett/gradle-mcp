@@ -6,10 +6,13 @@ Tools for interacting with a Kotlin REPL session.
 
 ## kotlin_repl
 
-Provides a persistent, project-aware Kotlin REPL for prototyping, logic verification, and UI rendering within the project's JVM classpath.
+Executes Kotlin code interactively within the project's full JVM classpath — use when you need to **run** code, not just read it.
 
-Prefer reading sources via `search_dependency_sources` / `read_dependency_sources` for exploring APIs — the REPL is for dynamic behavior and prototyping.
-After modifying project source code, `stop` then `start` to pick up classpath changes and the new compiled sources.
+**Decision rule:**
+- Need to understand an API's shape, signature, or behavior? → read its source with `search_dependency_sources` / `read_dependency_sources`. Instant, complete, no JVM needed.
+- Need to actually execute code — verify runtime behavior, experiment with your own logic, render UI? → use this tool.
+
+After modifying project source code, `stop` then `start` to pick up classpath changes.
 
 ### Commands
 - **`start`**: Initialize a session. Requires `projectPath` and `sourceSet`.

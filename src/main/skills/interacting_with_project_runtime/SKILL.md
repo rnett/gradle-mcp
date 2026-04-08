@@ -1,22 +1,24 @@
 ---
 name: interacting_with_project_runtime
 description: >
-  Provides a persistent, project-aware Kotlin REPL for rapid logic verification and prototyping within the project's JVM classpath;
-  use for testing dynamic behavior, prototyping snippets, or rendering Compose UI previews.
-  Do NOT use for exploring library APIs (prefer `searching_dependency_sources`) or running Gradle builds.
+  Executes Kotlin code interactively within the project's full JVM classpath.
+  Use when you need to RUN code: verify runtime behavior, experiment with logic, or render Compose UI previews.
+  Do NOT use to understand an API's shape or signature — read its source with `searching_dependency_sources` instead.
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
-  version: "2.2"
+  version: "2.3"
 ---
 
-# Authoritative Project Runtime & Source Interaction
+# Authoritative Project Runtime Interaction
 
-Probes project logic, tests utility functions, and interacts with the JVM runtime of your source sets with absolute precision using a project-aware REPL.
+Runs Kotlin code interactively within the project's exact JVM classpath — for when you need to execute, not just read.
 
 ## Constitution
 
-- **ALWAYS** prefer reading source code via `search_dependency_sources` and `read_dependency_sources` for exploring unfamiliar library APIs.
+- **The core decision rule**: If the question is *"what does this API look like or how does it work?"* → use `search_dependency_sources` / `read_dependency_sources` (read the source). If the question is *"what happens when I run this?"* →
+  use `kotlin_repl`.
+- **NEVER** start a REPL session to learn about an API. Reading indexed sources is instantaneous, shows the full implementation with all overloads, and requires no JVM process.
 - **ALWAYS** use `kotlin_repl` instead of a standalone Kotlin REPL for project-aware interaction.
 - **ALWAYS** provide absolute paths for `projectRoot`.
 - **ALWAYS** start a REPL session with the correct `projectPath` and `sourceSet` (e.g., `main`, `test`).
@@ -28,8 +30,8 @@ Probes project logic, tests utility functions, and interacts with the JVM runtim
 
 ## Directives
 
-- **Read the source first**: For exploring unfamiliar library APIs or internal project utilities, ALWAYS prefer reading the source code first. It provides complete context, implementation details, and documentation that a REPL cannot easily
-  expose. Use `search_dependency_sources` to find definitions and `read_dependency_sources` to analyze them.
+- **Read to understand, run to verify**: If you need to understand what an API does — its signature, parameters, overloads, or implementation — read its source via `search_dependency_sources` / `read_dependency_sources`. Only reach for the
+  REPL once you know what you want to call and need to observe actual runtime output.
 - **ALWAYS use project-aware REPL**: Only the `kotlin_repl` tool provides full access to the project's exact classpath, dependencies, and source sets. NEVER attempt to use standalone runners for project-internal logic.
 - **Identify the environment**: When starting a session, ALWAYS ensure you select the appropriate `projectPath` (e.g., `:app`) and `sourceSet` (e.g., `main` for application code, `test` for test utility access).
 - **Pick up source changes**: The REPL uses a static snapshot of the classpath. If you change project code, you MUST `stop` and then `start` the session again to pick up the updated classes.
@@ -39,12 +41,24 @@ Probes project logic, tests utility functions, and interacts with the JVM runtim
   fully loaded. Set `env: { envSource: "SHELL" }` when calling `start` to force a new shell process to query the environment.
 - **Resolve `{baseDir}` manually**: If your environment does not automatically resolve the `{baseDir}` placeholder in reference links, treat it as the absolute path to the directory containing this `SKILL.md` file.
 
-## When to Use
+## When to Use (you need to RUN code)
 
-- **Rapid Logic Verification**: When you need to quickly test a function, algorithm, or class behavior without the overhead of writing a full test suite.
-- **Interactive Prototyping**: When you want to experiment with a snippet of logic within the exact context of your project's dependencies and JVM configuration before implementing it.
-- **Visual Component Auditing**: When iterating on UI components (e.g., Compose) and you need to see the result instantly by rendering them to images.
-- **Dynamic State & Data Probing**: When you need to perform one-off data transformations or queries using your project's existing utility classes.
+- **Behavior Verification**: You know the API, you've written the call, and you need to observe the actual runtime output or side-effects.
+- **Logic Prototyping**: Experimenting with an algorithm or snippet of your own code before committing it to source.
+- **Visual Component Auditing**: Rendering Compose UI components to images for visual review.
+- **Dynamic Data Probing**: One-off data transformations using your project's existing utilities where the output depends on runtime state.
+
+## When NOT to Use (you need to READ source instead)
+
+Ask yourself: *"Am I trying to understand this API, or run it?"*
+
+If you're trying to understand it — what methods it has, what its parameters are, how it's implemented — **stop and use `searching_dependency_sources` first**. The REPL cannot tell you what you don't already know to ask; source reading can.
+Examples of what belongs in source reading, not the REPL:
+
+- "What methods does `SomeClass` have?" → `search_dependency_sources` DECLARATION search
+- "What does this function do internally?" → `read_dependency_sources`
+- "What are the parameters / overloads of this function?" → `read_dependency_sources`
+- "Does this library have a class for X?" → `search_dependency_sources` FULL_TEXT or DECLARATION search
 
 ## Workflows
 
