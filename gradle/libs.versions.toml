@@ -15,7 +15,7 @@ gradleToolingApi = "9.4.1" # renovate: ignoreUnstable=false
 buildconfig = "6.0.9"
 vanniktechPublish = "0.36.0"
 jsoup = "1.22.1"
-koin = "4.2.0"
+koin = "4.2.1"
 mockk = "1.14.9"
 slf4j = "2.0.17"
 guava = "33.5.0-jre"
