@@ -159,10 +159,22 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
             }
         }
 
-        val consoleLines = consoleOutput.lines()
+        // Scan from the end of the output to avoid materialising all lines for large builds
+        // (e.g. builds run with --info can produce millions of lines).
         val lineLimit = if (this@toOutputString.status == BuildOutcome.Success) 10 else 50
-        appendLine("Console output: ${consoleLines.size} lines, last $lineLimit shown")
-        consoleLines.takeLast(lineLimit).forEach { appendLine("  $it") }
+        val output = consoleOutput.toString()
+        val tailLines = mutableListOf<String>()
+        var scanPos = output.length
+        if (scanPos > 0 && output[scanPos - 1] == '\n') scanPos--
+        while (tailLines.size < lineLimit && scanPos >= 0) {
+            val lineStart = if (scanPos == 0) 0 else output.lastIndexOf('\n', scanPos - 1) + 1
+            tailLines.add(0, output.substring(lineStart, scanPos))
+            scanPos = lineStart - 1
+        }
+        // Count total lines by counting newlines — O(n) chars but no String allocations
+        val totalLines = output.count { it == '\n' } + if (output.isEmpty() || output.last() == '\n') 0 else 1
+        appendLine("Console output: $totalLines lines, last $lineLimit shown")
+        tailLines.forEach { appendLine("  $it") }
     }
 }
 

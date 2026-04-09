@@ -23,10 +23,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
@@ -75,20 +75,27 @@ class McpServer(
         if (requestId != null) activeToolCallJobs.remove(requestId)
     }
 
-    // Override connect() to inject the JSON-RPC request ID into the coroutine context for each
-    // tools/call message. The addTool handler receives only a deserialized CallToolRequest (no
-    // raw ID), so this transport interceptor is the sole point where both are available.
-    // Using withContext propagates the ID through the entire call chain to the tool handler.
+    // Override connect() to:
+    // 1. Inject the JSON-RPC request ID into the coroutine context for each tools/call message.
+    //    The addTool handler receives only a deserialized CallToolRequest (no raw ID), so this
+    //    transport interceptor is the sole point where both are available.
+    // 2. Launch each message handler in server.scope so that long-running tool calls (e.g. a
+    //    gradle build waiting on awaitFinished()) do NOT block the transport's message-processing
+    //    loop. Without this, the StdioServerTransport processes messages sequentially — a hanging
+    //    gradle() call prevents inspect_build() from being processed at all until it finishes.
+    //    Launching in scope makes message handling concurrent; each call gets its own coroutine.
     override suspend fun connect(transport: Transport) {
         super.connect(object : Transport by transport {
             override fun onMessage(block: suspend (JSONRPCMessage) -> Unit) {
                 transport.onMessage { message ->
-                    if (message is JSONRPCRequest && message.method == Method.Defined.ToolsCall.value) {
-                        withContext(currentCoroutineContext() + ToolCallRequestId(message.id)) {
+                    scope.launch {
+                        if (message is JSONRPCRequest && message.method == Method.Defined.ToolsCall.value) {
+                            withContext(ToolCallRequestId(message.id)) {
+                                block(message)
+                            }
+                        } else {
                             block(message)
                         }
-                    } else {
-                        block(message)
                     }
                 }
             }

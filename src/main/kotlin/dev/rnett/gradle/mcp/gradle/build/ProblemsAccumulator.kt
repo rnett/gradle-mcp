@@ -9,7 +9,6 @@ import org.gradle.tooling.events.problems.Location
 import org.gradle.tooling.events.problems.PluginIdLocation
 import org.gradle.tooling.events.problems.Problem
 import org.gradle.tooling.events.problems.TaskPathLocation
-import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.Path
 
@@ -20,7 +19,7 @@ internal class ProblemsAccumulator {
 
     fun add(problem: ProblemAggregation) {
         definitions.putIfAbsent(problem.definition.id, problem.definition)
-        problems.getOrPut(problem.definition.id) { Collections.synchronizedSet(mutableSetOf()) }.addAll(problem.occurences)
+        problems.computeIfAbsent(problem.definition.id) { ConcurrentHashMap.newKeySet() }.addAll(problem.occurences)
     }
 
     fun add(problem: org.gradle.tooling.events.problems.ProblemAggregation) {

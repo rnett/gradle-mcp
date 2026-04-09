@@ -89,8 +89,10 @@ class BuildManager : AutoCloseable {
     fun stopAndRemove(id: BuildId) {
         val build = builds.remove(id)
         lastAccess.remove(id)
-        if (latestFinished.load()?.id == id) {
-            latestFinished.store(null)
+        // Use CAS to avoid wiping a concurrently-stored newer build.
+        val current = latestFinished.load()
+        if (current?.id == id) {
+            latestFinished.compareAndSet(current, null)
         }
         if (build is RunningBuild && build.isRunning) {
             build.stop()

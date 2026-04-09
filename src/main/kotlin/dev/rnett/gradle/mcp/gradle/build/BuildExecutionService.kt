@@ -98,7 +98,7 @@ class DefaultBuildExecutionService(
 
             registerProgressListeners(launcher, runningBuild, additionalProgressListeners)
 
-            val (stdout, stderr) = setupOutputRedirection(launcher, runningBuild, buildId, stdoutLineHandler, stderrLineHandler)
+            val outputRedirection = setupOutputRedirection(launcher, runningBuild, buildId, stdoutLineHandler, stderrLineHandler)
 
             // Collect progress from the tracker and report it
             scope.launch {
@@ -115,17 +115,20 @@ class DefaultBuildExecutionService(
                     } finally {
                         LOGGER.info("Gradle build finished (buildId={})", buildId)
                         try {
-                            stdout.flush()
-                            stdout.close()
+                            outputRedirection.stdout.flush()
+                            outputRedirection.stdout.close()
                         } catch (e: Exception) {
                             LOGGER.warn("Error closing stdout for build $buildId", e)
                         }
                         try {
-                            stderr.flush()
-                            stderr.close()
+                            outputRedirection.stderr.flush()
+                            outputRedirection.stderr.close()
                         } catch (e: Exception) {
                             LOGGER.warn("Error closing stderr for build $buildId", e)
                         }
+                        // Flush any pending raw stdout line that wasn't superseded by a
+                        // structured [gradle-mcp] [task-output] replacement.
+                        outputRedirection.flushPendingStdout()
                     }
                 }
             }.await()
@@ -276,13 +279,40 @@ class DefaultBuildExecutionService(
         }
     }
 
+    /**
+     * Data class returned by [setupOutputRedirection] so that the caller can flush any
+     * buffered stdout line after the streams are closed.
+     */
+    private class OutputRedirection(
+        val stdout: java.io.OutputStream,
+        val stderr: java.io.OutputStream,
+        val flushPendingStdout: () -> Unit
+    )
+
     private fun setupOutputRedirection(
         launcher: ConfigurableLauncher<*>,
         runningBuild: RunningBuild,
         buildId: BuildId,
         stdoutLineHandler: ((String) -> Unit)?,
         stderrLineHandler: ((String) -> Unit)?
-    ): Pair<java.io.OutputStream, java.io.OutputStream> {
+    ): OutputRedirection {
+        // Pending raw stdout line.  When a non-[gradle-mcp] line arrives on stdout we hold it
+        // here instead of adding it to logBuffer immediately.  If the next stdout line is a
+        // structured [gradle-mcp] [task-output] replacement, we discard the pending raw line and
+        // add the formatted version.  Otherwise we flush the pending line to logBuffer first.
+        // This eliminates the need for the unsafe compound replaceLastLogLine operation.
+        // The variable is only accessed from the stdout LineEmittingWriter callback chain, which
+        // is thread-confined to a single Gradle Tooling API output delivery thread (see
+        // LineEmittingWriter's thread-confinement contract), so no locking is needed.
+        var pendingRawLine: String? = null
+
+        fun flushPending() {
+            pendingRawLine?.let { pending ->
+                runningBuild.addLogLine(pending)
+                pendingRawLine = null
+            }
+        }
+
         val stdoutWriterStream = WriterOutputStream.builder().apply {
             charset = StandardCharsets.UTF_8
             bufferSize = 8192
@@ -290,7 +320,7 @@ class DefaultBuildExecutionService(
                 if (it.contains("Failed to set up gradle-mcp output capturing", ignoreCase = true)) {
                     runningBuild.taskOutputCapturingFailed = true
                 }
-                processTaskOutput(it, runningBuild, false, buildId, stdoutLineHandler)
+                processStdoutLine(it, runningBuild, buildId, stdoutLineHandler, ::flushPending, { pendingRawLine }, { pendingRawLine = it })
             }) {
                 override fun onScanPublication(url: String) {
                     runningBuild.publishedScansInternal += GradleBuildScan.fromUrl(url)
@@ -304,21 +334,23 @@ class DefaultBuildExecutionService(
             charset = StandardCharsets.UTF_8
             bufferSize = 8192
             writer = LineEmittingWriter {
-                processTaskOutput(it, runningBuild, true, buildId, stderrLineHandler)
+                processStderrLine(it, runningBuild, buildId, stderrLineHandler)
             }
         }.get()
 
         launcher.setStandardError(stderrWriterStream)
 
-        return stdoutWriterStream to stderrWriterStream
+        return OutputRedirection(stdoutWriterStream, stderrWriterStream, ::flushPending)
     }
 
-    private fun processTaskOutput(
+    private fun processStdoutLine(
         line: String,
         runningBuild: RunningBuild,
-        isError: Boolean,
         buildId: BuildId,
-        lineHandler: ((String) -> Unit)?
+        lineHandler: ((String) -> Unit)?,
+        flushPending: () -> Unit,
+        getPending: () -> String?,
+        setPending: (String?) -> Unit
     ) {
         val marker = "[gradle-mcp]"
         if (line.startsWith(marker)) {
@@ -328,12 +360,17 @@ class DefaultBuildExecutionService(
 
             when (category) {
                 "PROGRESS" -> {
+                    flushPending()
                     val subCategory = content.substringBefore(":").removePrefix("[").removeSuffix("]").trim()
                     val text = content.substringAfter(":").trim()
                     runningBuild.progressTracker.handleProgressLine(subCategory, text)
                 }
 
                 "task-output" -> {
+                    // The pending raw line is the un-prefixed version of this task output.
+                    // Discard it and add the formatted version instead.
+                    setPending(null)
+
                     val taskPath = content.substringBefore("]").removePrefix("[").trim()
                     val remainingAfterTaskPath = content.substringAfter("]").trim()
                     val taskCategory = remainingAfterTaskPath.substringBefore("]").removePrefix("[").trim()
@@ -343,21 +380,38 @@ class DefaultBuildExecutionService(
                     val formattedLine = "$taskPath $type $text"
 
                     runningBuild.addTaskOutput(taskPath, text)
-                    runningBuild.replaceLastLogLine(text, formattedLine)
+                    runningBuild.addLogLine(formattedLine)
                 }
 
                 else -> {
-                    val logLine = if (isError) "STDERR: $line" else line
-                    runningBuild.addLogLine(logLine)
+                    flushPending()
+                    runningBuild.addLogLine(line)
                 }
             }
         } else {
-            val logLine = if (isError) "STDERR: $line" else line
-            runningBuild.addLogLine(logLine)
+            // Non-structured stdout line.  Hold it as pending — if the next line is a
+            // [gradle-mcp] [task-output] that supersedes it, we'll discard it; otherwise
+            // we'll flush it to logBuffer when the next line arrives.
+            flushPending()
+            setPending(line)
             lineHandler?.invoke(line)
             LOGGER.makeLoggingEventBuilder(Level.INFO)
                 .addKeyValue("buildId", buildId)
-                .log("Build ${if (isError) "stderr" else "stdout"}: $line")
+                .log("Build stdout: $line")
         }
+    }
+
+    private fun processStderrLine(
+        line: String,
+        runningBuild: RunningBuild,
+        buildId: BuildId,
+        lineHandler: ((String) -> Unit)?
+    ) {
+        val logLine = "STDERR: $line"
+        runningBuild.addLogLine(logLine)
+        lineHandler?.invoke(line)
+        LOGGER.makeLoggingEventBuilder(Level.INFO)
+            .addKeyValue("buildId", buildId)
+            .log("Build stderr: $line")
     }
 }

@@ -23,7 +23,8 @@ Inspects build information, monitors progress, and performs post-mortem diagnost
 
 ### Wait & Progress Monitoring
 Use `timeout` (seconds) with `waitFor` (regex), `waitForTask` (path), or `waitForFinished=true` to monitor active builds.
-If `timeout` is set but no wait condition is specified, defaults to waiting for the build to finish.
+If `timeout` is set with no other condition and no specific section (consoleTail, taskPath, etc.), defaults to waiting for the build to finish.
+When a specific output section is requested (e.g. `consoleTail`), returns the current snapshot immediately without waiting unless `waitForFinished=true` is also set.
 Set `afterCall=true` to only match events emitted after this call.
 
 <details>

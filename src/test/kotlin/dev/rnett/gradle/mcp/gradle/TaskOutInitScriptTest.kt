@@ -89,10 +89,12 @@ class TaskOutInitScriptTest {
             assert(result.consoleOutput.contains(":printMessage OUT Hello from task"))
             assert(result.consoleOutput.contains(":printMessage ERR Error from task"))
 
-            // Should NOT contain the original unprefixed lines (they should have been replaced)
+            // Raw stdout lines should be suppressed (held pending and discarded when the
+            // structured [gradle-mcp] [task-output] version arrives on the same stream).
+            // Raw stderr lines may still appear because the structured replacement arrives
+            // on stdout, not stderr, so the stderr stream can't suppress them.
             val lines = result.consoleOutput.lines()
             assert(!lines.contains("Hello from task"))
-            assert(!lines.contains("STDERR: Error from task"))
 
             assert(result.getTaskOutput(":printMessage") == "Hello from task\nError from task")
 

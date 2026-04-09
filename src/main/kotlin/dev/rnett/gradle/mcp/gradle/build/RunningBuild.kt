@@ -77,6 +77,8 @@ class RunningBuild(
     override val taskResults = ConcurrentHashMap<String, TaskResult>()
     val taskOutputsAccumulator = ConcurrentHashMap<String, StringBuffer>()
     override val taskOutputs: Map<String, String> get() = taskOutputsAccumulator.mapValues { it.value.toString() }
+
+    @Volatile
     override var taskOutputCapturingFailed: Boolean = false
 
     /**
@@ -149,12 +151,6 @@ class RunningBuild(
     internal fun addLogLine(line: String) {
         logBuffer.appendLine(line)
         _logLines.tryEmit(line)
-    }
-
-    internal fun replaceLastLogLine(oldLine: String, newLine: String) {
-        logBuffer.setLength(logBuffer.length - (oldLine.length + 1))
-        logBuffer.appendLine(newLine)
-        _logLines.tryEmit(newLine)
     }
 
     internal fun addTaskResult(taskPath: String, outcome: TaskOutcome, duration: Duration, consoleOutput: String?) {

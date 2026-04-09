@@ -1,13 +1,19 @@
 package dev.rnett.gradle.mcp.gradle
 
 import java.io.Writer
-import kotlin.concurrent.atomics.AtomicBoolean
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
-@OptIn(ExperimentalAtomicApi::class)
+/**
+ * A [Writer] that buffers characters and emits complete lines (delimited by `\n`, `\r`, or `\r\n`)
+ * via the [lineLogger] callback.
+ *
+ * **Thread-confinement contract:** Each instance is used by exactly one thread — the Gradle Tooling
+ * API delivers stdout and stderr on dedicated, per-stream threads, and [flush]/[close] are only
+ * called from the build's `finally` block after the blocking Tooling API call returns (so no
+ * concurrent [write] is possible). No internal synchronization is needed.
+ */
 open class LineEmittingWriter(val lineLogger: (String) -> Unit) : Writer() {
-    private val buf = StringBuffer()
-    private val lastWasCR = AtomicBoolean(false)
+    private val buf = StringBuilder()
+    private var lastWasCR = false
 
     protected fun current(): String {
         return buf.toString()
@@ -25,7 +31,8 @@ open class LineEmittingWriter(val lineLogger: (String) -> Unit) : Writer() {
         for (i in off..<off + len) {
             val c = cbuf[i]
 
-            if (lastWasCR.compareAndExchange(true, false)) {
+            if (lastWasCR) {
+                lastWasCR = false
                 if (c == '\n') {
                     emitInternal()
                     continue
@@ -35,7 +42,7 @@ open class LineEmittingWriter(val lineLogger: (String) -> Unit) : Writer() {
             }
 
             if (c == '\r') {
-                lastWasCR.store(true)
+                lastWasCR = true
             } else if (c == '\n') {
                 emitInternal()
             } else {

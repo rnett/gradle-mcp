@@ -86,13 +86,50 @@ Detailed operational guidance is offloaded to specialized **Expert Skills** to m
   concurrent or sequential tool calls.
 - **Test Search Syntax**: Use simple name prefixes without parentheses when searching for tests with `inspect_build`. This avoids matching issues caused by JUnit 5's addition of parentheses to test method names in report outputs.
 - **Unified Gradle Output Parsing**: When implementing internal Gradle output intercepted via init scripts, always use the `[gradle-mcp] [category] ...` format. This allows for centralized parsing in
-  `DefaultBuildExecutionService.processTaskOutput` and simplifies logic across different service layers.
+  `DefaultBuildExecutionService.processStdoutLine` and simplifies logic across different service layers.
 - **Surgical Init Script Updates**: When modifying Gradle init scripts, ensure that object initializations (like `val mcpRenderer = ...`) are preserved during refactoring, as these scripts are often evaluated in a restrictive context where
   missing references cause full configuration failures.
 - **Regex Escaping for Literal Brackets**: In Kotlin `Regex` strings, literal brackets MUST be escaped (`\[`, `\]`) even if they are within a raw string if they could be interpreted as character classes. This is critical for matching
   structured log prefixes like `[task-output]`.
 - **Sequential Parsing of Bracketed Content**: When parsing multiple bracketed fields in a log line, use `substringAfter("]").trim()` sequentially to move past each field, rather than multiple `substringAfter("[")` calls, which only find
   the first occurrence.
+
+---
+
+## Concurrency Rules
+
+This project has multi-threaded state shared between Gradle daemon output threads, progress callback threads, coroutine dispatcher threads, and the MCP transport thread. Concurrency bugs cause log corruption, data races, and apparent hangs.
+See [build-output-concurrency.md](./openspec/docs/build-output-concurrency.md) for the full architecture.
+
+### Threading Model
+
+There are four thread contexts. Understanding which applies determines whether concurrency control is needed:
+
+1. **Stdout/Stderr delivery** — single thread per stream, each with its own `LineEmittingWriter` instance → **thread-confined, no sync needed within an instance**
+2. **Progress callbacks** — Gradle Tooling API callback thread(s), **may be multi-threaded with `--parallel`** → **needs concurrent collections**
+3. **MCP readers** — coroutine dispatcher threads reading build state → **needs safe reads (snapshots or concurrent collections)**
+4. **Build lifecycle** — the coroutine running `invoker(launcher)` and its `finally` block → **sequential after build completes**
+
+### Mandatory Patterns
+
+- **`ConcurrentHashMap.computeIfAbsent` over `getOrPut`**: Kotlin's `getOrPut` on `ConcurrentHashMap` is NOT atomic — it calls `get`, then `put` if absent. Two threads can race and create duplicate values. ALWAYS use `computeIfAbsent`.
+- **`ConcurrentHashMap.newKeySet()` over `Collections.synchronizedSet`**: `synchronizedSet` requires external synchronization during iteration (`.toList()`, `.forEach`, etc.) or it throws `ConcurrentModificationException`.
+  `ConcurrentHashMap.newKeySet()` supports safe concurrent iteration.
+- **`compareAndSet` over `store` for AtomicReference cleanup**: When clearing an `AtomicReference`, use `compareAndSet(expected, null)` to avoid wiping a value concurrently stored by another thread.
+- **Single-operation `StringBuffer` mutations**: `StringBuffer` methods are individually synchronized, but compound operations (e.g., `length` + `setLength` + `appendLine`) are NOT atomic. Design so each mutation is a single method call.
+- **`@Volatile` for cross-thread flags**: Boolean or enum fields read from a different thread context than where they're written (e.g., `taskOutputCapturingFailed`, `status`, `isCancelled`) MUST be annotated `@Volatile`.
+- **Thread confinement for `LineEmittingWriter`**: Each instance is used by exactly one Gradle output delivery thread. Do NOT add `synchronized`, `StringBuffer`, or atomics — they add overhead with no safety benefit. The `pendingRawLine`
+  variable in `BuildExecutionService` is safe because it is only accessed from the stdout `LineEmittingWriter`'s callback chain, which is thread-confined.
+
+### Anti-Patterns to Avoid
+
+- **Adding synchronization to `LineEmittingWriter`**: Each instance is thread-confined. `synchronized(buf)` on every `write()` call wastes cycles on an uncontended lock. Use plain `StringBuilder` and `Boolean`.
+- **Materializing `consoleOutputLines` in hot paths**: `build.consoleOutputLines` calls `.lines()` which allocates a `String` for every line. For large builds (`--info`/`--debug`), this causes millions of allocations and GC hangs. Scan
+  `consoleOutput.toString()` directly using `indexOf`/`lastIndexOf`.
+- **Compound replace-then-add on shared buffers**: Never read, truncate, then re-append to a shared `StringBuffer` — another thread can interleave. Use the pending-line buffer pattern instead.
+- **Stderr suppression via stdout logic**: The pending-line buffer only operates on stdout. Structured `[gradle-mcp] [task-output]` lines arrive on stdout, so raw stderr lines cannot be correlated and suppressed. Tests MUST NOT assert that
+  raw stderr lines are absent from `consoleOutput`.
+- **Sequential MCP message processing**: Never process MCP messages directly on the transport thread — launch each in a coroutine scope, otherwise a long-running tool call blocks all concurrent tool calls.
 
 ---
 
@@ -112,3 +149,5 @@ Detailed operational guidance is offloaded to specialized **Expert Skills** to m
 - **Tool Definitions**: [ToolNames.kt](src/main/kotlin/dev/rnett/gradle/mcp/tools/ToolNames.kt)
 - **Full Skill List**: [docs/skills.md](./docs/skills.md)
 - **Gradle Source Overview**: [gradle-sources-overview.md](./openspec/docs/gradle-sources-overview.md)
+- **Build Output Concurrency**: [build-output-concurrency.md](./openspec/docs/build-output-concurrency.md)
+- **CAS Concurrency Architecture**: [concurrency-cas-architecture.md](./openspec/docs/concurrency-cas-architecture.md)

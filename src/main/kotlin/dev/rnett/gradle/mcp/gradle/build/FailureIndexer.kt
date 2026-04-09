@@ -15,10 +15,10 @@ data class FailureContent(
 )
 
 class FailureIndexer {
-    private val indexes = mutableMapOf<FailureContent, dev.rnett.gradle.mcp.gradle.build.FailureId>()
+    private val indexes = java.util.concurrent.ConcurrentHashMap<FailureContent, dev.rnett.gradle.mcp.gradle.build.FailureId>()
 
     @OptIn(ExperimentalUuidApi::class)
-    fun index(content: FailureContent): dev.rnett.gradle.mcp.gradle.build.FailureId = indexes.getOrPut(content) { dev.rnett.gradle.mcp.gradle.build.FailureId(Uuid.random().toString()) }
+    fun index(content: FailureContent): dev.rnett.gradle.mcp.gradle.build.FailureId = indexes.computeIfAbsent(content) { dev.rnett.gradle.mcp.gradle.build.FailureId(Uuid.random().toString()) }
 
     fun withIndex(content: FailureContent): dev.rnett.gradle.mcp.gradle.build.Failure =
         dev.rnett.gradle.mcp.gradle.build.Failure(index(content), content.message, content.description, content.causes.map { withIndex(it) }, content.problemAggregations)

@@ -430,16 +430,46 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
 
     internal fun getConsoleOutput(build: Build, args: InspectBuildArgs): String {
         return if (args.consoleTail == true) {
-            val totalLines = build.consoleOutputLines.size
+            // Efficient tail: scan from the end of the output without materialising all lines.
+            // Calling consoleOutputLines on a large build (e.g. --info) allocates millions of
+            // String objects and causes GC pressure / apparent hangs.
+            val output = build.consoleOutput.toString()
             val offset = args.pagination.offset
             val limit = args.pagination.limit
-            val start = (totalLines - offset - limit).coerceAtLeast(0)
-            val end = (totalLines - offset).coerceAtLeast(0)
-            val pagedLines = build.consoleOutputLines.subList(start, end)
+            val needed = limit + offset
 
-            paginate(pagedLines, args.pagination, "lines", total = totalLines, isAlreadyPaged = true, isTail = true)
+            val tailLines = mutableListOf<String>()
+            var pos = output.length
+            if (pos > 0 && output[pos - 1] == '\n') pos-- // skip trailing newline
+            while (tailLines.size < needed && pos >= 0) {
+                val lineStart = if (pos == 0) 0 else output.lastIndexOf('\n', pos - 1) + 1
+                tailLines.add(0, output.substring(lineStart, pos))
+                pos = lineStart - 1
+            }
+            // pos < 0 means we reached the start of the output — no more lines
+            val hasMore = pos >= 0
+
+            val pagedLines = if (offset > 0) tailLines.dropLast(offset.coerceAtMost(tailLines.size)) else tailLines
+            paginate(pagedLines, args.pagination, "lines", total = null, isAlreadyPaged = true, isTail = true, hasMore = hasMore)
         } else {
-            paginateText(build.consoleOutputLines.joinToString("\n"), args.pagination)
+            // For head, materialise only the first (offset + limit) lines to avoid processing the
+            // entire output of large builds.
+            val output = build.consoleOutput.toString()
+            val offset = args.pagination.offset
+            val limit = args.pagination.limit
+            val needed = offset + limit
+
+            val headLines = mutableListOf<String>()
+            var pos = 0
+            while (headLines.size < needed && pos <= output.length) {
+                val lineEnd = output.indexOf('\n', pos).let { if (it == -1) output.length else it }
+                headLines.add(output.substring(pos, lineEnd))
+                pos = lineEnd + 1
+            }
+            val hasMore = pos <= output.length && pos > 0
+
+            val pagedHead = headLines.drop(offset).take(limit)
+            paginate(pagedHead, args.pagination, "lines", total = null, isAlreadyPaged = true, hasMore = hasMore)
         }
     }
 
@@ -464,7 +494,8 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             |
             |### Wait & Progress Monitoring
             |Use `timeout` (seconds) with `waitFor` (regex), `waitForTask` (path), or `waitForFinished=true` to monitor active builds.
-            |If `timeout` is set but no wait condition is specified, defaults to waiting for the build to finish.
+            |If `timeout` is set with no other condition and no specific section (consoleTail, taskPath, etc.), defaults to waiting for the build to finish.
+            |When a specific output section is requested (e.g. `consoleTail`), returns the current snapshot immediately without waiting unless `waitForFinished=true` is also set.
             |Set `afterCall=true` to only match events emitted after this call.
         """.trimMargin()
     ) { args ->
@@ -475,74 +506,86 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         var build = buildResults.getBuild(args.buildId)
             ?: throw IllegalArgumentException("Unknown or expired build ID: ${args.buildId}")
 
-        val startLines = if (args.afterCall && build is RunningBuild) build.consoleOutputLines.size else 0
+        // Track a character offset rather than materialising all lines — O(1) for StringBuffer.length.
+        val startOffset = if (args.afterCall && build is RunningBuild) build.consoleOutput.length else 0
 
         if (args.timeout != null && build is RunningBuild) {
             val runningBuild = build
             val waitForRegex = args.waitFor?.toRegex()
             val waitForTask = args.waitForTask
-            val waitForFinished = args.waitForFinished || (waitForRegex == null && waitForTask == null)
+            // When a specific output section (e.g. consoleTail) is requested without an explicit
+            // waitForFinished, don't default to waiting for the build to finish. The user wants
+            // the current snapshot, not to block until completion.
+            val hasSpecificSection = args.consoleTail != null || args.taskPath != null || args.taskOutcome != null ||
+                    args.testName != null || args.testOutcome != null || args.testIndex != null ||
+                    args.failureId != null || args.problemId != null
+            val waitForFinished = args.waitForFinished || (waitForRegex == null && waitForTask == null && !hasSpecificSection)
 
-            val waitResult = withTimeoutOrNull(args.timeout.seconds) {
-                coroutineScope {
-                    val progressJob = launch(Dispatchers.Default) {
-                        runningBuild.progressTracker.progress.collectLatest { p ->
-                            progressReporter.report(p.progress, 1.0, p.message)
+            // Only enter the wait loop if there is actually something to wait for.
+            // This avoids blocking for the full timeout when e.g. consoleTail is set without an
+            // explicit waitForFinished — in that case the snapshot is available immediately.
+            if (waitForFinished || waitForRegex != null || waitForTask != null) {
+                val waitResult = withTimeoutOrNull(args.timeout.seconds) {
+                    coroutineScope {
+                        val progressJob = launch(Dispatchers.Default) {
+                            runningBuild.progressTracker.progress.collectLatest { p ->
+                                progressReporter.report(p.progress, 1.0, p.message)
+                            }
                         }
-                    }
 
-                    try {
-                        select {
-                            if (waitForRegex != null) {
-                                async {
-                                    if (!args.afterCall && waitForRegex.containsMatchIn(runningBuild.consoleOutput.toString())) {
-                                        return@async true
-                                    }
-                                    runningBuild.logLines.firstOrNull { line: String ->
-                                        waitForRegex.containsMatchIn(line)
-                                    } != null
-                                }.onAwait { it }
-                            }
-                            if (waitForTask != null) {
-                                async {
-                                    if (!args.afterCall && runningBuild.completedTaskPaths.contains(waitForTask)) {
-                                        return@async true
-                                    }
-                                    runningBuild.completingTasks.firstOrNull { it == waitForTask } != null
-                                }.onAwait { it }
-                            }
-                            async { runningBuild.awaitFinished() }.onAwait {
-                                if (waitForRegex != null || waitForTask != null) {
-                                    // Check if the condition was met in the very last moment (e.g. in the final log lines)
-                                    val finalMatched = if (waitForRegex != null) {
-                                        waitForRegex.containsMatchIn(runningBuild.consoleOutput.toString())
+                        try {
+                            select {
+                                if (waitForRegex != null) {
+                                    async {
+                                        if (!args.afterCall && waitForRegex.containsMatchIn(runningBuild.consoleOutput.toString())) {
+                                            return@async true
+                                        }
+                                        runningBuild.logLines.firstOrNull { line: String ->
+                                            waitForRegex.containsMatchIn(line)
+                                        } != null
+                                    }.onAwait { it }
+                                }
+                                if (waitForTask != null) {
+                                    async {
+                                        if (!args.afterCall && runningBuild.completedTaskPaths.contains(waitForTask)) {
+                                            return@async true
+                                        }
+                                        runningBuild.completingTasks.firstOrNull { it == waitForTask } != null
+                                    }.onAwait { it }
+                                }
+                                async { runningBuild.awaitFinished() }.onAwait {
+                                    if (waitForRegex != null || waitForTask != null) {
+                                        // Check if the condition was met in the very last moment (e.g. in the final log lines)
+                                        val finalMatched = if (waitForRegex != null) {
+                                            waitForRegex.containsMatchIn(runningBuild.consoleOutput.toString())
+                                        } else {
+                                            runningBuild.completedTaskPaths.contains(waitForTask)
+                                        }
+
+                                        if (!finalMatched) {
+                                            val condition = if (waitForRegex != null) "matching regex: ${args.waitFor}" else "completing task: ${args.waitForTask}"
+                                            throw RuntimeException("Build finished without $condition")
+                                        }
+                                        true
                                     } else {
-                                        runningBuild.completedTaskPaths.contains(waitForTask)
+                                        waitForFinished
                                     }
-
-                                    if (!finalMatched) {
-                                        val condition = if (waitForRegex != null) "matching regex: ${args.waitFor}" else "completing task: ${args.waitForTask}"
-                                        throw RuntimeException("Build finished without $condition")
-                                    }
-                                    true
-                                } else {
-                                    waitForFinished
                                 }
                             }
+                        } finally {
+                            progressJob.cancelAndJoin()
                         }
-                    } finally {
-                        progressJob.cancelAndJoin()
                     }
                 }
-            }
-            if (waitResult == false) {
-                // This should only happen if waitForFinished was false but the build finished.
-                // But if waitForFinished was true and it finished, it returns true.
-                // If regex/task was set and it finished, it throws.
-                // So this branch should be unreachable or return immediately.
+                if (waitResult == false) {
+                    // This should only happen if waitForFinished was false but the build finished.
+                    // But if waitForFinished was true and it finished, it returns true.
+                    // If regex/task was set and it finished, it throws.
+                    // So this branch should be unreachable or return immediately.
+                }
             }
 
-            // re-get build to pick up any changes (e.g. it might have finished)
+            // re-get build to pick up any changes (e.g. it might have finished concurrently)
             val buildId = args.buildId
             build = requireNotNull(buildResults.getBuild(buildId)) { "No build found with ID $buildId" }
         }
@@ -565,7 +608,17 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
 
             val waitForRegex = args.waitFor?.toRegex()
             if (waitForRegex != null) {
-                val matchingLines = build.consoleOutputLines.drop(startLines).filter { line -> line.isNotBlank() && waitForRegex.containsMatchIn(line) }
+                // Scan only the output after startOffset without materialising all lines.
+                val output = build.consoleOutput.toString()
+                val searchFrom = if (args.afterCall) startOffset.coerceAtMost(output.length) else 0
+                val matchingLines = mutableListOf<String>()
+                var scanPos = searchFrom
+                while (scanPos < output.length) {
+                    val lineEnd = output.indexOf('\n', scanPos).let { if (it == -1) output.length else it }
+                    val line = output.substring(scanPos, lineEnd)
+                    if (line.isNotBlank() && waitForRegex.containsMatchIn(line)) matchingLines.add(line)
+                    scanPos = lineEnd + 1
+                }
                 if (matchingLines.isNotEmpty()) {
                     appendLine("Matching lines for '${args.waitFor}':")
                     matchingLines.forEach { appendLine("    $it") }
