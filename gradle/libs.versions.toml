@@ -10,7 +10,7 @@ schemaKenerator = "2.7.2"
 kotlinxSerializationJson = "1.11.0"
 flexmark = "0.64.8"
 coroutines = "1.10.2"
-mcpSdk = "0.7.2"
+mcpSdk = "0.11.1"
 gradleToolingApi = "9.4.1" # renovate: ignoreUnstable=false
 buildconfig = "6.0.9"
 vanniktechPublish = "0.36.0"
