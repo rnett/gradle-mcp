@@ -11,6 +11,13 @@
   "packageRules": [
     {
       "matchPackageNames": [
+        "org.jetbrains.kotlin:kotlin-stdlib"
+      ],
+      "matchCurrentVersion": "2.0.21",
+      "enabled": false
+    },
+    {
+      "matchPackageNames": [
         "com.android.tools.build:gradle"
       ],
       "matchCurrentVersion": "/^8\\./",
