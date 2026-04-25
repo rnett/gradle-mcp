@@ -79,7 +79,9 @@ jbang run --fresh dev.rnett.gradle-mcp:gradle-mcp:+
 }
 ```
 
-See the [documentation](https://gradle-mcp.rnett.dev/latest/) for more details.
+> [!TIP]
+> If you experience errors related to CDS (Class Data Sharing), typically caused by native JVMTI agents from security software (e.g., SentinelOne), you can disable it by adding `--no-cds` to the `jbang` command.
+> See the [documentation](https://gradle-mcp.rnett.dev/latest/) for more details.
 
 ## Agent Skills
 
