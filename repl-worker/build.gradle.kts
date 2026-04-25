@@ -27,7 +27,7 @@ val testKotlinStdlib2 by configurations.creating
 
 dependencies {
     // renovate: ignore-next-line
-    testKotlinStdlib2("org.jetbrains.kotlin:kotlin-stdlib:2.0.21")
+    testKotlinStdlib2("org.jetbrains.kotlin:kotlin-stdlib:2.3.21")
 }
 
 tasks.test {
