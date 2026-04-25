@@ -2,6 +2,7 @@
 # For renovate to work right, every version referenced here MUST have a coresponding dependency in the catalog, which is used to detect updates for it
 
 kotlin = "2.3.21"
+kotlin2 = "2.0.21"
 ktor = "3.3.3"
 logback = "1.5.32"
 caffeine = "3.2.3"
@@ -74,6 +75,8 @@ kotlin-scripting-jvm = { module = "org.jetbrains.kotlin:kotlin-scripting-jvm", v
 kotlin-scripting-jvm-host = { module = "org.jetbrains.kotlin:kotlin-scripting-jvm-host", version.ref = "kotlin" }
 kotlin-compiler-embeddable = { module = "org.jetbrains.kotlin:kotlin-compiler-embeddable", version.ref = "kotlin" }
 kotlin-scripting-compiler-embeddable = { module = "org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable", version.ref = "kotlin" }
+# renovate: ignore
+kotlin-stdlib2 = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin2" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
