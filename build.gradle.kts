@@ -144,11 +144,6 @@ testing {
             targets {
                 all {
                     testTask.configure {
-                        testLogging {
-                            showStandardStreams = true
-                            showStackTraces = true
-                            exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
-                        }
                         maxParallelForks = if (isCI) 3 else 8
                         if (isCI) {
                             mustRunAfter("test")

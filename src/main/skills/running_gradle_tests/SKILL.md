@@ -49,7 +49,11 @@ Use `testName` with the default `mode="summary"` to see all executions of a test
 
 - **Example**: `inspect_build(buildId="ID", testName="MyTest")`
 
-### 4. Progress Monitoring
+### 4. Full Export
+
+Use `outputFile="path/to/results.txt"` to write the entire result (e.g., all test outcomes, full console output) to a file. This bypasses pagination limits and is much more token-efficient for large results.
+
+### 5. Progress Monitoring
 
 Use `timeout`, `waitFor`, or `waitForTask` to block until a condition is met in a background test run.
 

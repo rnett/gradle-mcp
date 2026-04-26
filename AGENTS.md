@@ -85,6 +85,8 @@ Detailed operational guidance is offloaded to specialized **Expert Skills** to m
 - **REPL Session Management**: Explicitly terminate previous REPL sessions in `ReplTools` before starting new ones when session IDs are regenerated. This prevents leaking worker processes and ensures stable session management during
   concurrent or sequential tool calls.
 - **Test Search Syntax**: Use simple name prefixes without parentheses when searching for tests with `inspect_build`. This avoids matching issues caused by JUnit 5's addition of parentheses to test method names in report outputs.
+- **Large Result Inspection**: When inspecting large console logs or many test results, use the `outputFile` option in `inspect_build` to write the full result to a file. This bypasses pagination and is much more token-efficient than
+  multiple paginated tool calls.
 - **Unified Gradle Output Parsing**: When implementing internal Gradle output intercepted via init scripts, always use the `[gradle-mcp] [category] ...` format. This allows for centralized parsing in
   `DefaultBuildExecutionService.processStdoutLine` and simplifies logic across different service layers.
 - **Surgical Init Script Updates**: When modifying Gradle init scripts, ensure that object initializations (like `val mcpRenderer = ...`) are preserved during refactoring, as these scripts are often evaluated in a restrictive context where

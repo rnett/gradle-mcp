@@ -51,7 +51,8 @@ To get exhaustive information, ALWAYS use `mode="details"` combined with a speci
 - **Task Outputs**: `taskPath=":path:to:task"`, `mode="details"`.
 - **Build Failures**: `failureId="ID"`, `mode="details"` (find IDs in the build summary).
 - **Problems/Errors**: `problemId="ID"`, `mode="details"` (find IDs in the build summary).
-- **Console Logs**: `consoleTail=true` (last N lines) or `consoleTail=false` (first N lines).
+  |- **Console Logs**: `consoleTail=true` (last N lines) or `consoleTail=false` (first N lines).
+  |- **Full Export**: Use `outputFile="path/to/file.txt"` to write the entire result (e.g., full console output, all tests) to a file, bypassing pagination limits and reducing token usage.
 
 ### 4. Progress Monitoring
 

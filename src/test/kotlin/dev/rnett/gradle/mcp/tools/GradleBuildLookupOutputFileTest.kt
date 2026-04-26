@@ -178,4 +178,77 @@ class GradleBuildLookupOutputFileTest : BaseMcpServerTest() {
         assertTrue(text.contains("--- BUILD FINISHED ---"))
         assertTrue(text.contains("--- Summary ---"))
     }
+
+    @Test
+    fun `test outputFile skips pagination limits`() = runTest {
+        // Create 30 synthetic builds (default limit is 20)
+        repeat(30) {
+            val build = createSyntheticBuild()
+            buildManager.storeResult(build)
+        }
+
+        val tempFile = Path(tempDir.toString(), "test-pagination.txt")
+        tempFile.deleteIfExists()
+
+        val response = server.client.callTool("inspect_build", buildJsonObject {
+            put("outputFile", tempFile.toString())
+        }) as CallToolResult
+
+        val text = (response.content.first() as TextContent).text
+        requireNotNull(text)
+        assertTrue(text.startsWith("Output written to"))
+
+        val fileContent = tempFile.readText()
+        // Count lines that look like build entries (not header)
+        val buildCount = fileContent.lines().count { it.contains(" | ") && !it.contains("BuildId |") }
+        assertTrue(buildCount >= 30, "Should have at least 30 builds in output, but got $buildCount")
+        // Verify no pagination metadata
+        assertTrue(!fileContent.contains("Pagination: Showing"), "Should not contain pagination metadata")
+    }
+
+    @Test
+    fun `test outputFile ignores offset and tail parameters`() = runTest {
+        val original = createSyntheticBuild()
+        val build = FinishedBuild(
+            id = original.id,
+            args = original.args,
+            startTime = original.startTime,
+            consoleOutput = (1..150).joinToString("\n") { "Line $it" },
+            publishedScans = original.publishedScans,
+            testResults = original.testResults,
+            problemAggregations = original.problemAggregations,
+            taskResults = original.taskResults,
+            taskOutputs = original.taskOutputs,
+            taskOutputCapturingFailed = original.taskOutputCapturingFailed,
+            outcome = original.outcome,
+            finishTime = original.finishTime
+        )
+        buildManager.storeResult(build)
+
+        val tempFile = Path(tempDir.toString(), "test-params-ignored.txt")
+        tempFile.deleteIfExists()
+
+        // Request tail + offset 20
+        val response = server.client.callTool("inspect_build", buildJsonObject {
+            put("buildId", build.id.id)
+            put("consoleTail", true)
+            put("pagination", buildJsonObject {
+                put("offset", 20)
+                put("limit", 10)
+            })
+            put("outputFile", tempFile.toString())
+        }) as CallToolResult
+
+        val text = (response.content.first() as TextContent).text
+        requireNotNull(text)
+
+        val fileContent = tempFile.readText()
+        // Should contain Line 1 (proving it's head mode)
+        assertTrue(fileContent.contains("Line 1"), "Should contain Line 1 (forced head mode)")
+        // Should contain more than 10 lines (proving limit was ignored)
+        val lineCount = fileContent.lines().count { it.startsWith("Line ") }
+        assertTrue(lineCount >= 150, "Should contain all 150 lines, but got $lineCount")
+        // Verify no pagination metadata
+        assertTrue(!fileContent.contains("Pagination: Showing"), "Should not contain pagination metadata")
+    }
 }

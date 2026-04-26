@@ -93,7 +93,7 @@ fun <T> McpServerComponent.paginate(
     }
 
     val actualHasMore = hasMore ?: (calculatedTotal != null && end < calculatedTotal)
-    val metadata = if (actualHasMore || offset > 0 || isTail) {
+    val metadata = if ((actualHasMore || offset > 0 || isTail) && (offset != 0 || limit != Int.MAX_VALUE)) {
         val range = if (isTail && calculatedTotal != null) {
             val tailStart = (calculatedTotal - offset - paged.size).coerceAtLeast(0) + 1
             val tailEnd = (calculatedTotal - offset).coerceAtLeast(0)
@@ -175,7 +175,7 @@ fun McpServerComponent.paginateText(
             }
 
             val hasMore = if (isTail) start > 0 else end < total
-            val metadata = if (total > 0 && (hasMore || offset > 0 || isTail)) {
+            val metadata = if (total > 0 && (hasMore || offset > 0 || isTail) && (offset != 0 || limit != Int.MAX_VALUE)) {
                 val suffix = if (!hasMore && !isTail) " (End of text)" else ""
                 """
 

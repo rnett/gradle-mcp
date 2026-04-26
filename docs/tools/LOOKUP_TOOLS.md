@@ -19,7 +19,8 @@ Inspects build information, monitors progress, and performs post-mortem diagnost
 - Task outputs: `taskPath=":path:to:task"`, `mode="details"`.
 - Build failures: `failureId="ID"`, `mode="details"` (use summary first to find IDs).
 - Full console: `consoleTail=true` (tail) or `consoleTail=false` (head).
-- Pagination: Use `offset` and `limit` to navigate through long console logs or large task/test lists.
+- Pagination: Use `offset` and `limit` to navigate through long console logs or large task/test lists. Use `outputFile` to write the full result to a file and skip pagination limits.
+- File output: Use `outputFile` to write the full result to a file and skip pagination limits.
 
 ### Wait & Progress Monitoring
 Use `timeout` (seconds) with `waitFor` (regex), `waitForTask` (path), or `waitForFinished=true` to monitor active builds.
