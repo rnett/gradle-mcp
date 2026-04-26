@@ -26,7 +26,8 @@ object GlobSearch : SearchProvider {
     override suspend fun search(
         indexDirs: Map<Path, Boolean>,
         query: String,
-        pagination: PaginationInput
+        pagination: PaginationInput,
+        filter: ((String) -> Boolean)?
     ): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (results, duration) = measureTimedValue {
             val existingIndexDirs = indexDirs.keys.filter { it.resolve(v2FileName).exists() }
@@ -67,6 +68,7 @@ object GlobSearch : SearchProvider {
                         }
 
                         if (isMatch) {
+                            if (filter != null && !filter(line)) continue
                             matchesFound++
                             if (matchesFound > pagination.offset) {
                                 if (paginatedMatches.size < pagination.limit) {

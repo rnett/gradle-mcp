@@ -53,13 +53,19 @@ data class CASDependencySourcesDir(
      */
     val baseCompletedMarker: Path = baseDir.resolve(".base-completed")
 
+    /**
+     * Completion marker indicating this CAS entry has been processed with its common sibling
+     * (normalized-target/ is stable).
+     */
+    val processedWithCommonMarker: Path = baseDir.resolve(".processed-with-common")
+
     @Deprecated("Use baseCompletedMarker", ReplaceWith("baseCompletedMarker"))
     val completionMarker: Path get() = baseCompletedMarker
 
     override fun lastRefresh(): kotlin.time.Instant? {
-        if (completionMarker.exists()) {
+        if (baseCompletedMarker.exists()) {
             return try {
-                kotlin.time.Instant.fromEpochMilliseconds(completionMarker.getLastModifiedTime().toMillis())
+                kotlin.time.Instant.fromEpochMilliseconds(baseCompletedMarker.getLastModifiedTime().toMillis())
             } catch (e: Exception) {
                 null
             }

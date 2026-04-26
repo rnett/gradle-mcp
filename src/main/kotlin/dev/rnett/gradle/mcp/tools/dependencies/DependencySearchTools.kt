@@ -24,8 +24,8 @@ class DependencySearchTools(
         ToolNames.LOOKUP_MAVEN_VERSIONS,
         """
             |Retrieves all released versions for a Maven `group:artifact` from deps.dev, sorted most-recent first with `yyyy-MM-dd` publish dates.
-            |Covers the full Maven package index including packages published via the new Central Portal (central.sonatype.com).
             |Use to verify exact release history instead of hallucinated version numbers; then use `${ToolNames.INSPECT_DEPENDENCIES}` to check if the project already uses the library.
+            |Covers the full Maven package index including packages published via the new Central Portal (central.sonatype.com).
         """.trimMargin()
     ) { args ->
         val parts = args.coordinates.split(":")

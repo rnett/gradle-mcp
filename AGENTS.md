@@ -147,7 +147,24 @@ There are four thread contexts. Understanding which applies determines whether c
 
 - **Internal Documentation**: [openspec/docs/](./openspec/docs/)
 - **Tool Definitions**: [ToolNames.kt](src/main/kotlin/dev/rnett/gradle/mcp/tools/ToolNames.kt)
-- **Full Skill List**: [docs/skills.md](./docs/skills.md)
+- **Distributable Skill List**: [docs/skills.md](./docs/skills.md)
+- **Local Agent Skills**: [.agents/skills/](./.agents/skills/) — see "Local Agent Skills" section below.
 - **Gradle Source Overview**: [gradle-sources-overview.md](./openspec/docs/gradle-sources-overview.md)
 - **Build Output Concurrency**: [build-output-concurrency.md](./openspec/docs/build-output-concurrency.md)
 - **CAS Concurrency Architecture**: [concurrency-cas-architecture.md](./openspec/docs/concurrency-cas-architecture.md)
+
+---
+
+## Local Agent Skills
+
+In addition to the global agent-config skills referenced in the WHAT/HOW sections (e.g. `gradle_mcp_search_and_indexing_expert`), this repository ships **local copies** of those skills under [`.agents/skills/`](./.agents/skills/). They are
+the authoritative, in-repo source of truth for project-specific operational knowledge while working in this codebase:
+
+- [`gradle_mcp_search_and_indexing_expert`](./.agents/skills/gradle_mcp_search_and_indexing_expert/SKILL.md) — Lucene 10+, MultiReader virtual searching, Tree-sitter extraction.
+- [`gradle_mcp_concurrency_expert`](./.agents/skills/gradle_mcp_concurrency_expert/SKILL.md) — Coroutines/Flow patterns, file-lock re-entrancy, async test synchronization.
+- [`gradle_mcp_caching_expert`](./.agents/skills/gradle_mcp_caching_expert/SKILL.md) — CAS model, session views, two-level locking, multi-layer dependency filtering.
+- [`gradle_mcp_progress_reporting_expert`](./.agents/skills/gradle_mcp_progress_reporting_expert/SKILL.md) — UX-focused progress tracking and init-script reporting.
+- [`gradle_mcp_skill_authoring`](./.agents/skills/gradle_mcp_skill_authoring/SKILL.md) — Workflow for creating/refining skills in this repo.
+
+**Maintenance obligation**: These local skills MUST be kept up to date as the underlying subsystems evolve. Whenever you change indexing/search, CAS/caching, concurrency primitives, progress reporting, or skill-authoring conventions, you
+MUST review and update the corresponding SKILL.md so its references, claims, and idioms continue to match the current code. Skill content that no longer matches the codebase is a bug — fix it in the same change that introduced the drift.

@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.copyToRecursively
@@ -166,6 +167,31 @@ class DefaultSourceStorageService(private val environment: GradleMcpEnvironment)
         encodeDefaults = true
     }
 
+    /**
+     * Computes whether [casDir]'s `normalizedTargetDir` exists and contains at least one file.
+     * Guards against a TOCTOU race with lazy generation via a shared advisory lock. The fast path
+     * (skipping the lock) is only safe if lazy generation is definitely complete (processedWithCommonMarker
+     * exists). Otherwise, we must hold the shared lock to ensure we don't read while
+     * normalizedTargetDir is being atomically replaced.
+     */
+    private suspend fun computeTargetExistsAndNotEmpty(casDir: CASDependencySourcesDir, hasCommonSibling: Boolean): Boolean {
+        if (!hasCommonSibling) return false
+        fun compute(): Boolean = casDir.normalizedTargetDir.exists() && try {
+            Files.list(casDir.normalizedTargetDir).use { it.findFirst().isPresent }
+        } catch (_: java.nio.file.NoSuchFileException) {
+            false
+        }
+
+        // The baseCompletedMarker only ensures sources/ and normalized/ are stable.
+        // normalizedTargetDir can be mutated by lazy generation AFTER baseCompletedMarker exists.
+        // We can only skip the lock if lazy generation is definitely complete.
+        return if (casDir.processedWithCommonMarker.exists()) {
+            compute()
+        } else {
+            FileLockManager.withLock(casDir.baseLockFile, shared = true) { compute() }
+        }
+    }
+
     override suspend fun createSessionView(deps: Map<GradleDependency, CASDependencySourcesDir>, force: Boolean): SessionViewSourcesDir = withContext(Dispatchers.IO) {
         val sessionId = Uuid.random().toString()
         val timestamp = Clock.System.now().toString().replace(Regex("[^a-zA-Z0-9]"), "_")
@@ -175,21 +201,44 @@ class DefaultSourceStorageService(private val environment: GradleMcpEnvironment)
 
         val depIdsInScope = deps.keys.map { it.id }.toSet()
 
-        deps.forEach { (dep, casDir) ->
+        val failedDependencies = deps.filter { (_, casDir) ->
+            !casDir.baseCompletedMarker.exists()
+        }.keys.map { it.id }.sorted()
+
+        val readyDeps: Map<GradleDependency, CASDependencySourcesDir> = deps.filter { (dep, casDir) ->
+            val ready = casDir.baseCompletedMarker.exists()
+            if (!ready) {
+                logger.warn("Skipping dep ${dep.id} in session view: baseCompletedMarker absent (base processing incomplete or failed).")
+            }
+            ready
+        }
+
+        // Pre-compute once per dep to avoid TOCTOU: if clearCasDir ran between the symlink loop and
+        // the manifest loop the two calls would return different values, producing a junction pointing
+        // to normalizedTargetDir while the manifest says isDiffOnly=false (or vice versa).
+        val targetExistsSnapshot: Map<GradleDependency, Boolean> = readyDeps.entries
+            .associate { (dep, casDir) ->
+                val hasCommonSibling = dep.commonComponentId != null && dep.commonComponentId in depIdsInScope
+                dep to computeTargetExistsAndNotEmpty(casDir, hasCommonSibling)
+            }
+
+        for ((dep, casDir) in readyDeps) {
             val linkPath = viewSourcesDir.resolve(requireNotNull(dep.relativePrefix))
             linkPath.createParentDirectories()
 
             val commonId = dep.commonComponentId
             val hasCommonSibling = commonId != null && commonId in depIdsInScope
 
-            if (hasCommonSibling && !casDir.normalizedTargetDir.exists()) {
+            val targetExistsAndNotEmpty = targetExistsSnapshot.getValue(dep)
+
+            if (hasCommonSibling && !targetExistsAndNotEmpty) {
                 // Skip creating link, it has no platform-specific sources and its common sibling provides them
-                return@forEach
+                continue
             }
 
             // Prefer normalized-target/ if it's a platform artifact with its common sibling present.
             // Otherwise prefer pre-normalized normalized/ dir; fall back to raw sources/ for legacy CAS entries
-            val linkTarget = if (hasCommonSibling) {
+            val linkTarget = if (hasCommonSibling && targetExistsAndNotEmpty) {
                 casDir.normalizedTargetDir
             } else if (casDir.normalizedDir.exists()) {
                 casDir.normalizedDir
@@ -203,24 +252,31 @@ class DefaultSourceStorageService(private val environment: GradleMcpEnvironment)
             }
         }
 
-        val manifest = ProjectManifest(
-            sessionId = sessionId,
-            timestamp = Clock.System.now().toString(),
-            dependencies = deps.mapNotNull { (dep, casDir) ->
-                val commonId = dep.commonComponentId
-                val hasCommonSibling = commonId != null && commonId in depIdsInScope
-                if (hasCommonSibling && !casDir.normalizedTargetDir.exists()) {
-                    null
-                } else {
-                    val isDiffOnly = hasCommonSibling && casDir.normalizedTargetDir.exists()
+        val manifestDeps = mutableListOf<ManifestDependency>()
+        for ((dep, casDir) in readyDeps) {
+            val commonId = dep.commonComponentId
+            val hasCommonSibling = commonId != null && commonId in depIdsInScope
+
+            val targetExistsAndNotEmpty = targetExistsSnapshot.getValue(dep)
+
+            if (!(hasCommonSibling && !targetExistsAndNotEmpty)) {
+                val isDiffOnly = hasCommonSibling && targetExistsAndNotEmpty
+                manifestDeps.add(
                     ManifestDependency(
                         id = dep.id,
                         hash = casDir.hash,
                         relativePath = requireNotNull(dep.relativePrefix).replace('\\', '/'),
                         isDiffOnly = isDiffOnly
                     )
-                }
+                )
             }
+        }
+
+        val manifest = ProjectManifest(
+            sessionId = sessionId,
+            timestamp = Clock.System.now().toString(),
+            dependencies = manifestDeps,
+            failedDependencies = failedDependencies
         )
 
         val manifestFile = viewBaseDir.resolve("manifest.json")

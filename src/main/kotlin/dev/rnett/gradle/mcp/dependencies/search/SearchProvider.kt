@@ -21,11 +21,18 @@ interface SearchProvider {
     fun resolveIndexDir(baseDir: Path): Path = baseDir
     /**
      * Performs a search against multiple individual dependency indices.
+     *
+     * The [Boolean] value in [indexDirs] is the `isDiffOnly` flag from [ManifestDependency] and is
+     * reserved for a future optimization where providers could skip indexing common-sibling files.
+     * **All current providers ignore it** — they call `.keys` and treat every index dir equally.
+     * Correctness (deduplication of common-sibling results) is handled exclusively by the
+     * existence filter in `IndexService.search`, not by this flag.
      */
     suspend fun search(
         indexDirs: Map<Path, Boolean>,
         query: String,
-        pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS
+        pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS,
+        filter: ((String) -> Boolean)? = null
     ): SearchResponse<RelativeSearchResult>
 
     /**
@@ -34,8 +41,9 @@ interface SearchProvider {
     suspend fun search(
         indexDirs: List<Path>,
         query: String,
-        pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS
-    ): SearchResponse<RelativeSearchResult> = search(indexDirs.associateWith { false }, query, pagination)
+        pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS,
+        filter: ((String) -> Boolean)? = null
+    ): SearchResponse<RelativeSearchResult> = search(indexDirs.associateWith { false }, query, pagination, filter)
 
     /**
      * Lists package contents across multiple dependency indices.

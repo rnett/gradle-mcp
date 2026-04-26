@@ -5,6 +5,8 @@ import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.CASDependencySourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
+import dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch
+import dev.rnett.gradle.mcp.dependencies.search.FullTextSearch
 import dev.rnett.gradle.mcp.dependencies.search.IndexEntry
 import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
 import dev.rnett.gradle.mcp.dependencies.search.markerFileName
@@ -33,11 +35,21 @@ import kotlin.io.path.createFile
 import kotlin.io.path.createParentDirectories
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.exists
+import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.readBytes
 import kotlin.io.path.readText
 import kotlin.io.path.writeBytes
+import kotlin.io.path.writeText
+import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
+
+/**
+ * Thrown when `calculatePlatformSpecificSets` cannot find the common sibling's source-sets.txt.
+ * Distinct from other [IllegalStateException]s so callers can narrow their catch and let other
+ * ISEs (e.g., common-sibling failure in `ensureBaseReady`) propagate normally.
+ */
+private class MissingSourceSetsFileException(message: String) : IllegalStateException(message)
 
 /**
  * High-level service for managing and searching dependency sources.
@@ -234,9 +246,12 @@ class DefaultSourcesService(
         val tracker = ParallelProgressTracker(processingProgress, depToCasDir.size.toDouble())
 
         val depToCasDirById = depToCasDir.entries.associate { it.key.id to it.value }
-        logger.error("DEBUG: Processing ${depToCasDir.size} dependencies: ${depToCasDir.keys.map { it.id }.sorted()}")
 
-        // Sort to process common siblings first, avoiding deadlock where all workers are waiting for common siblings.
+        // Sort to process common siblings first, avoiding intra-process deadlock where all workers
+        // are waiting for common siblings. NOTE: this ordering is intra-process only — it does NOT
+        // guarantee ordering across separate JVM processes. Two independent MCP server instances
+        // can still mutually wait via waitForBase if they happen to start in opposite orders.
+        // The single-MCP-server-per-machine assumption makes cross-process livelock unlikely.
         depToCasDir.entries
             .sortedBy { it.key.commonComponentId != null }
             .unorderedParallelMap(context = dispatcher) { (dep, casDir) ->
@@ -267,11 +282,24 @@ class DefaultSourcesService(
         providerToIndex: SearchProvider?,
         commonCasDir: CASDependencySourcesDir? = null
     ) {
-        logger.error("DEBUG: Processing CAS dependency: ${dep.id}")
+        logger.debug("Processing CAS dependency: ${dep.id}")
         // 1. Ensure Base is ready (sources extracted & normalized)
-        ensureBaseReady(dep, casDir, forceDownload, commonCasDir)
+        // Catch IllegalStateException from calculatePlatformSpecificSets (missing sourceSetsFile) so a
+        // single broken common sibling doesn't fail the entire unorderedParallelMap batch. The dep
+        // remains usable — it will fall back to normalized/ without a normalized-target/.
+        val baseReady = try {
+            ensureBaseReady(dep, casDir, forceDownload, commonCasDir)
+            true
+        } catch (e: MissingSourceSetsFileException) {
+            logger.warn("Skipping normalized-target generation for ${dep.id}: ${e.message}. Dep will fall back to normalized/ in the session view.")
+            casDir.baseCompletedMarker.exists()
+        }
 
         // 2. Index if requested
+        // Skip indexing entirely when base processing did not complete — the normalizedDir
+        // may not exist, and writing an empty index marker would permanently poison the entry.
+        if (!baseReady) return
+
         if (providerToIndex != null) {
             // Hold shared base lock during indexing to prevent a concurrent repair from deleting normalized/
             FileLockManager.withLock(casDir.baseLockFile, shared = true) {
@@ -285,15 +313,52 @@ class DefaultSourcesService(
                     val tempDir = casDir.baseDir.resolveSibling("${casDir.hash}.index-${providerToIndex.name}.${Uuid.random()}.tmp")
                     tempDir.createDirectories()
                     try {
-                        val isPlatformArtifact = commonCasDir != null
-                        // Use finalized directories as sources
-                        indexStep(dep, tempDir, casDir, casDir.normalizedTargetDir, casDir.normalizedDir, providerToIndex, isPlatformArtifact)
+                        // Always index the full normalized directory to ensure identical indexes across all contexts
+                        indexStep(dep, tempDir, casDir, casDir.normalizedDir, providerToIndex)
                     } finally {
                         if (tempDir.exists()) tempDir.deleteRecursivelyWithRetry()
                     }
                 }
             }
         }
+    }
+
+    private suspend fun generateNormalizedTarget(
+        dep: GradleDependency,
+        casDir: CASDependencySourcesDir,
+        commonCasDir: CASDependencySourcesDir,
+        progress: ProgressReporter
+    ) {
+        val processedWithCommon = casDir.processedWithCommonMarker
+        if (processedWithCommon.exists()) return
+
+        val sourceSets = detectSourceSets(dep, casDir.sources)
+        val platformSpecificSets = calculatePlatformSpecificSets(dep, sourceSets, commonCasDir)
+        if (platformSpecificSets.isNotEmpty()) {
+            val targetAlreadyValid = casDir.normalizedTargetDir.exists() &&
+                    try {
+                        Files.list(casDir.normalizedTargetDir).use { it.findFirst().isPresent }
+                    } catch (_: java.nio.file.NoSuchFileException) {
+                        false
+                    }
+            if (!targetAlreadyValid) {
+                progress.report(0.8, 1.0, "Generating normalized-target for ${dep.id}")
+                val tempTargetDir = casDir.baseDir.resolveSibling("${casDir.hash}.lazy-target.${Uuid.random()}.tmp")
+                try {
+                    detectAndNormalize(
+                        sourcesDir = casDir.sources,
+                        outputDir = null,
+                        sourceSets = sourceSets,
+                        platformSpecificSets = platformSpecificSets,
+                        targetOutputDir = tempTargetDir
+                    )
+                    FileUtils.atomicReplaceDirectory(tempTargetDir, casDir.normalizedTargetDir)
+                } finally {
+                    if (tempTargetDir.exists()) tempTargetDir.deleteRecursivelyWithRetry()
+                }
+            }
+        }
+        processedWithCommon.writeText(Clock.System.now().toString())
     }
 
     context(progress: ProgressReporter)
@@ -303,30 +368,88 @@ class DefaultSourcesService(
         forceDownload: Boolean,
         commonCasDir: CASDependencySourcesDir?
     ) {
+        // Double-checked locking pattern: release the OS file lock before any suspend-with-delay
+        // calls (waitForBase polls with delay(500)), then re-acquire and re-check before acting.
+        // This prevents blocking all other processes on casDir.baseLockFile for up to 300s.
+        var needsLazyGeneration = false
+        var needsFullProcessing = false
+        var commonCasDirToWait: CASDependencySourcesDir? = null
+
         FileLockManager.withLock(casDir.baseLockFile) {
             val currentlyBroken = !casDir.baseCompletedMarker.exists() || !casDir.normalizedDir.exists()
-            logger.error("DEBUG: ensureBaseReady ${dep.id} currentlyBroken=$currentlyBroken")
+            val processedWithCommon = casDir.baseDir.resolve(".processed-with-common")
 
-            // Double-check after acquiring lock
-            // Double-check after acquiring lock
             if (!forceDownload && !currentlyBroken) {
+                if (commonCasDir != null && !processedWithCommon.exists()) {
+                    // Need to wait for common sibling then do lazy generation — exit lock first.
+                    needsLazyGeneration = true
+                    commonCasDirToWait = commonCasDir
+                }
                 return@withLock
             }
 
             if (currentlyBroken) {
-                // Invalidate all known search caches for this hash to release file handles
-                dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch.invalidateCache(casDir.index.resolve(dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch.name))
-                dev.rnett.gradle.mcp.dependencies.search.FullTextSearch.invalidateCache(casDir.index.resolve(dev.rnett.gradle.mcp.dependencies.search.FullTextSearch.name))
+                // Invalidate search caches to release file handles before clearing.
+                DeclarationSearch.invalidateCache(casDir.index.resolve(DeclarationSearch.name))
+                FullTextSearch.invalidateCache(casDir.index.resolve(FullTextSearch.name))
+                // Block-1 clearCasDir: releases Lucene file handles and evicts in-memory cache entries
+                // so other processes holding shared locks can open the files cleanly after this exclusive
+                // lock is released. Block-3's clearCasDir (inside the full-processing re-lock) is the
+                // authoritative filesystem-prep that runs just before extraction; both calls are needed
+                // because another process may have accessed the dirs between these two lock acquisitions.
                 clearCasDir(casDir)
             }
 
-            // If we have a common sibling, ensure IT is processed first
+            // Flag full processing needed; if a common sibling must be awaited, set
+            // commonCasDirToWait so the wait happens outside this lock.
+            needsFullProcessing = true
             if (commonCasDir != null) {
-                progress.report(0.0, 1.0, "Waiting for common sibling ${dep.commonComponentId}")
-                val completed = storageService.waitForBase(commonCasDir)
-                if (!completed) {
-                    throw IllegalStateException("Common sibling ${dep.commonComponentId} failed to process. Failing dependent platform artifact ${dep.id}.")
+                commonCasDirToWait = commonCasDir
+            }
+        }
+
+        // Wait for common sibling OUTSIDE the lock so we don't hold it across delay() calls.
+        val toWait = commonCasDirToWait
+        if (toWait != null) {
+            val waitLabel = if (needsLazyGeneration) "lazy target generation" else "full processing"
+            progress.report(0.0, 1.0, "Waiting for common sibling ${dep.commonComponentId} for $waitLabel")
+            val completed = storageService.waitForBase(toWait)
+            if (!completed) {
+                val msg = "Common sibling ${dep.commonComponentId} failed to process."
+                throw IllegalStateException(
+                    if (needsLazyGeneration)
+                        "$msg Cannot calculate platform-specific sources for ${dep.id}."
+                    else
+                        "$msg Failing dependent platform artifact ${dep.id}."
+                )
+            }
+        }
+
+        val commonCas = commonCasDirToWait
+        if (needsLazyGeneration && commonCas != null) {
+            FileLockManager.withLock(casDir.baseLockFile) {
+                val isBroken = !casDir.baseCompletedMarker.exists() || !casDir.normalizedDir.exists()
+                if (isBroken) {
+                    needsFullProcessing = true
+                    return@withLock
                 }
+                generateNormalizedTarget(dep, casDir, commonCas, progress)
+            }
+            if (!needsFullProcessing) return
+        }
+
+        if (!needsFullProcessing) return
+
+        // Full processing path — re-acquire lock to do extraction/normalization.
+        FileLockManager.withLock(casDir.baseLockFile) {
+            // Re-check: another process may have completed while we were waiting.
+            val currentlyBroken = !casDir.baseCompletedMarker.exists() || !casDir.normalizedDir.exists()
+            // If another process completed full processing first the marker already exists — skip to avoid a second write.
+            if (!forceDownload && !currentlyBroken) {
+                if (commonCasDir != null && !casDir.processedWithCommonMarker.exists()) {
+                    generateNormalizedTarget(dep, casDir, commonCasDir, progress)
+                }
+                return@withLock
             }
 
             val tempDir = casDir.baseDir.resolveSibling("${casDir.hash}.base.${Uuid.random()}.tmp")
@@ -338,6 +461,7 @@ class DefaultSourcesService(
                     if (!forceDownload && casDir.baseDir.exists()) {
                         logger.warn("Found incomplete or empty CAS entry for ${dep.id} at ${casDir.baseDir}. Repairing.")
                     }
+                    // clearCasDir deletes .processed-with-common, so lazy generation will re-run on next access.
                     clearCasDir(casDir)
                 }
                 casDir.baseDir.createDirectories()
@@ -350,6 +474,10 @@ class DefaultSourcesService(
 
                 // Step D: Finalize (atomic moves and marker)
                 finalizeStep(dep, casDir, tempDir, normalizeResult)
+
+                if (commonCasDir != null) {
+                    casDir.baseDir.resolve(".processed-with-common").writeText(Clock.System.now().toString())
+                }
 
             } catch (e: Exception) {
                 logger.error("Failed to process base CAS entry for ${dep.id}", e)
@@ -367,6 +495,16 @@ class DefaultSourcesService(
         casDir.index.deleteRecursivelyWithRetry()
         casDir.sourceSetsFile.deleteIfExists()
         casDir.baseCompletedMarker.deleteIfExists()
+        casDir.processedWithCommonMarker.deleteIfExists()
+
+        // Clean up orphaned lazy-generation temp directories (siblings of baseDir)
+        try {
+            casDir.baseDir.parent.listDirectoryEntries("${casDir.hash}.lazy-target.*.tmp").forEach {
+                it.deleteRecursivelyWithRetry()
+            }
+        } catch (e: Exception) {
+            logger.warn("Failed to clean up orphaned lazy-target directories in ${casDir.baseDir.parent}: ${e.message}")
+        }
     }
 
     context(progress: ProgressReporter)
@@ -405,7 +543,12 @@ class DefaultSourcesService(
         val tempNormalizedDir = tempDir.resolve("normalized")
         val tempTargetDir = tempDir.resolve("normalized-target")
         val sourceSets = detectSourceSets(dep, sourcesInput)
-        val platformSpecificSets = calculatePlatformSpecificSets(sourceSets, commonCasDir)
+        val platformSpecificSets = try {
+            calculatePlatformSpecificSets(dep, sourceSets, commonCasDir)
+        } catch (e: MissingSourceSetsFileException) {
+            logger.warn("Falling back to full sources for ${dep.id}: ${e.message}")
+            emptySet()
+        }
 
         detectAndNormalize(
             sourcesDir = sourcesInput,
@@ -427,15 +570,12 @@ class DefaultSourcesService(
         dep: GradleDependency,
         tempDir: Path,
         casDir: CASDependencySourcesDir,
-        tempTargetDir: Path,
         tempNormalizedDir: Path,
-        providerToIndex: SearchProvider,
-        isPlatformArtifact: Boolean
+        providerToIndex: SearchProvider
     ) {
         progress.report(0.5, 1.0, "Indexing ${dep.id}")
-        val indexSourceDir = if (isPlatformArtifact) tempTargetDir else tempNormalizedDir
         with(progress) {
-            indexFromNormalized(dep, tempDir, indexSourceDir, providerToIndex, sourceHash = casDir.hash)
+            indexFromNormalized(dep, tempDir, tempNormalizedDir, providerToIndex, sourceHash = casDir.hash)
         }
 
         val tempIndexBaseDir = tempDir.resolve("index")
@@ -531,7 +671,7 @@ class DefaultSourcesService(
                             if (ext in SearchProvider.SOURCE_EXTENSIONS) {
                                 val pathWithinNormalized = indexSourceDir.relativize(file).toString().replace('\\', '/')
                                 val fullRelativePath = "$depBase/$pathWithinNormalized"
-                                logger.info("Indexing file: $fullRelativePath")
+                                logger.debug("Indexing file: $fullRelativePath")
                                 channel.send(IndexEntry(fullRelativePath, sourceHash = sourceHash) { file.readText() })
                             }
                         }
@@ -600,10 +740,6 @@ class DefaultSourcesService(
      */
     private fun detectSourceSets(dep: GradleDependency, sourcesDir: Path): List<SourceSetInfo> {
         val allSets = mutableListOf<SourceSetInfo>()
-        logger.error("DEBUG: Detecting source sets for ${dep.id} in $sourcesDir")
-        if (sourcesDir.exists()) {
-            Files.list(sourcesDir).use { it.forEach { f -> logger.error("  DEBUG: ${dep.id} File: ${f.fileName}") } }
-        }
 
         // 1. Check for standard Maven layout: src/main/kotlin or src/main/java
         val srcMainDir = sourcesDir.resolve("src").resolve("main")
@@ -663,9 +799,11 @@ class DefaultSourcesService(
         return listOf(SourceSetInfo("", sourcesDir, null))
     }
 
-    private fun calculatePlatformSpecificSets(sourceSets: List<SourceSetInfo>, commonCasDir: CASDependencySourcesDir?): Set<String> {
+    private fun calculatePlatformSpecificSets(dep: GradleDependency, sourceSets: List<SourceSetInfo>, commonCasDir: CASDependencySourcesDir?): Set<String> {
         if (commonCasDir == null) return emptySet()
-        if (!commonCasDir.sourceSetsFile.exists()) return emptySet()
+        if (!commonCasDir.sourceSetsFile.exists()) {
+            throw MissingSourceSetsFileException("Common sibling ${dep.commonComponentId} for ${dep.id} is missing its source-sets.txt file. Cannot calculate platform-specific source sets.")
+        }
 
         val commonSets = Files.readAllLines(commonCasDir.sourceSetsFile, Charsets.UTF_8).toSet()
         val platformSets = sourceSets.map { it.name }.toSet()
@@ -680,13 +818,15 @@ class DefaultSourcesService(
      */
     private fun detectAndNormalize(
         sourcesDir: Path,
-        outputDir: Path,
+        outputDir: Path?,
         sourceSets: List<SourceSetInfo>,
         platformSpecificSets: Set<String> = emptySet(),
         targetOutputDir: Path? = null
     ) {
-        outputDir.createDirectories()
-        targetOutputDir?.createDirectories()
+        outputDir?.createDirectories()
+        if (platformSpecificSets.isNotEmpty()) {
+            targetOutputDir?.createDirectories()
+        }
 
         logger.debug("Normalizing ${sourceSets.size} source set(s) from $sourcesDir: ${sourceSets.map { it.name.ifEmpty { "<root>" } }}")
 
@@ -705,11 +845,13 @@ class DefaultSourcesService(
                     logger.debug("Normalizing file $relPath from source set ${sourceSet.name}")
 
                     // Write to main normalized/ directory
-                    val candidatePath = computeCandidatePath(outputDir, relPath, sourceSet.platformShortName)
-                    writeFile(candidatePath, fileContent, relPath, sourceSet)
+                    if (outputDir != null) {
+                        val candidatePath = computeCandidatePath(outputDir, relPath, sourceSet.platformShortName)
+                        writeFile(candidatePath, fileContent, relPath, sourceSet)
+                    }
 
                     // Write to normalized-target/ if it's a platform-specific set
-                    if (isPlatformSpecific && targetOutputDir != null) {
+                    if (isPlatformSpecific && targetOutputDir != null && platformSpecificSets.isNotEmpty()) {
                         val targetCandidatePath = computeCandidatePath(targetOutputDir, relPath, sourceSet.platformShortName)
                         writeFile(targetCandidatePath, fileContent, relPath, sourceSet)
                     }

@@ -29,7 +29,6 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
         const val PATH = "path"
         const val LINE = "line"
         const val OFFSET = "offset"
-        const val IS_DIFF = "isDiff"
         const val SOURCE_HASH = "sourceHash"
     }
 
@@ -65,17 +64,12 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
                 pool.add(extractor)
             }
 
-            if (path.contains("Json.kt")) {
-                logger.error("DEBUG: Extracted symbols from $path: ${fileSymbols.map { it.fqn }}")
-            }
-
             val documents = fileSymbols.map { sym ->
                 Document().apply {
                     add(TextField(Fields.NAME, sym.name, org.apache.lucene.document.Field.Store.YES))
                     add(StringField(Fields.FQN, sym.fqn, org.apache.lucene.document.Field.Store.YES))
                     add(StringField(Fields.PACKAGE_NAME, sym.packageName, org.apache.lucene.document.Field.Store.YES))
                     add(StringField(Fields.PATH, path, org.apache.lucene.document.Field.Store.YES))
-                    add(StringField(Fields.IS_DIFF, entry.isDiff.toString(), org.apache.lucene.document.Field.Store.YES))
                     entry.sourceHash?.let { add(StringField(Fields.SOURCE_HASH, it, org.apache.lucene.document.Field.Store.YES)) }
                     add(StoredField(Fields.LINE, sym.line))
                     add(StoredField(Fields.OFFSET, sym.offset))
@@ -101,6 +95,9 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
             val searcher = IndexSearcher(reader)
 
             // 1. Direct symbols in this package
+            // `symbols` and `subPackages` are shared sets covering the entire MultiReader (all index
+            // dirs in one pass), so symbol names from both common and platform indices are deduplicated
+            // naturally — no additional existence filter is required here.
             val symbols = mutableSetOf<String>()
             val symbolsQuery = TermQuery(Term(Fields.PACKAGE_NAME, packageName))
             val topSymbols = searcher.search(symbolsQuery, 5000)
@@ -140,7 +137,8 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
     override suspend fun search(
         indexDirs: Map<Path, Boolean>,
         query: String,
-        pagination: PaginationInput
+        pagination: PaginationInput,
+        filter: ((String) -> Boolean)?
     ): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (res, duration) = measureTimedValue {
             val existingIndexDirs = indexDirs.keys.filter { resolveIndexDir(it).exists() }
@@ -174,11 +172,16 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
 
                     val finalQuery = baseQuery
 
-                    val topDocs = LuceneUtils.searchPaginated(searcher, finalQuery, pagination)
+                    val topDocs = if (filter != null) {
+                        searcher.search(finalQuery, Int.MAX_VALUE) // Fetch all doc IDs if filtering; lazy evaluation handles efficiency
+                    } else {
+                        LuceneUtils.searchPaginated(searcher, finalQuery, pagination)
+                    }
                     val hits = topDocs.scoreDocs
 
+                    var totalFilteredHits = 0
                     val matchedResults: List<RelativeSearchResult> =
-                        hits.drop(pagination.offset).take(pagination.limit).map { hit ->
+                        hits.asSequence().map { hit ->
                             val doc = searcher.storedFields().document(hit.doc)
                             RelativeSearchResult(
                                 relativePath = doc.get(Fields.PATH),
@@ -186,12 +189,25 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
                                 line = doc.getField(Fields.LINE).numericValue().toInt(),
                                 score = hit.score
                             )
-                        }.toList()
+                        }.filter {
+                            val match = filter == null || filter(it.relativePath)
+                            if (match) totalFilteredHits++
+                            match
+                        }
+                            .drop(pagination.offset)
+                            .take(pagination.limit)
+                            .toList()
+
+                    val hasMore = if (filter != null) {
+                        totalFilteredHits > pagination.offset + pagination.limit
+                    } else {
+                        totalFilteredHits > pagination.offset + pagination.limit || topDocs.totalHits.value > pagination.offset + pagination.limit
+                    }
 
                     SearchResponse(
                         matchedResults,
                         interpretedQuery = finalQuery.toString(),
-                        hasMore = topDocs.totalHits.value > pagination.offset + pagination.limit
+                        hasMore = hasMore
                     )
                 }
             } ?: SearchResponse(emptyList(), error = "Failed to open index readers.")

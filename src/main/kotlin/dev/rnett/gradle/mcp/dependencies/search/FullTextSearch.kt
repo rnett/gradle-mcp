@@ -91,7 +91,8 @@ object FullTextSearch : LuceneBaseSearchProvider() {
     override suspend fun search(
         indexDirs: Map<Path, Boolean>,
         query: String,
-        pagination: PaginationInput
+        pagination: PaginationInput,
+        filter: ((String) -> Boolean)?
     ): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (response, duration) = measureTimedValue {
             val existingIndexDirs = indexDirs.keys.filter { resolveIndexDir(it).exists() }
@@ -123,7 +124,11 @@ object FullTextSearch : LuceneBaseSearchProvider() {
                 // Request enough files to likely satisfy the limit after expanding matches.
                 val finalQuery = q
 
-                val topDocs = indexSearcher.search(finalQuery, pagination.offset + pagination.limit)
+                val topDocs = if (filter != null) {
+                    indexSearcher.search(finalQuery, Int.MAX_VALUE)
+                } else {
+                    indexSearcher.search(finalQuery, pagination.offset + pagination.limit)
+                }
                 val hits = topDocs.scoreDocs
                 val stored = indexSearcher.storedFields()
 
@@ -143,6 +148,7 @@ object FullTextSearch : LuceneBaseSearchProvider() {
                     if (matches != null) {
                         val doc = stored.document(docId)
                         val path = doc.get(PATH)
+                        if (filter != null && !filter(path)) continue
                         val content = doc.get(CONTENTS) ?: ""
                         val seenOffsets = mutableSetOf<Int>()
 
@@ -187,10 +193,16 @@ object FullTextSearch : LuceneBaseSearchProvider() {
 
                 results.sortByDescending { it.score }
 
+                val hasMore = if (filter != null) {
+                    totalMatchesInRequestedFiles > pagination.offset + pagination.limit
+                } else {
+                    totalMatchesInRequestedFiles > pagination.offset + pagination.limit || topDocs.totalHits.value > pagination.offset + pagination.limit
+                }
+
                 SearchResponse(
                     results,
                     interpretedQuery = q.toString(),
-                    hasMore = topDocs.totalHits.value > pagination.offset + pagination.limit
+                    hasMore = hasMore
                 )
             } ?: SearchResponse(emptyList(), error = "Failed to open index readers.")
         }
@@ -211,7 +223,6 @@ object FullTextSearch : LuceneBaseSearchProvider() {
             doc.add(StringField(PATH, path, Field.Store.YES))
             doc.add(Field(CONTENTS, content, contentsFieldType))
             doc.add(Field(CONTENTS_EXACT, content, contentsFieldType))
-            doc.add(StringField("isDiff", entry.isDiff.toString(), Field.Store.YES))
             entry.sourceHash?.let { doc.add(StringField("sourceHash", it, Field.Store.YES)) }
 
             val codeContent = stripBoilerplate(content)

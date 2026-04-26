@@ -14,6 +14,8 @@ This skill provides expert guidance on the heavy caching infrastructure used for
 ## Caching Strategy
 
 - **Heavy Caching**: This workspace uses extensive caching for Gradle sources. Use `inspect_dependencies` and `search_dependency_sources` with `fresh = true` only when dependencies change.
+- **CAS Model**: Sources and Lucene indices live in an immutable Content-Addressable Storage layer keyed by content hash. Per-tool-call "session views" are ephemeral directories of junctions to CAS entries plus a `manifest.json`, providing
+  isolation during concurrent updates. See `openspec/docs/concurrency-cas-architecture.md` for the authoritative model and `SourceStorageService` / `SourcesService` / `model/SourcesDir.kt` for the implementation.
 - **Flexible Path Abstractions**: When representing filesystem structures for caches (like `SourcesDir`), prefer interfaces with flexible implementations (e.g., `MergedSourcesDir`, `SingleDependencySourcesDir`) over rigid data classes.
 - **Cache Invalidation**: When implementing re-extraction or re-indexing logic with `forceDownload`, explicitly propagate the flag to all underlying services (like `IndexService`) to ensure stale caches are invalidated.
 - **Expensive Operations**: In `withSources` (and similar cached operations), perform expensive external calls (like Gradle `resolve()`) exactly once under an exclusive lock, and only after checking a shared lock for a fresh cache.

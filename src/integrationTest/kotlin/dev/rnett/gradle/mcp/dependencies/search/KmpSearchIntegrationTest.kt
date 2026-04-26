@@ -91,4 +91,56 @@ class KmpSearchIntegrationTest {
         }
         provider.close()
     }
+
+    @Test
+    fun `listPackageContents returns each symbol exactly once when common and platform artifacts are in scope`() = runTest(timeout = 15.minutes) {
+        val mcpDir = tempDir.resolve("mcp-pkg")
+        val environment = GradleMcpEnvironment(mcpDir)
+        val provider = DefaultGradleProvider(
+            config = GradleConfiguration(),
+            buildManager = BuildManager()
+        )
+        val depService = DefaultGradleDependencyService(provider)
+        val storageService = DefaultSourceStorageService(environment)
+        val indexService = DefaultSourceIndexService(dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(environment))
+        val sourcesService = DefaultSourcesService(depService, storageService, dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(environment))
+
+        testGradleProject {
+            useKotlinDsl(true)
+            buildScript(
+                """
+                plugins { id("org.jetbrains.kotlin.multiplatform") version "${TestFixturesBuildConfig.KOTLIN_VERSION}" }
+                repositories { mavenCentral() }
+                kotlin {
+                    jvm()
+                    linuxX64()
+                    sourceSets {
+                        commonMain {
+                            dependencies {
+                                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${TestFixturesBuildConfig.KOTLINX_SERIALIZATION_VERSION}")
+                            }
+                        }
+                    }
+                }
+            """.trimIndent()
+            )
+        }.use { project ->
+            val projectRoot = GradleProjectRoot(project.pathString())
+
+            val sourcesDir = with(ProgressReporter.PRINTLN) {
+                sourcesService.resolveAndProcessProjectSources(projectRoot, ":", providerToIndex = DeclarationSearch)
+            }
+
+            assertNotNull(sourcesDir)
+            val contents = indexService.listPackageContents(sourcesDir, "kotlinx.serialization.json")
+            assertNotNull(contents, "Expected package contents for kotlinx.serialization.json")
+
+            // Each symbol name must appear exactly once — deduplication spans all index dirs via MultiReader.
+            val duplicates = contents.symbols.groupBy { it }.filter { it.value.size > 1 }.keys
+            assertTrue(duplicates.isEmpty(), "Duplicate symbols in listPackageContents: $duplicates")
+            // Sanity lower-bound: a regression returning an empty list must be caught.
+            assertTrue(contents.symbols.size > 10, "Expected at least 10 symbols but got ${contents.symbols.size}")
+        }
+        provider.close()
+    }
 }

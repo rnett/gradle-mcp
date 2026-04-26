@@ -162,16 +162,27 @@ class DefaultIndexService(
         }
         val indexDirs = view.resolveIndexDirsWithFilter(provider.name)
         if (indexDirs.isEmpty()) return SearchResponse(emptyList(), error = "No dependencies found with indices.")
-        return provider.search(indexDirs, query, pagination)
+
+        val filter: (String) -> Boolean = { relativePath ->
+            val exists = view.sources.resolve(relativePath).exists()
+            if (!exists) {
+                logger.debug("Dropping search result absent from session view (common-sibling dedup or broken junction): {} (session sources: {})", relativePath, view.sources)
+            }
+            exists
+        }
+
+        return provider.search(indexDirs, query, pagination, filter)
     }
 
     override suspend fun listPackageContents(view: SourcesDir, packageName: String): PackageContents? {
-        val indexDirs = getProviderIndexDirs(view, DeclarationSearch)
+        // Use resolveIndexDirs (not resolveIndexDirsWithFilter) because isDiffOnly is not needed here:
+        // symbol names are deduplicated by DeclarationSearch via a mutableSetOf, which is sufficient
+        // for package listing. The existence-based filter in search() is needed there because it
+        // operates on file paths; listPackageContents works with symbol name strings where name-based
+        // dedup already collapses duplicates correctly.
+        val indexDirs = view.resolveIndexDirs(DeclarationSearch.name)
         if (indexDirs.isEmpty()) return null
         return DeclarationSearch.listPackageContents(indexDirs, packageName)
     }
 
-    private fun getProviderIndexDirs(view: SourcesDir, provider: SearchProvider): List<Path> {
-        return view.resolveIndexDirs(provider.name)
-    }
 }

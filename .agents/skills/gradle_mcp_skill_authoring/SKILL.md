@@ -13,15 +13,18 @@ This skill provides project-specific guidance for creating and maintaining agent
 
 ## Constitution
 
-- **Local Scope**: "Update skills" directives ALWAYS refer to skills in `./skills/`, NEVER global skills, unless explicitly specified.
-- **Synchronization**: When modifying a tool's behavior or metadata, you MUST update all referencing skills in `./skills/` to ensure they remain consistent.
+- **Skill Locations**: This repo has TWO skill directories — distinguish them carefully:
+    - `src/main/skills/` — distributable skills shipped to consumers via `install_gradle_skills` (registered in `docs/skills.md`).
+    - `.agents/skills/` — local-only agent skills used while working in this repo (the GMCP-internal expert skills like this one).
+- **Local Scope**: "Update skills" directives ALWAYS refer to skills in this repo (`.agents/skills/` or `src/main/skills/`, depending on context), NEVER global agent-config skills, unless explicitly specified.
+- **Synchronization**: When modifying a tool's behavior or metadata, you MUST update all referencing skills in both `src/main/skills/` and `.agents/skills/` to keep them consistent.
 - **Metadata Consistency**: Skills in a given commit must work with the MCP tools in that same commit.
 
 ## Workflow
 
 ### 1. Creation
 
-- Create a new directory in `skills/` with a descriptive `snake_case` name.
+- Create a new directory under the appropriate skills root (`src/main/skills/` for distributable, `.agents/skills/` for local-only) with a descriptive `snake_case` name.
 - Create a `SKILL.md` file with the required YAML frontmatter and instructions.
 - Follow the "Expert Tone" and "Progressive Disclosure" principles.
 
@@ -33,7 +36,8 @@ This skill provides project-specific guidance for creating and maintaining agent
 
 ### 3. Registration
 
-- Update `docs/skills.md` with the name and description of the new skill.
+- For distributable skills under `src/main/skills/`: update `docs/skills.md` with the name and description so consumers can discover them.
+- For local skills under `.agents/skills/`: ensure they are referenced from `AGENTS.md` (the "Local Agent Skills" section) so contributors know they exist and must keep them current.
 - Ensure the skill is discoverable by other agents.
 
 ### 4. Referencing
@@ -44,9 +48,14 @@ This skill provides project-specific guidance for creating and maintaining agent
 
 ## Examples
 
-### Creating a new Gradle-related skill
+### Creating a new Gradle-related distributable skill
 
-1. Create `skills/my_new_skill/SKILL.md`.
+1. Create `src/main/skills/my_new_skill/SKILL.md`.
 2. Define the capability: "Guides agents in optimizing Gradle build performance...".
 3. Add to `docs/skills.md`.
 4. If it uses `gradle` tool, ensure the instructions match the current tool parameters.
+
+### Creating a new local agent skill
+
+1. Create `.agents/skills/my_internal_skill/SKILL.md`.
+2. Reference it from the "Local Agent Skills" section of `AGENTS.md`.

@@ -13,6 +13,12 @@ This skill provides deep technical guidance on the search and indexing infrastru
 
 ## Search Conventions
 
+### Virtual Multi-Index Search
+
+- **MultiReader Composition**: Cross-dependency search is performed by composing per-dependency Lucene indices via `MultiReader` instead of physically merging them. Each dependency keeps an immutable index in CAS; a session view assembles
+  the relevant subset on demand. Avoid introducing flows that rely on a single monolithic index.
+- **Provider Boundaries**: Search providers (`FullTextSearch`, `DeclarationSearch`, `GlobSearch`) extend `LuceneBaseSearchProvider` and must remain independently indexable so they can participate in MultiReader-style aggregation.
+
 ### Lucene Field Management
 
 - **Field Constants**: For Lucene-based search providers (e.g., `DeclarationSearch`), field names MUST be extracted to a nested `Fields` object. This ensures consistency and prevents typos across indexing and searching logic.

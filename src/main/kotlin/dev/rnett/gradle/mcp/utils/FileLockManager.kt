@@ -57,7 +57,10 @@ object FileLockManager {
                         val acquired = channel!!.tryLock(0L, Long.MAX_VALUE, shared)
                         lock = acquired
                     } catch (e: OverlappingFileLockException) {
-                        // Lock held by another thread in the same JVM
+                        // Lock held by another thread in the same JVM. Note: intra-JVM re-entrancy is
+                        // NOT supported — a coroutine that already holds a lock on this file and tries
+                        // to acquire another lock on the same file will spin-retry until timeout.
+                        // The current architecture prevents this via the Mutex in resolveAndProcessSourcesInternal.
                     } catch (e: IOException) {
                         // On Windows, this can happen if the file is being deleted or other transient issues
                         val msg = e.message?.lowercase() ?: ""

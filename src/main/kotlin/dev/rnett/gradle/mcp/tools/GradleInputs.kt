@@ -7,6 +7,7 @@ import dev.rnett.gradle.mcp.mcp.McpServer
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import io.modelcontextprotocol.kotlin.sdk.Root
 import kotlinx.serialization.Serializable
+import org.slf4j.LoggerFactory
 import java.net.URI
 import java.nio.file.Path
 import kotlin.io.path.absolute
@@ -37,9 +38,12 @@ val Root.nameOrUrl get() = name ?: uri
 context(ctx: McpContext)
 fun GradleProjectRootInput.resolve(): GradleProjectRoot = with(ctx.server) { resolveRoot() }
 
+private val logger = LoggerFactory.getLogger("dev.rnett.gradle.mcp.tools.GradleInputs")
+
 context(server: McpServer)
 fun GradleProjectRootInput.resolveRoot(): GradleProjectRoot {
     val roots = server.roots.value
+    logger.info("Resolving project root. Input: $projectRoot, MCP roots: ${roots?.map { it.nameOrUrl }}")
     if (projectRoot == null) {
         if (roots?.size == 1) {
             val file = roots.single().fileOrNull
