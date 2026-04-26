@@ -85,7 +85,8 @@ class DependencySourceTools(
             |Strongly recommended: Use the `{group}/{artifact}/...` syntax for `path`. The `dependency` parameter should primarily be used to filter the scope for performance, not as a shortcut for path specification.
             |Sources are CAS-cached (immutable). Use `fresh=true` for dependency changes; `forceDownload=true` only to recover corrupt/missing files.
             |ALWAYS scope with a project, configuration, or source set (or use `gradleSource: true`) — unscoped access is no longer supported.
-            |Returns the absolute path of the sources root. Dependency directories are symlinked; pass `--follow` to `rg` (e.g., `rg --follow <pattern> <path>`).
+            |Returns the absolute path of the sources root. 
+            |**NOTE:** Dependency directories are junctions (Windows) or symlinks; standard CLI tools like `rg` or `fd` will NOT follow them by default. ALWAYS pass `--follow` or equivalent (e.g., `rg --follow <pattern> <path>`).
             |
             |### Examples
             |- Browse project deps: `{ projectPath: ":" }`
@@ -180,7 +181,8 @@ class DependencySourceTools(
             |Buildscript (plugin) dependencies are excluded by default to reduce noise. To search plugins, use `sourceSetPath: ":buildscript"` (root project) or `sourceSetPath: ":app:buildscript"` (subproject).
             |Sources are CAS-cached (immutable). Use `fresh=true` for dependency changes; `forceDownload=true` only to recover corrupt/missing files.
             |ALWAYS scope with a project, configuration, or source set (or use `gradleSource: true`) — unscoped search is no longer supported.
-            |Returns the absolute path of the sources root. Dependency directories are symlinked; pass `--follow` to `rg` (e.g., `rg --follow <pattern> <path>`).
+            |Returns the absolute path of the sources root. 
+            |**NOTE:** Dependency directories are junctions (Windows) or symlinks; standard CLI tools like `rg` or `fd` will NOT follow them by default. ALWAYS pass `--follow` or equivalent (e.g., `rg --follow <pattern> <path>`).
             |
             |### Search Modes
             |- `DECLARATION`: Finds class, method, or interface definitions. All symbol searches are **case-sensitive**.
@@ -308,7 +310,9 @@ class DependencySourceTools(
     }
 
     private fun formatSourcesHeader(sources: SourcesDir): String =
-        "Sources root: ${sources.sources.normalize()}\n${formatRefreshMessage(sources.lastRefresh())}"
+        "Sources root: ${sources.sources.normalize()}\n" +
+                "**NOTE:** Dependency directories are junctions/symlinks; use `--follow` or equivalent with tools like `rg` or `fd`.\n" +
+                formatRefreshMessage(sources.lastRefresh())
 
     private fun formatRefreshMessage(lastRefresh: Instant?): String {
         if (lastRefresh == null) return "Sources have not been refreshed yet."
