@@ -7,7 +7,7 @@ import kotlin.io.path.exists
 import kotlin.io.path.readText
 
 interface Indexer : AutoCloseable {
-    suspend fun indexFile(path: String, content: String)
+    suspend fun indexFile(entry: IndexEntry)
     suspend fun finish()
     val documentCount: Int
 }
@@ -22,7 +22,20 @@ interface SearchProvider {
     /**
      * Performs a search against multiple individual dependency indices.
      */
-    suspend fun search(indexDirs: List<Path>, query: String, pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS): SearchResponse<RelativeSearchResult>
+    suspend fun search(
+        indexDirs: Map<Path, Boolean>,
+        query: String,
+        pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS
+    ): SearchResponse<RelativeSearchResult>
+
+    /**
+     * Compatibility overload for List<Path>.
+     */
+    suspend fun search(
+        indexDirs: List<Path>,
+        query: String,
+        pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS
+    ): SearchResponse<RelativeSearchResult> = search(indexDirs.associateWith { false }, query, pagination)
 
     /**
      * Lists package contents across multiple dependency indices.
@@ -33,6 +46,8 @@ interface SearchProvider {
 
     suspend fun countDocuments(indexDir: Path): Int
 
+    fun invalidateCache(indexDir: Path) {}
+
     companion object {
         val SOURCE_EXTENSIONS = setOf("kt", "kts", "java", "groovy")
     }
@@ -40,7 +55,12 @@ interface SearchProvider {
 
 data class Index(val dir: Path)
 
-class IndexEntry(val relativePath: String, private val contentProvider: () -> String) {
+class IndexEntry(
+    val relativePath: String,
+    val isDiff: Boolean = false,
+    val sourceHash: String? = null,
+    private val contentProvider: () -> String
+) {
     val content: String get() = contentProvider()
 }
 

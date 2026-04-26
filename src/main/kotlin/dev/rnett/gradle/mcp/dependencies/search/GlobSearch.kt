@@ -19,15 +19,22 @@ import kotlin.time.measureTimedValue
 object GlobSearch : SearchProvider {
     private val LOGGER = LoggerFactory.getLogger(GlobSearch::class.java)
     override val name: String = "glob"
-    override val indexVersion: Int = 3
+    override val indexVersion: Int = 4
 
     private const val v2FileName = "filenames-v2.txt"
 
-    override suspend fun search(indexDirs: List<Path>, query: String, pagination: PaginationInput): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
+    override suspend fun search(
+        indexDirs: Map<Path, Boolean>,
+        query: String,
+        pagination: PaginationInput
+    ): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (results, duration) = measureTimedValue {
-            val existingIndexDirs = indexDirs.filter { it.resolve(v2FileName).exists() }
+            val existingIndexDirs = indexDirs.keys.filter { it.resolve(v2FileName).exists() }
             if (existingIndexDirs.isEmpty()) {
-                return@withContext SearchResponse(emptyList(), error = "No valid Glob index files found in provided paths.")
+                return@withContext SearchResponse(
+                    emptyList(),
+                    error = "No valid Glob index files found in provided paths."
+                )
             }
 
             val matcher = try {
@@ -104,8 +111,8 @@ object GlobSearch : SearchProvider {
             outputDir.createDirectories()
         }
 
-        override suspend fun indexFile(path: String, content: String) {
-            paths.add(path)
+        override suspend fun indexFile(entry: IndexEntry) {
+            paths.add(entry.relativePath)
         }
 
         override val documentCount: Int get() = paths.size

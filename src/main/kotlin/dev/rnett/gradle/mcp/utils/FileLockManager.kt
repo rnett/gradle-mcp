@@ -54,7 +54,8 @@ object FileLockManager {
                                 StandardOpenOption.WRITE
                             )
                         }
-                        lock = channel!!.tryLock(0L, Long.MAX_VALUE, shared)
+                        val acquired = channel!!.tryLock(0L, Long.MAX_VALUE, shared)
+                        lock = acquired
                     } catch (e: OverlappingFileLockException) {
                         // Lock held by another thread in the same JVM
                     } catch (e: IOException) {

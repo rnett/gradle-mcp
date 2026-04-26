@@ -11,6 +11,7 @@ import dev.rnett.gradle.mcp.dependencies.search.markerFileName
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.utils.FileLockManager
 import dev.rnett.gradle.mcp.utils.FileUtils
+import dev.rnett.gradle.mcp.utils.FileUtils.deleteRecursivelyWithRetry
 import dev.rnett.gradle.mcp.utils.unorderedParallelMap
 import dev.rnett.gradle.mcp.withPhase
 import kotlinx.coroutines.CoroutineDispatcher
@@ -24,13 +25,13 @@ import kotlinx.coroutines.sync.withLock
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createFile
 import kotlin.io.path.createParentDirectories
 import kotlin.io.path.deleteIfExists
-import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
 import kotlin.io.path.readBytes
 import kotlin.io.path.readText
@@ -233,6 +234,7 @@ class DefaultSourcesService(
         val tracker = ParallelProgressTracker(processingProgress, depToCasDir.size.toDouble())
 
         val depToCasDirById = depToCasDir.entries.associate { it.key.id to it.value }
+        logger.error("DEBUG: Processing ${depToCasDir.size} dependencies: ${depToCasDir.keys.map { it.id }.sorted()}")
 
         // Sort to process common siblings first, avoiding deadlock where all workers are waiting for common siblings.
         depToCasDir.entries
@@ -265,26 +267,30 @@ class DefaultSourcesService(
         providerToIndex: SearchProvider?,
         commonCasDir: CASDependencySourcesDir? = null
     ) {
+        logger.error("DEBUG: Processing CAS dependency: ${dep.id}")
         // 1. Ensure Base is ready (sources extracted & normalized)
         ensureBaseReady(dep, casDir, forceDownload, commonCasDir)
 
         // 2. Index if requested
         if (providerToIndex != null) {
-            FileLockManager.withLock(casDir.indexLockFile(providerToIndex.name)) {
-                if (!forceDownload && casDir.baseCompletedMarker.exists() && casDir.index.resolve(providerToIndex.markerFileName).exists()) {
-                    progress.report(1.0, 1.0, "Already indexed ${dep.id} with ${providerToIndex.name}")
-                    return@withLock
-                }
+            // Hold shared base lock during indexing to prevent a concurrent repair from deleting normalized/
+            FileLockManager.withLock(casDir.baseLockFile, shared = true) {
+                FileLockManager.withLock(casDir.indexLockFile(providerToIndex.name)) {
+                    if (!forceDownload && casDir.baseCompletedMarker.exists() && casDir.index.resolve(providerToIndex.markerFileName).exists()) {
+                        progress.report(1.0, 1.0, "Already indexed ${dep.id} with ${providerToIndex.name}")
+                        return@withLock
+                    }
 
-                // We need a tempDir for indexing (to move files atomically)
-                val tempDir = casDir.baseDir.resolveSibling("${casDir.hash}.index-${providerToIndex.name}.${Uuid.random()}.tmp")
-                tempDir.createDirectories()
-                try {
-                    val isPlatformArtifact = commonCasDir != null
-                    // Use finalized directories as sources
-                    indexStep(dep, tempDir, casDir, casDir.normalizedTargetDir, casDir.normalizedDir, providerToIndex, isPlatformArtifact)
-                } finally {
-                    if (tempDir.exists()) tempDir.deleteRecursively()
+                    // We need a tempDir for indexing (to move files atomically)
+                    val tempDir = casDir.baseDir.resolveSibling("${casDir.hash}.index-${providerToIndex.name}.${Uuid.random()}.tmp")
+                    tempDir.createDirectories()
+                    try {
+                        val isPlatformArtifact = commonCasDir != null
+                        // Use finalized directories as sources
+                        indexStep(dep, tempDir, casDir, casDir.normalizedTargetDir, casDir.normalizedDir, providerToIndex, isPlatformArtifact)
+                    } finally {
+                        if (tempDir.exists()) tempDir.deleteRecursivelyWithRetry()
+                    }
                 }
             }
         }
@@ -298,9 +304,20 @@ class DefaultSourcesService(
         commonCasDir: CASDependencySourcesDir?
     ) {
         FileLockManager.withLock(casDir.baseLockFile) {
+            val currentlyBroken = !casDir.baseCompletedMarker.exists() || !casDir.normalizedDir.exists()
+            logger.error("DEBUG: ensureBaseReady ${dep.id} currentlyBroken=$currentlyBroken")
+
             // Double-check after acquiring lock
-            if (!forceDownload && casDir.baseCompletedMarker.exists()) {
+            // Double-check after acquiring lock
+            if (!forceDownload && !currentlyBroken) {
                 return@withLock
+            }
+
+            if (currentlyBroken) {
+                // Invalidate all known search caches for this hash to release file handles
+                dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch.invalidateCache(casDir.index.resolve(dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch.name))
+                dev.rnett.gradle.mcp.dependencies.search.FullTextSearch.invalidateCache(casDir.index.resolve(dev.rnett.gradle.mcp.dependencies.search.FullTextSearch.name))
+                clearCasDir(casDir)
             }
 
             // If we have a common sibling, ensure IT is processed first
@@ -313,11 +330,14 @@ class DefaultSourcesService(
             }
 
             val tempDir = casDir.baseDir.resolveSibling("${casDir.hash}.base.${Uuid.random()}.tmp")
-            if (tempDir.exists()) tempDir.deleteRecursively()
+            if (tempDir.exists()) tempDir.deleteRecursivelyWithRetry()
             tempDir.createDirectories()
 
             try {
-                if (forceDownload) {
+                if (forceDownload || currentlyBroken) {
+                    if (!forceDownload && casDir.baseDir.exists()) {
+                        logger.warn("Found incomplete or empty CAS entry for ${dep.id} at ${casDir.baseDir}. Repairing.")
+                    }
                     clearCasDir(casDir)
                 }
                 casDir.baseDir.createDirectories()
@@ -335,16 +355,16 @@ class DefaultSourcesService(
                 logger.error("Failed to process base CAS entry for ${dep.id}", e)
                 throw e
             } finally {
-                if (tempDir.exists()) tempDir.deleteRecursively()
+                if (tempDir.exists()) tempDir.deleteRecursivelyWithRetry()
             }
         }
     }
 
     private fun clearCasDir(casDir: CASDependencySourcesDir) {
-        casDir.sources.deleteRecursively()
-        casDir.normalizedDir.deleteRecursively()
-        casDir.normalizedTargetDir.deleteRecursively()
-        casDir.index.deleteRecursively()
+        casDir.sources.deleteRecursivelyWithRetry()
+        casDir.normalizedDir.deleteRecursivelyWithRetry()
+        casDir.normalizedTargetDir.deleteRecursivelyWithRetry()
+        casDir.index.deleteRecursivelyWithRetry()
         casDir.sourceSetsFile.deleteIfExists()
         casDir.baseCompletedMarker.deleteIfExists()
     }
@@ -384,7 +404,7 @@ class DefaultSourcesService(
         progress.report(0.4, 1.0, "Normalizing sources for ${dep.id}")
         val tempNormalizedDir = tempDir.resolve("normalized")
         val tempTargetDir = tempDir.resolve("normalized-target")
-        val sourceSets = detectSourceSets(sourcesInput)
+        val sourceSets = detectSourceSets(dep, sourcesInput)
         val platformSpecificSets = calculatePlatformSpecificSets(sourceSets, commonCasDir)
 
         detectAndNormalize(
@@ -412,11 +432,10 @@ class DefaultSourcesService(
         providerToIndex: SearchProvider,
         isPlatformArtifact: Boolean
     ) {
-        logger.info("Indexing ${dep.id} with provider ${providerToIndex.name}")
         progress.report(0.5, 1.0, "Indexing ${dep.id}")
         val indexSourceDir = if (isPlatformArtifact) tempTargetDir else tempNormalizedDir
         with(progress) {
-            indexFromNormalized(dep, tempDir, indexSourceDir, providerToIndex)
+            indexFromNormalized(dep, tempDir, indexSourceDir, providerToIndex, sourceHash = casDir.hash)
         }
 
         val tempIndexBaseDir = tempDir.resolve("index")
@@ -424,14 +443,16 @@ class DefaultSourcesService(
         if (tempProviderDir.exists()) {
             val targetProviderDir = casDir.index.resolve(providerToIndex.name)
             logger.info("Moving index for ${dep.id} from $tempProviderDir to $targetProviderDir")
-            targetProviderDir.parent.createDirectories()
+            providerToIndex.invalidateCache(casDir.index.resolve(providerToIndex.name))
+
+            // Ensure index parent exists before moves
+            casDir.index.createDirectories()
             FileUtils.atomicReplaceDirectory(tempProviderDir, targetProviderDir)
 
             val markerFile = tempIndexBaseDir.resolve(providerToIndex.markerFileName)
             if (markerFile.exists()) {
                 val targetMarker = casDir.index.resolve(providerToIndex.markerFileName)
-                targetMarker.parent.createDirectories()
-                Files.move(markerFile, targetMarker, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+                Files.move(markerFile, targetMarker, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
             }
         } else {
             logger.warn("Index directory $tempProviderDir does not exist after indexing ${dep.id}")
@@ -482,7 +503,8 @@ class DefaultSourcesService(
         dep: GradleDependency,
         tempDir: Path,
         indexSourceDir: Path,
-        providerToIndex: SearchProvider
+        providerToIndex: SearchProvider,
+        sourceHash: String? = null
     ) = coroutineScope {
         val depBase = requireNotNull(dep.relativePrefix) { "relativePrefix must not be null for ${dep.id}" }
         val channel = Channel<IndexEntry>(capacity = 20)
@@ -491,7 +513,7 @@ class DefaultSourcesService(
             try {
                 val indexResult = indexService.indexFiles(tempDir, channel.consumeAsFlow(), providerToIndex)
                 if (indexResult == null) {
-                    throw IllegalStateException("Indexing failed for ${dep.id} with provider ${providerToIndex.name}")
+                    logger.warn("Indexing yielded no results for ${dep.id} with provider ${providerToIndex.name}")
                 }
             } finally {
                 for (entry in channel) {
@@ -509,11 +531,14 @@ class DefaultSourcesService(
                             if (ext in SearchProvider.SOURCE_EXTENSIONS) {
                                 val pathWithinNormalized = indexSourceDir.relativize(file).toString().replace('\\', '/')
                                 val fullRelativePath = "$depBase/$pathWithinNormalized"
-                                channel.send(IndexEntry(fullRelativePath) { file.readText() })
+                                logger.info("Indexing file: $fullRelativePath")
+                                channel.send(IndexEntry(fullRelativePath, sourceHash = sourceHash) { file.readText() })
                             }
                         }
                     }
                 }
+            } else {
+                logger.warn("indexSourceDir $indexSourceDir does not exist for indexing ${dep.id}")
             }
         } catch (e: Exception) {
             indexJob.cancel()
@@ -573,69 +598,68 @@ class DefaultSourcesService(
      * Detects the logical source sets inside [sourcesDir] and returns them in processing order
      * (primary sets first: commonMain → main → unnamed root → platform sets alphabetically).
      */
-    private fun detectSourceSets(sourcesDir: Path): List<SourceSetInfo> {
-        // Maven layout: src/main/kotlin and/or src/main/java
+    private fun detectSourceSets(dep: GradleDependency, sourcesDir: Path): List<SourceSetInfo> {
+        val allSets = mutableListOf<SourceSetInfo>()
+        logger.error("DEBUG: Detecting source sets for ${dep.id} in $sourcesDir")
+        if (sourcesDir.exists()) {
+            Files.list(sourcesDir).use { it.forEach { f -> logger.error("  DEBUG: ${dep.id} File: ${f.fileName}") } }
+        }
+
+        // 1. Check for standard Maven layout: src/main/kotlin or src/main/java
         val srcMainDir = sourcesDir.resolve("src").resolve("main")
-        if (Files.isDirectory(srcMainDir)) {
+        if (srcMainDir.exists() && Files.isDirectory(srcMainDir)) {
             val kotlinDir = srcMainDir.resolve("kotlin")
             val javaDir = srcMainDir.resolve("java")
-            if (Files.isDirectory(kotlinDir) || Files.isDirectory(javaDir)) {
-                return buildList {
-                    if (Files.isDirectory(kotlinDir)) add(SourceSetInfo("", kotlinDir, null))
-                    if (Files.isDirectory(javaDir)) add(SourceSetInfo("", javaDir, null))
-                }
-            } else {
-                return listOf(SourceSetInfo("", srcMainDir, null))
-            }
+            if (kotlinDir.exists()) allSets.add(SourceSetInfo("", kotlinDir, null))
+            if (javaDir.exists()) allSets.add(SourceSetInfo("", javaDir, null))
+            if (allSets.isNotEmpty()) return allSets
+            return listOf(SourceSetInfo("", srcMainDir, null))
         }
 
-        // Alternative Maven-like layout: kotlin/ and/or java/ at root
+        // 2. Check for alternative Maven-like layout: kotlin/ or java/ at root
         val kotlinRoot = sourcesDir.resolve("kotlin")
         val javaRoot = sourcesDir.resolve("java")
-        if (Files.isDirectory(kotlinRoot) || Files.isDirectory(javaRoot)) {
-            return buildList {
-                if (Files.isDirectory(kotlinRoot)) add(SourceSetInfo("", kotlinRoot, null))
-                if (Files.isDirectory(javaRoot)) add(SourceSetInfo("", javaRoot, null))
+        if (kotlinRoot.exists()) allSets.add(SourceSetInfo("", kotlinRoot, null))
+        if (javaRoot.exists()) allSets.add(SourceSetInfo("", javaRoot, null))
+        if (allSets.isNotEmpty()) return allSets
+
+        // 3. KMP layout: check root and src/ for known source-set dirs
+        val candidates = mutableListOf<Path>()
+        if (sourcesDir.exists()) {
+            Files.list(sourcesDir).use { candidates.addAll(it.toList()) }
+            val srcDir = sourcesDir.resolve("src")
+            if (srcDir.exists() && Files.isDirectory(srcDir)) {
+                Files.list(srcDir).use { candidates.addAll(it.toList()) }
             }
         }
 
-        // KMP layout: known source-set dirs at the root
-        val topLevel = Files.list(sourcesDir).use { it.toList() }.filter { Files.isDirectory(it) }
         val kmpSets = mutableListOf<SourceSetInfo>()
-        var hasKmp = false
-
-        for (dir in topLevel) {
+        for (dir in candidates.filter { Files.isDirectory(it) }.distinctBy { it.fileName.toString() }) {
             val dirName = dir.fileName.toString()
+            val isKmp = dirName.endsWith("Main", ignoreCase = true) || dirName in KMP_SOURCE_SET_NAMES
+            if (!isKmp) continue
+
+            val shortName = platformShortName(dirName)
             val kotlinDir = dir.resolve("kotlin")
             val javaDir = dir.resolve("java")
 
-            val isKmp = dirName.endsWith("Main", ignoreCase = true) || dirName in KMP_SOURCE_SET_NAMES
-            val isMaybe = dirName == "main"
-            val hasSources = Files.isDirectory(kotlinDir) || Files.isDirectory(javaDir)
-
-            if (!isKmp && !isMaybe && !hasSources) continue
-
-            hasKmp = true
-            val shortName = platformShortName(dirName)
-
             when {
-                Files.isDirectory(kotlinDir) && Files.isDirectory(javaDir) -> {
+                kotlinDir.exists() && javaDir.exists() -> {
                     kmpSets.add(SourceSetInfo(dirName, kotlinDir, shortName))
                     kmpSets.add(SourceSetInfo(dirName, javaDir, shortName))
                 }
 
-                Files.isDirectory(kotlinDir) -> kmpSets.add(SourceSetInfo(dirName, kotlinDir, shortName))
-                Files.isDirectory(javaDir) -> kmpSets.add(SourceSetInfo(dirName, javaDir, shortName))
+                kotlinDir.exists() -> kmpSets.add(SourceSetInfo(dirName, kotlinDir, shortName))
+                javaDir.exists() -> kmpSets.add(SourceSetInfo(dirName, javaDir, shortName))
                 else -> kmpSets.add(SourceSetInfo(dirName, dir, shortName))
             }
         }
 
-        if (hasKmp) {
-            // Sort: primary sets (shortName == null) before platform sets, then alphabetically by name
+        if (kmpSets.isNotEmpty()) {
             return kmpSets.sortedWith(compareBy({ if (it.platformShortName == null) 0 else 1 }, { it.name }))
         }
 
-        // Direct root: jar directly exposes package dirs or source files
+        // 4. Fallback: Direct root
         return listOf(SourceSetInfo("", sourcesDir, null))
     }
 
@@ -662,6 +686,7 @@ class DefaultSourcesService(
         targetOutputDir: Path? = null
     ) {
         outputDir.createDirectories()
+        targetOutputDir?.createDirectories()
 
         logger.debug("Normalizing ${sourceSets.size} source set(s) from $sourcesDir: ${sourceSets.map { it.name.ifEmpty { "<root>" } }}")
 
@@ -677,6 +702,7 @@ class DefaultSourcesService(
                     if (ext !in SearchProvider.SOURCE_EXTENSIONS) return@forEach
 
                     val fileContent = file.readBytes()
+                    logger.debug("Normalizing file $relPath from source set ${sourceSet.name}")
 
                     // Write to main normalized/ directory
                     val candidatePath = computeCandidatePath(outputDir, relPath, sourceSet.platformShortName)

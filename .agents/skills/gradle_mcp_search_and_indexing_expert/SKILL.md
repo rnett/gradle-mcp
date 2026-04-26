@@ -22,6 +22,8 @@ This skill provides deep technical guidance on the search and indexing infrastru
 
 ### Search Implementation
 
+- **FQN Literal Search**: The `fqn` field (Fully Qualified Name) MUST be indexed as a `StringField` (non-analyzed) and queried using a `KeywordAnalyzer`. This ensures that dots and case are preserved, allowing for precise symbol discovery.
+  Use wildcards (e.g., `fqn:*.MyClass`) for partial matching.
 - **Regex Search**: `DeclarationSearch` supports full string regex queries on the FQN field when the query is wrapped in `/` (e.g., `/.*MyClass/`). This should be preferred for complex, precise symbol discovery.
 - **Search Error Handling**: `SourcesService.search` and `IndexService.search` MUST return a `SearchResponse` with an `error` string instead of throwing an `IllegalStateException` when an index is missing. This prevents unexpected crashes
   in tool handlers and allows for graceful error reporting.

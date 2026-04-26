@@ -20,6 +20,71 @@ class TreeSitterDeclarationExtractorTest {
     lateinit var tempDir: Path
 
     @Test
+    fun `test package extraction`() = runTest {
+        val extractor = TreeSitterDeclarationExtractor()
+
+        val testCases = mapOf(
+            "package com.example" to "com.example",
+            "package com.example.internal" to "com.example.internal",
+            "package single" to "single",
+            "/* comment */ package com.example // comment" to "com.example",
+            "" to ""
+        )
+
+        testCases.forEach { (src, expected) ->
+            val ktFile = tempDir.resolve("PkgTest.kt")
+            ktFile.writeText(src + "\nclass X")
+            val symbols = extractor.extractSymbols(ktFile)
+            val x = symbols.find { it.name == "X" }
+            assertNotNull(x, "Should find class X in '$src'")
+            assertEquals(expected, x.packageName, "Wrong package for '$src'")
+        }
+    }
+
+    @Test
+    fun `test java package extraction`() = runTest {
+        val extractor = TreeSitterDeclarationExtractor()
+
+        val testCases = mapOf(
+            "package com.example;" to "com.example",
+            "package com.example.internal;" to "com.example.internal",
+            "package single;" to "single",
+            "/* comment */ package com.example; // comment" to "com.example",
+            "" to ""
+        )
+
+        testCases.forEach { (src, expected) ->
+            val javaFile = tempDir.resolve("PkgTest.java")
+            javaFile.writeText(src + "\npublic class X {}")
+            val symbols = extractor.extractSymbols(javaFile)
+            val x = symbols.find { it.name == "X" }
+            assertNotNull(x, "Should find class X in '$src'")
+            assertEquals(expected, x.packageName, "Wrong package for '$src'")
+        }
+    }
+
+    @Test
+    fun `test kotlinx serialization json extraction`() = runTest {
+        val extractor = TreeSitterDeclarationExtractor()
+        val ktFile = tempDir.resolve("Json.kt")
+        ktFile.writeText(
+            """
+            package kotlinx.serialization.json
+            
+            public interface Json {
+                fun encodeToString()
+            }
+        """.trimIndent()
+        )
+
+        val symbols = extractor.extractSymbols(ktFile)
+        val json = symbols.find { it.name == "Json" }
+        assertNotNull(json)
+        assertEquals("kotlinx.serialization.json.Json", json.fqn)
+        assertEquals("kotlinx.serialization.json", json.packageName)
+    }
+
+    @Test
     fun `test comprehensive kotlin declarations`() = runTest {
         val ktFile = tempDir.resolve("Test.kt")
         ktFile.writeText(
@@ -158,6 +223,26 @@ class TreeSitterDeclarationExtractorTest {
     }
 
     @Test
+    fun `test kotlin interface with inheritance`() = runTest {
+        val extractor = TreeSitterDeclarationExtractor()
+        val ktFile = tempDir.resolve("JsonReal.kt")
+        ktFile.writeText(
+            """
+            package kotlinx.serialization.json
+            
+            public interface Json : StringFormat, SerialFormat {
+                fun encode()
+            }
+        """.trimIndent()
+        )
+
+        val symbols = extractor.extractSymbols(ktFile)
+        val json = symbols.find { it.name == "Json" }
+        assertNotNull(json, "Json interface not found")
+        assertEquals("kotlinx.serialization.json.Json", json.fqn)
+    }
+
+    @Test
     fun `test multi-byte characters`() = runTest {
         val ktFile = tempDir.resolve("Emoji.kt")
         // Use an emoji which is multi-byte in UTF-8
@@ -200,10 +285,14 @@ class TreeSitterDeclarationExtractorTest {
 
     @Test
     fun `print kotlin tree`() = runTest {
-        val ktFile = tempDir.resolve("Temp.kt")
-        ktFile.writeText("package com.example; class X { val y = 1; fun z() {} } object O {} enum class E { A } typealias T = String")
+        val src = """
+            package com.example
+            interface MyInterface {
+                fun foo()
+            }
+        """.trimIndent()
         val parser = TSParser().apply { setLanguage(TreeSitterKotlin()) }
-        val tree = parser.parseString(null, ktFile.readText())
+        val tree = parser.parseString(null, src)
         printTree(tree.rootNode, "")
     }
 

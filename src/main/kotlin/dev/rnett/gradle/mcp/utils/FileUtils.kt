@@ -8,6 +8,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import kotlin.io.path.absolutePathString
+import kotlin.io.path.createDirectories
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
@@ -68,7 +69,7 @@ object FileUtils {
         if (!source.exists()) return@withContext false
         if (target.exists()) {
             try {
-                source.deleteRecursively()
+                source.deleteRecursivelyWithRetry()
             } catch (e: Exception) {
                 LOGGER.warn("Failed to delete redundant source $source after CAS collision", e)
             }
@@ -87,7 +88,7 @@ object FileUtils {
             // Another process beat us to it
             if (source.exists()) {
                 try {
-                    source.deleteRecursively()
+                    source.deleteRecursivelyWithRetry()
                 } catch (e2: Exception) {
                     LOGGER.warn("Failed to delete redundant source $source after CAS collision (FileAlreadyExistsException)", e2)
                 }
@@ -98,7 +99,7 @@ object FileUtils {
             if (target.exists()) {
                 if (source.exists()) {
                     try {
-                        source.deleteRecursively()
+                        source.deleteRecursivelyWithRetry()
                     } catch (e2: Exception) {
                         LOGGER.warn("Failed to delete redundant source $source after CAS collision (catch Exception)", e2)
                     }
@@ -112,6 +113,29 @@ object FileUtils {
     }
 
     /**
+     * Deletes a directory recursively, with retries on Windows to handle locking.
+     */
+    @OptIn(kotlin.io.path.ExperimentalPathApi::class)
+    fun Path.deleteRecursivelyWithRetry(maxAttempts: Int = 3, delayMs: Long = 100) {
+        var lastError: Exception? = null
+        for (i in 1..maxAttempts) {
+            try {
+                this.deleteRecursively()
+                return
+            } catch (e: Exception) {
+                lastError = e
+                if (i < maxAttempts) {
+                    LOGGER.debug("Failed to delete $this (attempt $i), retrying after ${delayMs}ms...")
+                    Thread.sleep(delayMs)
+                }
+            }
+        }
+        if (lastError != null) {
+            throw lastError
+        }
+    }
+
+    /**
      * Atomically replaces [target] with [source] by moving it.
      * On Windows, this is particularly tricky if [target] is a non-empty directory.
      */
@@ -119,17 +143,31 @@ object FileUtils {
     suspend fun atomicReplaceDirectory(source: Path, target: Path) {
         withContext(Dispatchers.IO) {
             if (!source.exists()) return@withContext
+            target.parent?.createDirectories() // Ensure parent exists
             val tempOld = target.resolveSibling("${target.fileName}.old.${Uuid.random()}")
             var movedToTemp = false
 
             try {
                 if (target.exists()) {
-                    try {
-                        Files.move(target, tempOld, StandardCopyOption.ATOMIC_MOVE)
-                        movedToTemp = true
-                    } catch (e: Exception) {
-                        LOGGER.warn("Failed to move $target to $tempOld for atomic replacement, falling back to delete-then-move", e)
-                        target.deleteRecursively()
+                    var lastError: Exception? = null
+                    for (i in 1..3) {
+                        try {
+                            Files.move(target, tempOld, StandardCopyOption.ATOMIC_MOVE)
+                            movedToTemp = true
+                            lastError = null
+                            break
+                        } catch (e: java.nio.file.AccessDeniedException) {
+                            lastError = e
+                            LOGGER.debug("AccessDeniedException moving $target to $tempOld (attempt $i), retrying after delay...")
+                            Thread.sleep(100)
+                        } catch (e: Exception) {
+                            lastError = e
+                            break
+                        }
+                    }
+                    if (lastError != null) {
+                        LOGGER.warn("Failed to move $target to $tempOld for atomic replacement, falling back to delete-then-move", lastError)
+                        target.deleteRecursivelyWithRetry()
                     }
                 }
 
@@ -149,7 +187,7 @@ object FileUtils {
 
                 if (movedToTemp) {
                     try {
-                        tempOld.deleteRecursively()
+                        tempOld.deleteRecursivelyWithRetry()
                     } catch (e: Exception) {
                         LOGGER.warn("Failed to delete temporary directory $tempOld after successful move", e)
                     }

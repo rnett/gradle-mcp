@@ -12,7 +12,20 @@ The system SHALL store extracted sources and indices in a global, immutable cach
 
 - Extraction and indexing MUST be performed in an isolated temporary directory.
 - The finalized directory MUST be moved atomically into its final CAS location.
-- If the CAS location already exists, the temporary directory MUST be discarded.
+- If the CAS location already exists **and is complete** (has completion marker), the temporary directory MUST be discarded.
+
+### Requirement: Self-Repairing Cache
+
+The system SHALL automatically detect and repair broken CAS entries during processing.
+
+- **IF** a CAS directory exists but lacks the `.base-completed` marker
+- **THEN** the system SHALL clear the directory and attempt a fresh extraction/normalization.
+- Finalization MUST use an atomic replace operation to ensure consistency even if a broken directory existed.
+
+#### Scenario: Repairing interrupted extraction
+
+- **WHEN** a previous process was killed while extracting sources
+- **THEN** a subsequent process detects the missing marker, clears the partial data, and completes a fresh extraction.
 
 #### Scenario: First-time processing
 

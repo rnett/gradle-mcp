@@ -12,6 +12,7 @@ interface SourcesDir {
     val rootForSearch: Path
     fun lastRefresh(): kotlin.time.Instant?
     fun resolveIndexDirs(providerName: String): List<Path>
+    fun resolveIndexDirsWithFilter(providerName: String): Map<Path, Boolean> = resolveIndexDirs(providerName).associateWith { false }
 }
 
 /**
@@ -70,6 +71,11 @@ data class CASDependencySourcesDir(
         val idxDir = index.resolve(providerName)
         return if (idxDir.exists()) listOf(idxDir) else emptyList()
     }
+
+    override fun resolveIndexDirsWithFilter(providerName: String): Map<Path, Boolean> {
+        val idxDir = index.resolve(providerName)
+        return if (idxDir.exists()) mapOf(idxDir to false) else emptyMap()
+    }
 }
 
 /**
@@ -98,6 +104,13 @@ data class SessionViewSourcesDir(
             val idxDir = casBaseDir.resolve(dep.hash.take(2)).resolve(dep.hash).resolve("index").resolve(providerName)
             if (idxDir.exists()) idxDir else null
         }.distinct()
+    }
+
+    override fun resolveIndexDirsWithFilter(providerName: String): Map<Path, Boolean> {
+        return manifest.dependencies.mapNotNull { dep ->
+            val idxDir = casBaseDir.resolve(dep.hash.take(2)).resolve(dep.hash).resolve("index").resolve(providerName)
+            if (idxDir.exists()) idxDir to dep.isDiffOnly else null
+        }.toMap()
     }
 }
 

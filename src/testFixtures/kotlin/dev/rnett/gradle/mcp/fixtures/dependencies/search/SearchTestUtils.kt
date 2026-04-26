@@ -32,7 +32,7 @@ suspend fun SearchProvider.index(entries: Sequence<IndexEntry>, outputDir: Path)
         for (entry in entries) {
             count++
             indexingProgress.report(count.toDouble(), null, "Indexing ${this@index.name} for ${entry.relativePath}")
-            indexer.indexFile(entry.relativePath, entry.content)
+            indexer.indexFile(entry)
         }
         indexer.finish()
     }

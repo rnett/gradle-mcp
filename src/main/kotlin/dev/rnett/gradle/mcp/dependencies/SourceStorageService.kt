@@ -212,10 +212,12 @@ class DefaultSourceStorageService(private val environment: GradleMcpEnvironment)
                 if (hasCommonSibling && !casDir.normalizedTargetDir.exists()) {
                     null
                 } else {
+                    val isDiffOnly = hasCommonSibling && casDir.normalizedTargetDir.exists()
                     ManifestDependency(
                         id = dep.id,
                         hash = casDir.hash,
-                        relativePath = requireNotNull(dep.relativePrefix).replace('\\', '/')
+                        relativePath = requireNotNull(dep.relativePrefix).replace('\\', '/'),
+                        isDiffOnly = isDiffOnly
                     )
                 }
             }

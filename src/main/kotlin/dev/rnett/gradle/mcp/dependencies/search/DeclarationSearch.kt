@@ -29,11 +29,13 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
         const val PATH = "path"
         const val LINE = "line"
         const val OFFSET = "offset"
+        const val IS_DIFF = "isDiff"
+        const val SOURCE_HASH = "sourceHash"
     }
 
     override val logger = LoggerFactory.getLogger(DeclarationSearch::class.java)
     override val name: String = "declarations"
-    override val indexVersion: Int = 9
+    override val indexVersion: Int = 12
 
     override fun createAnalyzer() = org.apache.lucene.analysis.miscellaneous.PerFieldAnalyzerWrapper(
         LuceneUtils.createCaseSensitiveAnalyzer(),
@@ -47,7 +49,9 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
     override suspend fun newIndexer(outputDir: Path): Indexer = object : LuceneBaseIndexer(outputDir) {
         private val pool = ConcurrentLinkedQueue<TreeSitterDeclarationExtractor>()
 
-        override suspend fun indexFile(path: String, content: String) {
+        override suspend fun indexFile(entry: IndexEntry) {
+            val path = entry.relativePath
+            val content = entry.content
             val ext = path.substringAfterLast('.', "")
             if (ext !in listOf("java", "kt")) return
 
@@ -61,12 +65,18 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
                 pool.add(extractor)
             }
 
+            if (path.contains("Json.kt")) {
+                logger.error("DEBUG: Extracted symbols from $path: ${fileSymbols.map { it.fqn }}")
+            }
+
             val documents = fileSymbols.map { sym ->
                 Document().apply {
                     add(TextField(Fields.NAME, sym.name, org.apache.lucene.document.Field.Store.YES))
                     add(StringField(Fields.FQN, sym.fqn, org.apache.lucene.document.Field.Store.YES))
                     add(StringField(Fields.PACKAGE_NAME, sym.packageName, org.apache.lucene.document.Field.Store.YES))
                     add(StringField(Fields.PATH, path, org.apache.lucene.document.Field.Store.YES))
+                    add(StringField(Fields.IS_DIFF, entry.isDiff.toString(), org.apache.lucene.document.Field.Store.YES))
+                    entry.sourceHash?.let { add(StringField(Fields.SOURCE_HASH, it, org.apache.lucene.document.Field.Store.YES)) }
                     add(StoredField(Fields.LINE, sym.line))
                     add(StoredField(Fields.OFFSET, sym.offset))
                 }
@@ -127,17 +137,24 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
         }
     }
 
-    override suspend fun search(indexDirs: List<Path>, query: String, pagination: PaginationInput): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
+    override suspend fun search(
+        indexDirs: Map<Path, Boolean>,
+        query: String,
+        pagination: PaginationInput
+    ): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (res, duration) = measureTimedValue {
-            val existingIndexDirs = indexDirs.filter { resolveIndexDir(it).exists() }
+            val existingIndexDirs = indexDirs.keys.filter { resolveIndexDir(it).exists() }
             if (existingIndexDirs.isEmpty()) {
-                return@withContext SearchResponse<RelativeSearchResult>(emptyList(), error = "No Lucene index directories exist among the provided paths.")
+                return@withContext SearchResponse<RelativeSearchResult>(
+                    emptyList(),
+                    error = "No Lucene index directories exist among the provided paths."
+                )
             }
 
             withMultiReader(existingIndexDirs) { reader ->
                 val searcher = IndexSearcher(reader)
                 createAnalyzer().use { analyzer ->
-                    val q = try {
+                    val baseQuery = try {
                         if (query.startsWith("/") && query.endsWith("/") && query.length > 2) {
                             val pattern = query.substring(1, query.length - 1)
                             org.apache.lucene.search.RegexpQuery(Term(Fields.FQN, pattern))
@@ -155,20 +172,27 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
                         )
                     }
 
-                    val topDocs = LuceneUtils.searchPaginated(searcher, q, pagination)
+                    val finalQuery = baseQuery
+
+                    val topDocs = LuceneUtils.searchPaginated(searcher, finalQuery, pagination)
                     val hits = topDocs.scoreDocs
 
-                    val matchedResults: List<RelativeSearchResult> = hits.drop(pagination.offset).take(pagination.limit).map { hit ->
-                        val doc = searcher.storedFields().document(hit.doc)
-                        RelativeSearchResult(
-                            relativePath = doc.get(Fields.PATH),
-                            offset = doc.getField(Fields.OFFSET).numericValue().toInt(),
-                            line = doc.getField(Fields.LINE).numericValue().toInt(),
-                            score = hit.score
-                        )
-                    }.toList()
+                    val matchedResults: List<RelativeSearchResult> =
+                        hits.drop(pagination.offset).take(pagination.limit).map { hit ->
+                            val doc = searcher.storedFields().document(hit.doc)
+                            RelativeSearchResult(
+                                relativePath = doc.get(Fields.PATH),
+                                offset = doc.getField(Fields.OFFSET).numericValue().toInt(),
+                                line = doc.getField(Fields.LINE).numericValue().toInt(),
+                                score = hit.score
+                            )
+                        }.toList()
 
-                    SearchResponse(matchedResults, interpretedQuery = q.toString(), hasMore = topDocs.totalHits.value > pagination.offset + pagination.limit)
+                    SearchResponse(
+                        matchedResults,
+                        interpretedQuery = finalQuery.toString(),
+                        hasMore = topDocs.totalHits.value > pagination.offset + pagination.limit
+                    )
                 }
             } ?: SearchResponse(emptyList(), error = "Failed to open index readers.")
         }

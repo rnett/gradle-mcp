@@ -82,10 +82,9 @@ class DefaultIndexService(
                 fileFlow.collect { entry ->
                     count++
                     progress.report(count.toDouble(), null, "Indexing ${entry.relativePath}")
-                    indexer.indexFile(entry.relativePath, entry.content)
+                    indexer.indexFile(entry)
                 }
                 indexer.finish()
-
                 // Update metadata
                 val metadataFile = dir.resolve(".metadata-${provider.name}.json")
 
@@ -161,7 +160,7 @@ class DefaultIndexService(
         if (query.isBlank()) {
             return SearchResponse(emptyList(), error = "Search query cannot be empty.")
         }
-        val indexDirs = getProviderIndexDirs(view, provider)
+        val indexDirs = view.resolveIndexDirsWithFilter(provider.name)
         if (indexDirs.isEmpty()) return SearchResponse(emptyList(), error = "No dependencies found with indices.")
         return provider.search(indexDirs, query, pagination)
     }

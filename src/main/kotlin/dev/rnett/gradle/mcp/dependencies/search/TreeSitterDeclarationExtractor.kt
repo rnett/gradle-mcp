@@ -48,7 +48,7 @@ class TreeSitterDeclarationExtractor : AutoCloseable {
     )
 
     private val javaPackageQuery = TSQuery(javaLang, "(package_declaration [(identifier) (scoped_identifier)] @package)")
-    private val kotlinPackageQuery = TSQuery(kotlinLang, "(package_header (identifier) @package)")
+    private val kotlinPackageQuery = TSQuery(kotlinLang, "(package_header) @header")
 
     fun extractSymbols(file: Path): List<ExtractedSymbol> {
         val ext = file.extension
@@ -150,7 +150,17 @@ class TreeSitterDeclarationExtractor : AutoCloseable {
             if (cursor.nextMatch(match)) {
                 val capture = match.captures.firstOrNull() ?: return ""
                 val node = capture.node
-                return srcBytes.decodeToString(node.startByte, node.endByte)
+                if (node.type == "package_header") {
+                    for (i in 0 until node.childCount) {
+                        val child = node.getChild(i) ?: continue
+                        if (child.isNull()) continue
+                        val type = child.type
+                        if (type in listOf("identifier", "navigation_expression", "dot_qualified_expression", "scoped_identifier")) {
+                            return srcBytes.decodeToString(child.startByte, child.endByte).trim()
+                        }
+                    }
+                }
+                return srcBytes.decodeToString(node.startByte, node.endByte).trim()
             }
         }
         return ""

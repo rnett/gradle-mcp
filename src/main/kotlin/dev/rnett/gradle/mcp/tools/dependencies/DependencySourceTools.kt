@@ -187,7 +187,7 @@ class DependencySourceTools(
             |  - **Fields**: Matches against `name` (simple name, e.g., `MyClass`) and `fqn` (fully qualified name, e.g., `com.example.MyClass`).
             |  - **Unqualified Queries**: A query without a field prefix (e.g., `query: "MyClass"`) searches BOTH `name` and `fqn` fields.
             |  - **Prefix Syntax**: Use `name:X` for simple names or `fqn:x.y.Z` for precision. Supports Lucene wildcards (`*`, `?`).
-            |  - **FQN Matching**: `fqn` is NOT tokenized (it matches the full string literal), so use `fqn:*.MyClass` for partial matches.
+            |  - **FQN Matching**: `fqn` is **literal** (uses `KeywordAnalyzer`). It preserves dots and case. Use `fqn:*.MyClass` for partial matches or `fqn:com.example.*` for package-level matches.
             |  - **Regex**: Wrap query in `/` for a full regular expression on the `fqn` field (e.g., `query: "/.*\.internal\..*/"`).
             |- `FULL_TEXT` (default): Exhaustive text search using a Lucene query. **Case-insensitive**. Escape special characters like `:`, `=`, `+`.
             |- `GLOB`: Locates files by name or extension using Java glob syntax. **Case-insensitive** (e.g., `query: "**/AndroidManifest.xml"`).

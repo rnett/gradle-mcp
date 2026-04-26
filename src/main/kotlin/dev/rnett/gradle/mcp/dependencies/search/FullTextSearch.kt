@@ -32,7 +32,7 @@ import kotlin.time.measureTimedValue
 object FullTextSearch : LuceneBaseSearchProvider() {
     override val logger = LoggerFactory.getLogger(FullTextSearch::class.java)
     override val name: String = "full-text"
-    override val indexVersion: Int = 15
+    override val indexVersion: Int = 17
 
     private const val CONTENTS = "contents"
     private const val CONTENTS_EXACT = "contents_exact"
@@ -88,11 +88,18 @@ object FullTextSearch : LuceneBaseSearchProvider() {
         )
     }
 
-    override suspend fun search(indexDirs: List<Path>, query: String, pagination: PaginationInput): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
+    override suspend fun search(
+        indexDirs: Map<Path, Boolean>,
+        query: String,
+        pagination: PaginationInput
+    ): SearchResponse<RelativeSearchResult> = withContext(Dispatchers.IO) {
         val (response, duration) = measureTimedValue {
-            val existingIndexDirs = indexDirs.filter { resolveIndexDir(it).exists() }
+            val existingIndexDirs = indexDirs.keys.filter { resolveIndexDir(it).exists() }
             if (existingIndexDirs.isEmpty()) {
-                return@withContext SearchResponse<RelativeSearchResult>(emptyList(), error = "No Lucene index directories exist among the provided paths.")
+                return@withContext SearchResponse<RelativeSearchResult>(
+                    emptyList(),
+                    error = "No Lucene index directories exist among the provided paths."
+                )
             }
 
             withMultiReader(existingIndexDirs) { reader ->
@@ -107,11 +114,16 @@ object FullTextSearch : LuceneBaseSearchProvider() {
                         extraBoosts = mapOf(arrayOf(CODE) to BOOST_CODE)
                     )
                 } catch (e: Exception) {
-                    return@withMultiReader SearchResponse<RelativeSearchResult>(emptyList(), error = LuceneUtils.formatSyntaxError(e.message))
+                    return@withMultiReader SearchResponse<RelativeSearchResult>(
+                        emptyList(),
+                        error = LuceneUtils.formatSyntaxError(e.message)
+                    )
                 }
 
                 // Request enough files to likely satisfy the limit after expanding matches.
-                val topDocs = indexSearcher.search(q, pagination.offset + pagination.limit)
+                val finalQuery = q
+
+                val topDocs = indexSearcher.search(finalQuery, pagination.offset + pagination.limit)
                 val hits = topDocs.scoreDocs
                 val stored = indexSearcher.storedFields()
 
@@ -175,7 +187,11 @@ object FullTextSearch : LuceneBaseSearchProvider() {
 
                 results.sortByDescending { it.score }
 
-                SearchResponse(results, interpretedQuery = q.toString(), hasMore = topDocs.totalHits.value > pagination.offset + pagination.limit)
+                SearchResponse(
+                    results,
+                    interpretedQuery = q.toString(),
+                    hasMore = topDocs.totalHits.value > pagination.offset + pagination.limit
+                )
             } ?: SearchResponse(emptyList(), error = "Failed to open index readers.")
         }
         logger.info("Full-text search for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) took $duration (${response.results.size} results)")
@@ -184,7 +200,9 @@ object FullTextSearch : LuceneBaseSearchProvider() {
 
     override suspend fun newIndexer(outputDir: Path): Indexer = object : LuceneBaseIndexer(outputDir) {
 
-        override suspend fun indexFile(path: String, content: String) {
+        override suspend fun indexFile(entry: IndexEntry) {
+            val path = entry.relativePath
+            val content = entry.content
             val ext = path.substringAfterLast('.', "")
             if (ext !in SearchProvider.SOURCE_EXTENSIONS) return
             if (content.isBlank()) return
@@ -193,6 +211,8 @@ object FullTextSearch : LuceneBaseSearchProvider() {
             doc.add(StringField(PATH, path, Field.Store.YES))
             doc.add(Field(CONTENTS, content, contentsFieldType))
             doc.add(Field(CONTENTS_EXACT, content, contentsFieldType))
+            doc.add(StringField("isDiff", entry.isDiff.toString(), Field.Store.YES))
+            entry.sourceHash?.let { doc.add(StringField("sourceHash", it, Field.Store.YES)) }
 
             val codeContent = stripBoilerplate(content)
             doc.add(Field(CODE, codeContent, contentsFieldType))

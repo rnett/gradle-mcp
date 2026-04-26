@@ -11,8 +11,10 @@ import dev.rnett.gradle.mcp.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
 import dev.rnett.gradle.mcp.dependencies.search.markerFileName
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
+import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -79,17 +81,19 @@ class ParallelIndexingTest {
 
         coEvery { with(any<ProgressReporter>()) { depService.downloadProjectSources(any(), any(), any(), any(), any()) } } returns report.projects.first()
 
-        val provider1 = mockk<SearchProvider>()
+        val provider1 = mockk<SearchProvider>(relaxed = true)
         every { provider1.name } returns "provider1"
         every { provider1.markerFileName } returns ".p1"
         every { provider1.indexVersion } returns 1
         every { provider1.resolveIndexDir(any()) } returns tempDir.resolve("idx1")
+        every { provider1.invalidateCache(any()) } just Runs
 
-        val provider2 = mockk<SearchProvider>()
+        val provider2 = mockk<SearchProvider>(relaxed = true)
         every { provider2.name } returns "provider2"
         every { provider2.markerFileName } returns ".p2"
         every { provider2.indexVersion } returns 1
         every { provider2.resolveIndexDir(any()) } returns tempDir.resolve("idx2")
+        every { provider2.invalidateCache(any()) } just Runs
 
         // Mock indexing to take some time and write the marker and directory
         coEvery { with(any<ProgressReporter>()) { indexService.indexFiles(any(), any(), eq(provider1)) } } coAnswers {

@@ -13,5 +13,6 @@ data class ProjectManifest(
 data class ManifestDependency(
     val id: String,
     val hash: String,
-    val relativePath: String
+    val relativePath: String,
+    val isDiffOnly: Boolean = false
 )

@@ -33,7 +33,7 @@ class DeclarationSearchTest {
                 fun myInterfaceFun()
             }
             
-            enum class MyEnum {
+enum class MyEnum {
                 A, B
             }
         """.trimIndent()
@@ -48,7 +48,7 @@ class DeclarationSearchTest {
                 public static String myStaticField = "test";
             }
             
-            enum MyJavaEnum {
+enum MyJavaEnum {
                 X, Y
             }
             
@@ -56,12 +56,13 @@ class DeclarationSearchTest {
                 String value();
             }
             
+            @Deprecated
             record MyJavaRecord(int x) {}
         """.trimIndent()
         depDir.resolve("MyJavaClass.java").writeText(javaFile)
 
         val indexDir = tempDir.resolve("index")
-            with(ProgressReporter.PRINTLN) {
+        with(ProgressReporter.PRINTLN) {
             DeclarationSearch.index(depDir, indexDir)
         }
 
@@ -88,7 +89,7 @@ class DeclarationSearchTest {
         assertFound("myStaticField", "MyJavaClass.java", 6)
         assertFound("MyJavaEnum", "MyJavaClass.java", 9)
         assertFound("MyJavaAnnotation", "MyJavaClass.java", 13)
-        assertFound("MyJavaRecord", "MyJavaClass.java", 17)
+        assertFound("MyJavaRecord", "MyJavaClass.java", 18)
 
         // Case-sensitive search
         assertTrue(DeclarationSearch.search(listOf(indexDir), "mykotlinclass").results.isEmpty(), "Should not find lowercase MyKotlinClass")
@@ -159,4 +160,43 @@ class DeclarationSearchTest {
         assertNotNull(comPackageContents)
         assertTrue(comPackageContents.subPackages.contains("example"), "com should contain 'example' subpackage")
     }
+
+    @Test
+    fun `test Lucene query parsing for FQN`() = runTest {
+        val analyzer = org.apache.lucene.analysis.standard.StandardAnalyzer()
+        val parser = org.apache.lucene.queryparser.classic.MultiFieldQueryParser(arrayOf(DeclarationSearch.Fields.FQN), analyzer)
+
+        val query = parser.parse("kotlinx.serialization.json.Json")
+        println("Parsed query: $query")
+    }
+
+    @Test
+    fun `test deep package and interface extraction`() = runTest {
+        val depDir = tempDir.resolve("dep-deep").createDirectories()
+        val jsonFile = """
+            @file:OptIn(ExperimentalSerializationApi::class)
+            package kotlinx.serialization.json
+
+            import kotlinx.serialization.ExperimentalSerializationApi
+
+            /**
+             * Json interface.
+             */
+            public interface Json {
+                fun encode()
+            }
+        """.trimIndent()
+        depDir.resolve("Json.kt").writeText(jsonFile)
+
+        val indexDir = tempDir.resolve("index-deep")
+        with(ProgressReporter.PRINTLN) {
+            DeclarationSearch.index(depDir, indexDir)
+        }
+
+        val response = DeclarationSearch.search(listOf(indexDir), "fqn:kotlinx.serialization.json.Json")
+        val results = response.results
+        println("Results for Json: $results")
+        assertTrue(results.any { it.relativePath == "Json.kt" && it.line == 9 }, "Json interface not found at Json.kt:9")
+    }
+
 }

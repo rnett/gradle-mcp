@@ -107,11 +107,17 @@ class SourcesServiceCachingTest {
             with(p) { indexService.indexFiles(any(), any(), any()) }
         } returns Index(casDir.index)
 
+        coEvery {
+            with(any<ProgressReporter>()) { storageService.extractSources(any(), any(), any()) }
+        } answers {
+            (it.invocation.args[1] as Path).createDirectories()
+        }
         coEvery { storageService.calculateHash(dep) } returns "hash"
-        coEvery { storageService.getCASDependencySourcesDir("hash") } returns casDir
+        coEvery { storageService.calculateHash(dep) } returns "hash"
+        every { storageService.getCASDependencySourcesDir("hash") } returns casDir
         coEvery { storageService.createSessionView(any(), any()) } returns sessionView
         coEvery { storageService.pruneSessionViews() } just Runs
-        coEvery { storageService.getLockFile(any()) } returns tempDir.resolve("lock")
+        every { storageService.getLockFile(any()) } returns tempDir.resolve("lock")
 
         val filter = null
 
@@ -143,10 +149,13 @@ class SourcesServiceCachingTest {
         coVerify(exactly = 1) { storageService.createSessionView(any(), any()) }
 
         // 3. Call with different provider - should hit cache but run indexing
-        val provider = mockk<SearchProvider>()
+        // 3. Call with different provider - should hit cache but run indexing
+        // 3. Call with different provider - should hit cache but run indexing
+        val provider = mockk<SearchProvider>(relaxed = true)
         every { provider.name } returns "test-provider"
         every { provider.indexVersion } returns 1
         every { provider.resolveIndexDir(any()) } returns tempDir.resolve("provider-idx")
+        every { provider.invalidateCache(any()) } just Runs
 
         val result3 = with(progress) {
             sourcesService.resolveAndProcessProjectSources(root, ":", dependency = filter, providerToIndex = provider)
@@ -219,8 +228,8 @@ class SourcesServiceCachingTest {
 
         coEvery { storageService.calculateHash(commonDep) } returns "common-hash"
         coEvery { storageService.calculateHash(platformDep) } returns "platform-hash"
-        coEvery { storageService.getCASDependencySourcesDir("common-hash") } returns commonCas
-        coEvery { storageService.getCASDependencySourcesDir("platform-hash") } returns platformCas
+        every { storageService.getCASDependencySourcesDir("common-hash") } returns commonCas
+        every { storageService.getCASDependencySourcesDir("platform-hash") } returns platformCas
 
         coEvery { storageService.waitForBase(commonCas, any()) } returns true
 
@@ -233,7 +242,7 @@ class SourcesServiceCachingTest {
 
         coEvery { storageService.createSessionView(any(), any()) } returns mockk()
         coEvery { storageService.pruneSessionViews() } just Runs
-        coEvery { storageService.getLockFile(any()) } returns tempDir.resolve("lock")
+        every { storageService.getLockFile(any()) } returns tempDir.resolve("lock")
 
         with(progress) {
             sourcesService.resolveAndProcessProjectSources(root, ":")

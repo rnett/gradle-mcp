@@ -27,7 +27,7 @@ abstract class LuceneBaseSearchProvider : SearchProvider {
 
     protected val readerCache = Caffeine.newBuilder()
         .maximumSize(1000)
-        .expireAfterAccess(30, TimeUnit.MINUTES)
+        .expireAfterAccess(1, TimeUnit.MINUTES)
         .removalListener<Path, DirectoryReader> { _, reader, _ ->
             reader?.close()
         }
@@ -81,8 +81,8 @@ abstract class LuceneBaseSearchProvider : SearchProvider {
         }
     }
 
-    fun invalidateCache(path: Path) {
-        readerCache.invalidate(path)
+    override fun invalidateCache(indexDir: Path) {
+        readerCache.invalidate(resolveIndexDir(indexDir))
     }
 
     abstract inner class LuceneBaseIndexer(protected val outputDir: Path) : Indexer {
@@ -102,7 +102,7 @@ abstract class LuceneBaseSearchProvider : SearchProvider {
             writer.commit()
             val count = documentCount
             resolveIndexDir(outputDir).resolve(".count").writeText(count.toString())
-            invalidateCache(resolveIndexDir(outputDir))
+            invalidateCache(outputDir)
         }
 
         override fun close() {
