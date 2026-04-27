@@ -188,13 +188,14 @@ private class RefFinishedBuild(val runningBuild: RunningBuild, override val fini
 
 private fun TestCollector.Result.toModel(indexer: FailureIndexer, status: TestOutcome): TestResult {
     return TestResult(
-        testName,
-        suiteName,
-        output,
-        duration,
-        failures?.map { indexer.withIndex(it.toContent()) },
-        status,
-        metadata,
-        attachments.map { TestResult.Attachment(it.file, it.mediaType) }
+        testName = testName,
+        suiteName = suiteName,
+        consoleOutput = output,
+        executionDuration = duration,
+        failures = failures?.map { indexer.withIndex(it.toContent()) },
+        status = status,
+        metadata = metadata,
+        attachments = attachments.map { TestResult.Attachment(it.file, it.mediaType) },
+        taskPath = taskPath
     )
 }

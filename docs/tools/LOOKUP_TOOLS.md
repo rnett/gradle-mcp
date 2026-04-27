@@ -16,7 +16,7 @@ Inspects build information, monitors progress, and performs post-mortem diagnost
 
 ### How to Inspect Details
 - Tests (incl. console output): `testName="FullTestName"`, `mode="details"` — REQUIRED for stack traces and test output.
-- Task outputs: `taskPath=":path:to:task"`, `mode="details"`.
+- Task outputs: `taskPath=":path:to:task"`, `mode="details"`. For test tasks, this provides a summary of test failures.
 - Build failures: `failureId="ID"`, `mode="details"` (use summary first to find IDs).
 - Full console: `consoleTail=true` (tail) or `consoleTail=false` (head).
 - Pagination: Use `offset` and `limit` to navigate through long console logs or large task/test lists. Use `outputFile` to write the full result to a file and skip pagination limits.

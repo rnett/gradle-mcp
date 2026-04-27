@@ -4,6 +4,8 @@ import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
+import dev.rnett.gradle.mcp.gradle.build.Failure
+import dev.rnett.gradle.mcp.gradle.build.FailureId
 import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.gradle.build.TaskOutcome
@@ -18,6 +20,7 @@ import org.junit.jupiter.api.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.ExperimentalUuidApi
@@ -33,11 +36,11 @@ class GradleBuildLookupPrefixTest {
         val id = BuildId(Uuid.random().toString())
         val testResults = TestResults(
             passed = setOf(
-                TestResult("testOne", "com.example.TestA", "Output A1", 0.1.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList()),
-                TestResult("testTwo", "com.example.TestA", "Output A2", 0.2.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList()),
-                TestResult("testUnique", "com.example.TestB", "Output B Unique", 0.3.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList()),
-                TestResult("DuplicateName", "com.example", "Output Dup 1", 0.4.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList()),
-                TestResult("DuplicateName", "com.example", "Output Dup 2", 0.5.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList())
+                TestResult("testOne", "com.example.TestA", "Output A1", 0.1.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList(), taskPath = ":test"),
+                TestResult("testTwo", "com.example.TestA", "Output A2", 0.2.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList(), taskPath = ":test"),
+                TestResult("testUnique", "com.example.TestB", "Output B Unique", 0.3.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList(), taskPath = ":test"),
+                TestResult("DuplicateName", "com.example", "Output Dup 1", 0.4.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList(), taskPath = ":test"),
+                TestResult("DuplicateName", "com.example", "Output Dup 2", 0.5.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList(), taskPath = ":test")
             ),
             failed = emptySet(),
             skipped = emptySet()
@@ -110,6 +113,24 @@ class GradleBuildLookupPrefixTest {
         assertContains(output, "Note: Showing details for unique prefix match: com.example.TestB.testUnique")
         assertContains(output, "com.example.TestB.testUnique - PASSED")
         assertContains(output, "Output B Unique")
+    }
+
+    @Test
+    fun `test list tests for specific task`() = runTest {
+        val build = createSyntheticBuild()
+
+        val args = GradleBuildLookupTools.InspectBuildArgs(
+            buildId = build.id,
+            mode = GradleBuildLookupTools.LookupMode.summary,
+            taskPath = ":test",
+            testName = ""
+        )
+
+        val output = tools.getTestsOutput(build, args)
+        assertContains(output, "Total matching results: 5")
+        assertContains(output, "Test | Outcome | Duration | Task | Metadata")
+        assertContains(output, "com.example.TestA.testOne | PASSED | 100ms | :test | {}")
+        assertContains(output, "com.example.TestB.testUnique | PASSED | 300ms | :test | {}")
     }
 
     @Test
@@ -258,5 +279,117 @@ class GradleBuildLookupPrefixTest {
         assertContains(output, "Multiple tasks match prefix ':app':")
         assertContains(output, "  - :app:compileJava")
         assertContains(output, "  - :app:processResources")
+    }
+
+    @Test
+    fun `test details for test task with no output shows summary`() = runTest {
+        val id = BuildId(Uuid.random().toString())
+        val build = FinishedBuild(
+            id = id,
+            startTime = Clock.System.now(),
+            args = GradleInvocationArguments.DEFAULT,
+            consoleOutput = "",
+            publishedScans = emptyList(),
+            testResults = TestResults(emptySet(), emptySet(), emptySet()),
+            problemAggregations = emptyMap(),
+            taskResults = mapOf(":test" to TaskResult(":test", TaskOutcome.FAILED, 1.0.seconds, null)),
+            outcome = BuildOutcome.Success,
+            finishTime = Clock.System.now()
+        )
+
+        val args = GradleBuildLookupTools.InspectBuildArgs(
+            buildId = build.id,
+            mode = GradleBuildLookupTools.LookupMode.details,
+            taskPath = ":test"
+        )
+
+        val output = tools.getTasksOutput(build, args)
+        assertContains(output, "No output captured for this task.")
+        // Should NOT show test summary because relatedTests is empty
+        assertTrue(!output.contains("Tests:"))
+        assertTrue(!output.contains("To see full output"))
+    }
+
+    @Test
+    fun `test details for test task with failed tests shows summary`() = runTest {
+        val id = BuildId(Uuid.random().toString())
+        val testResult = TestResult(
+            testName = "testFail",
+            suiteName = "com.example.MyTest",
+            consoleOutput = "Test failure output",
+            executionDuration = 0.5.seconds,
+            failures = listOf(Failure(FailureId("f1"), "Expected true but was false", "Details", emptyList(), emptyMap())),
+            status = TestOutcome.FAILED,
+            metadata = emptyMap(),
+            attachments = emptyList(),
+            taskPath = ":test"
+        )
+        val build = FinishedBuild(
+            id = id,
+            startTime = Clock.System.now(),
+            args = GradleInvocationArguments.DEFAULT,
+            consoleOutput = "",
+            publishedScans = emptyList(),
+            testResults = TestResults(emptySet(), emptySet(), setOf(testResult)),
+            problemAggregations = emptyMap(),
+            taskResults = mapOf(":test" to TaskResult(":test", TaskOutcome.FAILED, 1.0.seconds, "Task console output")),
+            outcome = BuildOutcome.Success,
+            finishTime = Clock.System.now()
+        )
+
+        val args = GradleBuildLookupTools.InspectBuildArgs(
+            buildId = build.id,
+            mode = GradleBuildLookupTools.LookupMode.details,
+            taskPath = ":test"
+        )
+
+        val output = tools.getTasksOutput(build, args)
+        // Order: Tests before Output
+        assertTrue(output.indexOf("Tests: 1") < output.indexOf("Output:"))
+        assertContains(output, "Tests: 1 (0 passed, 1 failed, 0 skipped)")
+        assertContains(output, "To list all tests for this task, use `testName=\"\"` with `taskPath=\":test\"`. For full output of individual tests, use `mode=\"details\"` with `testName` (and remove `taskPath`).")
+        assertContains(output, "Output:")
+        assertContains(output, "Task console output")
+
+        // Should NOT show failure summaries or test console output in task details anymore
+        assertTrue(!output.contains("Failed Test Summaries"))
+        assertTrue(!output.contains("Test failure output"))
+    }
+
+    @Test
+    fun `test summary for test tasks shows pointer`() = runTest {
+        val id = BuildId(Uuid.random().toString())
+        val testResult = TestResult(
+            testName = "test1",
+            suiteName = "com.example.MyTest",
+            consoleOutput = null,
+            executionDuration = 0.1.seconds,
+            failures = null,
+            status = TestOutcome.PASSED,
+            metadata = emptyMap(),
+            attachments = emptyList(),
+            taskPath = ":test"
+        )
+        val build = FinishedBuild(
+            id = id,
+            startTime = Clock.System.now(),
+            args = GradleInvocationArguments.DEFAULT,
+            consoleOutput = "",
+            publishedScans = emptyList(),
+            testResults = TestResults(setOf(testResult), emptySet(), emptySet()),
+            problemAggregations = emptyMap(),
+            taskResults = mapOf(":test" to TaskResult(":test", TaskOutcome.SUCCESS, 1.0.seconds, null)),
+            outcome = BuildOutcome.Success,
+            finishTime = Clock.System.now()
+        )
+
+        val args = GradleBuildLookupTools.InspectBuildArgs(
+            buildId = build.id,
+            mode = GradleBuildLookupTools.LookupMode.summary,
+            taskPath = ":"
+        )
+
+        val output = tools.getTasksOutput(build, args)
+        assertContains(output, "Some of these tasks ran tests. Use `taskPath=\":task:path\"` with `mode=\"details\"` for a test count summary, or `testName` with `mode=\"summary\"` for a full list of tests.")
     }
 }

@@ -40,7 +40,8 @@ data class TestResult(
     val failures: List<Failure>?,
     val status: TestOutcome,
     val metadata: Map<String, String>,
-    val attachments: List<Attachment>
+    val attachments: List<Attachment>,
+    val taskPath: String? = null
 ) {
     val fullName: String get() = if (suiteName != null) "$suiteName.$testName" else testName
     data class Attachment(val path: Path, val mediaType: String?)

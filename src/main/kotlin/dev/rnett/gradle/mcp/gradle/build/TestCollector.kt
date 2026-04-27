@@ -121,6 +121,7 @@ class TestCollector(
     data class Result(
         val testName: String,
         val suiteName: String?,
+        val taskPath: String?,
         val output: String?,
         val duration: Duration,
         val failures: List<Failure>?,
@@ -136,6 +137,17 @@ class TestCollector(
             is TestKeyValueMetadataEvent -> handleTestMetadata(event)
             is TestFileAttachmentMetadataEvent -> handleTestFileAttachment(event)
         }
+    }
+
+    private fun findTaskPath(descriptor: TestOperationDescriptor?): String? {
+        var current: org.gradle.tooling.events.OperationDescriptor? = descriptor
+        while (current != null) {
+            if (current is org.gradle.tooling.events.task.TaskOperationDescriptor) {
+                return current.taskPath
+            }
+            current = current.parent
+        }
+        return null
     }
 
     private fun handleTestStart(event: TestStartEvent) {
@@ -157,6 +169,7 @@ class TestCollector(
         val testResult = Result(
             testName,
             suiteName,
+            findTaskPath(descriptor),
             null,
             (event.result.endTime - event.result.startTime).milliseconds,
             null,
@@ -221,6 +234,7 @@ class TestCollector(
             Result(
                 testName,
                 suiteName,
+                findTaskPath(descriptor),
                 output[descriptor]?.toString(),
                 (endTime - startTime).milliseconds,
                 null,

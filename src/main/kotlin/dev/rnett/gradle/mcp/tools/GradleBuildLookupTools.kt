@@ -234,17 +234,19 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         }
 
         val testNamePrefix = args.testName ?: ""
+        val taskPathPrefix = args.taskPath ?: ""
         val matched = build.testResults.all
-            .filter { tr -> tr.testName.startsWith(testNamePrefix) }
+            .filter { tr -> tr.fullName.startsWith(testNamePrefix) }
+            .filter { tr -> taskPathPrefix.isEmpty() || (tr.taskPath?.startsWith(taskPathPrefix) ?: false) }
             .filter { tr -> args.testOutcome == null || tr.status == args.testOutcome }
             .sortedByDescending { it.executionDuration }
             .toList()
 
         return buildString {
             appendLine("Total matching results: ${matched.size}")
-            appendLine("Test | Outcome | Duration | Metadata")
+            appendLine("Test | Outcome | Duration | Task | Metadata")
             val paged = paginate(matched, args.pagination, "test results") { tr ->
-                "${tr.testName} | ${tr.status} | ${tr.executionDuration} | ${
+                "${tr.fullName} | ${tr.status} | ${tr.executionDuration} | ${tr.taskPath ?: "N/A"} | ${
                     tr.metadata.mapValues {
                         if (it.value.length > 20) it.value.take(20) + " ... (truncated by gradle-mcp)" else it.value
                     }
@@ -307,6 +309,20 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                 appendLine("Outcome: ${taskResult.outcome}")
                 appendLine("Duration: ${taskResult.duration}")
                 appendLine()
+
+                val relatedTests = result.testResults.all.filter { it.taskPath == taskResult.path }.toList()
+                if (relatedTests.isNotEmpty()) {
+                    val passedCount = relatedTests.count { it.status == TestOutcome.PASSED }
+                    val failedCount = relatedTests.count { it.status == TestOutcome.FAILED }
+                    val skippedCount = relatedTests.count { it.status == TestOutcome.SKIPPED }
+                    val cancelledCount = relatedTests.count { it.status == TestOutcome.CANCELLED }
+
+                    appendLine()
+                    appendLine("Tests: ${relatedTests.size} ($passedCount passed, $failedCount failed, $skippedCount skipped${if (cancelledCount > 0) ", $cancelledCount cancelled" else ""})")
+                    appendLine("To list all tests for this task, use `testName=\"\"` with `taskPath=\"${taskResult.path}\"`. For full output of individual tests, use `mode=\"details\"` with `testName` (and remove `taskPath`).")
+                    appendLine()
+                }
+
                 if (result.taskOutputCapturingFailed) {
                     appendLine("WARNING: Task output capturing failed for this build. Showing guessed output from console if available - may be incomplete or interleaved with other tasks.")
                     val guessed = result.getTaskOutput(taskResult.path, true)
@@ -334,6 +350,8 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                 .sortedBy { it.path }
                 .toList()
 
+            val tasksWithTests = result.testResults.all.mapNotNull { it.taskPath }.toSet()
+
             return buildString {
                 if (result.taskOutputCapturingFailed) {
                     appendLine("WARNING: Task output capturing failed for this build. Task outputs may be missing or incomplete.")
@@ -344,6 +362,11 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                     "${task.path} | ${task.outcome} | ${task.duration}"
                 }
                 append(paged)
+
+                if (tasks.any { it.path in tasksWithTests }) {
+                    appendLine()
+                    appendLine("Some of these tasks ran tests. Use `taskPath=\":task:path\"` with `mode=\"details\"` for a test count summary, or `testName` with `mode=\"summary\"` for a full list of tests.")
+                }
             }
         }
     }
@@ -487,7 +510,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             |
             |### How to Inspect Details
             |- Tests (incl. console output): `testName="FullTestName"`, `mode="details"` — REQUIRED for stack traces and test output.
-            |- Task outputs: `taskPath=":path:to:task"`, `mode="details"`.
+            |- Task outputs: `taskPath=":path:to:task"`, `mode="details"`. For test tasks, this provides a summary of test failures.
             |- Build failures: `failureId="ID"`, `mode="details"` (use summary first to find IDs).
             |- Full console: `consoleTail=true` (tail) or `consoleTail=false` (head).
             |- Pagination: Use `offset` and `limit` to navigate through long console logs or large task/test lists. Use `outputFile` to write the full result to a file and skip pagination limits.
@@ -605,11 +628,18 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             val hasProblems = args.problemId != null
             val hasConsole = args.consoleTail != null
 
-            val setOptionsCount = listOf(hasTasks, hasTests, hasFailures, hasProblems, hasConsole).count { it }
-            require(setOptionsCount <= 1) { "Only one section (tasks, tests, failures, problems, or console) may be specified at a time." }
+            val sections = buildList {
+                if (hasTests) add("tests")
+                if (hasFailures) add("failures")
+                if (hasProblems) add("problems")
+                if (hasConsole) add("console")
+                if (hasTasks && !hasTests) add("tasks")
+            }
+            require(sections.size <= 1) { "Only one section (${sections.joinToString()}) may be specified at a time. Note that taskPath can be used to filter tests." }
 
             buildString {
                 if (build is RunningBuild) {
+
                     appendLine("--- BUILD IN PROGRESS ---")
                 } else {
                     appendLine("--- BUILD FINISHED ---")
@@ -618,13 +648,13 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                 val waitForRegex = args.waitFor?.toRegex()
                 if (waitForRegex != null) {
                     // Scan only the output after startOffset without materialising all lines.
-                    val output = build.consoleOutput.toString()
-                    val searchFrom = if (args.afterCall) startOffset.coerceAtMost(output.length) else 0
+                    val consoleOutput = build.consoleOutput.toString()
+                    val searchFrom = if (args.afterCall) startOffset.coerceAtMost(consoleOutput.length) else 0
                     val matchingLines = mutableListOf<String>()
                     var scanPos = searchFrom
-                    while (scanPos < output.length) {
-                        val lineEnd = output.indexOf('\n', scanPos).let { if (it == -1) output.length else it }
-                        val line = output.substring(scanPos, lineEnd)
+                    while (scanPos < consoleOutput.length) {
+                        val lineEnd = consoleOutput.indexOf('\n', scanPos).let { if (it == -1) consoleOutput.length else it }
+                        val line = consoleOutput.substring(scanPos, lineEnd)
                         if (line.isNotBlank() && waitForRegex.containsMatchIn(line)) matchingLines.add(line)
                         scanPos = lineEnd + 1
                     }
@@ -638,7 +668,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                     }
                 }
 
-                if (setOptionsCount == 0) {
+                if (sections.isEmpty()) {
                     if (args.mode == LookupMode.details) {
                         appendLine("WARNING: Details mode requires a section (e.g. testName, taskPath) to be specified. Showing build summary instead.")
                     }
@@ -647,18 +677,13 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                     appendLine()
                     appendLine("--- How to Inspect Details ---")
                     appendLine("- Individual Tests:  `testName=\"FullTestName\"`, `mode=\"details\"` (REQUIRED for full output/stack trace)")
-                    appendLine("- Task Outputs:      `taskPath=\":path:to:task\"`, `mode=\"details\"`")
+                    appendLine("- Task Outputs:      `taskPath=\":path:to:task\"`, `mode=\"details\"` (for console output and test count)")
                     appendLine("- Build Failures:    `failureId=\"ID\"`, `mode=\"details\"` (use summary mode first to find IDs)")
                     appendLine("- Problems/Errors:   `problemId=\"ID\"`, `mode=\"details\"` (use summary mode first to find IDs)")
                     appendLine("- Full Console:      `consoleTail=true`, `consoleTail=false` (head)")
-                    appendLine("- Filtering:         Use `testOutcome`, `taskOutcome` with `mode=\"summary\"` to narrow down results.")
+                    appendLine("- Filtering:         Use `testName=\"\"`, `testOutcome`, or `taskOutcome` with `mode=\"summary\"` to narrow down results.")
                     appendLine()
                 } else {
-                    if (hasTasks) {
-                        appendLine("--- Tasks ---")
-                        appendLine(getTasksOutput(build, args))
-                        appendLine()
-                    }
                     if (hasFailures) {
                         appendLine("--- Failures ---")
                         appendLine(getFailuresOutput(build, args))
@@ -672,6 +697,11 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                     if (hasTests) {
                         appendLine("--- Tests ---")
                         appendLine(getTestsOutput(build, args))
+                        appendLine()
+                    }
+                    if (hasTasks && !hasTests) {
+                        appendLine("--- Tasks ---")
+                        appendLine(getTasksOutput(build, args))
                         appendLine()
                     }
                     if (hasConsole) {
