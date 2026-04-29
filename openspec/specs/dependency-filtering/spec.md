@@ -34,6 +34,22 @@ The system SHALL support filtering dependencies by providing a `dependency` stri
 - **WHEN** the `dependency` parameter is provided
 - **THEN** the system SHALL parse it into its components (group, name, version, variant) to perform efficient matching against the resolved dependency graph.
 
+### Requirement: Flexible Dependency Matching (KMP Support)
+
+The system SHALL support prefix matching for the `name` component of the dependency string to accommodate Kotlin Multiplatform (KMP) artifacts which often have platform suffixes (e.g., `-jvm`, `-js`).
+
+#### Scenario: Prefix match for artifact name
+
+- **WHEN** the `dependency` parameter is set to `ai.koog:prompt-structure`
+- **AND** a resolved dependency has group `ai.koog` and name `prompt-structure-jvm`
+- **THEN** the system SHALL consider this a match.
+
+#### Scenario: Prefix match with version
+
+- **WHEN** the `dependency` parameter is set to `ai.koog:prompt-structure:0.0.1`
+- **AND** a resolved dependency has group `ai.koog`, name `prompt-structure-jvm`, and version `0.0.1`
+- **THEN** the system SHALL consider this a match.
+
 ### Requirement: Optimized Storage for Single Dependency
 
 When searching or reading a single dependency's sources, the system SHALL directly access the dependency's globally extracted index and source directory without merging it into the project-level cache.

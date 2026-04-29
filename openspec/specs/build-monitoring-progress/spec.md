@@ -45,4 +45,14 @@ The build summary output SHALL explicitly list currently running tasks if the bu
 #### Scenario: Display active tasks in summary
 
 - **WHEN** inspect_build(buildId="...", mode="summary") is called for a running build
-- **THEN** the output SHALL include an "Active Tasks" list showing the paths of tasks currently being executed.
+
+### Requirement: Full Export to File
+
+The `inspect_build` tool SHALL support an `outputFile` parameter to write the entire tool response to a file on the host file system, bypassing all pagination limits.
+
+#### Scenario: Exporting large console logs
+
+- **WHEN** `inspect_build` is called with a `buildId`, `consoleTail=false`, and an `outputFile` path
+- **THEN** the system SHALL write the full console output to the specified file.
+- **AND** the tool response SHALL indicate the file path and total size of the output.
+- **AND** the system SHALL NOT apply pagination or truncation to the file content.

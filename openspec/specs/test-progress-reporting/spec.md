@@ -35,4 +35,17 @@ The build summary output SHALL group test results by their suiteName for improve
 
 - **WHEN** multiple tests have failed across different suites
 - **THEN** the summary SHALL list the suite names as headings.
-- **AND** it SHALL indent individual test names under their respective suites.
+
+### Requirement: Task-Level Test Association
+
+The system SHALL associate each test execution with the specific Gradle task that executed it.
+
+#### Scenario: List tests for a specific task
+
+- **WHEN** `inspect_build` is called with a `taskPath` (e.g., `:app:test`) and `testName=""` in `mode="summary"`
+- **THEN** the system SHALL return only the tests that were executed by that task.
+
+#### Scenario: Display test summary in task details
+
+- **WHEN** `inspect_build` is called for a test task with `mode="details"`
+- **THEN** the output SHALL include a summary of the test results (e.g., `(10 passed, 2 failed, 1 skipped)`) associated with that task.

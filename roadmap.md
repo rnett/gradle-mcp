@@ -8,6 +8,8 @@ Steps are in order, from next to furthest.
 - The indexing progress for full text search goes well beyond 100%/keeps going for a while once it hits 100%.
 - Include https://docs.gradle.org/9.5.0-rc-1/release-notes.html#task-provenance-in-reports-and-failure-messages.
 - Include JDK sources in dependencies
+- Tree sitter query language queries over deps
+- Include project sources in dep views/read/search
 - A "Gradle doctor" like skill with best practices embedded in it (via gradle task), or enhance the expert skill.
 - Dedicated "render this compose preview" tool that takes the file+function name or line number
 - More skills in general.
