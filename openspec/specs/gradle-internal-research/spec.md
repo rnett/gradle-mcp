@@ -39,7 +39,22 @@ The `gradle_expert` skill SHALL provide clear instructions for researching Gradl
 - **WHEN** user asks for detailed class or method information from the Gradle API (e.g., "what are the methods on Project?")
 - **THEN** system SHALL use `gradle_docs` with `query: "tag:javadoc <class-name>"` to retrieve the Javadoc for that class.
 
-#### Scenario: Exploring plugin sources
+## Design & Rationale
 
-- **WHEN** user wants to understand how a third-party plugin works
-- **THEN** system SHALL use `inspect_dependencies` to find the artifact and `read_dependency_sources` to explore its source code.
+### Gradle Source Organization
+
+The Gradle codebase is primarily divided into:
+
+- `subprojects/`: Core Gradle engine and base APIs (e.g., `core-api`, `core`).
+- `platforms/`: Functional groups of modules building on core (e.g., `dependency-management`, `kotlin-dsl`, `jvm`).
+
+### Key Locations for Research
+
+- **Public APIs**: `subprojects/core-api` (e.g., `Project.java`, `Task.java`).
+- **Internal Implementations**: `subprojects/core` (e.g., `DefaultProject.java`).
+- **Dependency Management**: `platforms/software/dependency-management`.
+- **Kotlin DSL**: `platforms/core-configuration/kotlin-dsl`.
+- **Standard Plugins**: Distributed under `platforms/` (e.g., `jvm/plugins-java`, `core-configuration/base-diagnostics`).
+- **Execution & Workers**: `platforms/core-execution/`.
+- **Tooling API**: `platforms/ide/tooling-api/`.
+

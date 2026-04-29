@@ -15,7 +15,23 @@ The `GradleProvider` SHALL include a `ProgressListener` that captures `StatusEve
 - **WHEN** a Gradle build is started via `GradleProvider.runBuild`
 - **THEN** the `GradleProvider` SHALL capture `StatusEvent` and update `RunningBuild` accordingly
 
-### Requirement: Emitting progress notification
+### Requirement: Concurrency & Thread Safety
+
+The build execution and state management system SHALL ensure thread safety across multiple contexts (Tooling API threads, progress callbacks, and MCP readers).
+
+- **Atomic Operations**: Developers MUST use atomic operations for shared state (e.g., `ConcurrentHashMap.computeIfAbsent` over `getOrPut`).
+- **Atomic Reference Cleanup**: Clearing an `AtomicReference` MUST use `compareAndSet(expected, null)` to prevent overwriting newer values.
+- **Cross-Thread Visibility**: Status or cancellation flags read across thread contexts MUST be annotated with `@Volatile`.
+- **Thread Confinement**: Stream-specific writers (e.g., `LineEmittingWriter`) SHOULD remain thread-confined to avoid unnecessary synchronization overhead.
+- **Hot-Path Optimization**: In hot paths (e.g., log tail display, regex search), the system SHALL scan console output directly via index-based scanning of the underlying buffer to avoid massive allocations from `String.lines()`.
+
+### Requirement: Structured Output Parsing
+
+The system SHALL support unified parsing of internal Gradle output intercepted via init scripts.
+
+- **Unified Format**: Internal logs MUST use the `[gradle-mcp] [category] ...` format for centralized parsing.
+- **Sequential Parsing**: When parsing multiple bracketed fields, the system SHALL use sequential `substringAfter("]").trim()` calls to avoid ambiguity.
+- **Regex Escaping**: Literal brackets in Kotlin `Regex` strings MUST be escaped (`\[`, `\]`) even within raw strings.
 
 The system SHALL calculate and emit a numerical percentage for build progress via the MCP client.
 

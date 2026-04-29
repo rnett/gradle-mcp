@@ -38,6 +38,17 @@ When a build ID is provided to inspect_build in summary mode, the response SHALL
 - **THEN** the output SHALL include a "Recent Error Context" section.
 - **AND** it SHALL show the message and top lines of the description for up to 3 failures.
 
+### Requirement: Granular Progress Reporting Standards
+
+Progress reporting SHALL prioritize accuracy and user feedback for long-running operations.
+
+- **Reporting Frequency**: Producers SHALL NOT artificially limit or throttle reports (e.g., `if count % 100`). Throttling is handled authoritatively at the top level.
+- **Parallel Strategy**: Progress for parallel operations SHALL prioritize stable activity messaging and independent phase ranges over jittery, fluctuating percentages.
+- **Merging Progress**: Merging progress across multiple search providers MUST be based on the total document count across all providers.
+- **Filtering Differentiation**: Progress messaging in init scripts SHALL distinguish between items "skipped by filter" and those that are "up-to-date" to provide accurate feedback on work performed.
+- **Job Management**: Background collection jobs SHALL use `job.cancelAndJoin()` to ensure clean termination when cancelled.
+- **Eventual Consistency**: Progress trackers SHOULD be designed for eventual consistency to avoid heavy synchronization overhead from multiple Gradle listener threads.
+
 ### Requirement: Active Operations Visibility
 
 The build summary output SHALL explicitly list currently running tasks if the build is still in progress.

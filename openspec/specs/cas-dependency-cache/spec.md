@@ -37,14 +37,57 @@ The system SHALL automatically detect and repair broken CAS entries during proce
 - **WHEN** two parallel processes calculate the same hash
 - **THEN** both attempt to process it, and only one successfully completes the atomic move while the other is discarded
 
-### Requirement: Advisory Lock Optimization
+### Requirement: Caching & Path Standards
 
-The system SHALL use a non-blocking advisory lock to coordinate processing of the same hash.
+The caching infrastructure SHALL use flexible abstractions to support diverse storage layouts.
 
-- A process MUST attempt to acquire a `tryLock()` on an advisory file before starting expensive extraction or indexing.
-- If the lock is denied, the process SHALL suspend and poll for the final CAS directory instead of performing redundant work.
+- **Path Abstractions**: Storage models SHALL use flexible interfaces (e.g., `MergedSourcesDir`) to allow for different underlying physical layouts (single dependency vs. merged views).
+- **Cache Invalidation**: Explicit invalidation requests (e.g., `forceDownload`) MUST be propagated to all dependent layers, including indexing services.
+- **Atomic Initialization**: Expensive external operations (e.g., Gradle `resolve()`) MUST be performed exactly once under an exclusive lock after verifying a stale cache status under a shared lock.
+- **Lock Naming**: Global lock file names SHALL include a unique identifier (e.g., group name or path hash) to prevent collisions across different organizations or dependency groups.
 
-#### Scenario: Optimized parallel extraction
+### Requirement: Granular Advisory Locking
 
-- **WHEN** one process holds the advisory lock for a specific hash
-- **THEN** a second process for the same hash waits (polls) for the first one to finish
+The system SHALL use a two-level locking strategy to maximize concurrent throughput.
+
+- **Base Lock**: A shared 'Base' lock SHALL be acquired for initial checking of the CAS entry.
+- **Exclusive Provider Lock**: Facet-specific tasks (e.g., source extraction, different types of indexing) SHALL use independent, exclusive locks. This allows parallel indexing of the same source artifact by different providers once
+  extraction is complete.
+- **Lock Release Polling**: When polling for a lock release via `tryLockAdvisory`, the system MUST immediately close any successfully acquired lock to avoid blocking other processes.
+
+### Requirement: Storage Garbage Collection
+
+The system SHALL periodically prune stale session views and unreferenced CAS entries.
+
+- **Session View Pruning**: Views older than 24 hours SHALL be deleted.
+- **Mark-and-Sweep CAS Pruning**:
+    1. **Mark**: The system SHALL collect all hashes referenced in all active `manifest.json` files.
+    2. **Sweep**: Hashes not in the mark set AND older than 7 days SHALL be deleted.
+- **Grace Period**: New CAS extractions MUST have a 1-hour grace period before being eligible for sweeping.
+- **Advisory Lock Cleanup**: Stale lock files older than 1 hour SHALL be pruned.
+
+## Design & Rationale
+
+### The Death of In-Place Mutation
+
+Previous architectures that updated shared directories and indices in-place suffered from **Re-entrancy Deadlocks** due to complex Shared/Exclusive lock hierarchies. By moving to immutable, hash-identified directories (CAS), we eliminate
+the need for write-locks on existing data.
+
+### Windows File-Handle Contention
+
+Windows OS prevents deletion or renaming of directories if a process has an open handle (e.g., Lucene's `MMapDirectory`). **Ephemeral Session Views** resolve this by ensuring each tool call uses a private, unique directory that is never
+modified once created.
+
+### Core Architectural Components
+
+- **Content-Addressable Storage (CAS)**: Dependencies are stored in immutable directories keyed by content hash (`.cache/cas/<hash>`). Readers access these with **zero filesystem locks**.
+- **Ephemeral Session Views**: Every tool call creates a unique, immutable snapshot (junctions/symlinks to CAS) and a `manifest.json`. Every tool invocation works in its own unique directory with **zero contention**.
+- **Virtual Indexing**: We use Lucene `MultiReader` to search across individual CAS indices referenced in the session's `manifest.json`, avoiding expensive physical merging.
+
+### Storage Lifecycle & Garbage Collection
+
+- **Session View Pruning**: Views older than 24 hours are deleted. If a process still has a file open, the OS blocks deletion and the GC simply skips it.
+- **Global CAS Pruning (Mark-and-Sweep)**:
+    1. **Mark**: Scan all active `manifest.json` files and collect referenced CAS hashes.
+    2. **Sweep**: Delete unreferenced hashes older than 7 days, with a 1-hour grace period for new extractions.
+- **Advisory Lock Cleanup**: Prune lock files older than 1 hour to handle stale locks from crashed instances.
