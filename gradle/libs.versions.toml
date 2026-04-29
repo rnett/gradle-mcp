@@ -30,7 +30,7 @@ shadow = "9.4.1"
 ktreesitter = "0.24.1"
 treeSitterLanguagePack = "1.7.0"
 zstd = "1.5.6-3"
-commonsCompress = "1.27.1"
+commonsCompress = "1.28.0"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
