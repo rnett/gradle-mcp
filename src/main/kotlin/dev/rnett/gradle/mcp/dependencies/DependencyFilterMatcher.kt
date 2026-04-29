@@ -33,8 +33,8 @@ class DependencyFilterMatcher(val dependencyFilter: String?) {
 
         return when (parts.size) {
             1 -> group == parts[0]
-            2 -> group == parts[0] && name == parts[1]
-            3 -> group == parts[0] && name == parts[1] && version == parts[2]
+            2 -> group == parts[0] && name.startsWith(parts[1])
+            3 -> group == parts[0] && (name == parts[1] || name.startsWith("${parts[1]}-")) && version == parts[2]
             4 -> group == parts[0] && name == parts[1] && version == parts[2] && variant == parts[3]
             else -> false
         }

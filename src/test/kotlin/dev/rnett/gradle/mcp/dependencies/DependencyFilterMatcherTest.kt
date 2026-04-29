@@ -33,6 +33,14 @@ class DependencyFilterMatcherTest {
         assertTrue(matchesFilter(d, "org.example:artifact"))
         assertFalse(matchesFilter(d, "org.example:other"))
         assertFalse(matchesFilter(d, "other:artifact"))
+
+        // Prefix matching for KMP support
+        val kmp = dep("ai.koog", "prompt-structure-jvm", "0.0.1")
+        assertTrue(matchesFilter(kmp, "ai.koog:prompt-structure"))
+        assertTrue(matchesFilter(kmp, "ai.koog:prompt"))
+
+        // 3-part matching for KMP
+        assertTrue(matchesFilter(kmp, "ai.koog:prompt-structure:0.0.1"), "Should match KMP variant with version")
     }
 
     @Test
