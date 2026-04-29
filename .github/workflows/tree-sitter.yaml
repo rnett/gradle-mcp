@@ -1,0 +1,60 @@
+name: Tree-Sitter Tests
+run-name: Tree-Sitter Tests
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Run at 2:00 AM UTC every day
+  workflow_dispatch: # Allow manual triggering
+
+permissions:
+  contents: read
+
+jobs:
+  testTreeSitter:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m"
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # Fetch full history for reliable commit check
+
+      - name: Check for recent commits (Scheduled only)
+        if: github.event_name == 'schedule'
+        id: check_commits
+        run: |
+          # If there are no commits in the last 24 hours, skip the tests to save costs
+          COMMITS=$(git log --since="24 hours ago" --oneline | wc -l)
+          echo "Commits in last 24 hours: $COMMITS"
+          if [ "$COMMITS" -eq 0 ]; then
+            echo "run_tests=false" >> $GITHUB_OUTPUT
+          else
+            echo "run_tests=true" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
+      - name: Setup Java 25
+        if: github.event_name != 'schedule' || steps.check_commits.outputs.run_tests == 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 25
+
+      - name: Setup Gradle
+        if: github.event_name != 'schedule' || steps.check_commits.outputs.run_tests == 'true'
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          # Use setup-gradle caching
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+          build-scan-publish: true
+          build-scan-terms-of-use-url: 'https://gradle.com/terms-of-service'
+          build-scan-terms-of-use-agree: 'yes'
+
+      - name: Run Tree-Sitter Tests
+        if: github.event_name != 'schedule' || steps.check_commits.outputs.run_tests == 'true'
+        run: ./gradlew treeSitterTest

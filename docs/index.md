@@ -26,7 +26,7 @@ A Model Context Protocol (MCP) server for Gradle. It gives AI agents the tools t
 
 [//]: # (@formatter:off)
 !!! warning "JDK Requirement"
-    JDK 21 or higher is required to run `gradle-mcp`.
+    JDK 25 or higher is required to run `gradle-mcp`.
     You can use JBang to install JDKs too: [docs](https://www.jbang.dev/documentation/jbang/latest/javaversions.html).
 
 [//]: # (@formatter:on)

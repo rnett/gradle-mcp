@@ -17,12 +17,18 @@ import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
+import io.ktor.client.HttpClient
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
+import org.koin.core.Koin
+import org.koin.core.KoinApplication
+import org.koin.dsl.koinApplication
+import org.koin.dsl.module
+import org.koin.test.KoinTest
 import java.nio.file.Path
 import kotlin.io.path.createTempDirectory
 import kotlin.test.assertEquals
@@ -31,9 +37,11 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
-
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class GradleDependencyIntegrationTest {
+class GradleDependencyIntegrationTest : KoinTest {
+
+    private lateinit var koinApp: KoinApplication
+    override fun getKoin(): Koin = koinApp.koin
 
     private lateinit var provider: DefaultGradleProvider
     private lateinit var service: GradleDependencyService
@@ -49,12 +57,26 @@ class GradleDependencyIntegrationTest {
         tempDir = createTempDirectory("gradle-dep-integration")
         environment = GradleMcpEnvironment(tempDir.resolve("mcp"))
 
+        koinApp = koinApplication {
+            modules(module {
+                single { environment }
+                single { io.ktor.client.HttpClient(io.ktor.client.engine.cio.CIO) }
+                single { ParserDownloader(get()) }
+                single { TreeSitterLanguageProvider(get()) }
+                single { TreeSitterDeclarationExtractor(get()) }
+                single { DeclarationSearch(get()) }
+                single { FullTextSearch() }
+                single { GlobSearch() }
+                single<IndexService> { DefaultIndexService(get(), listOf(get<DeclarationSearch>(), get<FullTextSearch>(), get<GlobSearch>())) }
+            })
+        }
+
         provider = DefaultGradleProvider(
             config = GradleConfiguration(),
             buildManager = BuildManager()
         )
         service = DefaultGradleDependencyService(provider)
-        indexService = DefaultIndexService(environment)
+        indexService = getKoin().get<IndexService>() as DefaultIndexService
         val storageService = DefaultSourceStorageService(environment)
         sourceIndexService = DefaultSourceIndexService(indexService)
         sourcesService = DefaultSourcesService(service, storageService, indexService)
@@ -163,6 +185,8 @@ class GradleDependencyIntegrationTest {
 
     @AfterAll
     fun cleanupAll() {
+        getKoin().getOrNull<HttpClient>()?.close()
+        koinApp.close()
         provider.close()
         complexProject.close()
         tempDir.toFile().deleteRecursively()
@@ -335,9 +359,6 @@ class GradleDependencyIntegrationTest {
     @Test
     fun `can filter stable version only`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
-        // slf4j-api 1.7.30 is old, should have many stable updates.
-        // We'll use a dummy dependency that has a beta update if possible, but for now we'll just check if it works with the regex.
-        // Since we can't easily control the external repo, we'll just verify the call doesn't fail.
         val report = with(ProgressReporter.PRINTLN) {
             service.getDependencies(
                 projectRoot,
@@ -398,8 +419,6 @@ class GradleDependencyIntegrationTest {
         assertNotNull(slf4j.latestVersion)
         assertTrue(slf4j.latestVersion!!.startsWith("1."), "Expected latest version to start with 1. due to regex filter, but got ${slf4j.latestVersion}")
     }
-
-    // --- Tests from GradleDependencyConfigurationTest ---
 
     @Test
     fun `differentiates between different capabilities of the same project`() = runTest(timeout = 180.seconds) {
@@ -473,13 +492,6 @@ class GradleDependencyIntegrationTest {
         }
         val rootProjectWith = reportWith.projects.find { it.path == ":" }!!
         val config = rootProjectWith.configurations.find { it.name == "buildscript:classpath" }
-        if (config == null) {
-            println("REPORT PROJECTS:")
-            reportWith.projects.forEach { p ->
-                println("Project: ${p.path}")
-                p.configurations.forEach { println("  Config: ${it.name}") }
-            }
-        }
         assertNotNull(config)
 
         // 2. Check that they are excluded when requested
@@ -536,22 +548,18 @@ class GradleDependencyIntegrationTest {
         val kotlinPlugin = allDeps.find { it.name.contains("kotlin-gradle-plugin") }
         assertNotNull(kotlinPlugin, "Should find kotlin-gradle-plugin")
 
-        // This fails locally if downloading sources isn't working/mocked perfectly in tests, but it tests the feature flow
-        // The fact that we even get the dependency is the primary win.
         assertNotNull(kotlinPlugin.sourcesFile, "Should find sources for kotlin-gradle-plugin")
     }
-
-    // --- Tests from SourcesService & IndexService integration ---
 
     @Test
     fun `declaration search against real dependencies should succeed`() = runTest(timeout = 300.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
 
         val sourcesDir = with(ProgressReporter.PRINTLN) {
-            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:runtimeClasspath", providerToIndex = DeclarationSearch)
+            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:runtimeClasspath", providerToIndex = getKoin().get<DeclarationSearch>())
         }
 
-        val searchProvider = DeclarationSearch
+        val searchProvider = getKoin().get<DeclarationSearch>()
         val searchResults = sourceIndexService.search(sourcesDir, searchProvider, "fqn:org.slf4j.LoggerFactory").results
 
         assertTrue(searchResults.isNotEmpty(), "Expected search results for 'fqn:org.slf4j.LoggerFactory'")
@@ -562,7 +570,7 @@ class GradleDependencyIntegrationTest {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
 
         with(ProgressReporter.PRINTLN) {
-            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", forceDownload = false, providerToIndex = DeclarationSearch)
+            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", forceDownload = false, providerToIndex = getKoin().get<DeclarationSearch>())
         }
     }
 
@@ -572,12 +580,12 @@ class GradleDependencyIntegrationTest {
 
         // First download normally
         with(ProgressReporter.PRINTLN) {
-            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", forceDownload = false, providerToIndex = DeclarationSearch)
+            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", forceDownload = false, providerToIndex = getKoin().get<DeclarationSearch>())
         }
 
         // Then force download
         with(ProgressReporter.PRINTLN) {
-            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", forceDownload = true, providerToIndex = DeclarationSearch)
+            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", forceDownload = true, providerToIndex = getKoin().get<DeclarationSearch>())
         }
     }
 

@@ -15,7 +15,6 @@ import kotlinx.io.asSource
 import kotlinx.io.buffered
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
-import org.koin.core.context.stopKoin
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
 import kotlin.test.assertTrue
@@ -26,7 +25,6 @@ class StdioStartupE2ETest {
 
     @AfterEach
     fun cleanup() {
-        stopKoin()
     }
 
     @Test

@@ -29,21 +29,22 @@ import kotlin.time.measureTimedValue
  * A full-text search provider using file-level indexing.
  * This enables multi-line phrase searches and reduces index bloat.
  */
-object FullTextSearch : LuceneBaseSearchProvider() {
+class FullTextSearch : LuceneBaseSearchProvider() {
     override val logger = LoggerFactory.getLogger(FullTextSearch::class.java)
     override val name: String = "full-text"
     override val indexVersion: Int = 17
 
-    private const val CONTENTS = "contents"
-    private const val CONTENTS_EXACT = "contents_exact"
-    private const val CODE = "contents_code"
-    private const val PATH = "path"
+    companion object {
+        private const val CONTENTS = "contents"
+        private const val CONTENTS_EXACT = "contents_exact"
+        private const val CODE = "contents_code"
+        private const val PATH = "path"
 
-    private const val BOOST_EXACT = 5.0f
-    private const val BOOST_CODE = 10.0f
+        private const val BOOST_EXACT = 5.0f
+        private const val BOOST_CODE = 10.0f
 
-    internal const val v14IndexDirName = "lucene-full-text-index-v14"
-    internal const val v12IndexDirName = v14IndexDirName // For compatibility with existing test references
+        internal const val v14IndexDirName = "lucene-full-text-index-v14"
+    }
 
     override fun resolveIndexDir(baseDir: Path): Path = baseDir.resolve(v14IndexDirName)
 

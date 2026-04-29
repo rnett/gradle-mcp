@@ -5,8 +5,6 @@ import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.CASDependencySourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
-import dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch
-import dev.rnett.gradle.mcp.dependencies.search.FullTextSearch
 import dev.rnett.gradle.mcp.dependencies.search.IndexEntry
 import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
 import dev.rnett.gradle.mcp.dependencies.search.markerFileName
@@ -390,8 +388,7 @@ class DefaultSourcesService(
 
             if (currentlyBroken) {
                 // Invalidate search caches to release file handles before clearing.
-                DeclarationSearch.invalidateCache(casDir.index.resolve(DeclarationSearch.name))
-                FullTextSearch.invalidateCache(casDir.index.resolve(FullTextSearch.name))
+                indexService.invalidateAllCaches(casDir.index)
                 // Block-1 clearCasDir: releases Lucene file handles and evicts in-memory cache entries
                 // so other processes holding shared locks can open the files cleanly after this exclusive
                 // lock is released. Block-3's clearCasDir (inside the full-processing re-lock) is the

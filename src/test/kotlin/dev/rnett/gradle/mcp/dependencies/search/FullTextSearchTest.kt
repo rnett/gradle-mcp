@@ -19,6 +19,8 @@ import kotlin.uuid.Uuid
 @OptIn(ExperimentalUuidApi::class)
 class FullTextSearchTest {
 
+    private val fullTextSearch = FullTextSearch()
+
     @TempDir
     lateinit var tempDir: Path
 
@@ -38,10 +40,10 @@ class FullTextSearchTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
         }
 
-        val results = FullTextSearch.search(listOf(indexDir), "match").results
+        val results = fullTextSearch.search(listOf(indexDir), "match").results
         val searchResults = results.toSearchResults(depDir)
         // With file-level grouping, all matches in the same file are combined into one result
         assertEquals(1, searchResults.size, "Should find 1 result after grouping matches from the same file")
@@ -65,35 +67,35 @@ class FullTextSearchTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
         }
 
         // camelCase
-        val camel = FullTextSearch.search(listOf(indexDir), "camel").results.toSearchResults(depDir)
+        val camel = fullTextSearch.search(listOf(indexDir), "camel").results.toSearchResults(depDir)
         assertEquals(1, camel.size, "Should find 'camel' in 'camelCase'")
         assertEquals(1, camel[0].line)
 
-        val case = FullTextSearch.search(listOf(indexDir), "Case").results.toSearchResults(depDir)
+        val case = fullTextSearch.search(listOf(indexDir), "Case").results.toSearchResults(depDir)
         // 'Case' matches 'camelCase' (line 1) and 'snake_case' (line 2) - grouped into one result
         assertEquals(1, case.size, "Should find 1 result after grouping matches from the same file")
         assertEquals(1, case[0].line, "First match line should be 1")
         assertEquals(setOf(1, 2), case[0].matchLines.toSet(), "matchLines should contain both matched lines")
 
-        val camelCase = FullTextSearch.search(listOf(indexDir), "\"camelCase\"").results.toSearchResults(depDir)
+        val camelCase = fullTextSearch.search(listOf(indexDir), "\"camelCase\"").results.toSearchResults(depDir)
         assertEquals(1, camelCase.size, "Should find 'camelCase' exactly with quotes")
         assertEquals(1, camelCase[0].line)
 
         // snake_case
-        val snake = FullTextSearch.search(listOf(indexDir), "snake").results.toSearchResults(depDir)
+        val snake = fullTextSearch.search(listOf(indexDir), "snake").results.toSearchResults(depDir)
         assertEquals(1, snake.size, "Should find 'snake' in 'snake_case'")
         assertEquals(2, snake[0].line)
 
         // withNumbers123
-        val withNumbers = FullTextSearch.search(listOf(indexDir), "withNumbers").results.toSearchResults(depDir)
+        val withNumbers = fullTextSearch.search(listOf(indexDir), "withNumbers").results.toSearchResults(depDir)
         assertEquals(1, withNumbers.size, "Should find 'withNumbers' in 'withNumbers123'")
         assertEquals(3, withNumbers[0].line)
 
-        val numbers = FullTextSearch.search(listOf(indexDir), "123").results.toSearchResults(depDir)
+        val numbers = fullTextSearch.search(listOf(indexDir), "123").results.toSearchResults(depDir)
         assertEquals(1, numbers.size, "Should find '123' in 'withNumbers123'")
         assertEquals(3, numbers[0].line)
     }
@@ -105,10 +107,10 @@ class FullTextSearchTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
         }
 
-        val results = FullTextSearch.search(listOf(indexDir), "match").results
+        val results = fullTextSearch.search(listOf(indexDir), "match").results
         // With offsets enabled, we get all occurrences
         assertEquals(3, results.size, "Should find all occurrences of 'match'")
 
@@ -123,10 +125,10 @@ class FullTextSearchTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
         }
 
-        assertEquals(0, FullTextSearch.search(listOf(indexDir), "nonexistent").results.size)
+        assertEquals(0, fullTextSearch.search(listOf(indexDir), "nonexistent").results.size)
     }
 
     @Test
@@ -136,15 +138,15 @@ class FullTextSearchTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
         }
 
         // Note: StandardTokenizer/WordDelimiterGraphFilter might not index operators as tokens
         // Let's see what happens.
         // Actually, Lucene query parser might treat + * / as special characters.
         // We should probably escape them or just test if we can find words around them.
-        assertEquals(1, FullTextSearch.search(listOf(indexDir), "a").results.size)
-        assertEquals(1, FullTextSearch.search(listOf(indexDir), "b").results.size)
+        assertEquals(1, fullTextSearch.search(listOf(indexDir), "a").results.size)
+        assertEquals(1, fullTextSearch.search(listOf(indexDir), "b").results.size)
     }
 
     @Test
@@ -155,14 +157,14 @@ class FullTextSearchTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
         }
 
         // Verify that we can at least find the non-empty one
-        assertEquals(1, FullTextSearch.search(listOf(indexDir), "content").results.size)
+        assertEquals(1, fullTextSearch.search(listOf(indexDir), "content").results.size)
 
         // To verify only non-empty lines are indexed, we check the index reader directly
-        val finalIndexDir = indexDir.resolve(FullTextSearch.v12IndexDirName)
+        val finalIndexDir = indexDir.resolve(FullTextSearch.v14IndexDirName)
         FSDirectory.open(finalIndexDir).use { dir ->
             DirectoryReader.open(dir).use { reader ->
                 assertEquals(1, reader.numDocs(), "Should have 1 document in index (the 'content' line)")
@@ -178,17 +180,17 @@ class FullTextSearchTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
 
-            assertEquals(1, FullTextSearch.search(listOf(indexDir), "initial").results.size)
+            assertEquals(1, fullTextSearch.search(listOf(indexDir), "initial").results.size)
 
             // Re-index with different content
             file.writeText("updated")
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
 
             // FullTextSearch.index calls invalidateCache internally
-            assertEquals(0, FullTextSearch.search(listOf(indexDir), "initial").results.size)
-            assertEquals(1, FullTextSearch.search(listOf(indexDir), "updated").results.size)
+            assertEquals(0, fullTextSearch.search(listOf(indexDir), "initial").results.size)
+            assertEquals(1, fullTextSearch.search(listOf(indexDir), "updated").results.size)
         }
     }
 
@@ -200,10 +202,10 @@ class FullTextSearchTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
         }
 
-        val results = FullTextSearch.search(listOf(indexDir), "\"line 5\"").results.toSearchResults(depDir)
+        val results = fullTextSearch.search(listOf(indexDir), "\"line 5\"").results.toSearchResults(depDir)
         assertEquals(1, results.size, "Should find exactly one match with phrase query")
         val result = results[0]
         assertEquals(5, result.line)
@@ -225,15 +227,15 @@ class FullTextSearchTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
         }
 
         // Escaped colon should work
-        val response = FullTextSearch.search(listOf(indexDir), "LANGUAGE\\:")
+        val response = fullTextSearch.search(listOf(indexDir), "LANGUAGE\\:")
         assertTrue(response.results.isNotEmpty(), "Should find 'LANGUAGE:' in Directive.kt when escaped")
 
         // Unescaped colon should return an error in the response
-        val errorResponse = FullTextSearch.search(listOf(indexDir), "LANGUAGE: +ContextParameters")
+        val errorResponse = fullTextSearch.search(listOf(indexDir), "LANGUAGE: +ContextParameters")
         assertTrue(errorResponse.error != null, "Search for 'LANGUAGE: +ContextParameters' should return error")
         assertTrue(errorResponse.error.contains("Special characters like"), "Error message should contain help text: ${errorResponse.error}")
     }
@@ -256,10 +258,10 @@ class FullTextSearchTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
         }
 
-        val response = FullTextSearch.search(listOf(indexDir), "LANGUAGE")
+        val response = fullTextSearch.search(listOf(indexDir), "LANGUAGE")
         val results = response.results
 
         // 'Target.kt' should be the first result if prioritization is working correctly
@@ -276,16 +278,16 @@ class FullTextSearchTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
         }
 
         // Escaped equals should work
-        val response = FullTextSearch.search(listOf(indexDir), "val x \\= 10")
+        val response = fullTextSearch.search(listOf(indexDir), "val x \\= 10")
         assertTrue(response.error == null, "Search for 'val x \\= 10' should not return error: ${response.error}")
         assertTrue(response.results.isNotEmpty(), "Should find 'val x = 10' when escaped")
 
         // Phrase query should also work
-        val phraseResponse = FullTextSearch.search(listOf(indexDir), "\"val x = 10\"")
+        val phraseResponse = fullTextSearch.search(listOf(indexDir), "\"val x = 10\"")
         assertTrue(phraseResponse.error == null, "Search for '\"val x = 10\"' should not return error: ${phraseResponse.error}")
         assertTrue(phraseResponse.results.isNotEmpty(), "Should find 'val x = 10' as phrase")
     }
@@ -297,10 +299,10 @@ class FullTextSearchTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
         }
 
-        val response = FullTextSearch.search(listOf(indexDir), "content")
+        val response = fullTextSearch.search(listOf(indexDir), "content")
         assertTrue(response.interpretedQuery != null, "Response should include interpreted query")
         assertTrue(response.interpretedQuery.contains("content"), "Interpreted query should contain 'content'")
     }
@@ -317,10 +319,10 @@ class FullTextSearchTest {
 
         val indexDir = tempDir.resolve("index-" + Uuid.random())
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir, kotlin.io.path.Path("lib"))
+            fullTextSearch.index(depDir, indexDir, kotlin.io.path.Path("lib"))
         }
 
-        val results = FullTextSearch.search(listOf(indexDir), "\"TargetType\"").results
+        val results = fullTextSearch.search(listOf(indexDir), "\"TargetType\"").results
         println("Results: ${results.map { "${it.relativePath} at ${it.offset}" }}")
 
         assertEquals(2, results.size)
@@ -339,10 +341,10 @@ class FullTextSearchTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
         }
 
-        val results = FullTextSearch.search(listOf(indexDir), "match").results
+        val results = fullTextSearch.search(listOf(indexDir), "match").results
         val searchResults = results.toSearchResults(depDir)
         // Should produce 2 separate results because matches are far apart
         assertEquals(2, searchResults.size, "Should find 2 results for far-apart matches")

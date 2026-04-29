@@ -13,7 +13,6 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.coroutineScope
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
-import org.koin.core.context.GlobalContext.stopKoin
 import kotlin.random.Random
 import kotlin.test.assertTrue
 
@@ -22,7 +21,6 @@ class SseStartupE2ETest {
 
     @AfterEach
     fun cleanup() {
-        stopKoin()
     }
 
     @OptIn(DelicateCoroutinesApi::class)

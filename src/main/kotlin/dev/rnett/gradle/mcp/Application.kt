@@ -2,14 +2,17 @@ package dev.rnett.gradle.mcp
 
 import dev.rnett.gradle.mcp.Application.Companion.LOGGER
 import dev.rnett.gradle.mcp.mcp.McpServer
-import io.ktor.server.engine.*
-import io.ktor.server.netty.*
+import io.ktor.server.engine.CommandLineConfig
+import io.ktor.server.engine.EmbeddedServer
+import io.ktor.server.netty.EngineMain
+import io.ktor.server.netty.NettyApplicationEngine
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
 import io.modelcontextprotocol.kotlin.sdk.server.mcp
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -128,6 +131,8 @@ class Application(val args: Array<String>, val transport: Transport) {
         withContext(Dispatchers.IO) {
             try {
                 transport.stop(this@Application)
+                scope.cancel()
+                koinApp.close()
             } catch (t: Throwable) {
                 LOGGER.error("Fatal uncaught error while stopping the server", t)
                 System.err.println("Fatal uncaught error: ${t.message}")

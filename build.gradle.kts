@@ -100,9 +100,9 @@ dependencies {
     api(libs.lucene.queryparser)
     api(libs.lucene.highlighter)
 
-    api(libs.treesitter)
-    api(libs.treesitter.java)
-    api(libs.treesitter.kotlin)
+    api(libs.ktreesitter)
+    api(libs.zstd.jni)
+    api(libs.commons.compress)
 
     testFixturesApi(project)
     testFixturesApi(libs.kotlin.test)
@@ -119,7 +119,7 @@ dependencies {
 }
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(25)
 
     compilerOptions {
         freeCompilerArgs.addAll(
@@ -140,6 +140,27 @@ testing {
                 implementation(project.dependencies.testFixtures(project()))
             }
 
+
+            targets {
+                all {
+                    testTask.configure {
+                        maxParallelForks = if (isCI) 3 else 8
+                        if (isCI) {
+                            mustRunAfter("test")
+                        } else {
+                            shouldRunAfter("test")
+                        }
+                        maxHeapSize = "1g"
+                    }
+                }
+            }
+        }
+
+        val treeSitterTest by registering(JvmTestSuite::class) {
+            dependencies {
+                implementation(project())
+                implementation(project.dependencies.testFixtures(project()))
+            }
 
             targets {
                 all {
@@ -176,6 +197,7 @@ tasks.withType<Test>().all {
 
 tasks.named("check") {
     dependsOn(testing.suites.named("integrationTest"))
+    dependsOn(testing.suites.named("treeSitterTest"))
 }
 
 tasks.named<UpdateDaemonJvm>("updateDaemonJvm") {
@@ -198,9 +220,11 @@ buildConfig {
         buildConfigField("ANDROID_MIN_SDK", "24")
         buildConfigField("ANDROID_TARGET_SDK", "35")
         buildConfigField("ANDROIDX_ACTIVITY_COMPOSE_VERSION", libs.versions.androidxActivityCompose.get())
+        buildConfigField("TREE_SITTER_LANGUAGE_PACK_VERSION", libs.versions.treeSitterLanguagePack.get())
     }
     packageName("dev.rnett.gradle.mcp")
     buildConfigField("GRADLE_VERSION", libs.versions.gradleToolingApi.get())
+    buildConfigField("TREE_SITTER_LANGUAGE_PACK_VERSION", libs.versions.treeSitterLanguagePack.get())
     buildConfigField("APP_VERSION", provider { "${project.version}" })
 
     // need to manage manually

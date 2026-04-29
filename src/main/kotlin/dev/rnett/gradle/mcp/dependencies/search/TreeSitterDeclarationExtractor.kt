@@ -1,13 +1,14 @@
 package dev.rnett.gradle.mcp.dependencies.search
 
-import org.treesitter.TSNode
-import org.treesitter.TSParser
-import org.treesitter.TSQuery
-import org.treesitter.TSQueryCursor
-import org.treesitter.TSQueryMatch
-import org.treesitter.TreeSitterJava
-import org.treesitter.TreeSitterKotlin
+import io.github.treesitter.ktreesitter.Language
+import io.github.treesitter.ktreesitter.Node
+import io.github.treesitter.ktreesitter.Parser
+import io.github.treesitter.ktreesitter.Query
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import org.slf4j.LoggerFactory
 import java.nio.file.Path
+import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.io.path.extension
 import kotlin.io.path.readText
 
@@ -19,159 +20,221 @@ data class ExtractedSymbol(
     val offset: Int
 )
 
-class TreeSitterDeclarationExtractor : AutoCloseable {
-    private val javaLang = TreeSitterJava()
-    private val kotlinLang = TreeSitterKotlin()
+private class ExtractionContext(
+    val parser: Parser,
+    val javaQuery: Query,
+    val kotlinQuery: Query,
+    val javaPackageQuery: Query,
+    val kotlinPackageQuery: Query
+)
 
-    private val javaQuery = TSQuery(
-        javaLang, """
-        (class_declaration (identifier) @name) @class
-        (interface_declaration (identifier) @name) @interface
-        (annotation_type_declaration (identifier) @name) @annotation
-        (enum_declaration (identifier) @name) @enum
-        (enum_constant (identifier) @name) @enum_constant
-        (record_declaration (identifier) @name) @record
-        (method_declaration (identifier) @name) @method
-        (field_declaration (variable_declarator (identifier) @name)) @field
-    """.trimIndent()
-    )
+private data class ExtractorConfig(
+    val javaLang: Language,
+    val kotlinLang: Language,
+    val javaQueryStr: String,
+    val kotlinQueryStr: String,
+    val javaPkgQueryStr: String,
+    val kotlinPkgQueryStr: String
+)
 
-    private val kotlinQuery = TSQuery(
-        kotlinLang, """
-        (class_declaration (type_identifier) @name) @class
-        (object_declaration (type_identifier) @name) @object
-        (function_declaration (simple_identifier) @name) @function
-        (property_declaration (variable_declaration (simple_identifier) @name)) @property
-        (enum_entry (simple_identifier) @name) @enum_entry
-        (type_alias (type_identifier) @name) @typealias
-    """.trimIndent()
-    )
+class TreeSitterDeclarationExtractor(private val languageProvider: TreeSitterLanguageProvider) : AutoCloseable {
 
-    private val javaPackageQuery = TSQuery(javaLang, "(package_declaration [(identifier) (scoped_identifier)] @package)")
-    private val kotlinPackageQuery = TSQuery(kotlinLang, "(package_header) @header")
+    private val logger = LoggerFactory.getLogger(TreeSitterDeclarationExtractor::class.java)
 
-    fun extractSymbols(file: Path): List<ExtractedSymbol> {
-        val ext = file.extension
-        val src = file.readText()
-        return extractSymbols(src, ext)
-    }
+    private val contextPool = ConcurrentLinkedQueue<ExtractionContext>()
+    private val initMutex = Mutex()
 
-    fun extractSymbols(src: String, ext: String): List<ExtractedSymbol> {
-        return if (ext == "java") {
-            TSParser().use { parser ->
-                parser.setLanguage(javaLang)
-                parser.parseString(null, src).use { tree ->
-                    extract(tree.rootNode, src, javaQuery, javaPackageQuery, ext)
-                }
-            }
-        } else if (ext == "kt") {
-            TSParser().use { parser ->
-                parser.setLanguage(kotlinLang)
-                parser.parseString(null, src).use { tree ->
-                    extract(tree.rootNode, src, kotlinQuery, kotlinPackageQuery, ext)
-                }
-            }
-        } else {
-            emptyList()
+    @Volatile
+    private var config: ExtractorConfig? = null
+
+    private suspend fun getConfig(): ExtractorConfig {
+        config?.let { return it }
+        return initMutex.withLock {
+            config ?: createConfig().also { config = it }
         }
     }
 
-    private fun extract(root: TSNode, src: String, query: TSQuery, packageQuery: TSQuery, ext: String): List<ExtractedSymbol> {
+    private suspend fun createConfig(): ExtractorConfig {
+        val javaLang = languageProvider.getLanguage("java")
+        val javaQueryStr = """
+            (class_declaration (identifier) @name) @class
+            (interface_declaration (identifier) @name) @interface
+            (annotation_type_declaration (identifier) @name) @annotation
+            (enum_declaration (identifier) @name) @enum
+            (enum_constant (identifier) @name) @enum_constant
+            (record_declaration (identifier) @name) @record
+            (method_declaration (identifier) @name) @method
+            (constructor_declaration (identifier) @name) @constructor
+
+            (field_declaration (variable_declarator (identifier) @name)) @field
+        """.trimIndent()
+        val javaPkgQueryStr = "(package_declaration [(identifier) (scoped_identifier)] @name) @package"
+
+        val kotlinLang = languageProvider.getLanguage("kotlin")
+        val kotlinQueryStr = """
+            (class_declaration (type_identifier) @name) @class
+            (object_declaration (type_identifier) @name) @object
+            (function_declaration (simple_identifier) @name) @function
+            (property_declaration (variable_declaration (simple_identifier) @name)) @property
+            (enum_entry (simple_identifier) @name) @enum_entry
+            (type_alias (type_identifier) @name) @typealias
+        """.trimIndent()
+        val kotlinPkgQueryStr = "(package_header (_) @name) @package"
+
+        return ExtractorConfig(javaLang, kotlinLang, javaQueryStr, kotlinQueryStr, javaPkgQueryStr, kotlinPkgQueryStr)
+    }
+
+    private suspend fun createContext(): ExtractionContext {
+        val cfg = getConfig()
+        val parser = Parser()
+        return ExtractionContext(
+            parser,
+            Query(cfg.javaLang, cfg.javaQueryStr),
+            Query(cfg.kotlinLang, cfg.kotlinQueryStr),
+            Query(cfg.javaLang, cfg.javaPkgQueryStr),
+            Query(cfg.kotlinLang, cfg.kotlinPkgQueryStr)
+        )
+    }
+
+    override fun close() {
+        contextPool.clear()
+        config = null
+    }
+
+    suspend fun extractSymbols(file: Path): List<ExtractedSymbol> {
+        val ext = file.extension
+        val src = try {
+            file.readText()
+        } catch (e: Exception) {
+            return emptyList()
+        }
+        return extractSymbols(src, ext)
+    }
+
+    suspend fun extractSymbols(src: String, ext: String): List<ExtractedSymbol> {
+        if (ext != "java" && ext != "kt") return emptyList()
+        val cfg = getConfig()
+
+        val context = contextPool.poll() ?: createContext()
+        return try {
+            val lang = if (ext == "java") cfg.javaLang else cfg.kotlinLang
+            val query = if (ext == "java") context.javaQuery else context.kotlinQuery
+            val packageQuery = if (ext == "java") context.javaPackageQuery else context.kotlinPackageQuery
+
+            context.parser.language = lang
+            val tree = context.parser.parse(src)
+            extract(
+                tree.rootNode,
+                src,
+                query,
+                packageQuery
+            )
+        } finally {
+            contextPool.add(context)
+        }
+    }
+
+    private fun extract(root: Node, src: String, query: Query, packageQuery: Query): List<ExtractedSymbol> {
         val srcBytes = src.toByteArray(Charsets.UTF_8)
         val packageName = extractPackageName(root, srcBytes, packageQuery)
+        val matches = query.matches(root).toList()
+
+        val byteOffsets = matches.mapNotNull { match ->
+            match.captures.find { it.name == "name" }?.node?.startByte?.toInt()
+        }.distinct()
+
+        val charOffsets = getCharOffsets(srcBytes, byteOffsets)
+        val byteToChar = byteOffsets.zip(charOffsets).toMap()
+
         val symbols = mutableListOf<ExtractedSymbol>()
 
-        TSQueryCursor().use { cursor ->
-            cursor.exec(query, root)
-            val match = TSQueryMatch()
+        matches.forEach { match ->
+            val nameCapture = match.captures.find { it.name == "name" } ?: return@forEach
+            val node = nameCapture.node
 
-            while (cursor.nextMatch(match)) {
-                val captures = match.captures
-                // Find the capture that has name "name"
-                val nameCapture = captures.find { query.getCaptureNameForId(it.index) == "name" } ?: continue
+            val name = srcBytes.decodeToString(node.startByte.toInt(), node.endByte.toInt())
 
-                val node = nameCapture.node
-                val startByte = node.startByte
-                val endByte = node.endByte
-                val name = srcBytes.decodeToString(startByte, endByte)
-
-                // Extract FQN by walking up the tree
-                val fqnParts = mutableListOf<String>()
-
-                // start at parent.parent because parent is the declaration itself
-                var current: TSNode? = node.parent?.parent
-                while (current != null && !current.isNull()) {
-                    val nodeType = current.type
-                    if (nodeType in listOf("class_declaration", "interface_declaration", "annotation_type_declaration", "enum_declaration", "record_declaration", "object_declaration")) {
-                        // Try to extract the name of this parent container by finding its identifier
-                        var nameNode: TSNode? = null
-                        for (i in 0 until current.childCount) {
-                            val child = current.getChild(i)
-                            if (child != null && !child.isNull() && (child.type == "identifier" || child.type == "type_identifier")) {
-                                nameNode = child
-                                break
-                            }
-                        }
-
-                        if (nameNode != null) {
-                            fqnParts.add(srcBytes.decodeToString(nameNode.startByte, nameNode.endByte))
-                        }
-                    }
-                    current = current.parent
-                }
-
-                val fqnPartsWithPkg = if (packageName.isNotEmpty()) {
-                    listOf(packageName) + fqnParts.reversed() + name
-                } else {
-                    fqnParts.reversed() + name
-                }
-                val fqn = fqnPartsWithPkg.joinToString(".")
-                val startPoint = node.startPoint
-
-                symbols.add(
-                    ExtractedSymbol(
-                        name = name,
-                        fqn = fqn,
-                        packageName = packageName,
-                        line = startPoint.row + 1,
-                        offset = srcBytes.decodeToString(0, node.startByte).length
+            val fqnParts = mutableListOf<String>()
+            var current: Node? = node.parent?.parent
+            while (current != null) {
+                if (current.type in listOf(
+                        "class_declaration",
+                        "interface_declaration",
+                        "annotation_type_declaration",
+                        "enum_declaration",
+                        "record_declaration",
+                        "object_declaration",
+                        "enum_entry",
+                        "enum_constant"
                     )
-                )
+                ) {
+                    current.children.find { it.type in listOf("identifier", "type_identifier", "simple_identifier") }?.let {
+                        val partName = srcBytes.decodeToString(it.startByte.toInt(), it.endByte.toInt())
+                        fqnParts.add(partName)
+                    }
+                }
+                current = current.parent
             }
+
+            val fqnPartsWithPkg = if (packageName.isNotEmpty()) {
+                listOf(packageName) + fqnParts.reversed() + name
+            } else {
+                fqnParts.reversed() + name
+            }
+
+            symbols.add(
+                ExtractedSymbol(
+                    name = name,
+                    fqn = fqnPartsWithPkg.joinToString("."),
+                    packageName = packageName,
+                    line = node.startPoint.row.toInt() + 1,
+                    offset = byteToChar[node.startByte.toInt()] ?: 0
+                )
+            )
         }
 
         return symbols
     }
 
-    private fun extractPackageName(root: TSNode, srcBytes: ByteArray, packageQuery: TSQuery): String {
-        TSQueryCursor().use { cursor ->
-            cursor.exec(packageQuery, root)
-            val match = TSQueryMatch()
-            if (cursor.nextMatch(match)) {
-                val capture = match.captures.firstOrNull() ?: return ""
-                val node = capture.node
-                if (node.type == "package_header") {
-                    for (i in 0 until node.childCount) {
-                        val child = node.getChild(i) ?: continue
-                        if (child.isNull()) continue
-                        val type = child.type
-                        if (type in listOf("identifier", "navigation_expression", "dot_qualified_expression", "scoped_identifier")) {
-                            return srcBytes.decodeToString(child.startByte, child.endByte).trim()
-                        }
-                    }
+    private fun getCharOffsets(srcBytes: ByteArray, byteOffsets: List<Int>): List<Int> {
+        if (byteOffsets.isEmpty()) return emptyList()
+        val sorted = byteOffsets.withIndex().sortedBy { it.value }
+        val result = IntArray(byteOffsets.size)
+
+        var currentByte = 0
+        var currentChar = 0
+
+        for (item in sorted) {
+            val targetByte = item.value
+            while (currentByte < targetByte && currentByte < srcBytes.size) {
+                val b = srcBytes[currentByte].toInt() and 0xFF
+                val len = when {
+                    b shr 7 == 0 -> 1
+                    b shr 5 == 0x06 -> 2
+                    b shr 4 == 0x0E -> 3
+                    b shr 3 == 0x1E -> 4
+                    else -> 1
                 }
-                return srcBytes.decodeToString(node.startByte, node.endByte).trim()
+                currentByte += len
+                currentChar += if (len == 4) 2 else 1
+            }
+            result[item.index] = currentChar
+        }
+        return result.toList()
+    }
+
+    private fun extractPackageName(root: Node, srcBytes: ByteArray, packageQuery: Query): String {
+        packageQuery.matches(root).forEach { match ->
+            val captures = match.captures.filter { it.name == "name" }
+            if (captures.isNotEmpty()) {
+                val node = captures.map { it.node }.lastOrNull {
+                    srcBytes.decodeToString(it.startByte.toInt(), it.endByte.toInt()).trim() != "package"
+                }
+                if (node != null) {
+                    return srcBytes.decodeToString(node.startByte.toInt(), node.endByte.toInt()).trim().removeSuffix(";")
+                }
             }
         }
         return ""
-    }
-
-    override fun close() {
-        javaQuery.close()
-        kotlinQuery.close()
-        javaPackageQuery.close()
-        kotlinPackageQuery.close()
-        javaLang.close()
-        kotlinLang.close()
     }
 }

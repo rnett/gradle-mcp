@@ -95,6 +95,8 @@ Detailed operational guidance is offloaded to specialized **Expert Skills** to m
   structured log prefixes like `[task-output]`.
 - **Sequential Parsing of Bracketed Content**: When parsing multiple bracketed fields in a log line, use `substringAfter("]").trim()` sequentially to move past each field, rather than multiple `substringAfter("[")` calls, which only find
   the first occurrence.
+- We main a jbang catalog in https://github.com/rnett/jbang-catalog to ease use of this project. It is often clonsed at ../jbang-catalog.
+- We must never use Koin's global context (e.g. startKoin), only local isolated contexts.
 
 ---
 

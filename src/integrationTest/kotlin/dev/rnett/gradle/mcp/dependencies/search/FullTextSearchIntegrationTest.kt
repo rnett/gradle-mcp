@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class FullTextSearchIntegrationTest : SearchIntegrationTestBase() {
-    override val searchProvider = FullTextSearch
+    override val searchProvider: SearchProvider get() = getKoin().get<FullTextSearch>()
 
     @Test
     fun `test full text search across mocked dependencies`() = runTest {

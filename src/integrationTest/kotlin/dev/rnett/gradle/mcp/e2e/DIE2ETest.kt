@@ -8,7 +8,8 @@ import io.ktor.server.config.MapApplicationConfig
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
-import org.koin.core.context.stopKoin
+import org.koin.core.Koin
+import org.koin.core.KoinApplication
 import org.koin.test.KoinTest
 import org.koin.test.check.checkModules
 import kotlin.test.assertNotNull
@@ -16,9 +17,13 @@ import kotlin.test.assertNotNull
 
 class DIE2ETest : KoinTest {
 
+    private var koinApp: KoinApplication? = null
+    override fun getKoin(): Koin = koinApp!!.koin
+
     @AfterEach
     fun cleanup() {
-        stopKoin()
+        koinApp?.close()
+        koinApp = null
     }
 
     private fun loadConfig(): MapApplicationConfig {
@@ -33,16 +38,16 @@ class DIE2ETest : KoinTest {
     fun `DI modules are valid and all dependencies can be resolved`() {
         val config = loadConfig()
 
-        val koinApp = DI.createKoin(config)
-        koinApp.checkModules()
+        koinApp = DI.createKoin(config)
+        koinApp!!.checkModules()
     }
 
     @Test
     fun `Application can be initialized with real DI`() = runBlocking {
         val config = loadConfig()
 
-        val koinApp = DI.createKoin(config)
-        val koin = koinApp.koin
+        koinApp = DI.createKoin(config)
+        val koin = koinApp!!.koin
 
         // This replicates what Application(args) does
         val provider = koin.get<GradleProvider>()

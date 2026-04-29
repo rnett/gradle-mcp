@@ -44,8 +44,8 @@ class ViewMergingIntegrationTest {
         )
         val depService = DefaultGradleDependencyService(provider)
         val storageService = DefaultSourceStorageService(environment)
-        val indexService = DefaultSourceIndexService(DefaultIndexService(environment)) // Simplified for this test
-        val sourcesService = DefaultSourcesService(depService, storageService, dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(environment))
+        val indexService = DefaultSourceIndexService(DefaultIndexService(environment, listOf(FullTextSearch()))) // Simplified for this test
+        val sourcesService = DefaultSourcesService(depService, storageService, dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(environment, listOf(FullTextSearch())))
 
         testGradleProject {
             useKotlinDsl(true)
@@ -69,7 +69,7 @@ class ViewMergingIntegrationTest {
             val projectRoot = GradleProjectRoot(project.pathString())
 
             val sourcesDir = with(ProgressReporter.PRINTLN) {
-                sourcesService.resolveAndProcessProjectSources(projectRoot, ":", providerToIndex = FullTextSearch)
+                sourcesService.resolveAndProcessProjectSources(projectRoot, ":", providerToIndex = FullTextSearch())
             }
 
             assertNotNull(sourcesDir)
@@ -88,12 +88,12 @@ class ViewMergingIntegrationTest {
 
             // Perform a search to see how results from different variants are reported
             // 'Job' is a good candidate as it's defined in common.
-            val searchResponse = indexService.search(sessionView, FullTextSearch, "interface Job", dev.rnett.gradle.mcp.tools.PaginationInput(0, 10))
+            val searchResponse = indexService.search(sessionView, FullTextSearch(), "interface Job", dev.rnett.gradle.mcp.tools.PaginationInput(0, 10))
             println("Search results for 'interface Job':")
             searchResponse.results.forEach { println("  ${it.relativePath}") }
 
             // 'Dispatchers' might have platform-specific parts
-            val searchResponse2 = indexService.search(sessionView, FullTextSearch, "object Dispatchers", dev.rnett.gradle.mcp.tools.PaginationInput(0, 10))
+            val searchResponse2 = indexService.search(sessionView, FullTextSearch(), "object Dispatchers", dev.rnett.gradle.mcp.tools.PaginationInput(0, 10))
             println("Search results for 'object Dispatchers':")
             searchResponse2.results.forEach { println("  ${it.relativePath}") }
 
@@ -116,7 +116,7 @@ class ViewMergingIntegrationTest {
         )
         val depService = DefaultGradleDependencyService(provider)
         val storageService = DefaultSourceStorageService(environment)
-        val indexService = dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(environment)
+        val indexService = dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(environment, listOf(FullTextSearch()))
         val sourcesService = DefaultSourcesService(depService, storageService, indexService)
 
         testGradleProject {
@@ -141,7 +141,7 @@ class ViewMergingIntegrationTest {
             val projectRoot = GradleProjectRoot(project.pathString())
 
             val sourcesDir = with(ProgressReporter.PRINTLN) {
-                sourcesService.resolveAndProcessProjectSources(projectRoot, ":", providerToIndex = FullTextSearch)
+                sourcesService.resolveAndProcessProjectSources(projectRoot, ":", providerToIndex = FullTextSearch())
             }
 
             assertTrue(sourcesDir is SessionViewSourcesDir)

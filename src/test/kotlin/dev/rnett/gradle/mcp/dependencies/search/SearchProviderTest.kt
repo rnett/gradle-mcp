@@ -13,6 +13,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class SearchProviderTest {
+    private val fullTextSearch = FullTextSearch()
 
     @TempDir
     lateinit var tempDir: Path
@@ -33,10 +34,10 @@ class SearchProviderTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
         }
 
-        val results = FullTextSearch.search(listOf(indexDir), "match").results
+        val results = fullTextSearch.search(listOf(indexDir), "match").results
         val searchResults = results.toSearchResults(depDir)
 
         assertEquals(1, searchResults.size, "All matches in same file should be grouped into one result")
@@ -54,10 +55,10 @@ class SearchProviderTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
         }
 
-        val results = FullTextSearch.search(listOf(indexDir), "match").results
+        val results = fullTextSearch.search(listOf(indexDir), "match").results
         val searchResults = results.toSearchResults(depDir)
 
         assertEquals(2, searchResults.size, "Matches in different files should produce separate results")
@@ -73,11 +74,11 @@ class SearchProviderTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
         }
 
         // Search for multiple terms that match on lines 3, 5, 7
-        val results = FullTextSearch.search(listOf(indexDir), "\"line 3\" OR \"line 5\" OR \"line 7\"").results
+        val results = fullTextSearch.search(listOf(indexDir), "\"line 3\" OR \"line 5\" OR \"line 7\"").results
         val searchResults = results.toSearchResults(depDir)
 
         assertEquals(1, searchResults.size)
@@ -99,10 +100,10 @@ class SearchProviderTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
         }
 
-        val results = FullTextSearch.search(listOf(indexDir), "match").results
+        val results = fullTextSearch.search(listOf(indexDir), "match").results
         val searchResults = results.toSearchResults(depDir)
 
         assertEquals(1, searchResults.size)
@@ -118,10 +119,10 @@ class SearchProviderTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
         }
 
-        val results = FullTextSearch.search(listOf(indexDir), "match").results
+        val results = fullTextSearch.search(listOf(indexDir), "match").results
         val searchResults = results.toSearchResults(depDir)
 
         assertEquals(1, searchResults.size)
@@ -138,10 +139,10 @@ class SearchProviderTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
         }
 
-        val results = FullTextSearch.search(listOf(indexDir), "match").results
+        val results = fullTextSearch.search(listOf(indexDir), "match").results
         val searchResults = results.toSearchResults(depDir)
 
         assertEquals(1, searchResults.size)
@@ -156,10 +157,10 @@ class SearchProviderTest {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            FullTextSearch.index(depDir, indexDir)
+            fullTextSearch.index(depDir, indexDir)
         }
 
-        val results = FullTextSearch.search(listOf(indexDir), "match").results
+        val results = fullTextSearch.search(listOf(indexDir), "match").results
         // Simulate a result with null line but valid offset
         val resultWithNullLine = results.first().copy(line = null)
         val searchResults = listOf(resultWithNullLine).toSearchResults(depDir)

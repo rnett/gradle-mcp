@@ -4,6 +4,7 @@ import dev.rnett.gradle.mcp.DI
 import dev.rnett.gradle.mcp.DefaultGradleVersionService
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.GradleVersionService
+import dev.rnett.gradle.mcp.TestFixturesBuildConfig
 import dev.rnett.gradle.mcp.dependencies.DefaultGradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.DefaultGradleSourceService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService
@@ -27,6 +28,9 @@ import dev.rnett.gradle.mcp.dependencies.gradle.docs.HtmlConverter
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.MarkdownService
 import dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService
 import dev.rnett.gradle.mcp.dependencies.search.IndexService
+import dev.rnett.gradle.mcp.dependencies.search.ParserDownloader
+import dev.rnett.gradle.mcp.dependencies.search.TreeSitterDeclarationExtractor
+import dev.rnett.gradle.mcp.dependencies.search.TreeSitterLanguageProvider
 import dev.rnett.gradle.mcp.fixtures.SharedTestInfrastructure
 import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
@@ -154,6 +158,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single<BuildExecutionService> { DefaultBuildExecutionService(envProvider = get()) }
         single<ReplManager> { DefaultReplManager(get()) }
         single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
+        single { io.ktor.client.HttpClient(io.ktor.client.engine.cio.CIO) }
         single { GradleMcpEnvironment(SharedTestInfrastructure.sharedMcpWorkingDir) }
         single<MarkdownService> { DefaultMarkdownService(get()) }
         single { HtmlConverter(get()) }
@@ -167,7 +172,14 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single<MavenRepoService> { DefaultMavenRepoService(get()) }
         single<MavenCentralService> { DefaultMavenCentralService(get()) }
         single<DepsDevService> { DefaultDepsDevService(get()) }
-        single<IndexService> { DefaultIndexService(get()) }
+        single { ParserDownloader(get(), TestFixturesBuildConfig.TREE_SITTER_LANGUAGE_PACK_VERSION) }
+        single { TreeSitterLanguageProvider(get()) }
+        single { TreeSitterDeclarationExtractor(get()) }
+        single<dev.rnett.gradle.mcp.dependencies.search.SearchProvider> { dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch(get()) }
+        single<dev.rnett.gradle.mcp.dependencies.search.SearchProvider> { dev.rnett.gradle.mcp.dependencies.search.FullTextSearch() }
+        single<dev.rnett.gradle.mcp.dependencies.search.SearchProvider> { dev.rnett.gradle.mcp.dependencies.search.GlobSearch() }
+
+        single<IndexService> { DefaultIndexService(get(), getAll()) }
         single<SourceStorageService> { DefaultSourceStorageService(get()) }
         single<CoroutineDispatcher> { Dispatchers.IO }
         single<SourceIndexService> { DefaultSourceIndexService(get()) }
@@ -186,6 +198,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
             val sourcesService: SourcesService = get()
             val gradleSourceService: GradleSourceService = get()
             val indexService: SourceIndexService = get()
+            val searchProviders: List<dev.rnett.gradle.mcp.dependencies.search.SearchProvider> = getAll()
             DI.components(
                 provider,
                 replManager,
@@ -197,7 +210,8 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
                 depsDevService,
                 sourcesService,
                 gradleSourceService,
-                indexService
+                indexService,
+                searchProviders
             )
         }
         single {

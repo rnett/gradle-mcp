@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
 
 
 class DeclarationSearchIntegrationTest : SearchIntegrationTestBase() {
-    override val searchProvider = DeclarationSearch
+    override val searchProvider: SearchProvider get() = getKoin().get<DeclarationSearch>()
 
     @Test
     fun `test declaration search across mocked dependencies`() = runTest {

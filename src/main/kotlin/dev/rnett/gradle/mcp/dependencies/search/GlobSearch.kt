@@ -16,12 +16,14 @@ import kotlin.io.path.writeLines
 import kotlin.io.path.writeText
 import kotlin.time.measureTimedValue
 
-object GlobSearch : SearchProvider {
-    private val LOGGER = LoggerFactory.getLogger(GlobSearch::class.java)
+class GlobSearch : SearchProvider {
+    private val logger = LoggerFactory.getLogger(GlobSearch::class.java)
     override val name: String = "glob"
     override val indexVersion: Int = 4
 
-    private const val v2FileName = "filenames-v2.txt"
+    companion object {
+        private const val v2FileName = "filenames-v2.txt"
+    }
 
     override suspend fun search(
         indexDirs: Map<Path, Boolean>,
@@ -99,7 +101,7 @@ object GlobSearch : SearchProvider {
             )
         }
         val response = results
-        LOGGER.info("Glob search for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) took $duration (${response.results.size} results)")
+        logger.info("Glob search for \"$query\" (offset=${pagination.offset}, limit=${pagination.limit}) took $duration (${response.results.size} results)")
         return@withContext response
     }
 

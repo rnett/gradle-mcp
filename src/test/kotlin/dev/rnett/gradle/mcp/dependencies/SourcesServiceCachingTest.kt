@@ -53,6 +53,7 @@ class SourcesServiceCachingTest {
 
     @BeforeEach
     fun setup() {
+        io.mockk.coEvery { indexService.invalidateAllCaches(any()) } just io.mockk.Runs
         sourcesService = DefaultSourcesService(depService, storageService, indexService)
     }
 

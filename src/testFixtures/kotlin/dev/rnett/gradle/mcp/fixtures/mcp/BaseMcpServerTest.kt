@@ -73,6 +73,9 @@ abstract class BaseMcpServerTest {
         single<MavenCentralService> { mockk<MavenCentralService>(relaxed = true) }
         single<DepsDevService> { mockk<DepsDevService>(relaxed = true) }
         single<SourcesService> { mockk<SourcesService>(relaxed = true) }
+        single<dev.rnett.gradle.mcp.dependencies.search.SearchProvider>(org.koin.core.qualifier.named("declarations")) { mockk<dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch>(relaxed = true).apply { every { name } returns "declarations" } }
+        single<dev.rnett.gradle.mcp.dependencies.search.SearchProvider>(org.koin.core.qualifier.named("full-text")) { mockk<dev.rnett.gradle.mcp.dependencies.search.FullTextSearch>(relaxed = true).apply { every { name } returns "full-text" } }
+        single<dev.rnett.gradle.mcp.dependencies.search.SearchProvider>(org.koin.core.qualifier.named("glob")) { mockk<dev.rnett.gradle.mcp.dependencies.search.GlobSearch>(relaxed = true).apply { every { name } returns "glob" } }
         single<dev.rnett.gradle.mcp.dependencies.SourceIndexService> { mockk<dev.rnett.gradle.mcp.dependencies.SourceIndexService>(relaxed = true) }
         single<GradleSourceService> { mockk<GradleSourceService>(relaxed = true) }
 
@@ -92,6 +95,7 @@ abstract class BaseMcpServerTest {
             val sourcesService: SourcesService = get()
             val gradleSourceService: GradleSourceService = get()
             val indexService: dev.rnett.gradle.mcp.dependencies.SourceIndexService = get()
+            val searchProviders: List<dev.rnett.gradle.mcp.dependencies.search.SearchProvider> = getAll()
             DI.components(
                 provider,
                 replManager,
@@ -103,7 +107,8 @@ abstract class BaseMcpServerTest {
                 depsDevService,
                 sourcesService,
                 gradleSourceService,
-                indexService
+                indexService,
+                searchProviders
             )
         }
 

@@ -1,25 +1,64 @@
 package dev.rnett.gradle.mcp.dependencies.search
 
+import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
+import dev.rnett.gradle.mcp.TestFixturesBuildConfig
 import dev.rnett.gradle.mcp.fixtures.dependencies.search.index
+import io.ktor.client.HttpClient
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.CleanupMode
 import org.junit.jupiter.api.io.TempDir
+import org.koin.core.Koin
+import org.koin.core.KoinApplication
+import org.koin.dsl.koinApplication
+import org.koin.dsl.module
+import org.koin.test.KoinTest
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
+import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.minutes
 
-class DeclarationSearchTest {
+class DeclarationSearchTest : KoinTest {
 
-    @TempDir
+    @TempDir(cleanup = CleanupMode.NEVER)
     lateinit var tempDir: Path
 
+    private lateinit var koinApp: KoinApplication
+    override fun getKoin(): Koin = koinApp.koin
+
+    private lateinit var declarationSearch: DeclarationSearch
+
+    @BeforeEach
+    fun setup() {
+        val env = GradleMcpEnvironment(tempDir.resolve("mcp"))
+        koinApp = koinApplication {
+            modules(module {
+                single { env }
+                single { HttpClient(io.ktor.client.engine.cio.CIO) }
+                single { ParserDownloader(get(), TestFixturesBuildConfig.TREE_SITTER_LANGUAGE_PACK_VERSION) }
+                single { TreeSitterLanguageProvider(get()) }
+                single { TreeSitterDeclarationExtractor(get()) }
+                single { DeclarationSearch(get()) }
+            })
+        }
+        declarationSearch = getKoin().get()
+    }
+
+    @AfterEach
+    fun tearDown() {
+        getKoin().getOrNull<HttpClient>()?.close()
+        koinApp.close()
+    }
 
     @Test
-    fun `test integration`() = runTest {
+    fun `test integration`() = runTest(timeout = 10.minutes) {
         val depDir = tempDir.resolve("dep").createDirectories()
         val kotlinFile = """
             package com.example
@@ -63,13 +102,13 @@ enum MyJavaEnum {
 
         val indexDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            DeclarationSearch.index(depDir, indexDir)
+            declarationSearch.index(depDir, indexDir)
         }
 
         suspend fun assertFound(query: String, expectedPath: String, expectedLine: Int) {
-            val response = DeclarationSearch.search(listOf(indexDir), query)
+            val response = declarationSearch.search(listOf(indexDir), query)
             val results = response.results
-            println("Searched for: $query. Interpreted: ${response.interpretedQuery}. Error: ${response.error}. Results: $results")
+            // println removed (Finding 48)
             assertTrue(
                 results.any { it.relativePath == expectedPath && it.line == expectedLine },
                 "Declaration $query not found at $expectedPath:$expectedLine. Found: $results"
@@ -92,7 +131,7 @@ enum MyJavaEnum {
         assertFound("MyJavaRecord", "MyJavaClass.java", 18)
 
         // Case-sensitive search
-        assertTrue(DeclarationSearch.search(listOf(indexDir), "mykotlinclass").results.isEmpty(), "Should not find lowercase MyKotlinClass")
+        assertTrue(declarationSearch.search(listOf(indexDir), "mykotlinclass").results.isEmpty(), "Should not find lowercase MyKotlinClass")
         assertFound("MyKotlinClass", "MyKotlinClass.kt", 3)
 
         // FQN search
@@ -100,7 +139,7 @@ enum MyJavaEnum {
         assertFound("com.example.MyKotlinClass.myVal", "MyKotlinClass.kt", 4)
 
         // Partial FQN without wildcards should NOT match anymore (Case 3 eliminated)
-        assertTrue(DeclarationSearch.search(listOf(indexDir), "example.MyKotlinClass").results.isEmpty(), "Partial FQN without wildcard should not match")
+        assertTrue(declarationSearch.search(listOf(indexDir), "example.MyKotlinClass").results.isEmpty(), "Partial FQN without wildcard should not match")
 
         // Unqualified wildcard matching name
         assertFound("MyKotlin*", "MyKotlinClass.kt", 3)
@@ -147,31 +186,32 @@ enum MyJavaEnum {
         assertFound("/.*[Mm]yKotlin.*/", "MyKotlinClass.kt", 3)
 
         // Package exploration
-        val packageContents = DeclarationSearch.listPackageContents(listOf(indexDir), "com.example")
+        val packageContents = declarationSearch.listPackageContents(listOf(indexDir), "com.example")
         assertNotNull(packageContents)
         assertTrue(packageContents.symbols.contains("MyKotlinClass"), "Package should contain MyKotlinClass")
         assertTrue(packageContents.symbols.contains("MyJavaClass"), "Package should contain MyJavaClass")
 
-        val rootPackageContents = DeclarationSearch.listPackageContents(listOf(indexDir), "")
+        val rootPackageContents = declarationSearch.listPackageContents(listOf(indexDir), "")
         assertNotNull(rootPackageContents)
         assertTrue(rootPackageContents.subPackages.contains("com"), "Root should contain 'com' subpackage")
 
-        val comPackageContents = DeclarationSearch.listPackageContents(listOf(indexDir), "com")
+        val comPackageContents = declarationSearch.listPackageContents(listOf(indexDir), "com")
         assertNotNull(comPackageContents)
         assertTrue(comPackageContents.subPackages.contains("example"), "com should contain 'example' subpackage")
     }
 
     @Test
-    fun `test Lucene query parsing for FQN`() = runTest {
+    fun `test Lucene query parsing for FQN`() = runTest(timeout = 10.minutes) {
         val analyzer = org.apache.lucene.analysis.standard.StandardAnalyzer()
-        val parser = org.apache.lucene.queryparser.classic.MultiFieldQueryParser(arrayOf(DeclarationSearch.Fields.FQN), analyzer)
+        val parser = org.apache.lucene.queryparser.classic.MultiFieldQueryParser(arrayOf(DeclarationSearch.FQN), analyzer)
 
         val query = parser.parse("kotlinx.serialization.json.Json")
-        println("Parsed query: $query")
+        val expected = "fqn:kotlinx.serialization.json.json"
+        assertEquals(expected, query.toString(), "Parsed query should match expected Lucene structural format")
     }
 
     @Test
-    fun `test deep package and interface extraction`() = runTest {
+    fun `test deep package and interface extraction`() = runTest(timeout = 10.minutes) {
         val depDir = tempDir.resolve("dep-deep").createDirectories()
         val jsonFile = """
             @file:OptIn(ExperimentalSerializationApi::class)
@@ -190,13 +230,12 @@ enum MyJavaEnum {
 
         val indexDir = tempDir.resolve("index-deep")
         with(ProgressReporter.PRINTLN) {
-            DeclarationSearch.index(depDir, indexDir)
+            declarationSearch.index(depDir, indexDir)
         }
 
-        val response = DeclarationSearch.search(listOf(indexDir), "fqn:kotlinx.serialization.json.Json")
+        val response = declarationSearch.search(listOf(indexDir), "fqn:kotlinx.serialization.json.Json")
         val results = response.results
-        println("Results for Json: $results")
+        // println removed (Finding 48)
         assertTrue(results.any { it.relativePath == "Json.kt" && it.line == 9 }, "Json interface not found at Json.kt:9")
     }
-
 }

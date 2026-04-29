@@ -99,7 +99,8 @@ object UpdateTools {
             ThrowingDepsDevService,
             ThrowingSourcesService,
             ThrowingGradleSourceService,
-            ThrowingSourceIndexService
+            ThrowingSourceIndexService,
+            emptyList()
         ).mapNotNull {
             val file = directory?.resolve("${it.name.replace(" ", "_").uppercase()}.md")
             executeForComponent(it, file, verify)

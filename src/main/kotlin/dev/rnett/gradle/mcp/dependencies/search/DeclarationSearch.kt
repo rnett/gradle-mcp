@@ -17,12 +17,13 @@ import org.apache.lucene.search.TermQuery
 import org.apache.lucene.util.BytesRef
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
-import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.io.path.exists
 import kotlin.time.measureTimedValue
 
-object DeclarationSearch : LuceneBaseSearchProvider() {
-    object Fields {
+class DeclarationSearch(
+    private val extractor: TreeSitterDeclarationExtractor
+) : LuceneBaseSearchProvider() {
+    companion object {
         const val NAME = "name"
         const val FQN = "fqn"
         const val PACKAGE_NAME = "packageName"
@@ -39,53 +40,40 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
     override fun createAnalyzer() = org.apache.lucene.analysis.miscellaneous.PerFieldAnalyzerWrapper(
         LuceneUtils.createCaseSensitiveAnalyzer(),
         mapOf(
-            Fields.FQN to org.apache.lucene.analysis.core.KeywordAnalyzer(),
-            Fields.PACKAGE_NAME to org.apache.lucene.analysis.core.KeywordAnalyzer(),
-            Fields.PATH to org.apache.lucene.analysis.core.KeywordAnalyzer()
+            FQN to org.apache.lucene.analysis.core.KeywordAnalyzer(),
+            PACKAGE_NAME to org.apache.lucene.analysis.core.KeywordAnalyzer(),
+            PATH to org.apache.lucene.analysis.core.KeywordAnalyzer()
         )
     )
 
     override suspend fun newIndexer(outputDir: Path): Indexer = object : LuceneBaseIndexer(outputDir) {
-        private val pool = ConcurrentLinkedQueue<TreeSitterDeclarationExtractor>()
-
         override suspend fun indexFile(entry: IndexEntry) {
             val path = entry.relativePath
             val content = entry.content
             val ext = path.substringAfterLast('.', "")
             if (ext !in listOf("java", "kt")) return
 
-            val extractor = pool.poll() ?: TreeSitterDeclarationExtractor()
             val fileSymbols = try {
                 extractor.extractSymbols(content, ext)
             } catch (e: Exception) {
                 logger.error("Failed to extract symbols from $path", e)
                 emptyList()
-            } finally {
-                pool.add(extractor)
             }
 
-            val documents = fileSymbols.map { sym ->
+            val documents = fileSymbols.map {
                 Document().apply {
-                    add(TextField(Fields.NAME, sym.name, org.apache.lucene.document.Field.Store.YES))
-                    add(StringField(Fields.FQN, sym.fqn, org.apache.lucene.document.Field.Store.YES))
-                    add(StringField(Fields.PACKAGE_NAME, sym.packageName, org.apache.lucene.document.Field.Store.YES))
-                    add(StringField(Fields.PATH, path, org.apache.lucene.document.Field.Store.YES))
-                    entry.sourceHash?.let { add(StringField(Fields.SOURCE_HASH, it, org.apache.lucene.document.Field.Store.YES)) }
-                    add(StoredField(Fields.LINE, sym.line))
-                    add(StoredField(Fields.OFFSET, sym.offset))
+                    add(TextField(NAME, it.name, org.apache.lucene.document.Field.Store.YES))
+                    add(StringField(FQN, it.fqn, org.apache.lucene.document.Field.Store.YES))
+                    add(StringField(PACKAGE_NAME, it.packageName, org.apache.lucene.document.Field.Store.YES))
+                    add(StringField(PATH, path, org.apache.lucene.document.Field.Store.YES))
+                    entry.sourceHash?.let { add(StringField(SOURCE_HASH, it, org.apache.lucene.document.Field.Store.YES)) }
+                    add(StoredField(LINE, it.line))
+                    add(StoredField(OFFSET, it.offset))
                 }
             }
             writer.addDocuments(documents)
         }
 
-        override fun close() {
-            var extractor = pool.poll()
-            while (extractor != null) {
-                extractor.close()
-                extractor = pool.poll()
-            }
-            super.close()
-        }
     }
 
     override suspend fun listPackageContents(indexDirs: List<Path>, packageName: String): PackageContents? = withContext(Dispatchers.IO) {
@@ -94,23 +82,18 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
         withMultiReader(existingIndexDirs) { reader ->
             val searcher = IndexSearcher(reader)
 
-            // 1. Direct symbols in this package
-            // `symbols` and `subPackages` are shared sets covering the entire MultiReader (all index
-            // dirs in one pass), so symbol names from both common and platform indices are deduplicated
-            // naturally — no additional existence filter is required here.
             val symbols = mutableSetOf<String>()
-            val symbolsQuery = TermQuery(Term(Fields.PACKAGE_NAME, packageName))
+            val symbolsQuery = TermQuery(Term(PACKAGE_NAME, packageName))
             val topSymbols = searcher.search(symbolsQuery, 5000)
-            topSymbols.scoreDocs.forEach { hit ->
-                val doc = searcher.storedFields().document(hit.doc, setOf(Fields.NAME))
-                doc.get(Fields.NAME)?.let { symbols.add(it) }
+            topSymbols.scoreDocs.forEach {
+                val doc = searcher.storedFields().document(it.doc, setOf(NAME))
+                doc.get(NAME)?.let { symbols.add(it) }
             }
 
-            // 2. Sub-packages
             val subPackages = mutableSetOf<String>()
             val prefix = if (packageName.isEmpty()) "" else "$packageName."
 
-            val terms = MultiTerms.getTerms(reader, Fields.PACKAGE_NAME)
+            val terms = MultiTerms.getTerms(reader, PACKAGE_NAME)
             if (terms != null) {
                 val iterator = terms.iterator()
                 if (iterator.seekCeil(BytesRef(prefix)) != TermsEnum.SeekStatus.END) {
@@ -155,9 +138,9 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
                     val baseQuery = try {
                         if (query.startsWith("/") && query.endsWith("/") && query.length > 2) {
                             val pattern = query.substring(1, query.length - 1)
-                            org.apache.lucene.search.RegexpQuery(Term(Fields.FQN, pattern))
+                            org.apache.lucene.search.RegexpQuery(Term(FQN, pattern))
                         } else {
-                            val parser = MultiFieldQueryParser(arrayOf(Fields.NAME, Fields.FQN), analyzer)
+                            val parser = MultiFieldQueryParser(arrayOf(NAME, FQN), analyzer)
                             parser.allowLeadingWildcard = true
                             parser.parse(query)
                         }
@@ -173,7 +156,7 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
                     val finalQuery = baseQuery
 
                     val topDocs = if (filter != null) {
-                        searcher.search(finalQuery, Int.MAX_VALUE) // Fetch all doc IDs if filtering; lazy evaluation handles efficiency
+                        searcher.search(finalQuery, Int.MAX_VALUE)
                     } else {
                         LuceneUtils.searchPaginated(searcher, finalQuery, pagination)
                     }
@@ -181,13 +164,13 @@ object DeclarationSearch : LuceneBaseSearchProvider() {
 
                     var totalFilteredHits = 0
                     val matchedResults: List<RelativeSearchResult> =
-                        hits.asSequence().map { hit ->
-                            val doc = searcher.storedFields().document(hit.doc)
+                        hits.asSequence().map {
+                            val doc = searcher.storedFields().document(it.doc)
                             RelativeSearchResult(
-                                relativePath = doc.get(Fields.PATH),
-                                offset = doc.getField(Fields.OFFSET).numericValue().toInt(),
-                                line = doc.getField(Fields.LINE).numericValue().toInt(),
-                                score = hit.score
+                                relativePath = doc.get(PATH),
+                                offset = doc.getField(OFFSET).numericValue().toInt(),
+                                line = doc.getField(LINE).numericValue().toInt(),
+                                score = it.score
                             )
                         }.filter {
                             val match = filter == null || filter(it.relativePath)

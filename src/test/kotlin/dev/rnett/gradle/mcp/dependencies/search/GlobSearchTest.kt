@@ -14,6 +14,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class GlobSearchTest {
+    private val globSearch = GlobSearch()
 
     @TempDir
     lateinit var tempDir: Path
@@ -28,25 +29,25 @@ class GlobSearchTest {
 
         val outputDir = tempDir.resolve("index")
         with(ProgressReporter.PRINTLN) {
-            GlobSearch.index(dependencyDir, outputDir)
+            globSearch.index(dependencyDir, outputDir)
         }
 
-        val results = GlobSearch.search(listOf(outputDir), "**/MyClass.kt").results
+        val results = globSearch.search(listOf(outputDir), "**/MyClass.kt").results
         assertEquals(1, results.size)
         assertEquals("src/main/kotlin/MyClass.kt", results[0].relativePath)
 
-        val xmlResults = GlobSearch.search(listOf(outputDir), "**/*.xml").results
+        val xmlResults = globSearch.search(listOf(outputDir), "**/*.xml").results
         assertEquals(1, xmlResults.size)
         assertEquals("src/main/resources/config.xml", xmlResults[0].relativePath)
 
-        val licenseResults = GlobSearch.search(listOf(outputDir), "LICENSE").results
+        val licenseResults = globSearch.search(listOf(outputDir), "LICENSE").results
         assertEquals(1, licenseResults.size)
         assertEquals("LICENSE", licenseResults[0].relativePath)
 
-        val noResults = GlobSearch.search(listOf(outputDir), "NON_EXISTENT").results
+        val noResults = globSearch.search(listOf(outputDir), "NON_EXISTENT").results
         assertTrue(noResults.isEmpty())
 
-        val substringResults = GlobSearch.search(listOf(outputDir), "config").results
+        val substringResults = globSearch.search(listOf(outputDir), "config").results
         assertEquals(1, substringResults.size)
         assertEquals("src/main/resources/config.xml", substringResults[0].relativePath)
     }

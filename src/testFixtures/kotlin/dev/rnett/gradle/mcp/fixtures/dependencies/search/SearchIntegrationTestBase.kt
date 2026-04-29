@@ -8,15 +8,29 @@ import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
 import dev.rnett.gradle.mcp.dependencies.model.GradleProjectDependencies
+import dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch
+import dev.rnett.gradle.mcp.dependencies.search.FullTextSearch
+import dev.rnett.gradle.mcp.dependencies.search.GlobSearch
 import dev.rnett.gradle.mcp.dependencies.search.IndexService
+import dev.rnett.gradle.mcp.dependencies.search.ParserDownloader
 import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
+import dev.rnett.gradle.mcp.dependencies.search.TreeSitterDeclarationExtractor
+import dev.rnett.gradle.mcp.dependencies.search.TreeSitterLanguageProvider
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
+import io.ktor.client.HttpClient
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.CleanupMode
 import org.junit.jupiter.api.io.TempDir
+import org.koin.core.Koin
+import org.koin.core.KoinApplication
+import org.koin.dsl.koinApplication
+import org.koin.dsl.module
+import org.koin.test.KoinTest
 import java.nio.file.Path
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -24,10 +38,13 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.outputStream
 import kotlin.test.assertTrue
 
-abstract class SearchIntegrationTestBase {
+abstract class SearchIntegrationTestBase : KoinTest {
 
-    @TempDir
+    @TempDir(cleanup = CleanupMode.NEVER)
     lateinit var tempDir: Path
+
+    private lateinit var koinApp: KoinApplication
+    override fun getKoin(): Koin = koinApp.koin
 
     lateinit var environment: GradleMcpEnvironment
     lateinit var dependencyService: GradleDependencyService
@@ -44,10 +61,39 @@ abstract class SearchIntegrationTestBase {
         tempDir.resolve("project").createDirectories()
         environment = GradleMcpEnvironment(tempDir.resolve("mcp"))
         dependencyService = mockk()
-        indexService = dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(environment)
+
+        koinApp = koinApplication {
+            modules(module {
+                single { environment }
+                single { io.ktor.client.HttpClient(io.ktor.client.engine.cio.CIO) }
+                single { ParserDownloader(get(), dev.rnett.gradle.mcp.BuildConfig.TREE_SITTER_LANGUAGE_PACK_VERSION) }
+                single { TreeSitterLanguageProvider(get()) }
+                single { TreeSitterDeclarationExtractor(get()) }
+                single { DeclarationSearch(get()) }
+                single { FullTextSearch() }
+                single { GlobSearch() }
+                single<dev.rnett.gradle.mcp.dependencies.search.IndexService> {
+                    dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(
+                        get(), listOf(
+                            get<DeclarationSearch>(),
+                            get<FullTextSearch>(),
+                            get<GlobSearch>()
+                        )
+                    )
+                }
+            })
+        }
+
+        indexService = getKoin().get()
         storageService = dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService(environment)
         sourceIndexService = dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService(indexService)
         sourcesService = dev.rnett.gradle.mcp.dependencies.DefaultSourcesService(dependencyService, storageService, indexService)
+    }
+
+    @AfterEach
+    fun tearDownBase() {
+        getKoin().getOrNull<HttpClient>()?.close()
+        koinApp.close()
     }
 
     protected fun createSourceZip(name: String, content: Map<String, String>): Path {

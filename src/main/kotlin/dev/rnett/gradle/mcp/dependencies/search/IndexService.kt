@@ -41,12 +41,21 @@ interface IndexService {
      * Lists package contents using a MultiReader over all indices in the session.
      */
     suspend fun listPackageContents(view: SourcesDir, packageName: String): PackageContents?
+
+    /**
+     * Invalidates all underlying search caches for the given CAS base directory.
+     */
+    fun invalidateAllCaches(indexDir: Path)
 }
 
 @OptIn(ExperimentalAtomicApi::class)
 class DefaultIndexService(
-    val environment: GradleMcpEnvironment
+    private val environment: GradleMcpEnvironment,
+    private val searchProviders: List<SearchProvider>
 ) : IndexService {
+    override fun invalidateAllCaches(indexDir: Path) {
+        searchProviders.forEach { it.invalidateCache(indexDir.resolve(it.name)) }
+    }
     private val logger = LoggerFactory.getLogger(DefaultIndexService::class.java)
 
     @OptIn(ExperimentalPathApi::class)
@@ -180,9 +189,10 @@ class DefaultIndexService(
         // for package listing. The existence-based filter in search() is needed there because it
         // operates on file paths; listPackageContents works with symbol name strings where name-based
         // dedup already collapses duplicates correctly.
-        val indexDirs = view.resolveIndexDirs(DeclarationSearch.name)
+        val decSearch = searchProviders.filterIsInstance<DeclarationSearch>().firstOrNull() ?: return null
+        val indexDirs = view.resolveIndexDirs(decSearch.name)
         if (indexDirs.isEmpty()) return null
-        return DeclarationSearch.listPackageContents(indexDirs, packageName)
+        return decSearch.listPackageContents(indexDirs, packageName)
     }
 
 }

@@ -21,8 +21,15 @@ import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsIndexService
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.HtmlConverter
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.MarkdownService
+import dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch
 import dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService
+import dev.rnett.gradle.mcp.dependencies.search.FullTextSearch
+import dev.rnett.gradle.mcp.dependencies.search.GlobSearch
 import dev.rnett.gradle.mcp.dependencies.search.IndexService
+import dev.rnett.gradle.mcp.dependencies.search.ParserDownloader
+import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
+import dev.rnett.gradle.mcp.dependencies.search.TreeSitterDeclarationExtractor
+import dev.rnett.gradle.mcp.dependencies.search.TreeSitterLanguageProvider
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.BundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultBundledJarProvider
@@ -130,7 +137,15 @@ object DI {
         single<MavenRepoService> { DefaultMavenRepoService(get()) }
         single<MavenCentralService> { DefaultMavenCentralService(get()) }
         single<DepsDevService> { DefaultDepsDevService(get()) }
-        single<IndexService> { DefaultIndexService(get()) }
+
+        single { ParserDownloader(get(), BuildConfig.TREE_SITTER_LANGUAGE_PACK_VERSION) }
+        single { TreeSitterLanguageProvider(get()) }
+        single { TreeSitterDeclarationExtractor(get()) }
+        single<SearchProvider> { DeclarationSearch(get()) }
+        single<SearchProvider> { FullTextSearch() }
+        single<SearchProvider> { GlobSearch() }
+
+        single<IndexService> { DefaultIndexService(get(), getAll()) }
         single<SourceStorageService> { DefaultSourceStorageService(get()) }
         single<CoroutineDispatcher> { Dispatchers.IO }
         single<SourceIndexService> { DefaultSourceIndexService(get()) }
@@ -160,6 +175,7 @@ object DI {
             val sourcesService: SourcesService = get()
             val gradleSourceService: GradleSourceService = get()
             val indexService: SourceIndexService = get()
+            val searchProviders: List<SearchProvider> = getAll()
             components(
                 provider,
                 replManager,
@@ -171,7 +187,8 @@ object DI {
                 depsDevService,
                 sourcesService,
                 gradleSourceService,
-                indexService
+                indexService,
+                searchProviders
             )
         }
 
@@ -209,7 +226,8 @@ object DI {
         depsDevService: DepsDevService,
         sourcesService: SourcesService,
         gradleSourceService: GradleSourceService,
-        indexService: SourceIndexService
+        indexService: SourceIndexService,
+        searchProviders: List<SearchProvider>
     ): List<McpServerComponent> = listOf(
         GradleExecutionTools(provider),
         ReplTools(provider, replManager, replEnvironmentService, envProvider),
@@ -217,7 +235,7 @@ object DI {
         GradleDocsTools(gradleDocsService, gradleVersionService),
         GradleDependencyTools(gradleDependencyService),
         DependencySearchTools(depsDevService),
-        DependencySourceTools(sourcesService, gradleSourceService, indexService),
+        DependencySourceTools(sourcesService, gradleSourceService, indexService, searchProviders),
         SkillTools()
     )
 

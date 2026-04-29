@@ -29,13 +29,15 @@ import kotlin.io.path.isRegularFile
 import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.name
 import kotlin.io.path.readText
+import kotlin.reflect.KClass
 import kotlin.time.Clock
 import kotlin.time.Instant
 
 class DependencySourceTools(
     private val sourcesService: SourcesService,
     private val gradleSourceService: GradleSourceService,
-    private val indexService: dev.rnett.gradle.mcp.dependencies.SourceIndexService
+    private val indexService: dev.rnett.gradle.mcp.dependencies.SourceIndexService,
+    private val searchProviders: List<SearchProvider>
 ) : McpServerComponent("Project Dependency Source Tools", "Tools for searching and inspecting source code of Gradle dependencies.") {
 
     companion object {
@@ -43,15 +45,15 @@ class DependencySourceTools(
     }
 
     @Serializable
-    enum class SearchType {
+    enum class SearchType(val providerClass: KClass<out SearchProvider>) {
         @Description("Finds class, method, or interface declarations. Case-sensitive. Supports 'name:' and 'fqn:' fields (see tool description).")
-        DECLARATION,
+        DECLARATION(DeclarationSearch::class),
 
         @Description("Exhaustive full-text search. Case-insensitive Lucene query. Escape special chars like ':' or '='.")
-        FULL_TEXT,
+        FULL_TEXT(FullTextSearch::class),
 
         @Description("Locates files by name/extension (e.g., '**/AndroidManifest.xml'). Case-insensitive Java glob syntax.")
-        GLOB
+        GLOB(GlobSearch::class)
     }
 
     @Serializable
@@ -108,7 +110,7 @@ class DependencySourceTools(
                 args.dependency,
                 args.forceDownload,
                 args.fresh || args.forceDownload,
-                DeclarationSearch
+                searchProviders.filterIsInstance<DeclarationSearch>().firstOrNull()
             )
         }
 
@@ -208,11 +210,9 @@ class DependencySourceTools(
             |Once found, read content with `${ToolNames.READ_DEPENDENCY_SOURCES}`.
         """.trimMargin()
     ) { args ->
-        val provider = when (args.searchType) {
-            SearchType.DECLARATION -> DeclarationSearch
-            SearchType.FULL_TEXT -> FullTextSearch
-            SearchType.GLOB -> GlobSearch
-        }
+        val providerClass = args.searchType.providerClass
+        val provider = searchProviders.find { providerClass.isInstance(it) }
+            ?: error("Search provider '${args.searchType}' (${providerClass.simpleName}) not registered. This usually indicates a dependency injection configuration error.")
 
         val root = with(server) { args.projectRoot.resolveRoot() }
         val sources = with(progressReporter) {

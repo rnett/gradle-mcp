@@ -27,9 +27,10 @@ androidxCompose = "1.11.0"
 androidxActivityCompose = "1.13.0"
 lucene = "10.4.0"
 shadow = "9.4.1"
-treesitter = "0.26.6"
-treesitter-java = "0.23.5"
-treesitter-kotlin = "0.3.8.1"
+ktreesitter = "0.24.1"
+treeSitterLanguagePack = "1.7.0"
+zstd = "1.5.6-3"
+commonsCompress = "1.27.1"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -81,9 +82,9 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 
-treesitter = { module = "io.github.bonede:tree-sitter", version.ref = "treesitter" }
-treesitter-java = { module = "io.github.bonede:tree-sitter-java", version.ref = "treesitter-java" }
-treesitter-kotlin = { module = "io.github.bonede:tree-sitter-kotlin", version.ref = "treesitter-kotlin" }
+ktreesitter = { module = "io.github.tree-sitter:ktreesitter-jvm", version.ref = "ktreesitter" }
+zstd-jni = { module = "com.github.luben:zstd-jni", version.ref = "zstd" }
+commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commonsCompress" }
 
 lucene-core = { group = "org.apache.lucene", name = "lucene-core", version.ref = "lucene" }
 lucene-codecs = { group = "org.apache.lucene", name = "lucene-codecs", version.ref = "lucene" }
@@ -98,5 +99,6 @@ compose-graphics = { module = "org.jetbrains.compose.ui:ui-graphics", version.re
 androidx-compose-ui = { module = "androidx.compose.ui:ui", version.ref = "androidxCompose" }
 #noinspection UnusedVersionCatalogEntry
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivityCompose" }
+tree-sitter-language-pack = { module = "dev.kreuzberg.treesitterlanguagepack:tree-sitter-language-pack", version.ref = "treeSitterLanguagePack" }
 #noinspection UnusedVersionCatalogEntry
 android-gradle-plugin-nine-dummy = { module = "com.android.tools.build:gradle", version.ref = "agp9" }

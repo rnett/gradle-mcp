@@ -1,8 +1,13 @@
 Steps are in order, from next to furthest.
 
+- Multi-language/not language limited support for tree-sitter integration
+- Recommend passing java home when starting gradle. Maybe get JAVA_HOME from SHELL env by default? Or even regular env if jbang doesn't override it
+- Add `--enable-native-access=ALL-UNNAMED` like we have for the vector api
+- The gradle tool isn't used as often as it should
+- The agent often has to think about what to use as the project root
 - The indexing progress for full text search goes well beyond 100%/keeps going for a while once it hits 100%.
-- Running inspect build sometimes takes a long time, especially with consoleTail
 - Include https://docs.gradle.org/9.5.0-rc-1/release-notes.html#task-provenance-in-reports-and-failure-messages.
+- Include JDK sources in dependencies
 - A "Gradle doctor" like skill with best practices embedded in it (via gradle task), or enhance the expert skill.
 - Dedicated "render this compose preview" tool that takes the file+function name or line number
 - More skills in general.

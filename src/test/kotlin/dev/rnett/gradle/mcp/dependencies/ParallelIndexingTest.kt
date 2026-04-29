@@ -42,6 +42,7 @@ class ParallelIndexingTest {
         val depService = mockk<GradleDependencyService>()
         val storageService = DefaultSourceStorageService(env)
         val indexService = mockk<IndexService>()
+        io.mockk.coEvery { indexService.invalidateAllCaches(any()) } just io.mockk.Runs
         val sourcesService = DefaultSourcesService(depService, storageService, indexService)
 
         val projectRoot = GradleProjectRoot(tempDir.resolve("project").createDirectories().toString())
