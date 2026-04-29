@@ -99,6 +99,5 @@ compose-graphics = { module = "org.jetbrains.compose.ui:ui-graphics", version.re
 androidx-compose-ui = { module = "androidx.compose.ui:ui", version.ref = "androidxCompose" }
 #noinspection UnusedVersionCatalogEntry
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivityCompose" }
-tree-sitter-language-pack = { module = "dev.kreuzberg.treesitterlanguagepack:tree-sitter-language-pack", version.ref = "treeSitterLanguagePack" }
 #noinspection UnusedVersionCatalogEntry
 android-gradle-plugin-nine-dummy = { module = "com.android.tools.build:gradle", version.ref = "agp9" }

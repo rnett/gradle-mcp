@@ -107,7 +107,7 @@ Note: Prefer `--rerun` (single task) over `--rerun-tasks` (all tasks, even inclu
             "string",
             "null"
           ],
-          "description": "The path to the Java home directory to use for the Gradle process. Optional."
+          "description": "The path to the Java home directory to use for the Gradle process. Optional. If omitted, JAVA_HOME from the environment (see envSource) is used as a fallback."
         }
       },
       "description": "Additional advanced invocation arguments for the Gradle process."

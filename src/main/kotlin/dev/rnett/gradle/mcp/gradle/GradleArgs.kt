@@ -56,8 +56,11 @@ data class GradleInvocationArguments(
     /**
      * The path to the Java home directory to use for the Gradle process. 
      * If provided, this overrides the default JDK used to launch Gradle.
+     *
+     * If not provided, the system will attempt to resolve the Java home from the environment variables (specifically `JAVA_HOME`)
+     * according to the [envSource] configuration.
      */
-    @Description("The path to the Java home directory to use for the Gradle process. Optional.")
+    @Description("The path to the Java home directory to use for the Gradle process. Optional. If omitted, JAVA_HOME from the environment (see envSource) is used as a fallback.")
     val javaHome: String? = null,
 
     /**

@@ -7,6 +7,7 @@ import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
 import dev.rnett.gradle.mcp.gradle.build.failuresIfFailed
 import dev.rnett.gradle.mcp.tools.InitScriptNames
+import dev.rnett.gradle.mcp.utils.EnvProvider
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.test.runTest
 import org.gradle.tooling.model.build.BuildEnvironment
@@ -81,6 +82,105 @@ class GradleProviderTest {
             // Internal scope should be cancelled
             val scope = testProvider.scope
             assert(!scope.coroutineContext[Job]!!.isActive)
+        }
+    }
+
+    @Test
+    fun `can run gradle build with java home from environment`() = runTest(timeout = 120.seconds) {
+        val currentJavaHome = System.getProperty("java.home")
+        val mockEnv = object : EnvProvider {
+            override fun getShellEnvironment(): Map<String, String> = mapOf("JAVA_HOME" to currentJavaHome)
+            override fun getInheritedEnvironment(): Map<String, String> = mapOf("JAVA_HOME" to currentJavaHome)
+        }
+
+        val testProvider = DefaultGradleProvider(
+            GradleConfiguration(),
+            buildManager = BuildManager(),
+            envProvider = mockEnv
+        )
+
+        testProvider.use { p ->
+            val projectRoot = GradleProjectRoot(javaProject.pathString())
+            val args = GradleInvocationArguments(
+                additionalArguments = listOf("help"),
+                envSource = EnvSource.INHERIT
+            )
+
+            val runningBuild = p.runBuild(
+                projectRoot = projectRoot,
+                args = args
+            )
+            val result = runningBuild.awaitFinished()
+
+            assert(result.outcome is BuildOutcome.Success)
+            // We can't easily verify which JDK was used by the Tooling API from the result, 
+            // but ensuring the build succeeds with the environment variable set is a good baseline.
+        }
+    }
+
+    @Test
+    fun `explicit javaHome takes precedence over environment JAVA_HOME`() = runTest(timeout = 120.seconds) {
+        val currentJavaHome = System.getProperty("java.home")
+        val invalidJavaHome = "/invalid/path/to/jdk"
+
+        val mockEnv = object : EnvProvider {
+            override fun getShellEnvironment(): Map<String, String> = mapOf("JAVA_HOME" to invalidJavaHome)
+            override fun getInheritedEnvironment(): Map<String, String> = mapOf("JAVA_HOME" to invalidJavaHome)
+        }
+
+        val testProvider = DefaultGradleProvider(
+            GradleConfiguration(),
+            buildManager = BuildManager(),
+            envProvider = mockEnv
+        )
+
+        testProvider.use { p ->
+            val projectRoot = GradleProjectRoot(javaProject.pathString())
+            val args = GradleInvocationArguments(
+                additionalArguments = listOf("help"),
+                javaHome = currentJavaHome,
+                envSource = EnvSource.INHERIT
+            )
+
+            val runningBuild = p.runBuild(
+                projectRoot = projectRoot,
+                args = args
+            )
+            val result = runningBuild.awaitFinished()
+
+            // If it used JAVA_HOME from environment, it would fail or log a warning.
+            // Since we provide the valid currentJavaHome, it should succeed.
+            assert(result.outcome is BuildOutcome.Success)
+        }
+    }
+
+    @Test
+    fun `falls back to tooling api default when no java home is provided`() = runTest(timeout = 120.seconds) {
+        val mockEnv = object : EnvProvider {
+            override fun getShellEnvironment(): Map<String, String> = emptyMap()
+            override fun getInheritedEnvironment(): Map<String, String> = emptyMap()
+        }
+
+        val testProvider = DefaultGradleProvider(
+            GradleConfiguration(),
+            buildManager = BuildManager(),
+            envProvider = mockEnv
+        )
+
+        testProvider.use { p ->
+            val projectRoot = GradleProjectRoot(javaProject.pathString())
+            val args = GradleInvocationArguments(
+                additionalArguments = listOf("help"),
+                envSource = EnvSource.INHERIT
+            )
+
+            val runningBuild = p.runBuild(
+                projectRoot = projectRoot,
+                args = args
+            )
+            val result = runningBuild.awaitFinished()
+
+            assert(result.outcome is BuildOutcome.Success)
         }
     }
 

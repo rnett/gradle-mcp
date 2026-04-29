@@ -150,12 +150,15 @@ class DefaultBuildExecutionService(
         launcher.addJvmArguments(args.additionalJvmArgs + "-Dscan.tag.MCP")
         launcher.withDetailedFailure()
 
-        if (args.javaHome != null) {
-            val file = java.io.File(args.javaHome)
+        val resolvedJavaHome = args.javaHome ?: env["JAVA_HOME"]
+
+        if (resolvedJavaHome != null) {
+            val file = java.io.File(resolvedJavaHome)
             if (file.exists() && file.isDirectory) {
                 launcher.setJavaHome(file)
             } else {
-                LOGGER.warn("Specified javaHome does not exist or is not a directory: ${args.javaHome}")
+                val source = if (args.javaHome != null) "Specified" else "Environment (JAVA_HOME)"
+                LOGGER.warn("$source javaHome does not exist or is not a directory: $resolvedJavaHome")
             }
         }
 
