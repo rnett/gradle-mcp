@@ -1,7 +1,7 @@
 ---
 name: searching_dependency_sources
 description: >-
-  Reads and searches source code of external library dependencies, plugins, and Gradle internals.
+  Reads and searches source code of external library dependencies, plugins, and Gradle Build Tool source code.
   Use this whenever you need to UNDERSTAND an API: its shape, signature, parameters, overloads, or implementation — before writing any code that calls it.
   Prefer this over the REPL for all API research; reading source is instantaneous and complete.
   Do NOT use for project source code (use grep/tilth), Gradle documentation (use `researching_gradle_internals`), or Maven Central discovery (use `managing_gradle_dependencies`).
@@ -22,7 +22,7 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
 - **ALWAYS** provide absolute paths for `projectRoot`.
 - **ALWAYS** use the `{group}/{artifact}` prefix for reading specific files (e.g., `path="org.mongodb/mongodb-driver-sync/org/mongodb/client/MongoClient.kt"`). The `dependency` parameter should only be used to filter the search scope for
   performance when searching across libraries, not as the primary way to specify a path.
-- **NEVER** use `gradleSource: true` in this skill; use `researching_gradle_internals` for Gradle's internal implementation.
+- **NEVER** use `gradleOwnSource: true` in this skill; use `researching_gradle_internals` for Gradle Build Tool source code.
 - **NEVER** use generic shell tools like `grep` or `find` to *locate* dependency sources; they reside in remote caches whose paths are not predictable in advance.
 - **MAY** use shell tools like `rg` or `ast-grep` to *operate on* a sources root path explicitly returned by `read_dependency_sources` or `search_dependency_sources` in the `Sources root: <path>` header line. Dependency directories inside
   the sources root are symlinks; always pass `--follow` to `rg` (e.g., `rg --follow <pattern> <sources-root>`).
@@ -45,7 +45,7 @@ Explores, navigates, and analyzes the internal logic, APIs, and symbol implement
     - **GLOB**: Best for finding specific files (XML, properties, etc.) by name or extension. **Case-insensitive**.
 - **Invoke Precisely**: ALWAYS set `searchType` explicitly if the intent is not a general full-text search. This improves result accuracy and reduces noise.
 - **Scope Surgically**: Use `projectPath`, `configurationPath`, or `sourceSetPath` to narrow the search and improve performance if the target library's context is known. To search a plugin, use `sourceSetPath=":buildscript"`.
-- **ALWAYS** scope with a project, configuration, or source set (or use `gradleSource: true`) — unscoped search is no longer supported.
+- **ALWAYS** scope with a project, configuration, or source set (or use `gradleOwnSource: true`) — unscoped search is no longer supported.
 - **Target Libraries Directly**: Use the `dependency` parameter to filter searches to a single library. It supports `group:name:version:variant`, `group:name:version`, `group:name`, or just `group`. This bypasses project-level index
   merging and provides instantaneous results from the global extracted source cache.
 - **Troubleshoot Targeted Searches**: If a targeted search using the `dependency` parameter fails or returns no matches, use `inspect_dependencies` first to verify the exact coordinates (group, name, version, variant) of the dependency as

@@ -6,7 +6,7 @@ Tools for executing Gradle tasks and running tests.
 
 ## gradle
 
-Executes Gradle builds and tasks with background orchestration, task output capturing, and progressive feedback; ALWAYS use instead of raw shell `./gradlew`.
+`./gradlew` replacement for Gradle task execution. Executes Gradle builds and tasks with background orchestration, task output capturing, and progressive feedback.
 
 ### Task Execution
 - **Foreground** (default): STRONGLY PREFERRED; provides progressive output.
@@ -14,7 +14,9 @@ Executes Gradle builds and tasks with background orchestration, task output capt
 - **Task Output Capturing** (`captureTaskOutput=":path:to:task"`): Returns clean task-specific output.
    - **DO NOT use Task Output Capturing for tests**: Use `query_build` with `kind="TESTS"` and `query="FullTestName"`.
 
-After starting a build, use `query_build` or `wait_build` with the returned `BuildId` to monitor progress or diagnose failures.
+After starting a build, use `query_build` or `wait_build` with the returned `BuildId` for progress, failures, test results, and task output.
+
+Not for reading Gradle source code; use `gradleOwnSource`-based source tools instead.
 Note: Prefer `--rerun` (single task) over `--rerun-tasks` (all tasks, even included builds). Use `invocationArguments: { envSource: "SHELL" }` if env vars (e.g., JDKs) aren't found.
 
 <details>
@@ -27,7 +29,7 @@ Note: Prefer `--rerun` (single task) over `--rerun-tasks` (all tasks, even inclu
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "Absolute path to Gradle project root. Auto-detected from MCP roots or GRADLE_MCP_PROJECT_ROOT when present, must be specified otherwise (usually)."
+      "description": "Absolute path to Gradle project root (parent of gradlew and settings.gradle). Auto-detected from MCP roots when available; specify explicitly for multi-root workspaces or when auto-detection fails."
     },
     "commandLine": {
       "type": [
@@ -120,7 +122,3 @@ Note: Prefer `--rerun` (single task) over `--rerun-tasks` (all tasks, even inclu
 
 
 </details>
-
-
-
-

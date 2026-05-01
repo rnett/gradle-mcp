@@ -17,7 +17,7 @@ import kotlin.io.path.toPath
 
 @JvmInline
 @Serializable
-@Description("Absolute path to Gradle project root. Auto-detected from MCP roots or GRADLE_MCP_PROJECT_ROOT when present, must be specified otherwise (usually).")
+@Description("Absolute path to Gradle project root (parent of gradlew and settings.gradle). Auto-detected from MCP roots when available; specify explicitly for multi-root workspaces or when auto-detection fails.")
 value class GradleProjectRootInput(val projectRoot: String? = null) {
     companion object {
         val DEFAULT = GradleProjectRootInput(null)

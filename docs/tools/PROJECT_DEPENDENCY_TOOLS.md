@@ -24,7 +24,7 @@ Inspects the project's resolved dependency graph, checks for updates, and audits
   "properties": {
     "projectRoot": {
       "type": "string",
-      "description": "Absolute path to Gradle project root. Auto-detected from MCP roots or GRADLE_MCP_PROJECT_ROOT when present, must be specified otherwise (usually)."
+      "description": "Absolute path to Gradle project root (parent of gradlew and settings.gradle). Auto-detected from MCP roots when available; specify explicitly for multi-root workspaces or when auto-detection fails."
     },
     "projectPath": {
       "type": "string",

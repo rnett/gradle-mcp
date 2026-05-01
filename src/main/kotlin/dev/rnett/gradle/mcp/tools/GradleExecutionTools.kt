@@ -38,16 +38,18 @@ class GradleExecutionTools(
     val gradle by tool<GradleExecuteArgs, String>(
         ToolNames.GRADLE,
         """
-            |Executes Gradle builds and tasks with background orchestration, task output capturing, and progressive feedback; ALWAYS use instead of raw shell `./gradlew`.
+            |`./gradlew` replacement for Gradle task execution. Executes Gradle builds and tasks with background orchestration, task output capturing, and progressive feedback.
             |
             |### Task Execution
             |- **Foreground** (default): STRONGLY PREFERRED; provides progressive output.
             |- **Background** (`background=true`): Use only for persistent tasks (servers) or parallel work.
-            |- **Task Output Capturing** (`captureTaskOutput=":path:to:task"`): Returns clean task-specific output.
-            |   - **DO NOT use Task Output Capturing for tests**: Use `${ToolNames.QUERY_BUILD}` with `kind="TESTS"` and `query="FullTestName"`.
+            |- **Task Output Capturing** (`captureTaskOutput=\":path:to:task\"`): Returns clean task-specific output.
+            |   - **DO NOT use Task Output Capturing for tests**: Use `${ToolNames.QUERY_BUILD}` with `kind=\"TESTS\"` and `query=\"FullTestName\".
             |
-            |After starting a build, use `${ToolNames.QUERY_BUILD}` or `${ToolNames.WAIT_BUILD}` with the returned `BuildId` to monitor progress or diagnose failures.
-            |Note: Prefer `--rerun` (single task) over `--rerun-tasks` (all tasks, even included builds). Use `invocationArguments: { envSource: "SHELL" }` if env vars (e.g., JDKs) aren't found.
+            |After starting a build, use `${ToolNames.QUERY_BUILD}` or `${ToolNames.WAIT_BUILD}` with the returned `BuildId` for progress, failures, test results, and task output.
+            |
+            |Not for reading Gradle source code; use `gradleOwnSource`-based source tools instead.
+            |Note: Prefer `--rerun` (single task) over `--rerun-tasks` (all tasks, even included builds). Use `invocationArguments: { envSource: \"SHELL\" }` if env vars (e.g., JDKs) aren't found.
         """.trimMargin()
     ) {
         if (it.stopBuildId != null) {
@@ -125,7 +127,8 @@ class GradleExecutionTools(
 
                         appendLine("Task output for ${it.captureTaskOutput} $status.")
                         val captureTaskOutput = it.captureTaskOutput!!
-                        if (status == "currently running" || (status == "not found in executed tasks" && (commandLine.contains(captureTaskOutput) || commandLine.any { it.endsWith(captureTaskOutput) }))) {
+                        if (status == "currently running" || (status == "not found in executed tasks" && (commandLine.contains(captureTaskOutput) || commandLine.any { it.endsWith(captureTaskOutput) })))
+                        {
                             appendLine("If this is a long-running task like `run`, it will not appear in the finished task list as it never completes.")
                         }
                         appendLine()
