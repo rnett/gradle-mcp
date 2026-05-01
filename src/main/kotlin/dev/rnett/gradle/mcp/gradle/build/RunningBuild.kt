@@ -153,8 +153,8 @@ class RunningBuild(
         _logLines.tryEmit(line)
     }
 
-    internal fun addTaskResult(taskPath: String, outcome: BuildComponentOutcome, duration: Duration, consoleOutput: String?) {
-        taskResults[taskPath] = TaskResult(taskPath, outcome, duration, consoleOutput)
+    internal fun addTaskResult(taskPath: String, outcome: BuildComponentOutcome, duration: Duration, consoleOutput: String?, provenance: String?) {
+        taskResults[taskPath] = TaskResult(taskPath, outcome, duration, consoleOutput, provenance)
         _taskPaths.add(taskPath)
         _completingTasks.tryEmit(taskPath)
         progressTracker.emitProgress()
@@ -180,7 +180,7 @@ private class RefFinishedBuild(val runningBuild: RunningBuild, override val fini
     }
 
     override val taskResults: Map<String, TaskResult> = runningBuild.taskResults.mapValues { (path, result) ->
-        result.copy(consoleOutput = runningBuild.taskOutputs[path])
+        result.copy(consoleOutput = runningBuild.taskOutputs[path], provenance = result.provenance)
     }
     override val status: BuildStatus
         get() = runningBuild.status

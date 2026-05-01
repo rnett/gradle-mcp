@@ -11,7 +11,8 @@ data class TaskResult(
     val path: String,
     val outcome: BuildComponentOutcome,
     val duration: Duration,
-    val consoleOutput: String?
+    val consoleOutput: String?,
+    val provenance: String? = null
 )
 
 data class TestResults(

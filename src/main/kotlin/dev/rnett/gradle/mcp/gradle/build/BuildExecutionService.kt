@@ -19,9 +19,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.apache.commons.io.output.WriterOutputStream
 import org.gradle.tooling.ConfigurableLauncher
+import org.gradle.tooling.events.BinaryPluginIdentifier
 import org.gradle.tooling.events.OperationDescriptor
 import org.gradle.tooling.events.OperationType
 import org.gradle.tooling.events.ProgressListener
+import org.gradle.tooling.events.ScriptPluginIdentifier
 import org.gradle.tooling.events.StatusEvent
 import org.gradle.tooling.events.configuration.ProjectConfigurationFinishEvent
 import org.gradle.tooling.events.configuration.ProjectConfigurationStartEvent
@@ -38,6 +40,7 @@ import org.gradle.tooling.events.task.TaskStartEvent
 import org.gradle.tooling.events.task.TaskSuccessResult
 import org.gradle.tooling.events.test.TestFinishEvent
 import org.gradle.tooling.events.test.TestStartEvent
+import org.gradle.tooling.model.UnsupportedMethodException
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import java.nio.charset.StandardCharsets
@@ -75,6 +78,18 @@ class DefaultBuildExecutionService(
                 current = current.parent
             }
             return null
+        }
+
+        private fun TaskOperationDescriptor.taskProvenance(): String? {
+            return try {
+                when (val plugin = originPlugin) {
+                    is BinaryPluginIdentifier -> plugin.pluginId ?: plugin.className ?: plugin.displayName
+                    is ScriptPluginIdentifier -> plugin.displayName
+                    else -> plugin?.displayName
+                }
+            } catch (_: UnsupportedMethodException) {
+                null
+            }
         }
     }
 
@@ -275,7 +290,8 @@ class DefaultBuildExecutionService(
             }
 
             val duration = if (result.startTime > 0) (event.eventTime - result.startTime).milliseconds else 0.seconds
-            runningBuild.addTaskResult(taskPath, outcome, duration, runningBuild.taskOutputs[taskPath])
+            val provenance = descriptor.taskProvenance()
+            runningBuild.addTaskResult(taskPath, outcome, duration, runningBuild.taskOutputs[taskPath], provenance)
             runningBuild.progressTracker.onItemFinish()
         } else {
             runningBuild.addTaskCompleted(event.descriptor.displayName)

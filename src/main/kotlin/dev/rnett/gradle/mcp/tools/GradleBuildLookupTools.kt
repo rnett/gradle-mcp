@@ -250,6 +250,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                     appendLine("Task: ${taskResult.path}")
                     appendLine("Outcome: ${taskResult.outcome}")
                     appendLine("Duration: ${taskResult.duration}")
+                    taskResult.provenance?.let { appendLine("Provenance: $it") }
                     appendLine()
 
                     val relatedTests = result.testResults.all.filter { it.taskPath == taskResult.path }.toList()
@@ -286,7 +287,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                 }
             } else if (tasks.size > 1) {
                 val paged = paginate(tasks, args.pagination, "tasks") { task ->
-                    "${task.path} | ${task.outcome} | ${task.duration}"
+                    "${task.path}${task.provenance?.let { " ($it)" } ?: ""} | ${task.outcome} | ${task.duration}"
                 }
                 return "Multiple tasks match prefix '$query':\n$paged\nPlease provide a full task path to view details.\nSee query_build(kind='CONSOLE', buildId='${result.id}') for full logs."
             }
@@ -304,7 +305,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                 }
                 appendLine("Task Path | Outcome | Duration")
                 val paged = paginate(tasks, args.pagination, "tasks") { task ->
-                    "${task.path} | ${task.outcome} | ${task.duration}"
+                    "${task.path}${task.provenance?.let { " ($it)" } ?: ""} | ${task.outcome} | ${task.duration}"
                 }
                 append(paged)
 

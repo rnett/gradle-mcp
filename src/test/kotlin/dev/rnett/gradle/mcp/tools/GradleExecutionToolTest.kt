@@ -1,8 +1,10 @@
 package dev.rnett.gradle.mcp.tools
 
+import dev.rnett.gradle.mcp.TestFixturesBuildConfig
 import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
 import dev.rnett.gradle.mcp.fixtures.gradle.testKotlinProject
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
+import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import io.modelcontextprotocol.kotlin.sdk.Root
@@ -10,6 +12,8 @@ import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -81,5 +85,81 @@ class GradleExecutionToolTest : BaseMcpServerTest() {
         val text = call!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assertContains(text, "USAGE: gradle")
         assertTrue(call.isError != true, "Call should not be an error, but was: $text")
+    }
+
+    @Test
+    fun `query_build shows provenance for binary plugin task from real build`() = runTest {
+        server.client.callTool(
+            ToolNames.GRADLE,
+            mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("compileKotlin"), JsonPrimitive("--rerun"))))
+        )
+
+        val buildId = server.koin.get<BuildManager>().latestFinished(1).single().id.id
+        val call = server.client.callTool(
+            ToolNames.QUERY_BUILD,
+            buildJsonObject {
+                put("buildId", buildId)
+                put("kind", "TASKS")
+                put("query", ":compileKotlin")
+            }
+        )
+
+        val text = call!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        assertContains(text, "Task: :compileKotlin")
+        assertContains(text, "Provenance:")
+    }
+
+    @Test
+    fun `query_build shows provenance for script task from real build`() = runTest {
+        _project.close()
+        _project = testKotlinProject {
+            buildScript(
+                """
+                plugins {
+                    kotlin("jvm") version "${TestFixturesBuildConfig.KOTLIN_VERSION}"
+                }
+
+                repositories {
+                    mavenCentral()
+                }
+
+                dependencies {
+                    testImplementation("org.junit.jupiter:junit-jupiter")
+                    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+                }
+
+                tasks.test {
+                    useJUnitPlatform()
+                }
+
+                tasks.register("scriptProvenance") {
+                    doLast {
+                        println("script provenance")
+                    }
+                }
+                """.trimIndent()
+            )
+        }
+        server.setServerRoots(Root(_project.path().toUri().toString(), "root"))
+
+        server.client.callTool(
+            ToolNames.GRADLE,
+            mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("scriptProvenance"), JsonPrimitive("--rerun"))))
+        )
+
+        val buildId = server.koin.get<BuildManager>().latestFinished(1).single().id.id
+        val call = server.client.callTool(
+            ToolNames.QUERY_BUILD,
+            buildJsonObject {
+                put("buildId", buildId)
+                put("kind", "TASKS")
+                put("query", ":scriptProvenance")
+            }
+        )
+
+        val text = call!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        assertContains(text, "Task: :scriptProvenance")
+        assertContains(text, "Provenance:")
+        assertContains(text, "build.gradle.kts")
     }
 }

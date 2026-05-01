@@ -44,8 +44,8 @@ class GradleBuildLookupPrefixTest {
             skipped = emptySet()
         )
         val taskResults = mapOf(
-            ":app:compileJava" to TaskResult(":app:compileJava", BuildComponentOutcome.SUCCESS, 1.0.seconds, "Compile output"),
-            ":app:processResources" to TaskResult(":app:processResources", BuildComponentOutcome.SUCCESS, 0.5.seconds, "Resources output"),
+            ":app:compileJava" to TaskResult(":app:compileJava", BuildComponentOutcome.SUCCESS, 1.0.seconds, "Compile output", "org.jetbrains.kotlin.jvm"),
+            ":app:processResources" to TaskResult(":app:processResources", BuildComponentOutcome.SUCCESS, 0.5.seconds, "Resources output", "build file 'build.gradle.kts'"),
             ":lib:compileJava" to TaskResult(":lib:compileJava", BuildComponentOutcome.SUCCESS, 0.8.seconds, "Lib compile output")
         )
         return FinishedBuild(
@@ -274,8 +274,70 @@ class GradleBuildLookupPrefixTest {
 
         val output = tools.getTasksOutput(build, args)
         assertContains(output, "Multiple tasks match prefix ':app':")
-        assertContains(output, ":app:compileJava | SUCCESS")
-        assertContains(output, ":app:processResources | SUCCESS")
+        assertContains(output, ":app:compileJava (org.jetbrains.kotlin.jvm) | SUCCESS")
+        assertContains(output, ":app:processResources (build file 'build.gradle.kts') | SUCCESS")
+    }
+
+    @Test
+    fun `test task details show provenance when present`() = runTest {
+        val build = createSyntheticBuild()
+
+        val args = GradleBuildLookupTools.QueryBuildArgs(
+            buildId = build.id,
+            kind = GradleBuildLookupTools.QueryKind.TASKS,
+            query = ":app:compileJava"
+        )
+
+        val output = tools.getTasksOutput(build, args)
+        assertContains(output, "Task: :app:compileJava")
+        assertContains(output, "Provenance: org.jetbrains.kotlin.jvm")
+    }
+
+    @Test
+    fun `test task details show script provenance when present`() = runTest {
+        val build = createSyntheticBuild()
+
+        val args = GradleBuildLookupTools.QueryBuildArgs(
+            buildId = build.id,
+            kind = GradleBuildLookupTools.QueryKind.TASKS,
+            query = ":app:processResources"
+        )
+
+        val output = tools.getTasksOutput(build, args)
+        assertContains(output, "Task: :app:processResources")
+        assertContains(output, "Provenance: build file 'build.gradle.kts'")
+    }
+
+    @Test
+    fun `test task details omit provenance when absent`() = runTest {
+        val build = createSyntheticBuild()
+
+        val args = GradleBuildLookupTools.QueryBuildArgs(
+            buildId = build.id,
+            kind = GradleBuildLookupTools.QueryKind.TASKS,
+            query = ":lib:compileJava"
+        )
+
+        val output = tools.getTasksOutput(build, args)
+        assertContains(output, "Task: :lib:compileJava")
+        assertTrue(!output.contains("Provenance:"))
+    }
+
+    @Test
+    fun `test task summary list shows inline provenance when present`() = runTest {
+        val build = createSyntheticBuild()
+
+        val args = GradleBuildLookupTools.QueryBuildArgs(
+            buildId = build.id,
+            kind = GradleBuildLookupTools.QueryKind.TASKS,
+            query = ""
+        )
+
+        val output = tools.getTasksOutput(build, args)
+        assertContains(output, "Task Path | Outcome | Duration")
+        assertContains(output, ":app:compileJava (org.jetbrains.kotlin.jvm) | SUCCESS")
+        assertContains(output, ":app:processResources (build file 'build.gradle.kts') | SUCCESS")
+        assertContains(output, ":lib:compileJava | SUCCESS")
     }
 
     @Test
