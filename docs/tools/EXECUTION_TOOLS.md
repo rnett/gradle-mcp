@@ -11,13 +11,13 @@ Tools for executing Gradle tasks and running tests.
 ### Task Execution
 - **Foreground** (default): STRONGLY PREFERRED; provides progressive output.
 - **Background** (`background=true`): Use only for persistent tasks (servers) or parallel work.
-- **Task Output Capturing** (`captureTaskOutput=":path:to:task"`): Returns clean task-specific output.
-   - **DO NOT use Task Output Capturing for tests**: Use `query_build` with `kind="TESTS"` and `query="FullTestName"`.
+- **Task Output Capturing** (`captureTaskOutput=\":path:to:task\"`): Returns clean task-specific output.
+   - **DO NOT use Task Output Capturing for tests**: Use `query_build` with `kind=\"TESTS\"` and `query=\"FullTestName\".
 
 After starting a build, use `query_build` or `wait_build` with the returned `BuildId` for progress, failures, test results, and task output.
 
 Not for reading Gradle source code; use `gradleOwnSource`-based source tools instead.
-Note: Prefer `--rerun` (single task) over `--rerun-tasks` (all tasks, even included builds). Use `invocationArguments: { envSource: "SHELL" }` if env vars (e.g., JDKs) aren't found.
+Note: Prefer `--rerun` (single task) over `--rerun-tasks` (all tasks, even included builds). Use `invocationArguments: { envSource: \"SHELL\" }` if env vars (e.g., JDKs) aren't found.
 
 <details>
 
@@ -122,3 +122,7 @@ Note: Prefer `--rerun` (single task) over `--rerun-tasks` (all tasks, even inclu
 
 
 </details>
+
+
+
+
