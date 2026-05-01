@@ -40,8 +40,11 @@ class ParallelProgressTracker(
     }
 
     fun onComplete(depId: String, count: Int = 1) {
-        completedCounter.addAndFetch(count)
+        val wasActive = depId in activeTasks.load()
         activeTasks.update { it - depId }
+        if (wasActive) {
+            completedCounter.addAndFetch(count)
+        }
         ensureFocus()
         messages.update { it - depId }
         progressPercent.update { it - depId }
@@ -57,7 +60,12 @@ class ParallelProgressTracker(
             messages.update { it + (depId to m) }
         }
         if (t != null && t > 0) {
-            progressPercent.update { it + (depId to (p / t).coerceIn(0.0, 1.0)) }
+            val fraction = (p / t).coerceIn(0.0, 1.0)
+            if (fraction >= 1.0) {
+                onComplete(depId, count = 1)
+                return
+            }
+            progressPercent.update { it + (depId to fraction) }
         }
 
         if (focusDependency.load() == depId) {
