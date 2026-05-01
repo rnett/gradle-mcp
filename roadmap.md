@@ -1,7 +1,6 @@
 Steps are in order, from next to furthest.
 
 - Add `--enable-native-access=ALL-UNNAMED` like we have for the vector api
-- The indexing progress for full text search goes well beyond 100%/keeps going for a while once it hits 100%.
 - Include JDK sources in dependencies
 - Tree sitter query language queries over deps
 - Include project sources in dep views/read/search
