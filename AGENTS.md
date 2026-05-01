@@ -11,6 +11,7 @@ This repository contains a Model Context Protocol (MCP) server providing deep, p
 5. **Tool Metadata**: After modifying tool source, MUST run `./gradlew :updateToolsList` to sync documentation.
 6. **Isolated Contexts**: NEVER use Koin's global context (`startKoin`). ALWAYS use local isolated contexts.
 7. **JBang Catalog**: We maintain a catalog at `https://github.com/rnett/jbang-catalog` for easy execution.
+8. **No Backwards Compatability:** The only consumers of MCP servers like this one are AI agents, which live entirely in the moment and do not care about backwards compatability of tools.
 
 ---
 

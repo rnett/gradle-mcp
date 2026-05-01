@@ -52,3 +52,4 @@ bin/
 /.playwright-mcp/
 
 /.worktrees/
+/.junie/temp

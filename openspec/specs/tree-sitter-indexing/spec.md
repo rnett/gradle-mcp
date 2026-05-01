@@ -15,7 +15,7 @@ The system SHALL automatically download, verify, and cache Tree-Sitter parser li
 - **WHEN** the system needs to extract symbols from a Java source file for the first time
 - **THEN** it SHALL download the `tree-sitter-java` library for the current platform from a trusted source.
 - **AND** it SHALL verify the SHA-256 hash of the downloaded library against a bundled manifest.
-- **AND** it SHALL cache the library in a global directory (e.g., `~/.gradle-mcp/cache/tree-sitter-language-pack`) for reuse.
+- **AND** it SHALL cache the library in a global directory (e.g., `~/.mcps/rnett-gradle-mcp/cache/tree-sitter-language-pack`) for reuse.
 
 #### Scenario: Parser extraction from bundle
 

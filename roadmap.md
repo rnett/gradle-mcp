@@ -1,10 +1,6 @@
 Steps are in order, from next to furthest.
 
-- Multi-language/not language limited support for tree-sitter integration
-- Agents use gradleSource with the source tools way too often
 - Add `--enable-native-access=ALL-UNNAMED` like we have for the vector api
-- The gradle tool isn't used as often as it should
-- The agent often has to think about what to use as the project root
 - The indexing progress for full text search goes well beyond 100%/keeps going for a while once it hits 100%.
 - Include https://docs.gradle.org/9.5.0-rc-1/release-notes.html#task-provenance-in-reports-and-failure-messages.
 - Include JDK sources in dependencies
