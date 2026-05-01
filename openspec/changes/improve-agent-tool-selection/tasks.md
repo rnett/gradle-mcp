@@ -14,7 +14,7 @@
 ## 3. `gradle` Tool Description
 
 - [ ] 3.1 Add "STRONGLY PREFERRED for all Gradle task execution" to the `gradle` tool description header
-- [ ] 3.2 Add cross-reference to `inspect_build` for post-build diagnostics, test results, and task output
+- [ ] 3.2 Add cross-reference to `query_build` for post-build diagnostics, test results, and task output
 - [ ] 3.3 Add "When NOT to use" guidance pointing to `gradleOwnSource` tools for reading Gradle source code
 
 ## 4. `projectRoot` Parameter Description

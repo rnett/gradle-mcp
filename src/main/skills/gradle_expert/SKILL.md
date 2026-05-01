@@ -23,45 +23,45 @@ Provides authoritative guidance and automation for creating, modifying, and audi
 - **ALWAYS** use `gradle_docs` for authoritative documentation lookup instead of generic web searches.
 - **ALWAYS** use `search_dependency_sources` with `gradleSource = true` when researching core Gradle behavior.
 - **ALWAYS** use `search_dependency_sources` with `sourceSetPath = ":buildscript"` when researching plugin (buildscript) source code. This targets the virtual `buildscript` source set which aggregates all classpath plugins.
-- **ALWAYS** use `inspect_build` with `testName` and `mode="details"` for individual test output instead of generic `taskPath`, `captureTaskOutput`, or shell `grep`.
+- **ALWAYS** use `query_build` with `kind="TESTS"` and `query="FullTestName"` for individual test output instead of generic `taskPath`, `captureTaskOutput`, or shell `grep`.
 - **ALWAYS** use safe navigation (`?.url?.toString()`) and provide fallback values when accessing `ArtifactRepository` URLs in Gradle init scripts or plugins to prevent `NullPointerException`.
-- **STRONGLY PREFERRED**: Use `inspect_build` for all failure diagnostics. It is more token-efficient than reading raw console logs and provides structured access to failures, stack traces, and problems.
+- **STRONGLY PREFERRED**: Use `query_build` for all failure diagnostics. It is more token-efficient than reading raw console logs and provides structured access to failures, stack traces, and problems.
 - **NEVER** guess internal API behavior; verify it by reading the source code of the Gradle Build Tool.
 
-## Surgical Failure Diagnostics with `inspect_build`
+## Surgical Failure Diagnostics with `query_build`
 
-As a Senior Build Engineer, you must move beyond raw logs. The `inspect_build` tool is your surgical diagnostic suite.
+As a Senior Build Engineer, you must move beyond raw logs. The `query_build` tool is your surgical diagnostic suite.
 
 ### 1. Build Summary (Finding the Root Cause)
 
 Start with a summary to find IDs for specific failures or problems.
 
-- **Example**: `inspect_build(buildId="ID")`
+- **Example**: `query_build(buildId="ID")`
 
 ### 2. Individual Test Failures
 
-**CRITICAL**: NEVER use `taskPath` or shell `grep` for tests. ALWAYS use `testName` with `mode="details"` to see the full output and stack trace.
+**CRITICAL**: NEVER use `taskPath` or shell `grep` for tests. ALWAYS use `kind="TESTS"` with `query="FullTestName"` to see the full output and stack trace.
 
-- **Example**: `inspect_build(buildId="ID", mode="details", testName="com.example.MyTest.shouldWork")`
+- **Example**: `query_build(buildId="ID", kind="TESTS", query="com.example.MyTest.shouldWork")`
 
 ### 3. Build-Level Failures
 
-For compilation or configuration errors, use `failureId` found in the build summary.
+For compilation or configuration errors, use `kind="FAILURES"` with `query="ID"` found in the build summary.
 
-- **Example**: `inspect_build(buildId="ID", mode="details", failureId="F0")`
+- **Example**: `query_build(buildId="ID", kind="FAILURES", query="F0")`
 
 ### 4. Problems & Warnings
 
-For deep-dives into specific problems (e.g., deprecations, plugin issues), use `problemId`.
+For deep-dives into specific problems (e.g., deprecations, plugin issues), use `kind="PROBLEMS"` with `query="ID"`.
 
-- **Example**: `inspect_build(buildId="ID", mode="details", problemId="P1")`
+- **Example**: `query_build(buildId="ID", kind="PROBLEMS", query="P1")`
 
 ## Directives
 
 - **Author builds idiomatically**: Use standard patterns for multi-project builds and convention plugins.
 - **Perform performance audits**: Identify configuration bottlenecks and recommend lazy API migrations.
 - **Research internals authoritatively**: Use `gradle_docs` and internal source search to understand "how it works" at the engine level. Use `read_dependency_sources` to explore implementation details. To search a plugin, use `sourceSetPath=":buildscript"`.
-- **Diagnose failures surgically**: Use `inspect_build` with `testName` and `mode="details"` to analyze test failures and stack traces instead of reading raw console logs. DO NOT use `taskPath` or `captureTaskOutput` for tests.
+- **Diagnose failures surgically**: Use `query_build` with `kind="TESTS"` and `query="FullTestName"` to analyze test failures and stack traces instead of reading raw console logs. DO NOT use `taskPath` or `captureTaskOutput` for tests.
 - **Resolve dependencies precisely**: Use `inspect_dependencies` and `managing_gradle_dependencies` for auditing and updates.
   - **Default Exclusion**: Buildscript (plugin) dependencies are excluded by default from reports and searches. Use `excludeBuildscript: false` to include them in reports.
   - **Virtual Buildscript Source Set**: Use `sourceSetPath = ":buildscript"` (or `:app:buildscript`) to precisely audit the plugin classpath. This aggregates all `buildscript { ... }` configurations.

@@ -6,7 +6,7 @@ This repository contains a Model Context Protocol (MCP) server providing deep, p
 
 1. **Security & Secrets**: NEVER log, print, or commit API keys, secrets, or .env contents.
 2. **Source Control**: NEVER create commits or push unless explicitly instructed.
-3. **Tool Preference**: ALWAYS prefer Gradle MCP tools (`gradle`, `inspect_build`, etc.) over raw shell execution.
+3. **Tool Preference**: ALWAYS prefer Gradle MCP tools (`gradle`, `query_build`, etc.) over raw shell execution.
 4. **Verification**: NO WORK IS COMPLETE WITHOUT TESTS. Use `test` for most changes; `check` or `integrationTest` for wider impacts. See [testing-standards](openspec/specs/testing-standards/spec.md).
 5. **Tool Metadata**: After modifying tool source, MUST run `./gradlew :updateToolsList` to sync documentation.
 6. **Isolated Contexts**: NEVER use Koin's global context (`startKoin`). ALWAYS use local isolated contexts.

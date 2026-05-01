@@ -4,29 +4,23 @@
 
 Tools for looking up detailed information about past Gradle builds ran by this MCP server.
 
-## inspect_build
+## query_build
 
-Inspects build information, monitors progress, and performs post-mortem diagnostics; ALWAYS use instead of raw console logs for test failures, task outputs, and build errors.
 
-**Note:** Only builds executed by this MCP server session are listed. External Gradle runs are not tracked.
+Queries build information.
 
-### Lookup Modes
-- **`mode="summary"`** (default): Dashboard/overview; best for finding BuildIds, TestNames, FailureIds. When a build ID is provided, shows a detailed summary including recent error context and currently running tasks.
-- **`mode="details"`**: Exhaustive analysis; requires `testName`, `taskPath`, `failureId`, or `problemId`.
+If called with no arguments, returns a dashboard of recent builds.
 
-### How to Inspect Details
-- Tests (incl. console output): `testName="FullTestName"`, `mode="details"` — REQUIRED for stack traces and test output.
-- Task outputs: `taskPath=":path:to:task"`, `mode="details"`. For test tasks, this provides a summary of test failures.
-- Build failures: `failureId="ID"`, `mode="details"` (use summary first to find IDs).
-- Full console: `consoleTail=true` (tail) or `consoleTail=false` (head).
-- Pagination: Use `offset` and `limit` to navigate through long console logs or large task/test lists. Use `outputFile` to write the full result to a file and skip pagination limits.
-- File output: Use `outputFile` to write the full result to a file and skip pagination limits.
+### Query Kinds
+- DASHBOARD (default): Recent builds. If buildId is provided, shows a detailed summary of that build.
+- CONSOLE: Console logs. `query` acts as a regex filter.
+- TASKS: Task outputs. `query` acts as a prefix filter on the task path.
+- TESTS: Test outputs. `query` acts as a prefix filter on the test name.
+- FAILURES: Build failures. `query` is the exact FailureId.
+- PROBLEMS: Compilation/configuration problems. `query` is the exact ProblemId.
 
-### Wait & Progress Monitoring
-Use `timeout` (seconds) with `waitFor` (regex), `waitForTask` (path), or `waitForFinished=true` to monitor active builds.
-If `timeout` is set with no other condition and no specific section (consoleTail, taskPath, etc.), defaults to waiting for the build to finish.
-When a specific output section is requested (e.g. `consoleTail`), returns the current snapshot immediately without waiting unless `waitForFinished=true` is also set.
-Set `afterCall=true` to only match events emitted after this call.
+If a query for TASKS, TESTS, FAILURES, or PROBLEMS matches exactly one item, it auto-expands to full details. Otherwise, it returns a summary list with a hint to refine the query.
+See query_build(kind='CONSOLE', buildId='...') for full logs.
 
 <details>
 
@@ -41,46 +35,33 @@ Set `afterCall=true` to only match events emitted after this call.
         "string",
         "null"
       ],
-      "description": "BuildId to inspect. If omitted, shows the active/recent builds dashboard."
+      "description": "BuildId to query. If omitted and kind=DASHBOARD, shows recent builds."
     },
-    "mode": {
+    "kind": {
       "enum": [
-        "summary",
-        "details"
+        "DASHBOARD",
+        "CONSOLE",
+        "TASKS",
+        "TESTS",
+        "FAILURES",
+        "PROBLEMS"
       ],
-      "description": "'summary' (default) or 'details'. Use 'details' with testName/taskPath for full output.",
+      "description": "The aspect of the build to query. Default is DASHBOARD.",
       "type": "string"
     },
-    "timeout": {
-      "type": [
-        "number",
-        "null"
-      ],
-      "minimum": -1.7976931348623157E308,
-      "maximum": 1.7976931348623157E308,
-      "description": "Max seconds to wait for a condition. If omitted, returns immediately with current status."
-    },
-    "waitForFinished": {
-      "type": "boolean",
-      "description": "Wait for the build to finish. Default if 'timeout' is set and no other wait condition is provided."
-    },
-    "waitFor": {
+    "query": {
       "type": [
         "string",
         "null"
       ],
-      "description": "Regex to wait for in build logs (e.g., server started). Requires 'timeout'."
+      "description": "A query string. Acts as a prefix filter for tasks/tests, or a regex for CONSOLE. For failures/problems, it must be the exact ID."
     },
-    "waitForTask": {
+    "outputFile": {
       "type": [
         "string",
         "null"
       ],
-      "description": "Task path to wait for completion. Requires 'timeout'."
-    },
-    "afterCall": {
-      "type": "boolean",
-      "description": "Only match events emitted after this call. Requires 'timeout' and a wait condition."
+      "description": "Output file to save the result. Useful for large console logs."
     },
     "pagination": {
       "type": "object",
@@ -97,43 +78,20 @@ Set `afterCall=true` to only match events emitted after this call.
           "maximum": 2147483647
         }
       },
-      "description": "Pagination. offset = zero-based start index (default 0); limit = max items/lines to return."
+      "description": "Pagination settings. offset = zero-based start index (default 0); limit = max items/lines to return."
     },
-    "taskPath": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "description": "Task path prefix (summary) or full/unique-prefix path (details) for task output and outcome."
-    },
-    "taskOutcome": {
+    "outcome": {
       "enum": [
         "SUCCESS",
         "FAILED",
         "SKIPPED",
         "UP_TO_DATE",
         "FROM_CACHE",
-        "NO_SOURCE"
-      ],
-      "description": "Filter task results by outcome (summary mode only).",
-      "type": "string"
-    },
-    "testName": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "description": "Test name prefix (summary) or full/unique prefix (details). Use mode='details' for stack traces."
-    },
-    "testOutcome": {
-      "enum": [
-        "PASSED",
-        "FAILED",
-        "SKIPPED",
+        "NO_SOURCE",
         "CANCELLED",
         "IN_PROGRESS"
       ],
-      "description": "Filter test results by outcome (summary mode only).",
+      "description": "Filter tasks or tests by outcome (e.g. SUCCESS, FAILED).",
       "type": "string"
     },
     "testIndex": {
@@ -143,38 +101,80 @@ Set `afterCall=true` to only match events emitted after this call.
       ],
       "minimum": -2147483648,
       "maximum": 2147483647,
-      "description": "Index of test to show when multiple tests share the same name (details mode only)."
+      "description": "Index of test to show when multiple tests share the same name."
     },
-    "failureId": {
+    "taskPath": {
       "type": [
         "string",
         "null"
       ],
-      "description": "Failure ID to get details for (details mode only)."
-    },
-    "problemId": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "description": "ProblemId to look up (details mode only)."
-    },
-    "consoleTail": {
-      "type": [
-        "boolean",
-        "null"
-      ],
-      "description": "true = tail raw console output; false = head. Specify to get raw console output."
-    },
-    "outputFile": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "description": "If specified, write the output to the given file path instead of returning it. The response will include the file absolute path and its length (in characters and lines)."
+      "description": "Filter tests by task path (prefix). Only applicable when kind=TESTS."
     }
   },
   "required": [],
+  "type": "object"
+}
+```
+
+
+</details>
+
+
+## wait_build
+
+
+Waits for a background build to reach a specific condition and returns the final console tail.
+
+Use `timeout` (seconds) with `waitFor` (regex), `waitForTask` (path), or `waitForFinished=true` to monitor active builds.
+If no wait condition (regex or task) is provided, it defaults to waiting for the build to finish.
+
+Set `afterCall=true` to only match events emitted after this call.
+See query_build(kind='CONSOLE', buildId='...') for full logs.
+
+<details>
+
+<summary>Input schema</summary>
+
+
+```json
+{
+  "properties": {
+    "buildId": {
+      "type": "string",
+      "description": "BuildId to wait for."
+    },
+    "timeout": {
+      "type": "number",
+      "minimum": -1.7976931348623157E308,
+      "maximum": 1.7976931348623157E308,
+      "description": "Max seconds to wait. Default is 600.0."
+    },
+    "waitForFinished": {
+      "type": "boolean",
+      "description": "Wait for the build to finish. Default if no other wait condition is provided."
+    },
+    "waitFor": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Regex to wait for in build logs (e.g., server started)."
+    },
+    "waitForTask": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Task path to wait for completion."
+    },
+    "afterCall": {
+      "type": "boolean",
+      "description": "Only match events emitted after this call."
+    }
+  },
+  "required": [
+    "buildId"
+  ],
   "type": "object"
 }
 ```

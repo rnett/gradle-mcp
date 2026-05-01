@@ -11,8 +11,30 @@ TBD
 The system SHALL store extracted sources and indices in a global, immutable cache identified by the content hash of the dependency.
 
 - Extraction and indexing MUST be performed in an isolated temporary directory.
-- The finalized directory MUST be moved atomically into its final CAS location.
+- The finalized directory MUST be moved atomically into its final CAS location: `cache/cas/v3/<hash>/`.
 - If the CAS location already exists **and is complete** (has completion marker), the temporary directory MUST be discarded.
+
+### Requirement: Two-Level CAS Versioning
+
+The system SHALL use two independent versioning mechanisms to invalidate stale cached artifacts:
+
+1. **`CAS_VERSION`** (in `SourceStorageService.kt`) — a path segment embedded in the CAS root (e.g., `cache/cas/v3/`). Bumping this value abandons **all** existing processed entries transparently, as they reside under the old path. Use when
+   processed artifact compatibility breaks (e.g., extraction format changes, schema migrations). Current value: **`v3`**.
+
+2. **Lucene `indexVersion`** constants (in `FullTextSearch`, `DeclarationSearch`, `GlobSearch`) — embedded in each index's directory name within a CAS entry. Bumping these triggers re-indexing of already-extracted sources without requiring
+   re-extraction of the underlying artifact. Use when only search index logic changes.
+
+#### Scenario: Invalidating all processed artifacts
+
+- **WHEN** `CAS_VERSION` is bumped from `v2` to `v3`
+- **THEN** all existing `cache/cas/v2/` entries are effectively abandoned (no deletion required)
+- **AND** new requests populate `cache/cas/v3/` on demand
+
+#### Scenario: Invalidating search indices only
+
+- **WHEN** a Lucene `indexVersion` constant is bumped
+- **THEN** only the index sub-directory within each CAS entry is considered stale and is re-built
+- **AND** previously extracted source files are reused without re-downloading or re-extracting
 
 ### Requirement: Self-Repairing Cache
 

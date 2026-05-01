@@ -62,12 +62,12 @@ class RunningBuild(
     override val testResults: TestResults
         get() {
             val results = testResultsInternal.results(Clock.System.now().toEpochMilliseconds())
-            val inProgressOutcome = if (status == BuildStatus.Running) TestOutcome.IN_PROGRESS else TestOutcome.CANCELLED
+            val inProgressOutcome = if (status == BuildStatus.Running) BuildComponentOutcome.IN_PROGRESS else BuildComponentOutcome.CANCELLED
             return TestResults(
-                results.passed.map { it.toModel(indexer, TestOutcome.PASSED) }.toSet(),
-                results.skipped.map { it.toModel(indexer, TestOutcome.SKIPPED) }.toSet(),
-                results.failed.map { it.toModel(indexer, TestOutcome.FAILED) }.toSet(),
-                results.cancelled.map { it.toModel(indexer, TestOutcome.CANCELLED) }.toSet() +
+                results.passed.map { it.toModel(indexer, BuildComponentOutcome.SUCCESS) }.toSet(),
+                results.skipped.map { it.toModel(indexer, BuildComponentOutcome.SKIPPED) }.toSet(),
+                results.failed.map { it.toModel(indexer, BuildComponentOutcome.FAILED) }.toSet(),
+                results.cancelled.map { it.toModel(indexer, BuildComponentOutcome.CANCELLED) }.toSet() +
                         results.inProgress.map { it.toModel(indexer, inProgressOutcome) }.toSet()
             )
         }
@@ -153,7 +153,7 @@ class RunningBuild(
         _logLines.tryEmit(line)
     }
 
-    internal fun addTaskResult(taskPath: String, outcome: TaskOutcome, duration: Duration, consoleOutput: String?) {
+    internal fun addTaskResult(taskPath: String, outcome: BuildComponentOutcome, duration: Duration, consoleOutput: String?) {
         taskResults[taskPath] = TaskResult(taskPath, outcome, duration, consoleOutput)
         _taskPaths.add(taskPath)
         _completingTasks.tryEmit(taskPath)
@@ -186,7 +186,7 @@ private class RefFinishedBuild(val runningBuild: RunningBuild, override val fini
         get() = runningBuild.status
 }
 
-private fun TestCollector.Result.toModel(indexer: FailureIndexer, status: TestOutcome): TestResult {
+private fun TestCollector.Result.toModel(indexer: FailureIndexer, status: BuildComponentOutcome): TestResult {
     return TestResult(
         testName = testName,
         suiteName = suiteName,

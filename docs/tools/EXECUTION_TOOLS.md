@@ -12,9 +12,9 @@ Executes Gradle builds and tasks with background orchestration, task output capt
 - **Foreground** (default): STRONGLY PREFERRED; provides progressive output.
 - **Background** (`background=true`): Use only for persistent tasks (servers) or parallel work.
 - **Task Output Capturing** (`captureTaskOutput=":path:to:task"`): Returns clean task-specific output.
-   - **DO NOT use Task Output Capturing for tests**: Use `inspect_build` with `testName` and `mode="details"`.
+   - **DO NOT use Task Output Capturing for tests**: Use `query_build` with `kind="TESTS"` and `query="FullTestName"`.
 
-After starting a build, use `inspect_build` with the returned `BuildId` to monitor progress or diagnose failures.
+After starting a build, use `query_build` or `wait_build` with the returned `BuildId` to monitor progress or diagnose failures.
 Note: Prefer `--rerun` (single task) over `--rerun-tasks` (all tasks, even included builds). Use `invocationArguments: { envSource: "SHELL" }` if env vars (e.g., JDKs) aren't found.
 
 <details>
@@ -55,7 +55,7 @@ Note: Prefer `--rerun` (single task) over `--rerun-tasks` (all tasks, even inclu
         "string",
         "null"
       ],
-      "description": "Isolated output for a specific task path. DO NOT use for tests; use inspect_build with testName."
+      "description": "Isolated output for a specific task path. DO NOT use for tests; use query_build with kind=\"TESTS\" and query=\"FullTestName\"."
     },
     "invocationArguments": {
       "type": "object",

@@ -96,8 +96,8 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
             appendLine()
 
             appendLine("Failures Summary: ${buildFailures.size}")
-            appendLine("  To see all build-level failures, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"summary\")`.")
-            appendLine("  To see details for a specific failure, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"details\", failureId=\"ID\")`.")
+            appendLine("  To see all build-level failures, call `${ToolNames.QUERY_BUILD}(buildId=\"$id\", kind=\"FAILURES\")`.")
+            appendLine("  To see details for a specific failure, call `${ToolNames.QUERY_BUILD}(buildId=\"$id\", kind=\"FAILURES\", query=\"ID\")`.")
             appendLine(OutputFormatter.listResults(buildFailures, 10) {
                 buildString {
                     append(it.id.id)
@@ -118,8 +118,8 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
         val problemsSummary = problems.toSummary()
         appendLine("Problems:     ${problemsSummary.totalCount}")
         if (problemsSummary.totalCount > 0) {
-            appendLine("  To see all problems, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"summary\")`.")
-            appendLine("  To see details for a specific problem, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"details\", problemId=\"ID\")`.")
+            appendLine("  To see all problems, call `${ToolNames.QUERY_BUILD}(buildId=\"$id\", kind=\"PROBLEMS\")`.")
+            appendLine("  To see details for a specific problem, call `${ToolNames.QUERY_BUILD}(buildId=\"$id\", kind=\"PROBLEMS\", query=\"ID\")`.")
             if (problemsSummary.errorCounts.isNotEmpty()) {
                 appendLine("  Errors:     ${problemsSummary.errorCounts.size}")
                 appendLine(OutputFormatter.listResults(problemsSummary.errorCounts.toList(), 5, item = ::formatProblem))
@@ -141,8 +141,8 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
 
         appendLine("Tests:      ${testResults.totalCount}")
         if (testResults.totalCount > 0) {
-            appendLine("  To see all test results, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"summary\")`.")
-            appendLine("  To see details and console output for a specific individual test, call `${ToolNames.INSPECT_BUILD}(buildId=\"$id\", mode=\"details\", testName=\"FULL_TEST_NAME\")`.")
+            appendLine("  To see all test results, call `${ToolNames.QUERY_BUILD}(buildId=\"$id\", kind=\"TESTS\")`.")
+            appendLine("  To see details and console output for a specific individual test, call `${ToolNames.QUERY_BUILD}(buildId=\"$id\", kind=\"TESTS\", query=\"FULL_TEST_NAME\")`.")
             appendLine("  Passed:   ${testResults.passed.size}")
             appendLine("  Skipped:  ${testResults.skipped.size}")
             appendLine("  Failed:   ${testResults.failed.size}")

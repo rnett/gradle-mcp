@@ -87,7 +87,120 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `inspect_build waits for completion`() = runTest {
+    fun `wait_build with no condition defaults to waiting for finish`() = runTest {
+        val buildManager = server.koin.get<BuildManager>()
+        val buildId = buildManager.newId()
+
+        val runningBuild = createMockRunningBuild(buildId)
+        val mockFinishedBuild = FinishedBuild(
+            id = buildId,
+            startTime = Clock.System.now(),
+            args = GradleInvocationArguments(additionalArguments = listOf("help")),
+            consoleOutput = "SUCCESS",
+            publishedScans = emptyList(),
+            testResults = TestResults(emptySet(), emptySet(), emptySet()),
+            problemAggregations = emptyMap(),
+            outcome = BuildOutcome.Success,
+            finishTime = Clock.System.now()
+        )
+
+        val finishDeferred = CompletableDeferred<FinishedBuild>()
+        coEvery { runningBuild.awaitFinished() } coAnswers {
+            finishDeferred.await()
+        }
+
+        buildManager.registerBuild(runningBuild)
+        server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
+
+        launch {
+            delay(500.milliseconds)
+            buildManager.storeResult(mockFinishedBuild)
+            finishDeferred.complete(mockFinishedBuild)
+        }
+
+        val startTime = testScheduler.currentTime
+        val statusCall = server.client.callTool(
+            ToolNames.WAIT_BUILD, buildJsonObject {
+                put("buildId", buildId.toString())
+                // timeout is now optional
+            }
+        ) as CallToolResult
+        val duration = testScheduler.currentTime - startTime
+
+        assert(duration >= 500)
+        val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        assertTrue(statusText.contains("Build finished"), "Expected status text to contain 'Build finished', but was: $statusText")
+    }
+
+    @Test
+    fun `wait_build returns immediately if build already finished and no condition`() = runTest {
+        val buildManager = server.koin.get<BuildManager>()
+        val buildId = buildManager.newId()
+
+        val mockFinishedBuild = FinishedBuild(
+            id = buildId,
+            startTime = Clock.System.now(),
+            args = GradleInvocationArguments(additionalArguments = listOf("help")),
+            consoleOutput = "SUCCESS",
+            publishedScans = emptyList(),
+            testResults = TestResults(emptySet(), emptySet(), emptySet()),
+            problemAggregations = emptyMap(),
+            outcome = BuildOutcome.Success,
+            finishTime = Clock.System.now()
+        )
+
+        buildManager.storeResult(mockFinishedBuild)
+        server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
+
+        val startTime = testScheduler.currentTime
+        val statusCall = server.client.callTool(
+            ToolNames.WAIT_BUILD, buildJsonObject {
+                put("buildId", buildId.toString())
+            }
+        ) as CallToolResult
+        val duration = testScheduler.currentTime - startTime
+
+        assert(duration < 100)
+        val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        assertTrue(statusText.contains("Build finished"), "Expected status text to contain 'Build finished', but was: $statusText")
+    }
+
+    @Test
+    fun `wait_build returns immediately if build already finished and condition met`() = runTest {
+        val buildManager = server.koin.get<BuildManager>()
+        val buildId = buildManager.newId()
+
+        val mockFinishedBuild = FinishedBuild(
+            id = buildId,
+            startTime = Clock.System.now(),
+            args = GradleInvocationArguments(additionalArguments = listOf("help")),
+            consoleOutput = "Ready to go",
+            publishedScans = emptyList(),
+            testResults = TestResults(emptySet(), emptySet(), emptySet()),
+            problemAggregations = emptyMap(),
+            outcome = BuildOutcome.Success,
+            finishTime = Clock.System.now()
+        )
+
+        buildManager.storeResult(mockFinishedBuild)
+        server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
+
+        val startTime = testScheduler.currentTime
+        val statusCall = server.client.callTool(
+            ToolNames.WAIT_BUILD, buildJsonObject {
+                put("buildId", buildId.toString())
+                put("waitFor", "Ready")
+            }
+        ) as CallToolResult
+        val duration = testScheduler.currentTime - startTime
+
+        assert(duration < 100)
+        val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        assertTrue(statusText.contains("Build finished"), "Expected status text to contain 'Build finished', but was: $statusText")
+    }
+
+    @Test
+    fun `wait_build waits for completion`() = runTest {
         val buildManager = server.koin.get<BuildManager>()
         val buildId = buildManager.newId()
 
@@ -130,19 +243,17 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         buildManager.storeResult(mockFinishedBuild)
 
         val statusCall = server.client.callTool(
-            ToolNames.INSPECT_BUILD, buildJsonObject {
+            ToolNames.WAIT_BUILD, buildJsonObject {
                 put("buildId", buildId.toString())
                 put("timeout", 2.0)
-                put("projectRoot", tempDir.absolutePathString())
             }
         ) as CallToolResult
 
         val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
-        assert(statusText.contains("BUILD FINISHED"))
+        assertTrue(statusText.contains("Build finished"), "Expected status text to contain 'Build finished', but was: $statusText")
     }
-
     @Test
-    fun `inspect_build waits for waitFor`() = runTest {
+    fun `wait_build waits for waitFor`() = runTest {
         val buildManager = server.koin.get<BuildManager>()
         val buildId = buildManager.newId()
         val logBuffer = StringBuffer("Started\n")
@@ -163,11 +274,10 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            ToolNames.INSPECT_BUILD, buildJsonObject {
+            ToolNames.WAIT_BUILD, buildJsonObject {
                 put("buildId", buildId.toString())
                 put("timeout", 2.0)
                 put("waitFor", "Ready")
-                put("projectRoot", tempDir.absolutePathString())
             }
         ) as CallToolResult
         val duration = testScheduler.currentTime - startTime
@@ -176,13 +286,11 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         assert(duration < 2000)
 
         val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
-        assert(statusText.contains("BUILD IN PROGRESS"))
-        assert(statusText.contains("Matching lines for 'Ready':"))
+        assertTrue(statusText.contains("Build is still running"), "Expected status text to contain 'Build is still running', but was: $statusText")
         assert(statusText.contains("Ready to go"))
     }
-
     @Test
-    fun `inspect_build returns immediately if waitFor already matches`() = runTest {
+    fun `wait_build returns immediately if waitFor already matches`() = runTest {
         val buildManager = server.koin.get<BuildManager>()
         val buildId = buildManager.newId()
         val logBuffer = StringBuffer("Started\nReady to go\n")
@@ -197,11 +305,10 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            ToolNames.INSPECT_BUILD, buildJsonObject {
+            ToolNames.WAIT_BUILD, buildJsonObject {
                 put("buildId", buildId.toString())
                 put("timeout", 2.0)
                 put("waitFor", "Ready")
-                put("projectRoot", tempDir.absolutePathString())
             }
         ) as CallToolResult
         val duration = testScheduler.currentTime - startTime
@@ -209,13 +316,11 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         assert(duration < 100)
 
         val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
-        assert(statusText.contains("BUILD IN PROGRESS"))
-        assert(statusText.contains("Matching lines for 'Ready':"))
+        assertTrue(statusText.contains("Build is still running"), "Expected status text to contain 'Build is still running', but was: $statusText")
         assert(statusText.contains("Ready to go"))
     }
-
     @Test
-    fun `inspect_build waits for waitForTask`() = runTest {
+    fun `wait_build waits for waitForTask`() = runTest {
         val buildManager = server.koin.get<BuildManager>()
         val buildId = buildManager.newId()
         val completedTasksFlow = MutableSharedFlow<String>(replay = 1)
@@ -234,22 +339,20 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            ToolNames.INSPECT_BUILD, buildJsonObject {
+            ToolNames.WAIT_BUILD, buildJsonObject {
                 put("buildId", buildId.toString())
                 put("timeout", 2.0)
                 put("waitForTask", ":help")
-                put("projectRoot", tempDir.absolutePathString())
             }
         ) as CallToolResult
         val duration = testScheduler.currentTime - startTime
 
         assert(duration >= 500)
         val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
-        assert(statusText.contains("BUILD IN PROGRESS"))
+        assertTrue(statusText.contains("Build is still running"), "Expected status text to contain 'Build is still running', but was: $statusText")
     }
-
     @Test
-    fun `inspect_build returns immediately if waitForTask already matches`() = runTest {
+    fun `wait_build returns immediately if waitForTask already matches`() = runTest {
         val buildManager = server.koin.get<BuildManager>()
         val buildId = buildManager.newId()
         val completedTasksFlow = MutableSharedFlow<String>(replay = 1)
@@ -264,22 +367,21 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            ToolNames.INSPECT_BUILD, buildJsonObject {
+            ToolNames.WAIT_BUILD, buildJsonObject {
                 put("buildId", buildId.toString())
                 put("timeout", 2.0)
                 put("waitForTask", ":help")
-                put("projectRoot", tempDir.absolutePathString())
             }
         ) as CallToolResult
         val duration = testScheduler.currentTime - startTime
 
         assert(duration < 100)
         val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
-        assert(statusText.contains("BUILD IN PROGRESS"))
+        assert(statusText.contains("Build is still running"))
     }
 
     @Test
-    fun `inspect_build respects afterCall for waitForTask`() = runTest {
+    fun `wait_build respects afterCall for waitForTask`() = runTest {
         val buildManager = server.koin.get<BuildManager>()
         val buildId = buildManager.newId()
         val completedTasksFlow = MutableSharedFlow<String>(replay = 1)
@@ -300,23 +402,22 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
-            ToolNames.INSPECT_BUILD, buildJsonObject {
+            ToolNames.WAIT_BUILD, buildJsonObject {
                 put("buildId", buildId.toString())
                 put("timeout", 2.0)
                 put("waitForTask", ":help")
                 put("afterCall", true)
-                put("projectRoot", tempDir.absolutePathString())
             }
         ) as CallToolResult
         val duration = testScheduler.currentTime - startTime
 
         assert(duration >= 500) { "Expected duration >= 500ms, but was $duration" }
         val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
-        assert(statusText.contains("BUILD IN PROGRESS"))
+        assert(statusText.contains("Build is still running"))
     }
 
     @Test
-    fun `inspect_build errors if build finishes without waitFor match`() = runTest {
+    fun `wait_build errors if build finishes without waitFor match`() = runTest {
         val buildManager = server.koin.get<BuildManager>()
         val buildId = buildManager.newId()
         val logBuffer = StringBuffer("Started\n")
@@ -353,16 +454,16 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         }
 
         val statusCall = server.client.callTool(
-            ToolNames.INSPECT_BUILD, buildJsonObject {
+            ToolNames.WAIT_BUILD, buildJsonObject {
                 put("buildId", buildId.toString())
                 put("timeout", 5.0)
                 put("waitFor", "Ready")
-                put("projectRoot", tempDir.absolutePathString())
             }
         ) as CallToolResult
 
         assertTrue(statusCall.isError == true, "Expected an error result")
         val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        println("Status: $statusText")
         assertTrue(statusText.contains("without matching regex: Ready"), "Error message mismatch: $statusText")
     }
 
@@ -391,7 +492,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `inspect_build reports progress while waiting`() = runTest {
+    fun `wait_build reports progress while waiting`() = runTest {
         val buildId = buildManager.newId()
         val progressFlow = MutableSharedFlow<BuildProgress>(replay = 10)
         val completingTasksFlow = MutableSharedFlow<String>(replay = 1)
@@ -420,12 +521,11 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         val toolCall = async {
             server.client.request<CallToolResult>(
                 CallToolRequest(
-                    name = ToolNames.INSPECT_BUILD,
+                    name = ToolNames.WAIT_BUILD,
                     arguments = buildJsonObject {
                         put("buildId", buildId.toString())
                         put("timeout", 5.0)
                         put("waitForTask", ":targetTask")
-                        put("projectRoot", tempDir.absolutePathString())
                     },
                     _meta = buildJsonObject {
                         put("progressToken", "test-token")

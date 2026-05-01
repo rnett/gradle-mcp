@@ -1,11 +1,11 @@
 package dev.rnett.gradle.mcp.gradle
 
+import dev.rnett.gradle.mcp.gradle.build.BuildComponentOutcome
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.Failure
 import dev.rnett.gradle.mcp.gradle.build.FailureId
 import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
 import dev.rnett.gradle.mcp.gradle.build.GradleBuildScan
-import dev.rnett.gradle.mcp.gradle.build.TestOutcome
 import dev.rnett.gradle.mcp.gradle.build.TestResult
 import dev.rnett.gradle.mcp.gradle.build.TestResults
 import dev.rnett.gradle.mcp.tools.toSummary
@@ -115,14 +115,14 @@ class FinishedBuildTest {
     @Test
     fun `test results tracks counts correctly`() {
         val passed = setOf(
-            TestResult("test1", null, null, 100.milliseconds, null, TestOutcome.PASSED, emptyMap(), emptyList()),
-            TestResult("test2", null, null, 200.milliseconds, null, TestOutcome.PASSED, emptyMap(), emptyList())
+            TestResult("test1", null, null, 100.milliseconds, null, BuildComponentOutcome.SUCCESS, emptyMap(), emptyList()),
+            TestResult("test2", null, null, 200.milliseconds, null, BuildComponentOutcome.SUCCESS, emptyMap(), emptyList())
         )
         val skipped = setOf(
-            TestResult("test3", null, null, 0.milliseconds, null, TestOutcome.SKIPPED, emptyMap(), emptyList())
+            TestResult("test3", null, null, 0.milliseconds, null, BuildComponentOutcome.SKIPPED, emptyMap(), emptyList())
         )
         val failed = setOf(
-            TestResult("test4", null, "output", 150.milliseconds, emptyList(), TestOutcome.FAILED, emptyMap(), emptyList())
+            TestResult("test4", null, "output", 150.milliseconds, emptyList(), BuildComponentOutcome.FAILED, emptyMap(), emptyList())
         )
 
         val testResults = TestResults(
@@ -153,13 +153,13 @@ class FinishedBuildTest {
     @Test
     fun `test results all sequence contains all tests`() {
         val passed = setOf(
-            TestResult("test1", null, null, 100.milliseconds, null, TestOutcome.PASSED, emptyMap(), emptyList())
+            TestResult("test1", null, null, 100.milliseconds, null, BuildComponentOutcome.SUCCESS, emptyMap(), emptyList())
         )
         val skipped = setOf(
-            TestResult("test2", null, null, 0.milliseconds, null, TestOutcome.SKIPPED, emptyMap(), emptyList())
+            TestResult("test2", null, null, 0.milliseconds, null, BuildComponentOutcome.SKIPPED, emptyMap(), emptyList())
         )
         val failed = setOf(
-            TestResult("test3", null, "output", 150.milliseconds, emptyList(), TestOutcome.FAILED, emptyMap(), emptyList())
+            TestResult("test3", null, "output", 150.milliseconds, emptyList(), BuildComponentOutcome.FAILED, emptyMap(), emptyList())
         )
 
         val testResults = TestResults(
@@ -245,7 +245,7 @@ class FinishedBuildTest {
             consoleOutput = null,
             executionDuration = 100.milliseconds,
             failures = listOf(testFailure),
-            status = TestOutcome.FAILED,
+            status = BuildComponentOutcome.FAILED,
             metadata = emptyMap(),
             attachments = emptyList()
         )
@@ -294,7 +294,7 @@ class FinishedBuildTest {
             consoleOutput = null,
             executionDuration = 100.milliseconds,
             failures = listOf(testFailure),
-            status = TestOutcome.FAILED,
+            status = BuildComponentOutcome.FAILED,
             metadata = emptyMap(),
             attachments = emptyList()
         )
@@ -344,7 +344,7 @@ class FinishedBuildTest {
             consoleOutput = null,
             executionDuration = 100.milliseconds,
             failures = listOf(testFailure),
-            status = TestOutcome.FAILED,
+            status = BuildComponentOutcome.FAILED,
             metadata = emptyMap(),
             attachments = emptyList()
         )
@@ -503,7 +503,7 @@ class FinishedBuildTest {
             consoleOutput = "some output",
             executionDuration = 50.milliseconds,
             failures = null,
-            status = TestOutcome.PASSED,
+            status = BuildComponentOutcome.SUCCESS,
             metadata = metadata,
             attachments = attachments
         )

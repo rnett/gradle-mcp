@@ -7,7 +7,7 @@ import org.gradle.tooling.events.problems.ProblemGroup
 
 @Serializable
 @JvmInline
-@Description("The identifier of a problem. Use with `${ToolNames.INSPECT_BUILD}`. Note that the same problem may occur in different places in the build.")
+@Description("The identifier of a problem. Use with `${ToolNames.QUERY_BUILD}`. Note that the same problem may occur in different places in the build.")
 value class ProblemId(val id: String) {
     constructor(group: String, name: String) : this("prob:$group.$name")
 }

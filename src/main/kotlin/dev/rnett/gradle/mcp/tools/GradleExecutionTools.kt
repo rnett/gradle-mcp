@@ -28,7 +28,7 @@ class GradleExecutionTools(
         val background: Boolean = false,
         @Description("Stop an active background build by BuildId; all other args are ignored.")
         val stopBuildId: BuildId? = null,
-        @Description("Isolated output for a specific task path. DO NOT use for tests; use inspect_build with testName.")
+        @Description("Isolated output for a specific task path. DO NOT use for tests; use query_build with kind=\"TESTS\" and query=\"FullTestName\".")
         val captureTaskOutput: String? = null,
         @Description("Additional advanced invocation arguments for the Gradle process.")
         val invocationArguments: GradleInvocationArguments = GradleInvocationArguments.DEFAULT
@@ -44,9 +44,9 @@ class GradleExecutionTools(
             |- **Foreground** (default): STRONGLY PREFERRED; provides progressive output.
             |- **Background** (`background=true`): Use only for persistent tasks (servers) or parallel work.
             |- **Task Output Capturing** (`captureTaskOutput=":path:to:task"`): Returns clean task-specific output.
-            |   - **DO NOT use Task Output Capturing for tests**: Use `${ToolNames.INSPECT_BUILD}` with `testName` and `mode="details"`.
+            |   - **DO NOT use Task Output Capturing for tests**: Use `${ToolNames.QUERY_BUILD}` with `kind="TESTS"` and `query="FullTestName"`.
             |
-            |After starting a build, use `${ToolNames.INSPECT_BUILD}` with the returned `BuildId` to monitor progress or diagnose failures.
+            |After starting a build, use `${ToolNames.QUERY_BUILD}` or `${ToolNames.WAIT_BUILD}` with the returned `BuildId` to monitor progress or diagnose failures.
             |Note: Prefer `--rerun` (single task) over `--rerun-tasks` (all tasks, even included builds). Use `invocationArguments: { envSource: "SHELL" }` if env vars (e.g., JDKs) aren't found.
         """.trimMargin()
     ) {
@@ -111,7 +111,7 @@ class GradleExecutionTools(
                     if (taskOut != null) {
                         val lines = taskOut.lines()
                         if (lines.size > TASK_OUTPUT_MAX_LINES) {
-                            appendLine("... (Task output truncated to last $TASK_OUTPUT_MAX_LINES lines. Use `${ToolNames.INSPECT_BUILD}(buildId=\"${finished.id}\", taskPath=\"${it.captureTaskOutput}\", mode=\"details\")` for the full task output or use `consoleTail=true` for the full console output)")
+                            appendLine("... (Task output truncated to last $TASK_OUTPUT_MAX_LINES lines. Use `${ToolNames.QUERY_BUILD}(buildId=\"${finished.id}\", kind=\"TASKS\", query=\"${it.captureTaskOutput}\")` for the full task output or use `${ToolNames.QUERY_BUILD}(buildId=\"${finished.id}\", kind=\"CONSOLE\")` for the full console output)")
                             appendLine()
                             append(lines.takeLast(TASK_OUTPUT_MAX_LINES).joinToString("\n"))
                         } else {
@@ -125,7 +125,7 @@ class GradleExecutionTools(
 
                         appendLine("Task output for ${it.captureTaskOutput} $status.")
                         val captureTaskOutput = it.captureTaskOutput!!
-                        if (status == "currently running" || (status == "not found in executed tasks" && (it.commandLine?.contains(captureTaskOutput) == true || it.commandLine?.any { it.endsWith(captureTaskOutput) } == true))) {
+                        if (status == "currently running" || (status == "not found in executed tasks" && (commandLine.contains(captureTaskOutput) || commandLine.any { it.endsWith(captureTaskOutput) }))) {
                             appendLine("If this is a long-running task like `run`, it will not appear in the finished task list as it never completes.")
                         }
                         appendLine()

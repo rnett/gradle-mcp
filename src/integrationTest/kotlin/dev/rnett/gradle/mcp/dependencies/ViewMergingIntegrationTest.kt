@@ -268,8 +268,8 @@ class ViewMergingIntegrationTest {
         val dep1 = GradleDependency(id = "group1:lib:1.0.0", group = "group1", name = "lib", version = "1.0.0", sourcesFile = tempDir.resolve("lib1.jar"))
         val dep2 = GradleDependency(id = "group1:lib:2.0.0", group = "group1", name = "lib", version = "2.0.0", sourcesFile = tempDir.resolve("lib2.jar"))
 
-        val casDir1 = CASDependencySourcesDir("hash1", mcpDir.resolve("cas/v2/ha/hash1"))
-        val casDir2 = CASDependencySourcesDir("hash2", mcpDir.resolve("cas/v2/ha/hash2"))
+        val casDir1 = CASDependencySourcesDir("hash1", mcpDir.resolve("cas/v3/ha/hash1"))
+        val casDir2 = CASDependencySourcesDir("hash2", mcpDir.resolve("cas/v3/ha/hash2"))
 
         casDir1.normalizedDir.createDirectories()
         casDir1.normalizedDir.resolve("file1.txt").writeText("v1")
@@ -300,8 +300,8 @@ class ViewMergingIntegrationTest {
         val dep1 = GradleDependency(id = "group1:lib:1.0.0", group = "group1", name = "lib", version = "1.0.0", sourcesFile = tempDir.resolve("lib1.jar"))
         val dep2 = GradleDependency(id = "group2:lib:1.0.0", group = "group2", name = "lib", version = "1.0.0", sourcesFile = tempDir.resolve("lib2.jar"))
 
-        val casDir1 = CASDependencySourcesDir("hash1", mcpDir.resolve("cas/v2/ha/hash1"))
-        val casDir2 = CASDependencySourcesDir("hash2", mcpDir.resolve("cas/v2/ha/hash2"))
+        val casDir1 = CASDependencySourcesDir("hash1", mcpDir.resolve("cas/v3/ha/hash1"))
+        val casDir2 = CASDependencySourcesDir("hash2", mcpDir.resolve("cas/v3/ha/hash2"))
 
         casDir1.normalizedDir.createDirectories()
         casDir1.normalizedDir.resolve("file1.txt").writeText("v1")

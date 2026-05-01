@@ -3,11 +3,10 @@ package dev.rnett.gradle.mcp.tools
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
+import dev.rnett.gradle.mcp.gradle.build.BuildComponentOutcome
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
-import dev.rnett.gradle.mcp.gradle.build.TaskOutcome
 import dev.rnett.gradle.mcp.gradle.build.TaskResult
-import dev.rnett.gradle.mcp.gradle.build.TestOutcome
 import dev.rnett.gradle.mcp.gradle.build.TestResult
 import dev.rnett.gradle.mcp.gradle.build.TestResults
 import io.modelcontextprotocol.kotlin.sdk.CallToolResult
@@ -32,15 +31,15 @@ class GradleBuildLookupOutputFileTest : BaseMcpServerTest() {
         val id = BuildId(Uuid.random().toString())
         val testResults = TestResults(
             passed = setOf(
-                TestResult("testOne", "com.example.TestA", "Output A1", 0.1.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList()),
-                TestResult("testTwo", "com.example.TestA", "Output A2", 0.2.seconds, null, TestOutcome.PASSED, emptyMap(), emptyList())
+                TestResult("testOne", "com.example.TestA", "Output A1", 0.1.seconds, null, BuildComponentOutcome.SUCCESS, emptyMap(), emptyList()),
+                TestResult("testTwo", "com.example.TestA", "Output A2", 0.2.seconds, null, BuildComponentOutcome.SUCCESS, emptyMap(), emptyList())
             ),
             failed = emptySet(),
             skipped = emptySet()
         )
         val taskResults = mapOf(
-            ":app:compileJava" to TaskResult(":app:compileJava", TaskOutcome.SUCCESS, 1.0.seconds, "Compile output"),
-            ":app:processResources" to TaskResult(":app:processResources", TaskOutcome.SUCCESS, 0.5.seconds, "Resources output")
+            ":app:compileJava" to TaskResult(":app:compileJava", BuildComponentOutcome.SUCCESS, 1.0.seconds, "Compile output"),
+            ":app:processResources" to TaskResult(":app:processResources", BuildComponentOutcome.SUCCESS, 0.5.seconds, "Resources output")
         )
         return FinishedBuild(
             id = id,
@@ -64,9 +63,9 @@ class GradleBuildLookupOutputFileTest : BaseMcpServerTest() {
         val tempFile = Path(tempDir.toString(), "test-output.txt")
         tempFile.deleteIfExists()
 
-        val response = server.client.callTool("inspect_build", buildJsonObject {
+        val response = server.client.callTool("query_build", buildJsonObject {
             put("buildId", build.id.id)
-            put("mode", "summary")
+            put("kind", "DASHBOARD")
             put("outputFile", tempFile.toString())
         }) as CallToolResult
 
@@ -92,10 +91,10 @@ class GradleBuildLookupOutputFileTest : BaseMcpServerTest() {
         val tempFile = Path(tempDir.toString(), "test-details.txt")
         tempFile.deleteIfExists()
 
-        val response = server.client.callTool("inspect_build", buildJsonObject {
+        val response = server.client.callTool("query_build", buildJsonObject {
             put("buildId", build.id.id)
-            put("mode", "details")
-            put("testName", "com.example.TestA.testOne")
+            put("kind", "TESTS")
+            put("query", "com.example.TestA.testOne")
             put("outputFile", tempFile.toString())
         }) as CallToolResult
 
@@ -109,7 +108,7 @@ class GradleBuildLookupOutputFileTest : BaseMcpServerTest() {
         assertTrue(fileContent.contains("--- BUILD FINISHED ---"))
         assertTrue(fileContent.contains("--- Tests ---"))
         assertTrue(fileContent.contains("com.example.TestA.testOne"))
-        assertTrue(fileContent.contains("PASSED"))
+        assertTrue(fileContent.contains("SUCCESS"))
     }
 
     @Test
@@ -120,10 +119,10 @@ class GradleBuildLookupOutputFileTest : BaseMcpServerTest() {
         val tempFile = Path(tempDir.toString(), "test-task.txt")
         tempFile.deleteIfExists()
 
-        val response = server.client.callTool("inspect_build", buildJsonObject {
+        val response = server.client.callTool("query_build", buildJsonObject {
             put("buildId", build.id.id)
-            put("mode", "details")
-            put("taskPath", ":app:compileJava")
+            put("kind", "TASKS")
+            put("query", ":app:compileJava")
             put("outputFile", tempFile.toString())
         }) as CallToolResult
 
@@ -148,9 +147,9 @@ class GradleBuildLookupOutputFileTest : BaseMcpServerTest() {
         // Use an invalid path that should fail
         val invalidPath = "/invalid/path/that/should/fail/test-output.txt"
 
-        val response = server.client.callTool("inspect_build", buildJsonObject {
+        val response = server.client.callTool("query_build", buildJsonObject {
             put("buildId", build.id.id)
-            put("mode", "summary")
+            put("kind", "DASHBOARD")
             put("outputFile", invalidPath)
         }) as CallToolResult
 
@@ -165,9 +164,9 @@ class GradleBuildLookupOutputFileTest : BaseMcpServerTest() {
         val build = createSyntheticBuild()
         buildManager.storeResult(build)
 
-        val response = server.client.callTool("inspect_build", buildJsonObject {
+        val response = server.client.callTool("query_build", buildJsonObject {
             put("buildId", build.id.id)
-            put("mode", "summary")
+            put("kind", "DASHBOARD")
         }) as CallToolResult
 
         val text = (response.content.first() as TextContent).text
@@ -190,7 +189,8 @@ class GradleBuildLookupOutputFileTest : BaseMcpServerTest() {
         val tempFile = Path(tempDir.toString(), "test-pagination.txt")
         tempFile.deleteIfExists()
 
-        val response = server.client.callTool("inspect_build", buildJsonObject {
+        val response = server.client.callTool("query_build", buildJsonObject {
+            put("kind", "DASHBOARD")
             put("outputFile", tempFile.toString())
         }) as CallToolResult
 
@@ -229,9 +229,9 @@ class GradleBuildLookupOutputFileTest : BaseMcpServerTest() {
         tempFile.deleteIfExists()
 
         // Request tail + offset 20
-        val response = server.client.callTool("inspect_build", buildJsonObject {
+        val response = server.client.callTool("query_build", buildJsonObject {
             put("buildId", build.id.id)
-            put("consoleTail", true)
+            put("kind", "CONSOLE")
             put("pagination", buildJsonObject {
                 put("offset", 20)
                 put("limit", 10)

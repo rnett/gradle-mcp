@@ -7,6 +7,7 @@ import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.ProblemAggregation
 import dev.rnett.gradle.mcp.gradle.ProblemId
 import dev.rnett.gradle.mcp.gradle.ProblemSeverity
+import dev.rnett.gradle.mcp.gradle.build.BuildComponentOutcome
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.BuildStatus
 import dev.rnett.gradle.mcp.gradle.build.Failure
@@ -14,7 +15,6 @@ import dev.rnett.gradle.mcp.gradle.build.FailureId
 import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
 import dev.rnett.gradle.mcp.gradle.build.GradleBuildScan
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
-import dev.rnett.gradle.mcp.gradle.build.TestOutcome
 import dev.rnett.gradle.mcp.gradle.build.TestResult
 import dev.rnett.gradle.mcp.gradle.build.TestResults
 import dev.rnett.gradle.mcp.tools.ToolNames
@@ -75,7 +75,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         val scans = emptyList<GradleBuildScan>()
         val testResults = TestResults(
             passed = setOf(
-                TestResult("passes", "com.example.HelloTest", null, 0.1.seconds, failures = null, status = TestOutcome.PASSED, metadata = emptyMap(), attachments = emptyList())
+                TestResult("passes", "com.example.HelloTest", null, 0.1.seconds, failures = null, status = BuildComponentOutcome.SUCCESS, metadata = emptyMap(), attachments = emptyList())
             ),
             skipped = emptySet(),
             failed = setOf(
@@ -93,7 +93,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
                             problemAggregations = emptyMap()
                         )
                     ),
-                    status = TestOutcome.FAILED,
+                    status = BuildComponentOutcome.FAILED,
                     metadata = emptyMap(),
                     attachments = emptyList()
                 )
@@ -139,27 +139,26 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         buildResults.storeResult(result)
 
         // inspect_gradle_build (dashboard)
-        val latestResult = server.client.callTool(ToolNames.INSPECT_BUILD, emptyMap())
+        val latestResult = server.client.callTool(ToolNames.QUERY_BUILD, emptyMap())
         assert(latestResult != null)
 
         // inspect_gradle_build (summary)
         val summary = server.client.callTool(
-            ToolNames.INSPECT_BUILD,
-            mapOf("buildId" to result.id.toString(), "include" to JsonArray(listOf(JsonPrimitive("summary"))))
+            ToolNames.QUERY_BUILD,
+            mapOf("buildId" to result.id.toString(), "kind" to JsonPrimitive("DASHBOARD"))
         )
         assert(summary != null)
 
         // inspect_gradle_build (console)
         val console = server.client.callTool(
-            ToolNames.INSPECT_BUILD,
+            ToolNames.QUERY_BUILD,
             mapOf(
                 "buildId" to result.id.toString(),
-                "include" to JsonArray(listOf(JsonPrimitive("console"))),
-                "consoleOptions" to JsonObject(
+                "kind" to JsonPrimitive("CONSOLE"),
+                "pagination" to JsonObject(
                     mapOf(
-                        "offsetLines" to JsonPrimitive(0),
-                        "limitLines" to JsonPrimitive(2),
-                        "tail" to JsonPrimitive(false)
+                        "offset" to JsonPrimitive(0),
+                        "limit" to JsonPrimitive(2)
                     )
                 )
             )
@@ -168,21 +167,21 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
 
         // inspect_gradle_build (tests)
         val tests = server.client.callTool(
-            ToolNames.INSPECT_BUILD,
+            ToolNames.QUERY_BUILD,
             mapOf(
                 "buildId" to result.id.toString(),
-                "include" to JsonArray(listOf(JsonPrimitive("tests"))),
-                "testsOptions" to JsonObject(mapOf("summary" to JsonObject(mapOf("limit" to JsonPrimitive(10)))))
+                "kind" to JsonPrimitive("TESTS"),
+                "pagination" to JsonObject(mapOf("limit" to JsonPrimitive(10)))
             )
         )
         assert(tests != null)
 
         // inspect_gradle_build (problems)
         val problems = server.client.callTool(
-            ToolNames.INSPECT_BUILD,
+            ToolNames.QUERY_BUILD,
             mapOf(
                 "buildId" to result.id.toString(),
-                "include" to JsonArray(listOf(JsonPrimitive("problems")))
+                "kind" to JsonPrimitive("PROBLEMS")
             )
         )
         assert(problems != null)
@@ -275,14 +274,14 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         assert(runCall != null)
 
         // test inspect_gradle_build (dashboard)
-        val listCall = server.client.callTool(ToolNames.INSPECT_BUILD, emptyMap())
+        val listCall = server.client.callTool(ToolNames.QUERY_BUILD, emptyMap())
         assert(listCall != null)
         val listText = listCall!!.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
         assertContains(listText, buildId.toString())
-        assertContains(listText, "Running")
+        assertContains(listText, "BUILD IN PROGRESS")
 
         // test inspect_gradle_build with buildId
-        val statusCall = server.client.callTool(ToolNames.INSPECT_BUILD, mapOf("buildId" to buildId.toString()))
+        val statusCall = server.client.callTool(ToolNames.QUERY_BUILD, mapOf("buildId" to buildId.toString()))
         assert(statusCall != null)
         val statusText = statusCall!!.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
         assertContains(statusText, "BUILD IN PROGRESS")

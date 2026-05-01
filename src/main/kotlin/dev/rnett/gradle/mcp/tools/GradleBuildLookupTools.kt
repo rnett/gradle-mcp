@@ -2,14 +2,11 @@ package dev.rnett.gradle.mcp.tools
 
 import dev.rnett.gradle.mcp.gradle.BuildId
 import dev.rnett.gradle.mcp.gradle.BuildManager
-import dev.rnett.gradle.mcp.gradle.ProblemId
 import dev.rnett.gradle.mcp.gradle.build.Build
+import dev.rnett.gradle.mcp.gradle.build.BuildComponentOutcome
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
-import dev.rnett.gradle.mcp.gradle.build.FailureId
 import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
-import dev.rnett.gradle.mcp.gradle.build.TaskOutcome
-import dev.rnett.gradle.mcp.gradle.build.TestOutcome
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.coroutines.Dispatchers
@@ -34,61 +31,57 @@ import kotlin.uuid.ExperimentalUuidApi
 class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponent("Lookup Tools", "Tools for looking up detailed information about past Gradle builds ran by this MCP server.") {
 
     @Serializable
-    enum class LookupMode {
-        @Description("Summary list of items. Ideal for high-level overviews and finding IDs.")
-        summary,
-
-        @Description("Exhaustive info for a specific item. Required for full test output, stack traces, and console logs.")
-        details
-    }
+    enum class QueryKind { DASHBOARD, CONSOLE, TASKS, TESTS, FAILURES, PROBLEMS }
 
     @Serializable
-    data class InspectBuildArgs(
-        @Description("BuildId to inspect. If omitted, shows the active/recent builds dashboard.")
+    data class QueryBuildArgs(
+        @Description("BuildId to query. If omitted and kind=DASHBOARD, shows recent builds.")
         val buildId: BuildId? = null,
 
-        @Description("'summary' (default) or 'details'. Use 'details' with testName/taskPath for full output.")
-        val mode: LookupMode = LookupMode.summary,
+        @Description("The aspect of the build to query. Default is DASHBOARD.")
+        val kind: QueryKind = QueryKind.DASHBOARD,
 
-        @Description("Max seconds to wait for a condition. If omitted, returns immediately with current status.")
-        val timeout: Double? = null,
-        @Description("Wait for the build to finish. Default if 'timeout' is set and no other wait condition is provided.")
-        val waitForFinished: Boolean = false,
-        @Description("Regex to wait for in build logs (e.g., server started). Requires 'timeout'.")
-        val waitFor: String? = null,
-        @Description("Task path to wait for completion. Requires 'timeout'.")
-        val waitForTask: String? = null,
-        @Description("Only match events emitted after this call. Requires 'timeout' and a wait condition.")
-        val afterCall: Boolean = false,
+        @Description("A query string. Acts as a prefix filter for tasks/tests, or a regex for CONSOLE. For failures/problems, it must be the exact ID.")
+        val query: String? = null,
 
+        @Description("Output file to save the result. Useful for large console logs.")
+        val outputFile: String? = null,
+
+        @Description("Pagination settings. offset = zero-based start index (default 0); limit = max items/lines to return.")
         val pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS,
 
-        @Description("Task path prefix (summary) or full/unique-prefix path (details) for task output and outcome.")
-        val taskPath: String? = null,
-        @Description("Filter task results by outcome (summary mode only).")
-        val taskOutcome: TaskOutcome? = null,
+        @Description("Filter tasks or tests by outcome (e.g. SUCCESS, FAILED).")
+        val outcome: BuildComponentOutcome? = null,
 
-        @Description("Test name prefix (summary) or full/unique prefix (details). Use mode='details' for stack traces.")
-        val testName: String? = null,
-        @Description("Filter test results by outcome (summary mode only).")
-        val testOutcome: TestOutcome? = null,
-        @Description("Index of test to show when multiple tests share the same name (details mode only).")
+        @Description("Index of test to show when multiple tests share the same name.")
         val testIndex: Int? = null,
 
-        @Description("Failure ID to get details for (details mode only).")
-        val failureId: FailureId? = null,
-
-        @Description("ProblemId to look up (details mode only).")
-        val problemId: ProblemId? = null,
-
-        @Description("true = tail raw console output; false = head. Specify to get raw console output.")
-        val consoleTail: Boolean? = null,
-
-        @Description("If specified, write the output to the given file path instead of returning it. The response will include the file absolute path and its length (in characters and lines).")
-        val outputFile: String? = null
+        @Description("Filter tests by task path (prefix). Only applicable when kind=TESTS.")
+        val taskPath: String? = null
     )
 
-    private fun getLatestBuildsOutput(args: InspectBuildArgs, onlyCompleted: Boolean): String {
+    @Serializable
+    data class WaitBuildArgs(
+        @Description("BuildId to wait for.")
+        val buildId: BuildId,
+
+        @Description("Max seconds to wait. Default is 600.0.")
+        val timeout: Double = 600.0,
+
+        @Description("Wait for the build to finish. Default if no other wait condition is provided.")
+        val waitForFinished: Boolean = false,
+
+        @Description("Regex to wait for in build logs (e.g., server started).")
+        val waitFor: String? = null,
+
+        @Description("Task path to wait for completion.")
+        val waitForTask: String? = null,
+
+        @Description("Only match events emitted after this call.")
+        val afterCall: Boolean = false
+    )
+
+    private fun getLatestBuildsOutput(args: QueryBuildArgs, onlyCompleted: Boolean): String {
         val maxBuilds = args.pagination.limit
         val completed = buildResults.latestFinished(maxBuilds)
         val active = if (onlyCompleted) emptyList() else buildResults.listRunningBuilds()
@@ -113,246 +106,198 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                 append(secondsAgo).append("s ago | ")
 
                 if (isActive) {
-                    val rb = build as RunningBuild
-                    appendLine(rb.status)
+                    appendLine("BUILD IN PROGRESS")
                 } else {
                     val br = build as FinishedBuild
                     appendLine(if (br.outcome is BuildOutcome.Success) "SUCCESS" else "FAILURE")
                 }
             }
             appendLine()
-            appendLine("To inspect a specific build, call `${ToolNames.INSPECT_BUILD}(buildId=\"ID\", mode=\"summary\")`.")
-            appendLine("To see detailed failures, tests, or tasks, use `${ToolNames.INSPECT_BUILD}(buildId=\"ID\", mode=\"details\", ...)` with `failureId`, `testName`, or `taskPath` respectively.")
+            appendLine("To inspect a specific build, call `${ToolNames.QUERY_BUILD}(buildId=\"ID\", kind=\"DASHBOARD\")`.")
+            appendLine("To see detailed failures, tests, or tasks, use `${ToolNames.QUERY_BUILD}(buildId=\"ID\", kind=\"...\", query=\"...\")`.")
         }
     }
 
-    internal fun getTestsOutput(build: Build, args: InspectBuildArgs): String {
-        if (args.mode == LookupMode.details) {
-            require(!args.testName.isNullOrEmpty()) { "testName is required for details mode" }
-            val allTests = build.testResults.all.toList()
-            val exactMatches = allTests.filter { it.fullName == args.testName }
-
-            val test = if (exactMatches.isNotEmpty()) {
-                val targetIndex = args.testIndex ?: 0
-                if (exactMatches.size > 1 && targetIndex >= exactMatches.size) {
-                    return "${exactMatches.size} test executions with this name found. Pass a valid `testIndex` (0 to ${exactMatches.size - 1}) to select one."
-                }
-                if (exactMatches.size > 1) exactMatches[targetIndex] else exactMatches.single()
+    private fun getDashboardOutput(build: Build, args: QueryBuildArgs): String {
+        return buildString {
+            if (build is RunningBuild) {
+                appendLine("--- BUILD IN PROGRESS ---")
             } else {
-                val prefixMatches = allTests.filter { it.fullName.startsWith(args.testName) }
-                if (prefixMatches.isEmpty()) {
-                    val isRunning = build is RunningBuild || build.isRunning
-                    if (isRunning) {
-                        return "Test not found. The build is still running, so it may not have been executed yet."
-                    } else {
-                        val allResults = build.testResults.all.toList()
-
-                        // Try suite-based fallback
-                        if (args.testName.contains('.')) {
-                            val potentialSuite = args.testName.substringBeforeLast('.')
-                            val suiteTests = allResults.filter { it.suiteName == potentialSuite }.map { it.fullName }.distinct()
-                            if (suiteTests.isNotEmpty()) {
-                                return buildString {
-                                    appendLine("Test not found: ${args.testName}")
-                                    appendLine("\nOther tests in suite '$potentialSuite':")
-                                    suiteTests.take(10).forEach { appendLine("  - $it") }
-                                    if (suiteTests.size > 10) appendLine("  - ... and ${suiteTests.size - 10} more")
-                                }
-                            }
-                        }
-
-                        val substringMatches = allResults.filter { it.fullName.contains(args.testName, ignoreCase = true) }
-                            .map { it.fullName }.distinct()
-                        if (substringMatches.isNotEmpty()) {
-                            return buildString {
-                                appendLine("Test not found: ${args.testName}")
-                                appendLine("\nTests containing '${args.testName}':")
-                                substringMatches.take(10).forEach { appendLine("  - $it") }
-                                if (substringMatches.size > 10) appendLine("  - ... and ${substringMatches.size - 10} more")
-                            }
-                        } else {
-                            error("Test not found: ${args.testName}")
-                        }
-                    }
-                }
-
-                if (prefixMatches.size > 1) {
-                    val matches = prefixMatches.map { it.fullName }.distinct()
-                    if (matches.size > 1) {
-                        val firstMatches = matches.take(10)
-                        return buildString {
-                            appendLine("Multiple tests match prefix '${args.testName}':")
-                            firstMatches.forEach { appendLine("  - $it") }
-                            if (matches.size > 10) appendLine("  - ... and ${matches.size - 10} more")
-                            appendLine("\nPlease provide a full test name or use `mode=\"summary\"` to see all results.")
-                        }
-                    } else {
-                        // All matches have same name, but multiple executions
-                        val targetIndex = args.testIndex ?: 0
-                        if (prefixMatches.size > 1 && targetIndex >= prefixMatches.size) {
-                            return "${prefixMatches.size} test executions for unique prefix match '${prefixMatches.first().fullName}' found. Pass a valid `testIndex` (0 to ${prefixMatches.size - 1}) to select one."
-                        }
-                        prefixMatches[targetIndex]
-                    }
-                } else {
-                    prefixMatches.single()
-                }
+                appendLine("--- BUILD FINISHED ---")
             }
-
-            return buildString {
-                if (test.fullName != args.testName) {
-                    appendLine("Note: Showing details for unique prefix match: ${test.fullName}")
-                    appendLine()
-                }
-                append(test.fullName).append(" - ").appendLine(test.status)
-                appendLine("Duration: ${test.executionDuration}")
-
-                if (!test.failures.isNullOrEmpty()) {
-                    appendLine("Failures:")
-                    test.failures.forEach { f ->
-                        f.writeFailureTree(this, "  ")
-                    }
-                }
-
-                if (test.metadata.isNotEmpty()) {
-                    appendLine("Metadata:")
-                    test.metadata.forEach { (key, value) ->
-                        appendLine("  $key: $value")
-                    }
-                }
-
-                if (test.attachments.isNotEmpty()) {
-                    appendLine("Attached files:")
-                    test.attachments.forEach { attachment ->
-                        appendLine("  ${attachment.path.absolutePathString()}")
-                    }
-                }
-
-                appendLine("Test console output:")
-                appendLine(test.consoleOutput)
-            }
+            appendLine("--- Summary ---")
+            appendLine(build.toOutputString(true))
+            appendLine()
+            appendLine("--- How to Inspect Details ---")
+            appendLine("- Task Outputs:      `kind=\"TASKS\"`, `query=\":path:to:task\"`")
+            appendLine("- Build Failures:    `kind=\"FAILURES\"`, `query=\"ID\"`")
+            appendLine("- Problems/Errors:   `kind=\"PROBLEMS\"`, `query=\"ID\"`")
+            appendLine("- Full Console:      `kind=\"CONSOLE\"`")
+            appendLine()
         }
+    }
 
-        val testNamePrefix = args.testName ?: ""
-        val taskPathPrefix = args.taskPath ?: ""
+    internal fun getTestsOutput(build: Build, args: QueryBuildArgs): String {
+        val query = args.query ?: ""
         val matched = build.testResults.all
-            .filter { tr -> tr.fullName.startsWith(testNamePrefix) }
-            .filter { tr -> taskPathPrefix.isEmpty() || (tr.taskPath?.startsWith(taskPathPrefix) ?: false) }
-            .filter { tr -> args.testOutcome == null || tr.status == args.testOutcome }
+            .filter { tr -> tr.fullName.startsWith(query) }
+            .filter { tr -> args.taskPath == null || tr.taskPath?.startsWith(args.taskPath) == true }
+            .filter { tr -> args.outcome == null || tr.status == args.outcome }
             .sortedByDescending { it.executionDuration }
             .toList()
 
-        return buildString {
-            appendLine("Total matching results: ${matched.size}")
-            appendLine("Test | Outcome | Duration | Task | Metadata")
-            val paged = paginate(matched, args.pagination, "test results") { tr ->
-                "${tr.fullName} | ${tr.status} | ${tr.executionDuration} | ${tr.taskPath ?: "N/A"} | ${
-                    tr.metadata.mapValues {
-                        if (it.value.length > 20) it.value.take(20) + " ... (truncated by gradle-mcp)" else it.value
+        // Auto-expand logic
+        if (query.isNotEmpty()) {
+            val uniqueNames = matched.map { it.fullName }.distinct()
+            if (uniqueNames.size == 1) {
+                val targetIndex = args.testIndex ?: 0
+                if (matched.size > 1 && targetIndex >= matched.size) {
+                    return "${matched.size} test executions for unique prefix match '${uniqueNames.first()}' found. Pass a valid `testIndex` (0 to ${matched.size - 1}) to select one.\nSee query_build(kind='CONSOLE', buildId='${build.id}') for full logs."
+                }
+                val test = matched[targetIndex]
+                return buildString {
+                    if (test.fullName != query) {
+                        appendLine("Note: Showing details for unique prefix match: ${test.fullName}")
+                        appendLine()
                     }
-                }"
+                    append(test.fullName).append(" - ").appendLine(test.status)
+                    appendLine("Duration: ${test.executionDuration}")
+
+                    if (!test.failures.isNullOrEmpty()) {
+                        appendLine("Failures:")
+                        test.failures.forEach { f ->
+                            f.writeFailureTree(this, "  ")
+                        }
+                    }
+
+                    if (test.metadata.isNotEmpty()) {
+                        appendLine("Metadata:")
+                        test.metadata.forEach { (key, value) ->
+                            appendLine("  $key: $value")
+                        }
+                    }
+
+                    if (test.attachments.isNotEmpty()) {
+                        appendLine("Attached files:")
+                        test.attachments.forEach { attachment ->
+                            appendLine("  ${attachment.path.absolutePathString()}")
+                        }
+                    }
+
+                    appendLine("Test console output:")
+                    appendLine(test.consoleOutput)
+                    appendLine("\nSee query_build(kind='CONSOLE', buildId='${build.id}') for full logs.")
+                }
+            } else if (uniqueNames.size > 1) {
+                val paged = paginate(matched, args.pagination, "test results") { tr ->
+                    "${tr.fullName} | ${tr.status} | ${tr.executionDuration}"
+                }
+                return "Multiple tests match prefix '$query':\n$paged\nPlease provide a full test name to view details.\nSee query_build(kind='CONSOLE', buildId='${build.id}') for full logs."
             }
-            append(paged)
+        }
+
+        return buildString {
+            if (query.isNotEmpty() && matched.isEmpty()) {
+                appendLine("Test not found: $query")
+                val suiteName = query.substringBeforeLast('.', "")
+                if (suiteName.isNotEmpty()) {
+                    val suiteTests = build.testResults.all.filter { it.suiteName == suiteName }.toList()
+                    if (suiteTests.isNotEmpty()) {
+                        appendLine("Other tests in suite '$suiteName':")
+                        suiteTests.take(10).forEach { appendLine("  - ${it.fullName}") }
+                        if (suiteTests.size > 10) appendLine("  - ...")
+                    }
+                }
+                val containsMatches = build.testResults.all.filter { it.fullName.contains(query, ignoreCase = true) }.toList()
+                if (containsMatches.isNotEmpty()) {
+                    appendLine("Tests containing '$query':")
+                    containsMatches.take(10).forEach { appendLine("  - ${it.fullName}") }
+                    if (containsMatches.size > 10) appendLine("  - ...")
+                }
+                if (build.isRunning && suiteName.isEmpty() && containsMatches.isEmpty()) {
+                    appendLine("The build is still running, so it may not have been executed yet.")
+                }
+            } else {
+                appendLine("Total matching results: ${matched.size}")
+                appendLine("Test | Outcome | Duration | Task | Metadata")
+                val paged = paginate(matched, args.pagination, "test results") { tr ->
+                    "${tr.fullName} | ${tr.status} | ${tr.executionDuration} | ${tr.taskPath ?: "N/A"} | ${tr.metadata.mapValues { if (it.value.length > 20) it.value.take(20) + " ... (truncated by gradle-mcp)" else it.value }}"
+                }
+                append(paged)
+            }
+            appendLine("\nSee query_build(kind='CONSOLE', buildId='${build.id}') for full logs.")
         }
     }
 
-    internal fun getTasksOutput(result: Build, args: InspectBuildArgs): String {
-        if (args.mode == LookupMode.details) {
-            require(!args.taskPath.isNullOrEmpty()) { "taskPath is required for details mode" }
-            val exactMatch = result.taskResults[args.taskPath]
+    internal fun getTasksOutput(result: Build, args: QueryBuildArgs): String {
+        val query = args.query ?: ""
+        val tasks = result.taskResults.values
+            .asSequence()
+            .filter { it.path.startsWith(query) }
+            .filter { args.outcome == null || it.outcome == args.outcome }
+            .sortedBy { it.path }
+            .toList()
 
-            val taskResult = if (exactMatch != null) {
-                exactMatch
-            } else {
-                val prefixMatches = result.taskResults.values.filter { it.path.startsWith(args.taskPath) }
-                if (prefixMatches.isEmpty()) {
-                    val isRunning = result.activeOperations.contains(args.taskPath)
-                    if (isRunning) {
-                        return "Task ${args.taskPath} is currently running. Detailed results and isolated output are only available AFTER the task completes."
-                    }
-
-                    val executedTasks = result.taskResults.keys + result.taskOutputs.keys
-                    if (executedTasks.isEmpty()) {
-                        return "No tasks found in build ${result.id}. This might be because the build failed during configuration."
-                    }
-
-                    return buildString {
-                        val taskPath = args.taskPath
-                        appendLine("Task $taskPath not found in executed tasks for build ${result.id}.")
-                        if (result.isRunning && (result.args.allAdditionalArguments.contains(taskPath) || result.args.allAdditionalArguments.any { arg -> arg.endsWith(taskPath) })) {
-                            appendLine("The task might still be waiting to execute or is a long-running task like `run` that never completes.")
-                        }
+        // Auto-expand logic
+        if (query.isNotEmpty()) {
+            if (tasks.size == 1) {
+                val taskResult = tasks.single()
+                return buildString {
+                    if (taskResult.path != query) {
+                        appendLine("Note: Showing details for unique prefix match: ${taskResult.path}")
                         appendLine()
-                        appendLine("Executed tasks:")
-                        appendLine(paginate(executedTasks.toList().sorted(), args.pagination, "tasks"))
                     }
-                }
+                    appendLine("Task: ${taskResult.path}")
+                    appendLine("Outcome: ${taskResult.outcome}")
+                    appendLine("Duration: ${taskResult.duration}")
+                    appendLine()
 
-                if (prefixMatches.size > 1) {
-                    val matches = prefixMatches.map { it.path }.distinct().take(10)
-                    return buildString {
-                        appendLine("Multiple tasks match prefix '${args.taskPath}':")
-                        matches.forEach { appendLine("  - $it") }
-                        if (prefixMatches.size > 10) appendLine("  - ... and ${prefixMatches.size - 10} more")
-                        appendLine("\nPlease provide a full task path or use `mode=\"summary\"` to see all results.")
+                    val relatedTests = result.testResults.all.filter { it.taskPath == taskResult.path }.toList()
+                    if (relatedTests.isNotEmpty()) {
+                        val passedCount = relatedTests.count { it.status == BuildComponentOutcome.SUCCESS }
+                        val failedCount = relatedTests.count { it.status == BuildComponentOutcome.FAILED }
+                        val skippedCount = relatedTests.count { it.status == BuildComponentOutcome.SKIPPED }
+                        val cancelledCount = relatedTests.count { it.status == BuildComponentOutcome.CANCELLED }
+
+                        appendLine()
+                        appendLine("Tests: ${relatedTests.size} (${passedCount} passed, ${failedCount} failed, ${skippedCount} skipped${if (cancelledCount > 0) ", $cancelledCount cancelled" else ""})")
+                        appendLine("To list all tests for this task, use `query_build(kind='TESTS', query='')` and check filtering.")
+                        appendLine()
                     }
-                }
-                prefixMatches.single()
-            }
 
-            return buildString {
-                if (taskResult.path != args.taskPath) {
-                    appendLine("Note: Showing details for unique prefix match: ${taskResult.path}")
-                    appendLine()
-                }
-                appendLine("Task: ${taskResult.path}")
-                appendLine("Outcome: ${taskResult.outcome}")
-                appendLine("Duration: ${taskResult.duration}")
-                appendLine()
-
-                val relatedTests = result.testResults.all.filter { it.taskPath == taskResult.path }.toList()
-                if (relatedTests.isNotEmpty()) {
-                    val passedCount = relatedTests.count { it.status == TestOutcome.PASSED }
-                    val failedCount = relatedTests.count { it.status == TestOutcome.FAILED }
-                    val skippedCount = relatedTests.count { it.status == TestOutcome.SKIPPED }
-                    val cancelledCount = relatedTests.count { it.status == TestOutcome.CANCELLED }
-
-                    appendLine()
-                    appendLine("Tests: ${relatedTests.size} ($passedCount passed, $failedCount failed, $skippedCount skipped${if (cancelledCount > 0) ", $cancelledCount cancelled" else ""})")
-                    appendLine("To list all tests for this task, use `testName=\"\"` with `taskPath=\"${taskResult.path}\"`. For full output of individual tests, use `mode=\"details\"` with `testName` (and remove `taskPath`).")
-                    appendLine()
-                }
-
-                if (result.taskOutputCapturingFailed) {
-                    appendLine("WARNING: Task output capturing failed for this build. Showing guessed output from console if available - may be incomplete or interleaved with other tasks.")
-                    val guessed = result.getTaskOutput(taskResult.path, true)
-                    if (guessed != null) {
-                        appendLine("Guessed Output:")
-                        appendLine(guessed)
+                    if (result.taskOutputCapturingFailed) {
+                        appendLine("WARNING: Task output capturing failed for this build. Showing guessed output from console if available - may be incomplete or interleaved with other tasks.")
+                        val guessed = result.getTaskOutput(taskResult.path, true)
+                        if (guessed != null) {
+                            appendLine("Guessed Output:")
+                            appendLine(guessed)
+                        } else {
+                            appendLine("No output found for this task.")
+                        }
                     } else {
-                        appendLine("No output found for this task.")
+                        if (taskResult.consoleOutput != null) {
+                            appendLine("Output:")
+                            appendLine(taskResult.consoleOutput)
+                        } else {
+                            appendLine("No output captured for this task.")
+                        }
                     }
-                } else {
-                    if (taskResult.consoleOutput != null) {
-                        appendLine("Output:")
-                        appendLine(taskResult.consoleOutput)
-                    } else {
-                        appendLine("No output captured for this task.")
-                    }
+                    appendLine("\nSee query_build(kind='CONSOLE', buildId='${result.id}') for full logs.")
                 }
+            } else if (tasks.size > 1) {
+                val paged = paginate(tasks, args.pagination, "tasks") { task ->
+                    "${task.path} | ${task.outcome} | ${task.duration}"
+                }
+                return "Multiple tasks match prefix '$query':\n$paged\nPlease provide a full task path to view details.\nSee query_build(kind='CONSOLE', buildId='${result.id}') for full logs."
             }
-        } else {
-            val taskPathPrefix = args.taskPath ?: ""
-            val tasks = result.taskResults.values
-                .asSequence()
-                .filter { it.path.startsWith(taskPathPrefix) }
-                .filter { args.taskOutcome == null || it.outcome == args.taskOutcome }
-                .sortedBy { it.path }
-                .toList()
+        }
 
-            val tasksWithTests = result.testResults.all.mapNotNull { it.taskPath }.toSet()
+        val tasksWithTests = result.testResults.all.mapNotNull { it.taskPath }.toSet()
 
-            return buildString {
+        return buildString {
+            if (query.isNotEmpty() && tasks.isEmpty()) {
+                appendLine("No tasks match prefix '$query'.")
+            } else {
                 if (result.taskOutputCapturingFailed) {
                     appendLine("WARNING: Task output capturing failed for this build. Task outputs may be missing or incomplete.")
                     appendLine()
@@ -365,22 +310,26 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
 
                 if (tasks.any { it.path in tasksWithTests }) {
                     appendLine()
-                    appendLine("Some of these tasks ran tests. Use `taskPath=\":task:path\"` with `mode=\"details\"` for a test count summary, or `testName` with `mode=\"summary\"` for a full list of tests.")
+                    appendLine("Some of these tasks ran tests.")
                 }
             }
+            appendLine("\nSee query_build(kind='CONSOLE', buildId='${result.id}') for full logs.")
         }
     }
 
-    internal fun getFailuresOutput(build: Build, args: InspectBuildArgs): String {
+    internal fun getFailuresOutput(build: Build, args: QueryBuildArgs): String {
         val allFailures = if (build is FinishedBuild) build.allFailures else build.allTestFailures
+        val query = args.query
 
-        if (args.mode == LookupMode.details) {
-            val failureId = args.failureId ?: error("failureId is required for details mode")
-            val failure = allFailures[failureId]
-                ?: error("No failure with ID $failureId found for build ${build.id}")
-
-            return buildString {
-                failure.writeFailureTree(this)
+        if (!query.isNullOrEmpty()) {
+            val failure = allFailures.entries.firstOrNull { it.key.id == query }?.value
+            if (failure != null) {
+                return buildString {
+                    failure.writeFailureTree(this)
+                    appendLine("\nSee query_build(kind='CONSOLE', buildId='${build.id}') for full logs.")
+                }
+            } else {
+                return "No failure with ID $query found.\nSee query_build(kind='CONSOLE', buildId='${build.id}') for full logs."
             }
         }
 
@@ -395,48 +344,54 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             if (build.isRunning && allFailures.isEmpty()) {
                 appendLine("No failures found yet. The build is still running.")
             }
+            appendLine("\nSee query_build(kind='CONSOLE', buildId='${build.id}') for full logs.")
         }
     }
 
-    internal fun getProblemsOutput(build: Build, args: InspectBuildArgs): String {
-        if (args.mode == LookupMode.details) {
-            val problemId = args.problemId ?: error("problemId is required for details mode")
-            val problem = build.problems.firstOrNull { p -> p.definition.id == problemId }
-                ?: error("No problem with id $problemId found for build ${build.id}")
-            return buildString {
-                append(problem.definition.id)
-                if (problem.definition.displayName != null) {
-                    appendLine(": ${problem.definition.displayName}")
-                } else {
-                    appendLine()
-                }
+    internal fun getProblemsOutput(build: Build, args: QueryBuildArgs): String {
+        val query = args.query
 
-                if (problem.definition.documentationLink != null) {
-                    appendLine("Documentation: ${problem.definition.documentationLink}")
-                }
+        if (!query.isNullOrEmpty()) {
+            val problem = build.problems.firstOrNull { p -> p.definition.id.id == query }
+            if (problem != null) {
+                return buildString {
+                    append(problem.definition.id)
+                    if (problem.definition.displayName != null) {
+                        appendLine(": ${problem.definition.displayName}")
+                    } else {
+                        appendLine()
+                    }
 
-                appendLine("Occurrences: ${problem.numberOfOccurrences}")
-                problem.occurences.forEach { o ->
-                    append("  Locations: ")
-                    appendLine(o.originLocations)
-                    if (o.details != null) {
-                        if (o.details.contains("\n")) {
-                            appendLine("  Details: \n${o.details.prependIndent("    ")}")
-                        } else {
-                            appendLine("  Details: ${o.details}")
+                    if (problem.definition.documentationLink != null) {
+                        appendLine("Documentation: ${problem.definition.documentationLink}")
+                    }
+
+                    appendLine("Occurrences: ${problem.numberOfOccurrences}")
+                    problem.occurences.forEach { o ->
+                        append("  Locations: ")
+                        appendLine(o.originLocations)
+                        if (o.details != null) {
+                            if (o.details.contains("\n")) {
+                                appendLine("  Details: \n${o.details.prependIndent("    ")}")
+                            } else {
+                                appendLine("  Details: ${o.details}")
+                            }
+                        }
+
+                        if (o.contextualLocations.isNotEmpty()) {
+                            appendLine("  Contextual Locations: ")
+                            o.contextualLocations.forEach { l -> appendLine("    $l") }
+                        }
+
+                        if (o.potentialSolutions.isNotEmpty()) {
+                            appendLine("  Potential Solutions: ")
+                            o.potentialSolutions.forEach { s -> appendLine("    $s") }
                         }
                     }
-
-                    if (o.contextualLocations.isNotEmpty()) {
-                        appendLine("  Contextual Locations: ")
-                        o.contextualLocations.forEach { l -> appendLine("    $l") }
-                    }
-
-                    if (o.potentialSolutions.isNotEmpty()) {
-                        appendLine("  Potential Solutions: ")
-                        o.potentialSolutions.forEach { s -> appendLine("    $s") }
-                    }
+                    appendLine("\nSee query_build(kind='CONSOLE', buildId='${build.id}') for full logs.")
                 }
+            } else {
+                return "No problem with ID $query found.\nSee query_build(kind='CONSOLE', buildId='${build.id}') for full logs."
             }
         }
 
@@ -448,38 +403,60 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                 "${problem.definition.severity} | ${problem.definition.id} | ${problem.definition.displayName ?: "N/A"} | ${problem.numberOfOccurrences}"
             }
             append(paged)
+            appendLine("\nSee query_build(kind='CONSOLE', buildId='${build.id}') for full logs.")
         }
     }
 
-    internal fun getConsoleOutput(build: Build, args: InspectBuildArgs): String {
-        return if (args.consoleTail == true) {
-            // Efficient tail: scan from the end of the output without materialising all lines.
-            // Calling consoleOutputLines on a large build (e.g. --info) allocates millions of
-            // String objects and causes GC pressure / apparent hangs.
-            val output = build.consoleOutput.toString()
-            val offset = args.pagination.offset
-            val limit = args.pagination.limit
-            val needed = limit + offset
+    internal fun getConsoleOutput(build: Build, args: QueryBuildArgs): String {
+        val output = build.consoleOutput.toString()
+        val query = args.query
 
+        if (!query.isNullOrEmpty()) {
+            val regex = query.toRegex()
+            val matchingLines = mutableListOf<String>()
+            val limit = args.pagination.limit
+            val offset = args.pagination.offset
+
+            var scanPos = 0
+            var lineNum = 1
+            while (scanPos < output.length) {
+                val lineEnd = output.indexOf('\n', scanPos).let { if (it == -1) output.length else it }
+                val line = output.substring(scanPos, lineEnd)
+                if (regex.containsMatchIn(line)) {
+                    matchingLines.add("$lineNum: $line")
+                }
+                scanPos = lineEnd + 1
+                lineNum++
+            }
+
+            val pagedLines = matchingLines.drop(offset).take(limit)
+            val hasMore = offset + limit < matchingLines.size
+            return paginate(pagedLines, args.pagination, "matched lines", total = matchingLines.size, isAlreadyPaged = true, hasMore = hasMore)
+        }
+
+        val limit = args.pagination.limit
+        val offset = args.pagination.offset
+
+        // If offset is 0, we do a tail.
+        if (offset == 0) {
             val tailLines = mutableListOf<String>()
             var pos = output.length
             if (pos > 0 && output[pos - 1] == '\n') pos-- // skip trailing newline
-            while (tailLines.size < needed && pos >= 0) {
+
+            // For outputFile, limit is Int.MAX_VALUE. We want the full log.
+            // For normal tool calls, if limit is default (usually 20), we show that.
+            val actualLimit = if (limit == Int.MAX_VALUE && args.outputFile == null) 20 else limit
+
+            while (tailLines.size < actualLimit && pos >= 0) {
                 val lineStart = if (pos == 0) 0 else output.lastIndexOf('\n', pos - 1) + 1
                 tailLines.add(0, output.substring(lineStart, pos))
                 pos = lineStart - 1
             }
-            // pos < 0 means we reached the start of the output — no more lines
             val hasMore = pos >= 0
 
-            val pagedLines = if (offset > 0) tailLines.dropLast(offset.coerceAtMost(tailLines.size)) else tailLines
-            paginate(pagedLines, args.pagination, "lines", total = null, isAlreadyPaged = true, isTail = true, hasMore = hasMore)
+            return paginate(tailLines, args.pagination, "lines", total = null, isAlreadyPaged = true, isTail = true, hasMore = hasMore)
         } else {
-            // For head, materialise only the first (offset + limit) lines to avoid processing the
-            // entire output of large builds.
-            val output = build.consoleOutput.toString()
-            val offset = args.pagination.offset
-            val limit = args.pagination.limit
+            // For head
             val needed = offset + limit
 
             val headLines = mutableListOf<String>()
@@ -492,42 +469,62 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             val hasMore = pos <= output.length && pos > 0
 
             val pagedHead = headLines.drop(offset).take(limit)
-            paginate(pagedHead, args.pagination, "lines", total = null, isAlreadyPaged = true, hasMore = hasMore)
+            return paginate(pagedHead, args.pagination, "lines", total = null, isAlreadyPaged = true, hasMore = hasMore)
         }
     }
 
+    private fun getConsoleTail(build: Build, lines: Int = 5): String {
+        val output = build.consoleOutput.toString()
+        val tailLines = mutableListOf<String>()
+        var pos = output.length
+        if (pos > 0 && output[pos - 1] == '\n') pos-- // skip trailing newline
+        while (tailLines.size < lines && pos >= 0) {
+            val lineStart = if (pos == 0) 0 else output.lastIndexOf('\n', pos - 1) + 1
+            tailLines.add(0, output.substring(lineStart, pos))
+            pos = lineStart - 1
+        }
+        return tailLines.joinToString("\n")
+    }
+
+    private fun waitForMatch(build: Build, args: WaitBuildArgs): String? {
+        val waitForRegex = args.waitFor?.toRegex()
+        val waitForTask = args.waitForTask
+
+        if (waitForRegex != null) {
+            val console = build.consoleOutput.toString()
+            if (waitForRegex.containsMatchIn(console)) return "Matched regex: ${args.waitFor}"
+        }
+
+        if (waitForTask != null) {
+            if (build is RunningBuild && build.completedTaskPaths.contains(waitForTask)) return "Matched task: $waitForTask"
+            if (build is FinishedBuild && build.taskResults.containsKey(waitForTask)) return "Matched task: $waitForTask"
+        }
+
+        return null
+    }
+
     @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class, ExperimentalCoroutinesApi::class)
-    val inspectBuild by tool<InspectBuildArgs, String>(
-        ToolNames.INSPECT_BUILD,
-        """
-            |Inspects build information, monitors progress, and performs post-mortem diagnostics; ALWAYS use instead of raw console logs for test failures, task outputs, and build errors.
+    val queryBuild by tool<QueryBuildArgs, String>(
+        ToolNames.QUERY_BUILD,
+        """|
+            |Queries build information.
             |
-            |**Note:** Only builds executed by this MCP server session are listed. External Gradle runs are not tracked.
+            |If called with no arguments, returns a dashboard of recent builds.
             |
-            |### Lookup Modes
-            |- **`mode="summary"`** (default): Dashboard/overview; best for finding BuildIds, TestNames, FailureIds. When a build ID is provided, shows a detailed summary including recent error context and currently running tasks.
-            |- **`mode="details"`**: Exhaustive analysis; requires `testName`, `taskPath`, `failureId`, or `problemId`.
+            |### Query Kinds
+            |- DASHBOARD (default): Recent builds. If buildId is provided, shows a detailed summary of that build.
+            |- CONSOLE: Console logs. `query` acts as a regex filter.
+            |- TASKS: Task outputs. `query` acts as a prefix filter on the task path.
+            |- TESTS: Test outputs. `query` acts as a prefix filter on the test name.
+            |- FAILURES: Build failures. `query` is the exact FailureId.
+            |- PROBLEMS: Compilation/configuration problems. `query` is the exact ProblemId.
             |
-            |### How to Inspect Details
-            |- Tests (incl. console output): `testName="FullTestName"`, `mode="details"` — REQUIRED for stack traces and test output.
-            |- Task outputs: `taskPath=":path:to:task"`, `mode="details"`. For test tasks, this provides a summary of test failures.
-            |- Build failures: `failureId="ID"`, `mode="details"` (use summary first to find IDs).
-            |- Full console: `consoleTail=true` (tail) or `consoleTail=false` (head).
-            |- Pagination: Use `offset` and `limit` to navigate through long console logs or large task/test lists. Use `outputFile` to write the full result to a file and skip pagination limits.
-            |- File output: Use `outputFile` to write the full result to a file and skip pagination limits.
-            |
-            |### Wait & Progress Monitoring
-            |Use `timeout` (seconds) with `waitFor` (regex), `waitForTask` (path), or `waitForFinished=true` to monitor active builds.
-            |If `timeout` is set with no other condition and no specific section (consoleTail, taskPath, etc.), defaults to waiting for the build to finish.
-            |When a specific output section is requested (e.g. `consoleTail`), returns the current snapshot immediately without waiting unless `waitForFinished=true` is also set.
-            |Set `afterCall=true` to only match events emitted after this call.
+            |If a query for TASKS, TESTS, FAILURES, or PROBLEMS matches exactly one item, it auto-expands to full details. Otherwise, it returns a summary list with a hint to refine the query.
+            |See query_build(kind='CONSOLE', buildId='...') for full logs.
         """.trimMargin()
     ) { inputArgs ->
         val args = if (inputArgs.outputFile != null) {
-            inputArgs.copy(
-                pagination = PaginationInput(offset = 0, limit = Int.MAX_VALUE),
-                consoleTail = if (inputArgs.consoleTail != null) false else null
-            )
+            inputArgs.copy(pagination = PaginationInput(offset = 0, limit = Int.MAX_VALUE))
         } else {
             inputArgs
         }
@@ -535,180 +532,39 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         val output = if (args.buildId == null) {
             getLatestBuildsOutput(args, false)
         } else {
-            var build = buildResults.getBuild(args.buildId)
+            val build = buildResults.getBuild(args.buildId)
                 ?: throw IllegalArgumentException("Unknown or expired build ID: ${args.buildId}")
 
-            // Track a character offset rather than materialising all lines — O(1) for StringBuffer.length.
-            val startOffset = if (args.afterCall && build is RunningBuild) build.consoleOutput.length else 0
-
-            if (args.timeout != null && build is RunningBuild) {
-                val runningBuild = build
-                val waitForRegex = args.waitFor?.toRegex()
-                val waitForTask = args.waitForTask
-                // When a specific output section (e.g. consoleTail) is requested without an explicit
-                // waitForFinished, don't default to waiting for the build to finish. The user wants
-                // the current snapshot, not to block until completion.
-                val hasSpecificSection = args.consoleTail != null || args.taskPath != null || args.taskOutcome != null ||
-                        args.testName != null || args.testOutcome != null || args.testIndex != null ||
-                        args.failureId != null || args.problemId != null
-                val waitForFinished = args.waitForFinished || (waitForRegex == null && waitForTask == null && !hasSpecificSection)
-
-                // Only enter the wait loop if there is actually something to wait for.
-                // This avoids blocking for the full timeout when e.g. consoleTail is set without an
-                // explicit waitForFinished — in that case the snapshot is available immediately.
-                if (waitForFinished || waitForRegex != null || waitForTask != null) {
-                    val waitResult = withTimeoutOrNull(args.timeout.seconds) {
-                        coroutineScope {
-                            val progressJob = launch(Dispatchers.Default) {
-                                runningBuild.progressTracker.progress.collectLatest { p ->
-                                    progressReporter.report(p.progress, 1.0, p.message)
-                                }
-                            }
-
-                            try {
-                                select {
-                                    if (waitForRegex != null) {
-                                        async {
-                                            if (!args.afterCall && waitForRegex.containsMatchIn(runningBuild.consoleOutput.toString())) {
-                                                return@async true
-                                            }
-                                            runningBuild.logLines.firstOrNull { line: String ->
-                                                waitForRegex.containsMatchIn(line)
-                                            } != null
-                                        }.onAwait { it }
-                                    }
-                                    if (waitForTask != null) {
-                                        async {
-                                            if (!args.afterCall && runningBuild.completedTaskPaths.contains(waitForTask)) {
-                                                return@async true
-                                            }
-                                            runningBuild.completingTasks.firstOrNull { it == waitForTask } != null
-                                        }.onAwait { it }
-                                    }
-                                    async { runningBuild.awaitFinished() }.onAwait {
-                                        if (waitForRegex != null || waitForTask != null) {
-                                            // Check if the condition was met in the very last moment (e.g. in the final log lines)
-                                            val finalMatched = if (waitForRegex != null) {
-                                                waitForRegex.containsMatchIn(runningBuild.consoleOutput.toString())
-                                            } else {
-                                                runningBuild.completedTaskPaths.contains(waitForTask)
-                                            }
-
-                                            if (!finalMatched) {
-                                                val condition = if (waitForRegex != null) "matching regex: ${args.waitFor}" else "completing task: ${args.waitForTask}"
-                                                throw RuntimeException("Build finished without $condition")
-                                            }
-                                            true
-                                        } else {
-                                            waitForFinished
-                                        }
-                                    }
-                                }
-                            } finally {
-                                progressJob.cancelAndJoin()
-                            }
-                        }
-                    }
-                    if (waitResult == false) {
-                        // This should only happen if waitForFinished was false but the build finished.
-                        // But if waitForFinished was true and it finished, it returns true.
-                        // If regex/task was set and it finished, it throws.
-                        // So this branch should be unreachable or return immediately.
-                    }
-                }
-
-                // re-get build to pick up any changes (e.g. it might have finished concurrently)
-                val buildId = args.buildId
-                build = requireNotNull(buildResults.getBuild(buildId)) { "No build found with ID $buildId" }
+            val rawOutput = when (args.kind) {
+                QueryKind.DASHBOARD -> getDashboardOutput(build, args)
+                QueryKind.CONSOLE -> getConsoleOutput(build, args)
+                QueryKind.TASKS -> getTasksOutput(build, args)
+                QueryKind.TESTS -> getTestsOutput(build, args)
+                QueryKind.FAILURES -> getFailuresOutput(build, args)
+                QueryKind.PROBLEMS -> getProblemsOutput(build, args)
             }
 
-            val hasTasks = args.taskPath != null || args.taskOutcome != null
-            val hasTests = args.testName != null || args.testOutcome != null || args.testIndex != null
-            val hasFailures = args.failureId != null
-            val hasProblems = args.problemId != null
-            val hasConsole = args.consoleTail != null
-
-            val sections = buildList {
-                if (hasTests) add("tests")
-                if (hasFailures) add("failures")
-                if (hasProblems) add("problems")
-                if (hasConsole) add("console")
-                if (hasTasks && !hasTests) add("tasks")
-            }
-            require(sections.size <= 1) { "Only one section (${sections.joinToString()}) may be specified at a time. Note that taskPath can be used to filter tests." }
-
-            buildString {
-                if (build is RunningBuild) {
-
-                    appendLine("--- BUILD IN PROGRESS ---")
-                } else {
-                    appendLine("--- BUILD FINISHED ---")
-                }
-
-                val waitForRegex = args.waitFor?.toRegex()
-                if (waitForRegex != null) {
-                    // Scan only the output after startOffset without materialising all lines.
-                    val consoleOutput = build.consoleOutput.toString()
-                    val searchFrom = if (args.afterCall) startOffset.coerceAtMost(consoleOutput.length) else 0
-                    val matchingLines = mutableListOf<String>()
-                    var scanPos = searchFrom
-                    while (scanPos < consoleOutput.length) {
-                        val lineEnd = consoleOutput.indexOf('\n', scanPos).let { if (it == -1) consoleOutput.length else it }
-                        val line = consoleOutput.substring(scanPos, lineEnd)
-                        if (line.isNotBlank() && waitForRegex.containsMatchIn(line)) matchingLines.add(line)
-                        scanPos = lineEnd + 1
+            if (args.kind == QueryKind.DASHBOARD) {
+                rawOutput
+            } else {
+                buildString {
+                    if (build is RunningBuild) {
+                        appendLine("--- BUILD IN PROGRESS ---")
+                    } else {
+                        appendLine("--- BUILD FINISHED ---")
                     }
-                    if (matchingLines.isNotEmpty()) {
-                        appendLine("Matching lines for '${args.waitFor}':")
-                        matchingLines.forEach { appendLine("    $it") }
-                        appendLine()
-                    } else if (args.timeout != null) {
-                        appendLine("No matched lines - build completed or wait timed out")
-                        appendLine()
+                    val header = when (args.kind) {
+                        QueryKind.CONSOLE -> "--- Console Output ---"
+                        QueryKind.TASKS -> "--- Tasks ---"
+                        QueryKind.TESTS -> "--- Tests ---"
+                        QueryKind.FAILURES -> "--- Failures ---"
+                        QueryKind.PROBLEMS -> "--- Problems ---"
+                        QueryKind.DASHBOARD -> ""
                     }
-                }
-
-                if (sections.isEmpty()) {
-                    if (args.mode == LookupMode.details) {
-                        appendLine("WARNING: Details mode requires a section (e.g. testName, taskPath) to be specified. Showing build summary instead.")
+                    if (header.isNotEmpty()) {
+                        appendLine(header)
                     }
-                    appendLine("--- Summary ---")
-                    appendLine(build.toOutputString(true))
-                    appendLine()
-                    appendLine("--- How to Inspect Details ---")
-                    appendLine("- Individual Tests:  `testName=\"FullTestName\"`, `mode=\"details\"` (REQUIRED for full output/stack trace)")
-                    appendLine("- Task Outputs:      `taskPath=\":path:to:task\"`, `mode=\"details\"` (for console output and test count)")
-                    appendLine("- Build Failures:    `failureId=\"ID\"`, `mode=\"details\"` (use summary mode first to find IDs)")
-                    appendLine("- Problems/Errors:   `problemId=\"ID\"`, `mode=\"details\"` (use summary mode first to find IDs)")
-                    appendLine("- Full Console:      `consoleTail=true`, `consoleTail=false` (head)")
-                    appendLine("- Filtering:         Use `testName=\"\"`, `testOutcome`, or `taskOutcome` with `mode=\"summary\"` to narrow down results.")
-                    appendLine()
-                } else {
-                    if (hasFailures) {
-                        appendLine("--- Failures ---")
-                        appendLine(getFailuresOutput(build, args))
-                        appendLine()
-                    }
-                    if (hasProblems) {
-                        appendLine("--- Problems ---")
-                        appendLine(getProblemsOutput(build, args))
-                        appendLine()
-                    }
-                    if (hasTests) {
-                        appendLine("--- Tests ---")
-                        appendLine(getTestsOutput(build, args))
-                        appendLine()
-                    }
-                    if (hasTasks && !hasTests) {
-                        appendLine("--- Tasks ---")
-                        appendLine(getTasksOutput(build, args))
-                        appendLine()
-                    }
-                    if (hasConsole) {
-                        appendLine("--- Console Output ---")
-                        appendLine(getConsoleOutput(build, args))
-                        appendLine()
-                    }
+                    appendLine(rawOutput)
                 }
             }
         }
@@ -720,12 +576,117 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                 val absolutePath = path.absolutePathString()
                 val charCount = output.length
                 val lineCount = output.lineSequence().count()
-                return@tool "Output written to $absolutePath ($charCount characters, $lineCount lines)"
+                "Output written to $absolutePath ($charCount characters, $lineCount lines)"
             } catch (e: Exception) {
-                return@tool "Error writing to file ${args.outputFile}: ${e.message}"
+                "Error writing to file ${args.outputFile}: ${e.message}"
             }
         } else {
-            return@tool output
+            output
+        }
+    }
+
+    @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class, ExperimentalCoroutinesApi::class)
+    val waitBuild by tool<WaitBuildArgs, String>(
+        ToolNames.WAIT_BUILD,
+        """|
+            |Waits for a background build to reach a specific condition and returns the final console tail.
+            |
+            |Use `timeout` (seconds) with `waitFor` (regex), `waitForTask` (path), or `waitForFinished=true` to monitor active builds.
+            |If no wait condition (regex or task) is provided, it defaults to waiting for the build to finish.
+            |
+            |Set `afterCall=true` to only match events emitted after this call.
+            |See query_build(kind='CONSOLE', buildId='...') for full logs.
+        """.trimMargin()
+    ) { args ->
+        var build = buildResults.getBuild(args.buildId)
+            ?: throw IllegalArgumentException("Unknown or expired build ID: ${args.buildId}")
+
+        val waitForRegex = args.waitFor?.toRegex()
+        val waitForTask = args.waitForTask
+
+        if (build is RunningBuild) {
+            val runningBuild = build
+
+            val waitResult = withTimeoutOrNull(args.timeout.seconds) {
+                coroutineScope {
+                    val progressJob = launch(Dispatchers.Default) {
+                        runningBuild.progressTracker.progress.collectLatest { p ->
+                            progressReporter.report(p.progress, 1.0, p.message)
+                        }
+                    }
+
+                    val regexJob = if (waitForRegex != null) async {
+                        if (!args.afterCall && waitForRegex.containsMatchIn(runningBuild.consoleOutput.toString())) {
+                            return@async true
+                        }
+                        runningBuild.logLines.firstOrNull { line: String ->
+                            waitForRegex.containsMatchIn(line)
+                        } != null
+                    } else null
+
+                    val taskJob = if (waitForTask != null) async {
+                        if (!args.afterCall && runningBuild.completedTaskPaths.contains(waitForTask)) {
+                            return@async true
+                        }
+                        runningBuild.completingTasks.firstOrNull { it == waitForTask } != null
+                    } else null
+
+                    val finishJob = async { runningBuild.awaitFinished() }
+
+                    try {
+                        select<Boolean> {
+                            regexJob?.onAwait { it }
+                            taskJob?.onAwait { it }
+                            finishJob.onAwait {
+                                if (waitForRegex != null || waitForTask != null) {
+                                    val finalMatched = if (waitForRegex != null) {
+                                        waitForRegex.containsMatchIn(runningBuild.consoleOutput.toString())
+                                    } else {
+                                        runningBuild.completedTaskPaths.contains(waitForTask)
+                                    }
+
+                                    if (!finalMatched) {
+                                        val condition = if (waitForRegex != null) "matching regex: ${args.waitFor}" else "completing task: ${args.waitForTask}"
+                                        throw RuntimeException("Build finished without $condition")
+                                    }
+                                    true
+                                } else {
+                                    true
+                                }
+                            }
+                        }
+                    } finally {
+                        regexJob?.cancel()
+                        taskJob?.cancel()
+                        finishJob.cancel()
+                        progressJob.cancelAndJoin()
+                    }
+                }
+            }
+            if (waitResult == null) {
+                return@tool "Wait timed out after ${args.timeout}s. Current console tail:\n\n" + getConsoleTail(build) + "\n\nSee query_build(kind='CONSOLE', buildId='${args.buildId}') for full logs."
+            }
+            build = buildResults.getBuild(args.buildId)!!
+        } else {
+            // Already finished, check condition
+            if (waitForRegex != null || waitForTask != null) {
+                val match = waitForMatch(build, args)
+                if (match == null) {
+                    val condition = if (waitForRegex != null) "matching regex: ${args.waitFor}" else "completing task: ${args.waitForTask}"
+                    throw RuntimeException("Build already finished without $condition")
+                }
+            }
+        }
+
+        buildString {
+            if (build is RunningBuild) {
+                appendLine("Wait condition met. Build is still running.")
+            } else {
+                appendLine("Build finished with outcome: ${(build as FinishedBuild).outcome.javaClass.simpleName}")
+            }
+            appendLine("Console Tail:")
+            appendLine(getConsoleTail(build))
+            appendLine("\nSee query_build(kind='CONSOLE', buildId='${args.buildId}') for full logs.")
         }
     }
 }

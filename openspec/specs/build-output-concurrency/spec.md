@@ -13,7 +13,7 @@ The system SHALL handle the following four thread contexts interacting with shar
 - **Stdout delivery**: Single thread delivering daemon stdout.
 - **Stderr delivery**: Single thread delivering daemon stderr (separate from stdout).
 - **Progress callbacks**: Multi-threaded Gradle Tooling API callbacks (especially with `--parallel`).
-- **MCP readers**: Concurrent coroutine dispatcher threads reading build state (e.g., `inspect_build`).
+- **MCP readers**: Concurrent coroutine dispatcher threads reading build state (e.g., `query_build`).
 
 ### Requirement: Thread-Confined Writers
 
@@ -50,7 +50,7 @@ Output access patterns SHALL avoid expensive materialization of large log buffer
 The MCP server SHALL launch incoming tool handlers in independent coroutines.
 
 - It MUST NOT process tool calls sequentially on the transport thread.
-- **Rationale**: Long-running builds (e.g., `gradle()` awaiting completion) must not block concurrent status checks (e.g., `inspect_build()`).
+- **Rationale**: Long-running builds (e.g., `gradle()` awaiting completion) must not block concurrent status checks (e.g., `query_build()`).
 
 ## Design & Rationale
 

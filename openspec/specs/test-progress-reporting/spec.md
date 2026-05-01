@@ -42,10 +42,10 @@ The system SHALL associate each test execution with the specific Gradle task tha
 
 #### Scenario: List tests for a specific task
 
-- **WHEN** `inspect_build` is called with a `taskPath` (e.g., `:app:test`) and `testName=""` in `mode="summary"`
+- **WHEN** `query_build` is called with `kind="TESTS"` and `query=":app:test"`
 - **THEN** the system SHALL return only the tests that were executed by that task.
 
 #### Scenario: Display test summary in task details
 
-- **WHEN** `inspect_build` is called for a test task with `mode="details"`
+- **WHEN** `query_build` is called with `kind="TESTS"` and `query=":app:test"` for a task with test results
 - **THEN** the output SHALL include a summary of the test results (e.g., `(10 passed, 2 failed, 1 skipped)`) associated with that task.

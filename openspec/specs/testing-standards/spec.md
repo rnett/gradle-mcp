@@ -27,8 +27,8 @@ Integration tests for MCP tools SHALL verify the final re-rendered output rather
 
 - **Output Formatting**: Assertions MUST check the re-rendered format (e.g., `Project: :path`) as seen by the MCP client.
 - **Serialization**: When calling MCP tools from tests using `server.client.callTool`, developers MUST use `kotlinx.serialization.json.buildJsonObject` for arguments containing complex types like `List` or `Map`.
-- **Large Result Inspection**: Tests that expect large outputs (e.g., console logs) SHOULD use the `outputFile` option in `inspect_build` to write results to a file for more efficient token usage and to bypass pagination.
-- **Test Discovery**: Tests that search for other tests MUST use simple name prefixes without parentheses when searching with `inspect_build`.
+- **Large Result Inspection**: Tests that expect large outputs (e.g., console logs) SHOULD use the `outputFile` option in `query_build` to write results to a file for more efficient token usage and to bypass pagination.
+- **Test Discovery**: Tests that search for other tests MUST use simple name prefixes without parentheses when searching with `query_build`.
 
 ### Requirement: Testing Asynchronous Events
 

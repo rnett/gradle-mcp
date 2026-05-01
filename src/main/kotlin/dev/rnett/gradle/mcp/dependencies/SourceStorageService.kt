@@ -107,12 +107,31 @@ class DefaultSourceStorageService(private val environment: GradleMcpEnvironment)
     private val sessionViewsDir = environment.cacheDir.resolve("views")
 
     companion object {
-        private const val CAS_VERSION = "v2"
+        private const val CAS_VERSION = "v3"
     }
 
     init {
         casDir.createDirectories()
         sessionViewsDir.createDirectories()
+        cleanupOldCasVersions()
+    }
+
+    private fun cleanupOldCasVersions() {
+        val currentVersion = CAS_VERSION.removePrefix("v").toIntOrNull() ?: return
+        val casBase = environment.cacheDir.resolve("cas")
+        if (!casBase.exists()) return
+        try {
+            casBase.listDirectoryEntries("v*")
+                .forEach { dir ->
+                    val dirVersion = dir.fileName.toString().removePrefix("v").toIntOrNull() ?: return@forEach
+                    if (dirVersion < currentVersion) {
+                        logger.info("Cleaning up old CAS version directory: ${dir.fileName}")
+                        dir.deleteRecursively()
+                    }
+                }
+        } catch (e: Exception) {
+            logger.warn("Failed to clean up old CAS version directories", e)
+        }
     }
 
     override fun normalizeRelativePath(prefix: Path, path: Path): String {

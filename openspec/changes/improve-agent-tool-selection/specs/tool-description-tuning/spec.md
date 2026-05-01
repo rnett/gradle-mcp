@@ -14,10 +14,10 @@ specific alternative tools by name.
 
 Tool descriptions MUST include cross-references to related tools when they serve adjacent but distinct purposes. Cross-references MUST use the exact tool name as defined in `ToolNames`.
 
-#### Scenario: Agent navigates from `gradle` to `inspect_build`
+#### Scenario: Agent navigates from `gradle` to `query_build`
 
 - **WHEN** an agent reads the `gradle` tool description
-- **THEN** it encounters a cross-reference: "For post-build diagnostics, test results, and task output, use `inspect_build`"
+- **THEN** it encounters a cross-reference: "For post-build diagnostics, test results, and task output, use `query_build`"
 
 #### Scenario: Agent navigates from source tools to `gradle`
 

@@ -12,6 +12,11 @@ The `inspect_dependencies` tool SHALL report all dependencies from `buildscript`
 
 #### Scenario: Inspecting the virtual buildscript source set
 
+- **WHEN** `inspect_dependencies` is called for a project without filtering
+- **THEN** the system SHALL return a report including standard configurations and `buildscript:` configurations (e.g., `buildscript:classpath`).
+
+#### Scenario: Inspecting the virtual buildscript source set
+
 - **WHEN** `inspect_dependencies` is called with `sourceSet = "buildscript"`
 - **THEN** the system SHALL return dependencies exclusively from the buildscript configurations.
 
@@ -26,7 +31,7 @@ The `search_dependency_sources` tool SHALL NOT include the sources of buildscrip
 
 #### Scenario: Searching for a symbol in build classpath (explicitly enabled)
 
-- **WHEN** `search_dependency_sources` is called with `sourceSetPath` set to `:buildscript`
+- **WHEN** `search_dependency_sources` is called with `sourceSetPath` set to `:buildscript` (or similar project-scoped path)
 - **THEN** the system SHALL return matching results from the build classpath sources.
 
 ### Requirement: Read Build Classpath Sources

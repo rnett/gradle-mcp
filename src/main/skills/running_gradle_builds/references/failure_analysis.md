@@ -1,6 +1,6 @@
 # Investigating Build Failures
 
-This guide provides advanced workflows for diagnosing complex Gradle build failures using `inspect_build`.
+This guide provides advanced workflows for diagnosing complex Gradle build failures using `query_build`.
 
 ## Diagnostic Workflow
 
@@ -16,36 +16,36 @@ Start by getting a high-level overview of what went wrong.
 }
 ```
 
-- **Example**: `inspect_build(buildId="ID")`
+- **Example**: `query_build(buildId="ID")`
 - This provides a structured summary of failures, problems, and failed tests. Use this to find specific IDs for deeper inspection.
 
 ### 2. Inspect a Specific Failure
 
-Use `failureId` with `mode="details"` to see the full failure message and stack trace.
+Use `query` with `kind="FAILURES"` to see the full failure message and stack trace.
 
 ```json
 {
   "buildId": "BUILD_ID",
-  "mode": "details",
-  "failureId": "F0"
+  "kind": "FAILURES",
+  "query": "F0"
 }
 ```
 
-- **Example**: `inspect_build(buildId="ID", mode="details", failureId="F0")`
+- **Example**: `query_build(buildId="ID", kind="FAILURES", query="F0")`
 
 ### 3. Inspect a Specific Problem
 
-Use `problemId` with `mode="details"` for detailed problem reports, including file locations and suggestions.
+Use `query` with `kind="PROBLEMS"` for detailed problem reports, including file locations and suggestions.
 
 ```json
 {
   "buildId": "BUILD_ID",
-  "mode": "details",
-  "problemId": "P1"
+  "kind": "PROBLEMS",
+  "query": "P1"
 }
 ```
 
-- **Example**: `inspect_build(buildId="ID", mode="details", problemId="P1")`
+- **Example**: `query_build(buildId="ID", kind="PROBLEMS", query="P1")`
 
 ### 4. Inspect Failed Tasks
 
@@ -54,12 +54,12 @@ If the failure is task-related, check the output of specific tasks.
 ```json
 {
   "buildId": "BUILD_ID",
-  "mode": "details",
-  "taskPath": ":app:compileJava"
+  "kind": "TASKS",
+  "query": ":app:compileJava"
 }
 ```
 
-- **Example**: `inspect_build(buildId="ID", mode="details", taskPath=":app:compileJava")`
+- **Example**: `query_build(buildId="ID", kind="TASKS", query=":app:compileJava")`
 
 ### 5. Deep Dive into Console Logs
 
@@ -68,15 +68,15 @@ If structured reports aren't enough, examine the console output.
 ```json
 {
   "buildId": "BUILD_ID",
-  "consoleTail": true,
+  "kind": "CONSOLE",
   "pagination": {
     "limit": 100
   }
 }
 ```
 
-- **Tail (last N lines)**: `inspect_build(buildId="ID", consoleTail=true)`
-- **Head (first N lines)**: `inspect_build(buildId="ID", consoleTail=false)`
+- **Tail (last N lines)**: `query_build(buildId="ID", kind="CONSOLE", pagination={limit: 100})`
+- **Head (first N lines)**: `query_build(buildId="ID", kind="CONSOLE", pagination={limit: 100, offset: 0})`
 
 ### 6. Check for Test Failures
 
@@ -85,7 +85,8 @@ If the build failed during testing, use the test-specific inspection.
 ```json
 {
   "buildId": "BUILD_ID",
-  "testOutcome": "FAILED"
+  "kind": "TESTS",
+  "outcome": "FAILED"
 }
 ```
 

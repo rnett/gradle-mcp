@@ -264,14 +264,14 @@ class DefaultBuildExecutionService(
             val result = event.result
             val outcome = when (result) {
                 is TaskSuccessResult -> when {
-                    result.isFromCache -> TaskOutcome.FROM_CACHE
-                    result.isUpToDate -> TaskOutcome.UP_TO_DATE
-                    else -> TaskOutcome.SUCCESS
+                    result.isFromCache -> BuildComponentOutcome.FROM_CACHE
+                    result.isUpToDate -> BuildComponentOutcome.UP_TO_DATE
+                    else -> BuildComponentOutcome.SUCCESS
                 }
 
-                is TaskFailureResult -> TaskOutcome.FAILED
-                is TaskSkippedResult -> if (result.skipMessage == "NO-SOURCE") TaskOutcome.NO_SOURCE else TaskOutcome.SKIPPED
-                else -> TaskOutcome.SUCCESS
+                is TaskFailureResult -> BuildComponentOutcome.FAILED
+                is TaskSkippedResult -> if (result.skipMessage == "NO-SOURCE") BuildComponentOutcome.NO_SOURCE else BuildComponentOutcome.SKIPPED
+                else -> BuildComponentOutcome.SUCCESS
             }
 
             val duration = if (result.startTime > 0) (event.eventTime - result.startTime).milliseconds else 0.seconds

@@ -9,7 +9,7 @@ import kotlin.time.Duration
 
 data class TaskResult(
     val path: String,
-    val outcome: TaskOutcome,
+    val outcome: BuildComponentOutcome,
     val duration: Duration,
     val consoleOutput: String?
 )
@@ -38,7 +38,7 @@ data class TestResult(
     val consoleOutput: String?,
     val executionDuration: Duration,
     val failures: List<Failure>?,
-    val status: TestOutcome,
+    val status: BuildComponentOutcome,
     val metadata: Map<String, String>,
     val attachments: List<Attachment>,
     val taskPath: String? = null
@@ -94,10 +94,6 @@ data class GradleBuildScan(
     }
 }
 
-enum class TaskOutcome {
-    SUCCESS, FAILED, SKIPPED, UP_TO_DATE, FROM_CACHE, NO_SOURCE
-}
-
-enum class TestOutcome {
-    PASSED, FAILED, SKIPPED, CANCELLED, IN_PROGRESS
+enum class BuildComponentOutcome {
+    SUCCESS, FAILED, SKIPPED, UP_TO_DATE, FROM_CACHE, NO_SOURCE, CANCELLED, IN_PROGRESS
 }

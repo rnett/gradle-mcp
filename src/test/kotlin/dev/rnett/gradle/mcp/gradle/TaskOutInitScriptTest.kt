@@ -1,8 +1,8 @@
 package dev.rnett.gradle.mcp.gradle
 
 import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
+import dev.rnett.gradle.mcp.gradle.build.BuildComponentOutcome
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
-import dev.rnett.gradle.mcp.gradle.build.TaskOutcome
 import dev.rnett.gradle.mcp.utils.OS
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterAll
@@ -100,7 +100,7 @@ class TaskOutInitScriptTest {
 
             val taskResult = result.taskResults[":printMessage"]
             assert(taskResult != null)
-            assert(taskResult!!.outcome == TaskOutcome.SUCCESS)
+            assert(taskResult!!.outcome == BuildComponentOutcome.SUCCESS)
             assert(taskResult.consoleOutput?.trim() == "Hello from task\nError from task")
             assert(taskResult.duration >= 0.seconds)
         }

@@ -6,7 +6,7 @@ descriptions have several issues:
 1. **`gradleSource` parameter** on `searchDependencySources` and `readDependencySources` is described too briefly and named ambiguously — agents interpret it as a general "use Gradle" flag rather than "read Gradle's own source code."
 2. **`gradle` tool** description says "ALWAYS use instead of raw shell `./gradlew`" but lacks discriminative language that contrasts it with `gradleOwnSource`-based tools.
 3. **`projectRoot` parameter** description is ambiguous about when auto-detection works vs. when explicit specification is required.
-4. **No cross-references** between tools that serve related but distinct purposes (e.g., `gradle` vs. `inspect_build` for test results).
+4. **No cross-references** between tools that serve related but distinct purposes (e.g., `gradle` vs. `query_build` for test results).
 
 All changes are purely descriptive — no API, parameter types, or behavior changes, except for renaming `gradleSource` to `gradleOwnSource`.
 
@@ -38,8 +38,8 @@ All changes are purely descriptive — no API, parameter types, or behavior chan
 
 ### Decision 2: Elevate `gradle` tool with authoritative "default" language
 
-- **Approach**: Add "STRONGLY PREFERRED for all Gradle task execution" to the header. Add a "When NOT to use" section that points to `inspect_build` for post-build diagnostics and `gradleOwnSource` tools for reading Gradle source code.
-- **Rationale**: The tool needs to be positioned as the default, not just an alternative to shell. Explicit negative guidance prevents overuse (e.g., using `gradle` to read build output when `inspect_build` is better).
+- **Approach**: Add "STRONGLY PREFERRED for all Gradle task execution" to the header. Add a "When NOT to use" section that points to `query_build` for post-build diagnostics and `gradleOwnSource` tools for reading Gradle source code.
+- **Rationale**: The tool needs to be positioned as the default, not just an alternative to shell. Explicit negative guidance prevents overuse (e.g., using `gradle` to read build output when `query_build` is better).
 - **Alternative considered**: Adding a separate "default tool" hint in the component description — rejected as less actionable than inline tool description changes.
 
 ### Decision 3: Simplify `projectRoot` description
@@ -52,8 +52,8 @@ All changes are purely descriptive — no API, parameter types, or behavior chan
 ### Decision 4: Add cross-references between tools
 
 - **Approach**: Add brief cross-reference notes in tool descriptions:
-    - `gradle` tool: "For post-build diagnostics, test results, and task output, use `inspect_build`."
-    - `inspect_build`: Already references `gradle` for execution — keep as-is.
+    - `gradle` tool: "For post-build diagnostics, test results, and task output, use `query_build`."
+    - `query_build`: Already references `gradle` for execution — keep as-is.
     - `searchDependencySources`/`readDependencySources`: Add "To run Gradle tasks or builds, use the `gradle` tool."
 - **Rationale**: Cross-references help agents navigate the tool landscape without guessing.
 

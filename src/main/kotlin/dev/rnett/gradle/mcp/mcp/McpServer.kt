@@ -82,7 +82,7 @@ class McpServer(
     // 2. Launch each message handler in server.scope so that long-running tool calls (e.g. a
     //    gradle build waiting on awaitFinished()) do NOT block the transport's message-processing
     //    loop. Without this, the StdioServerTransport processes messages sequentially — a hanging
-    //    gradle() call prevents inspect_build() from being processed at all until it finishes.
+    //    gradle() call prevents query_build()/wait_build() from being processed at all until it finishes.
     //    Launching in scope makes message handling concurrent; each call gets its own coroutine.
     override suspend fun connect(transport: Transport) {
         super.connect(object : Transport by transport {

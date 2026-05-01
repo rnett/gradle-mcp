@@ -53,7 +53,7 @@ MUST/NEVER/ALWAYS directives and usage patterns, but SHALL eliminate prose ratio
 
 #### Scenario: Detailed tool guidance without redundancy
 
-- **WHEN** the agent reads the `inspect_build` description
+- **WHEN** the agent reads the `query_build` description
 - **THEN** it learns specific usage patterns (e.g., "Wait for Log," "Surgical Diagnostics") without encountering repeated justifications already present in the `running_gradle_builds` skill
 
 ### Requirement: Argument-Level Guidance with Efficiency Hints

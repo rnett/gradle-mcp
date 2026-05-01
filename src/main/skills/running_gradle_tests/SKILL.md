@@ -21,33 +21,33 @@ Executes tests with deep diagnostic tools to isolate and fix failures fast, ensu
 - **ALWAYS** provide absolute paths for `projectRoot`.
 - **ALWAYS** prefer foreground execution (default) unless the test suite is extremely long-running (>2 minutes) or you explicitly intend to perform independent research while it proceeds.
 - **ONLY** use `background: true` for managed background orchestration when context isolation and non-blocking exploration are required.
-- **STRONGLY PREFERRED**: Use `inspect_build` for all test diagnostics. It provides isolated output and full stack traces that are often truncated in the main console.
-- **ALWAYS** use `inspect_build` with `mode: "details"` and `testName="..."` to access full test output and stack traces.
+- **STRONGLY PREFERRED**: Use `query_build` for all test diagnostics. It provides isolated output and full stack traces that are often truncated in the main console.
+- **ALWAYS** use `query_build` with `kind="TESTS"` and `query="FullTestName"` to access full test output and stack traces.
 - **NEVER** use `taskPath` or `captureTaskOutput` to investigate specific test failures; these provide the overall task log which is often truncated and lacks per-test isolation.
 
-## Surgical Test Inspection with `inspect_build`
+## Surgical Test Inspection with `query_build`
 
-When tests fail, `inspect_build` is your most powerful diagnostic tool. It provides isolated output and full stack traces that are often truncated in the main console.
+When tests fail, `query_build` is your most powerful diagnostic tool. It provides isolated output and full stack traces that are often truncated in the main console.
 
 ### 1. List All Failed Tests (Summary)
 
-Use `testOutcome="FAILED"` to quickly see which tests failed without being overwhelmed by logs.
+Use `outcome="FAILED"` to quickly see which tests failed without being overwhelmed by logs.
 
-- **Example**: `inspect_build(buildId="ID", testOutcome="FAILED")`
+- **Example**: `query_build(buildId="ID", kind="TESTS", outcome="FAILED")`
 
 ### 2. Get Full Test Details (Details)
 
-**CRITICAL**: ALWAYS use `mode="details"` and `testName` to see the complete stdout, stderr, and stack trace for a specific test.
+**CRITICAL**: ALWAYS use `kind="TESTS"` and `query` to see the complete stdout, stderr, and stack trace for a specific test.
 
-- **Unique Prefix Support**: You can provide a unique prefix of the test name (e.g., `testName="com.example.MyTest"` instead of the full FQN). If the prefix is unique, the tool will automatically select the test. If ambiguous, it will
+- **Unique Prefix Support**: You can provide a unique prefix of the test name (e.g., `query="com.example.MyTest"` instead of the full FQN). If the prefix is unique, the tool will automatically select the test. If ambiguous, it will
   return a list of matching names for refinement.
-- **Example**: `inspect_build(buildId="ID", mode="details", testName="com.example.MyTest.myMethod")`
+- **Example**: `query_build(buildId="ID", kind="TESTS", query="com.example.MyTest.myMethod")`
 
 ### 3. Filter by Name (Summary)
 
-Use `testName` with the default `mode="summary"` to see all executions of a test (e.g., across different projects or iterations).
+Use `query` with the default summary view to see all executions of a test (e.g., across different projects or iterations).
 
-- **Example**: `inspect_build(buildId="ID", testName="MyTest")`
+- **Example**: `query_build(buildId="ID", kind="TESTS", query="MyTest")`
 
 ### 4. Full Export
 
@@ -57,18 +57,18 @@ Use `outputFile="path/to/results.txt"` to write the entire result (e.g., all tes
 
 Use `timeout`, `waitFor`, or `waitForTask` to block until a condition is met in a background test run.
 
-- **Example**: `inspect_build(buildId="ID", timeout=60, waitForTask=":app:test")`
+- **Example**: `wait_build(buildId="ID", timeout=60, waitForTask=":app:test")`
 - **Wait for completion**: If `timeout` is set without a wait condition, the tool waits for the build to finish.
 
 ## Directives
 
 - **ALWAYS use foreground for authoritative tests**: If you intend to wait for results, ALWAYS use foreground execution. It provides superior progressive disclosure and simpler control flow than starting a background build only to
-  immediately call `inspect_build(timeout=...)`.
+  immediately call `wait_build(timeout=...)`.
 - **Background ONLY for long test suites**: Use `background: true` ONLY for test suites that take a long time to run and you explicitly intend to perform independent research while they proceed.
 - **Foreground tests are safe**: Do not fear running high-output test suites in the foreground. The `gradle` tool uses progressive disclosure to provide concise summaries and structured results, keeping session history clean and efficient.
-- **Monitor with `inspect_build`**: Use `inspect_build` to check the status of background test runs or to retrieve structured output and stack traces for failed tests.
-- **Check for environment failures**: If a test run fails with a general error, use `inspect_build(failures={})` to check for compilation or configuration issues.
-- **Investigate specifically**: Use the `testName` option in `inspect_build` with `mode="details"` to isolate specific failure details. For detailed diagnostic workflows, see the `test_diagnostics.md` reference.
+- **Monitor with `query_build` and `wait_build`**: Use `query_build` to check the status of background test runs or to retrieve structured output and stack traces for failed tests.
+- **Check for environment failures**: If a test run fails with a general error, use `query_build(kind="FAILURES")` to check for compilation or configuration issues.
+- **Investigate specifically**: Use the `query` option in `query_build` with `kind="TESTS"` to isolate specific failure details. For detailed diagnostic workflows, see the `test_diagnostics.md` reference.
 
 ## Authoritative Test Selection Patterns
 
@@ -126,8 +126,8 @@ Providing a path **with a leading colon** targets a **single specific project**.
 ### Investigating Failures
 
 1. Identify the `BuildId` from the result.
-2. Use `inspect_build(buildId=ID, testOutcome="FAILED")` to list all failed tests.
-3. **CRITICAL**: Use `inspect_build(buildId=ID, mode="details", testName=TNAME)` to see the full output and stack trace for a specific test.
+2. Use `query_build(buildId=ID, kind="TESTS", outcome="FAILED")` to list all failed tests.
+3. **CRITICAL**: Use `query_build(buildId=ID, kind="TESTS", query=TNAME)` to see the full output and stack trace for a specific test.
 
 - **DO NOT** use `taskPath` or `captureTaskOutput` for this.
 - Per-test output is authoritative, isolated, and contains full stack traces that are often omitted from the task console.
@@ -148,11 +148,11 @@ Providing a path **with a leading colon** targets a **single specific project**.
 ```json
 {
   "buildId": "build_20240301_130000_def456",
-  "testOutcome": "FAILED"
+  "outcome": "FAILED"
 }
 ```
 
-// Reasoning: Using inspect_build to isolate only the failures from a large test suite.
+// Reasoning: Using query_build to isolate only the failures from a large test suite.
 
 ```
 
@@ -160,8 +160,8 @@ Providing a path **with a leading colon** targets a **single specific project**.
 ```json
 {
   "buildId": "build_20240301_130000_def456",
-  "mode": "details",
-  "testName": "com.example.a.MyTest.shouldFail"
+  "kind": "TESTS",
+  "query": "com.example.a.MyTest.shouldFail"
 }
 ```
 

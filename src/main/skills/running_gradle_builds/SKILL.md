@@ -21,60 +21,60 @@ Executes Gradle builds with managed background orchestration and surgical failur
 - **NEVER** use `--rerun-tasks` unless investigating project-wide cache-specific corruption; prioritize Gradle's native caching. Prefer `--rerun` for individual tasks to ensure they are executed even if up-to-date.
 - **ALWAYS** prefer foreground execution (default) unless the task is persistent (e.g., servers) or extremely long-running (>2 minutes).
 - **ALWAYS** use `captureTaskOutput` when you need the isolated output of a specific task (e.g., `help`, `dependencies`).
-- **ALWAYS** check the build dashboard (`inspect_build()`) to manage active processes and historical results.
-- **STRONGLY PREFERRED**: Use `inspect_build` for all diagnostics. It is more token-efficient than reading raw console logs and provides structured access to failures.
+- **ALWAYS** check the build dashboard (`query_build()`) to manage active processes and historical results.
+- **STRONGLY PREFERRED**: Use `query_build` for all diagnostics. It is more token-efficient than reading raw console logs and provides structured access to failures.
 - **NEVER** leave background builds running; use `stopBuildId` to release resources when finished.
 
-## Surgical Inspection with `inspect_build`
+## Surgical Inspection with `query_build`
 
-The `inspect_build` tool is your primary window into build results. Use it to move from high-level summaries to deep-dive diagnostics.
+The `query_build` tool is your primary window into build results. Use it to move from high-level summaries to deep-dive diagnostics.
 
 ### 1. Build Dashboard (No Arguments)
 
-Call `inspect_build()` without arguments to see the **Build Dashboard**. This shows active background builds and recently completed builds with their `BuildId`, status, and failure counts.
+Call `query_build()` without arguments to see the **Build Dashboard**. This shows active background builds and recently completed builds with their `BuildId`, status, and failure counts.
 
-- **Example**: `inspect_build()`
+- **Example**: `query_build()`
 
 ### 2. Build Summary
 
 Provide a `buildId` to get a summary of that specific build, including failures, problems, and test results. This summary also contains a guide on how to inspect specific details.
 
-- **Example**: `inspect_build(buildId="ID")`
+- **Example**: `query_build(buildId="ID")`
 
-### 3. Detailed Inspection (`mode="details"`)
+### 3. Detailed Inspection
 
-To get exhaustive information, ALWAYS use `mode="details"` combined with a specific target:
+To get exhaustive information, ALWAYS use the appropriate `kind` combined with a specific `query`:
 
-- **Individual Tests**: `testName="FullTestName"`, `mode="details"` (REQUIRED for full output/stack trace).
-    - **Prefix Support**: Both `testName` and `taskPath` support **unique prefix matching**. Providing a unique prefix (e.g., `testName="com.example.MyTest"` or `taskPath=":app:compile"`) will automatically select the item if it's
+- **Individual Tests**: `kind="TESTS"`, `query="FullTestName"` (REQUIRED for full output/stack trace).
+  - **Prefix Support**: Both `query` (for tasks/tests) and `taskPath` support **unique prefix matching**. Providing a unique prefix (e.g., `query="com.example.MyTest"` or `taskPath=":app:compile"`) will automatically select the item if it's
       unambiguous.
-- **Task Outputs**: `taskPath=":path:to:task"`, `mode="details"`.
-- **Build Failures**: `failureId="ID"`, `mode="details"` (find IDs in the build summary).
-- **Problems/Errors**: `problemId="ID"`, `mode="details"` (find IDs in the build summary).
-  |- **Console Logs**: `consoleTail=true` (last N lines) or `consoleTail=false` (first N lines).
+- **Task Outputs**: `kind="TASKS"`, `query=":path:to:task"`.
+- **Build Failures**: `kind="FAILURES"`, `query="ID"` (find IDs in the build summary).
+- **Problems/Errors**: `kind="PROBLEMS"`, `query="ID"` (find IDs in the build summary).
+  |- **Console Logs**: `kind="CONSOLE"`. Use `query` as a regex filter if needed.
   |- **Full Export**: Use `outputFile="path/to/file.txt"` to write the entire result (e.g., full console output, all tests) to a file, bypassing pagination limits and reducing token usage.
 
 ### 4. Progress Monitoring
 
-Use `timeout`, `waitFor`, or `waitForTask` to block until a condition is met in a background build.
+Use `wait_build` with `timeout`, `waitFor`, or `waitForTask` to block until a condition is met in a background build.
 
-- **Example**: `inspect_build(buildId="ID", timeout=60, waitFor="Started Application")`
+- **Example**: `wait_build(buildId="ID", timeout=60, waitFor="Started Application")`
 - **Wait for completion**: If `timeout` is set without a wait condition (`waitFor`/`waitForTask`), the tool waits for the build to finish.
 
 ### 5. Monitoring Test Progress
 
-While a build is running, the progress notification (and the `inspect_build` summary) provides real-time counts of passed, failed, and skipped tests. This gives immediate feedback on the health of the test suite.
+While a build is running, the progress notification (and the `query_build` summary) provides real-time counts of passed, failed, and skipped tests. This gives immediate feedback on the health of the test suite.
 
-- **Example**: Call `inspect_build(buildId="ID", mode="summary")` repeatedly to see updated test counts: `(5 passed, 1 failed)`.
+- **Example**: Call `query_build(buildId="ID")` repeatedly to see updated test counts: `(5 passed, 1 failed)`.
 
 ## Directives
 
 - **ALWAYS use foreground for authoritative builds**: If you intend to wait for a result, ALWAYS use foreground execution. It provides superior progressive disclosure and simpler control flow than starting a background build only to
-  immediately call `inspect_build(timeout=...)`.
+  immediately call `wait_build(timeout=...)`.
 - **Background ONLY for persistent tasks**: Use `background: true` ONLY for tasks that must remain active (e.g., `bootRun`, `continuous` builds) or when you explicitly intend to perform independent research while the build proceeds.
-- **Monitor with `inspect_build`**: Use `inspect_build` to check the status of background builds or to perform deep-dives into any historical build started by the server.
+- **Monitor with `query_build` and `wait_build`**: Use `query_build` to check the status of background builds or to perform deep-dives into any historical build started by the server. Use `wait_build` for blocking waits.
 - **Provide absolute `projectRoot`**: Provide `projectRoot` as an **absolute file system path** to all Gradle MCP tools. Relative paths are not supported.
-- **Manage resources via dashboard**: Frequently call `inspect_build` without arguments to view the build dashboard and ensure no orphaned background builds are consuming system resources.
+- **Manage resources via dashboard**: Frequently call `query_build()` without arguments to view the build dashboard and ensure no orphaned background builds are consuming system resources.
 
 ## Authoritative Task Path Syntax
 
@@ -99,8 +99,8 @@ Providing a task path **with a leading colon** (e.g., `:test`, `:app:test`) targ
 
 - **Core Lifecycle Execution**: When you need to execute standard Gradle tasks like `build`, `assemble`, or `clean` with maximum reliability and clean, parseable output.
 - **Persistent Development Processes**: When starting development servers (e.g., `bootRun`) or continuous builds where background management and real-time log monitoring are required.
-- **Surgical Build Troubleshooting**: When a build has failed and you need to perform deep-dive analysis of task failures or console logs using the `inspect_build` diagnostic suite. For test failures, ALWAYS use `testName` with
-  `mode="details"`.
+- **Surgical Build Troubleshooting**: When a build has failed and you need to perform deep-dive analysis of task failures or console logs using the `query_build` diagnostic suite. For test failures, ALWAYS use `kind="TESTS"` with
+  `query="FullTestName"`.
 - **Task-Specific Information Retrieval**: When you need to extract isolated output from a single task (like `help` or `properties`) without the noise of the full build log.
 
 ## Workflows
@@ -109,13 +109,13 @@ Providing a task path **with a leading colon** (e.g., `:test`, `:app:test`) targ
 
 1. Identify the task(s) to run (e.g., `["clean", "build"]`).
 2. Call `gradle` with the `commandLine`.
-3. If the build fails, the tool will return a high-signal failure summary. Use `inspect_build` with the `buildId` for deeper diagnostics.
+3. If the build fails, the tool will return a high-signal failure summary. Use `query_build` with the `buildId` for deeper diagnostics.
 
 ### Orchestrating Background Jobs
 
 1. Start the build with `background: true` to receive a `BuildId`.
-2. Use `inspect_build(buildId=ID, timeout=..., waitFor=...)` to block until a specific state or log pattern is reached.
-3. Call `inspect_build()` (no arguments) to manage active jobs in the dashboard.
+2. Use `wait_build(buildId=ID, timeout=..., waitFor=...)` to block until a specific state or log pattern is reached.
+3. Call `query_build()` (no arguments) to manage active jobs in the dashboard.
 4. Stop the job using `gradle(stopBuildId=ID)` once its utility is complete.
 
 ## Examples
@@ -169,7 +169,7 @@ Providing a task path **with a leading colon** (e.g., `:test`, `:app:test`) targ
 
 ## Troubleshooting
 
-- **Build Not Found**: If a `BuildId` is not recognized, it may have expired from the recent history cache. Check the dashboard (`inspect_build()`) for valid active and historical IDs.
+- **Build Not Found**: If a `BuildId` is not recognized, it may have expired from the recent history cache. Check the dashboard (`query_build()`) for valid active and historical IDs.
 - **Task Output Not Captured**: Ensure the path provided to `captureTaskOutput` matches exactly one of the tasks in the `commandLine`.
 - **Missing environment variables**: Set `invocationArguments: { envSource: "SHELL" }` if Gradle cannot find expected env vars (e.g., `JAVA_HOME`).
 

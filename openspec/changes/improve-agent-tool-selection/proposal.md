@@ -13,7 +13,7 @@ weak or ambiguous tool descriptions and parameter naming that don't clearly disc
 - **`gradle` tool description**: Elevate the `gradle` tool's description to make it the unambiguous default for running any Gradle task or build. Add stronger authoritative language and clearer "when to use" scenarios that contrast with
   `gradleOwnSource` and shell alternatives.
 - **`projectRoot` parameter descriptions**: Clarify when `projectRoot` is auto-detected vs. required. Simplify the description to reduce agent confusion and unnecessary specification.
-- **Cross-reference improvements**: Add explicit cross-references between tools (e.g., `gradle` tool description mentions when to use `inspect_build` instead, `gradleSource` descriptions reference the `gradle` tool for execution).
+- **Cross-reference improvements**: Add explicit cross-references between tools (e.g., `gradle` tool description mentions when to use `query_build` instead, `gradleSource` descriptions reference the `gradle` tool for execution).
 
 ## Capabilities
 
@@ -29,6 +29,6 @@ weak or ambiguous tool descriptions and parameter naming that don't clearly disc
 ## Impact
 
 - **Source files**: `DependencySourceTools.kt` (`gradleSource` → `gradleOwnSource` rename + param descriptions), `GradleExecutionTools.kt` (`gradle` tool description), `GradleInputs.kt` (`projectRoot` description),
-  `GradleBuildLookupTools.kt` (`inspect_build` description), `GradleDependencyTools.kt` (`inspect_dependencies` description)
+  `GradleBuildLookupTools.kt` (`query_build` description), `GradleDependencyTools.kt` (`inspect_dependencies` description)
 - **Spec files**: `openspec/specs/skill-and-tool-descriptions/spec.md` (modified), `openspec/specs/tool-description-tuning/spec.md` (new)
 - **API change**: Rename `gradleSource` boolean parameter to `gradleOwnSource` on `searchDependencySources` and `readDependencySources`. No backwards compatibility needed — only consumers are AI agents.
