@@ -7,7 +7,6 @@ import dev.rnett.gradle.mcp.TestFixturesBuildConfig
 import dev.rnett.gradle.mcp.dependencies.model.CASDependencySourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.SessionViewSourcesDir
-import dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService
 import dev.rnett.gradle.mcp.dependencies.search.FullTextSearch
 import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
 import dev.rnett.gradle.mcp.gradle.BuildManager
@@ -17,6 +16,7 @@ import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.api.parallel.ResourceLock
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createFile
@@ -29,6 +29,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 
+@ResourceLock("ViewMergingIntegrationTest")
 class ViewMergingIntegrationTest {
 
     @TempDir
@@ -44,8 +45,9 @@ class ViewMergingIntegrationTest {
         )
         val depService = DefaultGradleDependencyService(provider)
         val storageService = DefaultSourceStorageService(environment)
-        val indexService = DefaultSourceIndexService(DefaultIndexService(environment, listOf(FullTextSearch()))) // Simplified for this test
-        val sourcesService = DefaultSourcesService(depService, storageService, dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(environment, listOf(FullTextSearch())))
+        val rawIndexService = dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(environment, listOf(FullTextSearch()))
+        val indexService = DefaultSourceIndexService(rawIndexService) // Simplified for this test
+        val sourcesService = DefaultSourcesService(depService, storageService, rawIndexService, DefaultJdkSourceService(storageService, rawIndexService))
 
         testGradleProject {
             useKotlinDsl(true)
@@ -69,7 +71,7 @@ class ViewMergingIntegrationTest {
             val projectRoot = GradleProjectRoot(project.pathString())
 
             val sourcesDir = with(ProgressReporter.PRINTLN) {
-                sourcesService.resolveAndProcessProjectSources(projectRoot, ":", providerToIndex = FullTextSearch())
+                sourcesService.resolveAndProcessProjectSources(projectRoot, ":", dependency = "org.jetbrains.kotlinx:kotlinx-coroutines-core", providerToIndex = FullTextSearch())
             }
 
             assertNotNull(sourcesDir)
@@ -117,7 +119,7 @@ class ViewMergingIntegrationTest {
         val depService = DefaultGradleDependencyService(provider)
         val storageService = DefaultSourceStorageService(environment)
         val indexService = dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(environment, listOf(FullTextSearch()))
-        val sourcesService = DefaultSourcesService(depService, storageService, indexService)
+        val sourcesService = DefaultSourcesService(depService, storageService, indexService, DefaultJdkSourceService(storageService, indexService))
 
         testGradleProject {
             useKotlinDsl(true)
@@ -141,7 +143,7 @@ class ViewMergingIntegrationTest {
             val projectRoot = GradleProjectRoot(project.pathString())
 
             val sourcesDir = with(ProgressReporter.PRINTLN) {
-                sourcesService.resolveAndProcessProjectSources(projectRoot, ":", providerToIndex = FullTextSearch())
+                sourcesService.resolveAndProcessProjectSources(projectRoot, ":", dependency = "org.jetbrains.kotlinx:kotlinx-coroutines-core", providerToIndex = FullTextSearch())
             }
 
             assertTrue(sourcesDir is SessionViewSourcesDir)

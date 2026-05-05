@@ -17,6 +17,9 @@ class DependencyFilterMatcher(val dependencyFilter: String?) {
     val isVersionLess: Boolean
         get() = dependencyFilter != null && parts.size < 3
 
+    val isJdkSelector: Boolean
+        get() = dependencyFilter == "jdk"
+
     /**
      * Checks if a dependency matches the filter.
      * Note: This logic is partially duplicated in `dependencies-report.init.gradle.kts`.
@@ -25,6 +28,7 @@ class DependencyFilterMatcher(val dependencyFilter: String?) {
      */
     fun matchesDependency(dep: GradleDependency): Boolean {
         if (dependencyFilter == null) return true
+        if (isJdkSelector) return false
 
         val group = dep.group
         val name = dep.name

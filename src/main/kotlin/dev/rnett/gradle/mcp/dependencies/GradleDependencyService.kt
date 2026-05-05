@@ -174,7 +174,9 @@ private class MutableProject(
     val path: String,
     val sourceSets: MutableList<GradleSourceSetDependencies> = mutableListOf(),
     val repositories: MutableList<GradleRepository> = mutableListOf(),
-    val configurations: MutableList<MutableConfig> = mutableListOf()
+    val configurations: MutableList<MutableConfig> = mutableListOf(),
+    var jdkHome: String? = null,
+    var jdkVersion: String? = null
 )
 
 class DefaultGradleDependencyService(
@@ -183,7 +185,7 @@ class DefaultGradleDependencyService(
 
     companion object {
         private val LOGGER = LoggerFactory.getLogger(DefaultGradleDependencyService::class.java)
-        private const val BUILDSCRIPT_SOURCE_SET = "__mcp_buildscript__"
+        const val BUILDSCRIPT_SOURCE_SET = "__mcp_buildscript__"
 
         fun normalizeProjectPath(path: String?): String {
             if (path.isNullOrEmpty() || path == ":") return ":"
@@ -201,6 +203,10 @@ class DefaultGradleDependencyService(
 
             private const val SOURCESET_NAME_INDEX = 1
             private const val SOURCESET_CONFIGS_INDEX = 2
+            private const val SOURCESET_IS_JVM_INDEX = 3
+
+            private const val JDK_HOME_INDEX = 1
+            private const val JDK_VERSION_INDEX = 2
 
             private const val CONFIGURATION_NAME_INDEX = 1
             private const val CONFIGURATION_RESOLVABLE_INDEX = 2
@@ -242,10 +248,24 @@ class DefaultGradleDependencyService(
 
                 "SOURCESET" -> {
                     val name = parts.getOrNull(SOURCESET_NAME_INDEX).orEmpty()
-                    val mappedName = if (name == BUILDSCRIPT_SOURCE_SET) "buildscript" else name
+                    val mappedName = when {
+                        name == BUILDSCRIPT_SOURCE_SET -> "buildscript"
+                        name.startsWith("kotlin:") -> name.substringAfter("kotlin:")
+                        else -> name
+                    }
                     val configs = parts.getOrNull(SOURCESET_CONFIGS_INDEX)?.takeIf { it.isNotEmpty() }?.split(",")?.map { it.trim() }
                         ?: emptyList()
-                    project.sourceSets.add(GradleSourceSetDependencies(mappedName, configs))
+                    val isJvm = parts.getOrNull(SOURCESET_IS_JVM_INDEX)?.toBooleanStrictOrNull() ?: (mappedName == "buildscript")
+                    val existingIndex = project.sourceSets.indexOfFirst { it.name == mappedName }
+                    if (existingIndex == -1) {
+                        project.sourceSets.add(GradleSourceSetDependencies(mappedName, configs, isJvm))
+                    } else {
+                        val existing = project.sourceSets[existingIndex]
+                        project.sourceSets[existingIndex] = existing.copy(
+                            configurations = (existing.configurations + configs).distinct(),
+                            isJvm = existing.isJvm || isJvm
+                        )
+                    }
                 }
 
                 "CONFIGURATION" -> {
@@ -259,6 +279,13 @@ class DefaultGradleDependencyService(
                     currentConfig = config
                     project.configurations.add(config)
                     depStack.clear()
+                }
+
+                "JDK" -> {
+                    val jdkHome = parts.getOrNull(JDK_HOME_INDEX)?.ifBlank { null }
+                    val jdkVersion = parts.getOrNull(JDK_VERSION_INDEX)?.ifBlank { null }
+                    project.jdkHome = jdkHome
+                    project.jdkVersion = jdkVersion
                 }
 
                 "DEP" -> {
@@ -456,7 +483,6 @@ class DefaultGradleDependencyService(
             ?: throw IllegalArgumentException("Project not found in report: $projectPath")
 
         val sourceSet = project.sourceSets.find { it.name == sourceSetName }
-            ?: project.sourceSets.find { it.name == "kotlin:$sourceSetName" }
             ?: throw IllegalArgumentException("Source set not found in project $projectPath: $sourceSetName. Available: ${project.sourceSets.map { it.name }}")
 
         val configs = project.configurations.filter { it.name in sourceSet.configurations }
@@ -465,7 +491,8 @@ class DefaultGradleDependencyService(
         return GradleSourceSetDependencyReport(
             name = sourceSetName,
             configurations = configs,
-            repositories = repositories
+            repositories = repositories,
+            isJvm = sourceSet.isJvm
         )
     }
 
@@ -491,15 +518,8 @@ class DefaultGradleDependencyService(
         val parsedProject = normalizeProjectPath(if (lastColon == 0) ":" else configurationPath.substring(0, lastColon))
         val parsedName = configurationPath.substring(lastColon + 1)
 
-        // Disambiguate between virtual buildscript configuration and real project named 'buildscript'
-        // We use a heuristic: if the path ends with ':buildscript' and the next part is a known buildscript config,
-        // or if we use the internal marker.
+        // Disambiguate the virtual buildscript configuration namespace from ordinary project paths.
         val (projectPath, configurationName) = if (parsedProject.endsWith(":buildscript")) {
-            // To fix collision (Finding 10), we could check if it's a real project, but we don't know yet.
-            // However, the common pattern is :project:buildscript:classpath.
-            // If the user wants a real project named buildscript, they likely won't be targeting 'classpath'.
-            // But to be robust, we'll try to find the project in the report later.
-            // For now, we'll stick to the prefixing logic used in getDependencies.
             val p = if (parsedProject == ":buildscript") ":" else parsedProject.substring(0, parsedProject.length - ":buildscript".length)
             p to "buildscript:$parsedName"
         } else {
@@ -514,13 +534,12 @@ class DefaultGradleDependencyService(
             )
         )
 
-        // Finding 10: Robustness check. If projectPath + buildscript config not found, but parsedProject + parsedName exists, use that.
         val project = report.projects.find { it.path == projectPath }
         val config = project?.configurations?.find { it.name == configurationName }
 
         if (config != null) return config
 
-        // Fallback: maybe it was a real project named buildscript
+        // If the path belongs to a real project named buildscript, prefer the real project/configuration.
         val realProject = report.projects.find { it.path == parsedProject }
         val realConfig = realProject?.configurations?.find { it.name == parsedName }
 
@@ -623,9 +642,9 @@ class DefaultGradleDependencyService(
 
             val type = data.substringBefore("|").trim().uppercase()
             val remaining = data.substringAfter("|").trim()
-            val parts = remaining.split("|").map { it.trim() }
+            val parts = remaining.split(Regex("(?<!\\\\)\\|")).map { it.trim().replace("\\|", "|") }
 
-            if (type !in setOf("PROJECT", "REPOSITORY", "SOURCESET", "CONFIGURATION", "DEP")) return@forEach
+            if (type !in setOf("PROJECT", "REPOSITORY", "SOURCESET", "CONFIGURATION", "DEP", "JDK")) return@forEach
 
             val rawProjectPath = parts.getOrNull(0).orEmpty()
             val projectPath = if (rawProjectPath.isBlank()) ":" else rawProjectPath
@@ -669,7 +688,9 @@ class DefaultGradleDependencyService(
                             c.topLevelDeps.map { it.toImmutable(knownChildren) },
                             c.isInternal
                         )
-                    }
+                    },
+                    jdkHome = p.jdkHome,
+                    jdkVersion = p.jdkVersion
                 )
             }
         )

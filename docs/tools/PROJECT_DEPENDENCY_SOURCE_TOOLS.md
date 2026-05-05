@@ -6,7 +6,8 @@ Tools for searching and inspecting source code of Gradle dependencies.
 
 ## read_dependency_sources
 
-Reads and explores source code for external library dependencies, plugins, and Gradle Build Tool source code only; use instead of shell tools which cannot locate remote dependency sources.
+Reads dependency, plugin, Gradle, or JDK source trees; use instead of shell tools, which cannot locate remote dependency sources.
+JDK sources appear under `jdk/sources/...` for JVM scopes when local `src.zip` exists; use `dependency: "jdk"` for JDK-only reads.
 Buildscript (plugin) dependencies are excluded by default to reduce noise. To search plugins, use `sourceSetPath: ":buildscript"` (root project) or `sourceSetPath: ":app:buildscript"` (subproject).
 Supports dot-separated package paths via the symbol index. Use `search_dependency_sources` to find paths first.
 Strongly recommended: Use the `{group}/{artifact}/...` syntax for `path`. The `dependency` parameter should primarily be used to filter the scope for performance, not as a shortcut for path specification.
@@ -17,9 +18,10 @@ Returns the absolute path of the sources root.
 
 ### Examples
 - Browse project deps: `{ projectPath: ":" }`
-- Browse single dep: `{ dependency: "org.jetbrains.kotlin:kotlin-stdlib" }`
-- Read file: `{ path: "org.jetbrains.kotlin/kotlin-stdlib/kotlin/collections/List.kt" }`
-- Read package: `{ path: "org.jetbrains.kotlin/kotlin-stdlib/kotlin.collections" }`
+- Browse single dep: `{ projectPath: ":", dependency: "org.jetbrains.kotlin:kotlin-stdlib" }`
+- Read file: `{ projectPath: ":", path: "org.jetbrains.kotlin/kotlin-stdlib/kotlin/collections/List.kt" }`
+- Read JDK source from a JVM source set: `{ sourceSetPath: ":app:main", dependency: "jdk", path: "jdk/sources/java.base/java/lang/String.java" }`
+- Read package: `{ projectPath: ":", path: "org.jetbrains.kotlin/kotlin-stdlib/kotlin.collections" }`
 - Plugins: `{ sourceSetPath: ":buildscript" }`
 - Gradle Build Tool source: `{ gradleOwnSource: true }`
 
@@ -61,7 +63,7 @@ Returns the absolute path of the sources root.
         "string",
         "null"
       ],
-      "description": "Optional filter to scope the read to a single dependency by GAV (e.g., 'group:name'). Use this for performance/focus. Not recommended for general path specification; use `{group}/{artifact}/...` in `path` instead."
+      "description": "Filter by GAV prefix or `jdk`; prefer `{group}/{artifact}/...` in `path` for reads."
     },
     "gradleOwnSource": {
       "type": "boolean",
@@ -111,7 +113,8 @@ Returns the absolute path of the sources root.
 
 ## search_dependency_sources
 
-Searches for symbols or text across source code for ALL external library dependencies, plugins, and Gradle Build Tool source code only; use instead of shell grep which cannot find remote dependency sources.
+Searches symbols or text across dependency, plugin, Gradle, or JDK source trees; use instead of shell grep, which cannot locate remote dependency sources.
+JDK sources appear under `jdk/sources/...` for JVM scopes when local `src.zip` exists; use `dependency: "jdk"` for JDK-only searches.
 Buildscript (plugin) dependencies are excluded by default to reduce noise. To search plugins, use `sourceSetPath: ":buildscript"` (root project) or `sourceSetPath: ":app:buildscript"` (subproject).
 Sources are CAS-cached (immutable). Use `fresh=true` for dependency changes; `forceDownload=true` only to recover corrupt/missing files.
 ALWAYS scope with a project, configuration, or source set (or use `gradleOwnSource: true`) — unscoped search is no longer supported.
@@ -129,12 +132,12 @@ Returns the absolute path of the sources root.
 - `GLOB`: Locates files by name or extension using Java glob syntax. **Case-insensitive** (e.g., `query: "**/AndroidManifest.xml"`).
 
 ### Examples
-- All deps: `{ query: "CoroutineScope", searchType: "DECLARATION" }`
-- Full-text: `{ query: "TIMEOUT_MS" }`
-- Single dep: `{ dependency: "org.jetbrains.kotlinx:kotlinx-coroutines-core", query: "launch", searchType: "DECLARATION" }`
+- All deps: `{ projectPath: ":", query: "CoroutineScope", searchType: "DECLARATION" }`
+- Full-text: `{ projectPath: ":", query: "TIMEOUT_MS" }`
+- Single dep: `{ projectPath: ":", dependency: "org.jetbrains.kotlinx:kotlinx-coroutines-core", query: "launch", searchType: "DECLARATION" }`
 - Gradle Build Tool source: `{ gradleOwnSource: true, query: "DefaultProject", searchType: "DECLARATION" }`
 - Plugins: `{ sourceSetPath: ":buildscript", query: "MyPlugin", searchType: "DECLARATION" }`
-- Files: `{ query: "**/plugin.properties", searchType: "GLOB" }`
+- Files: `{ projectPath: ":", query: "**/plugin.properties", searchType: "GLOB" }`
 
 ### Result Grouping
 Results are grouped by proximity: matches within the snippet context range (2) are combined into a single result with a multi-line snippet showing context. Matches that are far apart in a file produce separate results.
@@ -179,7 +182,7 @@ Once found, read content with `read_dependency_sources`.
         "string",
         "null"
       ],
-      "description": "Optional filter to scope the search to a single dependency by GAV (e.g., 'group:name'). Use this to focus the search and improve performance."
+      "description": "Filter by GAV prefix or `jdk`; narrows search scope and improves performance."
     },
     "gradleOwnSource": {
       "type": "boolean",

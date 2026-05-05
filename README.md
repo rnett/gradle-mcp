@@ -15,7 +15,7 @@ A Model Context Protocol (MCP) server for Gradle. It gives AI agents the tools t
 * **Project Mapping**: Easily explore multi-project structures, modules, tasks, and properties.
 * **Smart Task Execution**: Run builds in the background, monitor progress, and capture specific task outputs without the noise. Supports advanced environment control and shell environment sourcing.
 * **Advanced Testing**: Run filtered test suites and get full access to logs and stack traces for every test case.
-* **Dependency & Source Search**: Search and browse the source code of your dependencies or Gradle's own sources.
+* **Dependency & Source Search**: Search and browse dependency, JDK standard library, and Gradle source code.
 * **Interactive Kotlin REPL**: Test project utilities and explore APIs in a persistent REPL with access to all your classes.
 * **Compose UI Previews**: Render UI components directly to images from the project runtime for visual auditing.
 * **Gradle Documentation**: Instant access to searchable, indexed Gradle User Guides and DSL references.
@@ -100,4 +100,3 @@ Included skills:
 - `gradle_expert`: Senior Build Engineer guidance for build scripts and failures.
 
 For instructions on how to use these skills, see the [Agent Skills](https://gradle-mcp.rnett.dev/latest/skills/) documentation.
-

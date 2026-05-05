@@ -231,6 +231,7 @@ class DefaultSourceStorageService(private val environment: GradleMcpEnvironment)
             }
             ready
         }
+        val validatedPrefixes = readyDeps.keys.associateWith { validateSessionViewPrefix(it) }
 
         // Pre-compute once per dep to avoid TOCTOU: if clearCasDir ran between the symlink loop and
         // the manifest loop the two calls would return different values, producing a junction pointing
@@ -242,7 +243,8 @@ class DefaultSourceStorageService(private val environment: GradleMcpEnvironment)
             }
 
         for ((dep, casDir) in readyDeps) {
-            val linkPath = viewSourcesDir.resolve(requireNotNull(dep.relativePrefix))
+            val relativePrefix = validatedPrefixes.getValue(dep)
+            val linkPath = viewSourcesDir.resolve(relativePrefix).normalize()
             linkPath.createParentDirectories()
 
             val commonId = dep.commonComponentId
@@ -284,7 +286,7 @@ class DefaultSourceStorageService(private val environment: GradleMcpEnvironment)
                     ManifestDependency(
                         id = dep.id,
                         hash = casDir.hash,
-                        relativePath = requireNotNull(dep.relativePrefix).replace('\\', '/'),
+                        relativePath = validatedPrefixes.getValue(dep).replace('\\', '/'),
                         isDiffOnly = isDiffOnly
                     )
                 )
@@ -302,6 +304,50 @@ class DefaultSourceStorageService(private val environment: GradleMcpEnvironment)
         manifestFile.writeText(json.encodeToString(manifest))
 
         SessionViewSourcesDir(sessionId, viewBaseDir, viewSourcesDir, manifest, casDir)
+    }
+
+    private fun validateSessionViewPrefix(dep: GradleDependency): String {
+        val rawPrefix = requireNotNull(dep.relativePrefix) { "Dependency ${dep.id} has no session-view prefix." }
+        val normalizedSeparators = rawPrefix.replace('\\', '/')
+        val isSyntheticJdk = dep.id.startsWith("JDK:") &&
+                dep.group == GradleDependency.JDK_SOURCES_GROUP &&
+                dep.name == GradleDependency.JDK_SOURCES_NAME
+
+        require(rawPrefix == normalizedSeparators) {
+            "Dependency ${dep.id} has invalid session-view prefix '$rawPrefix': backslashes are not allowed."
+        }
+
+        val segments = normalizedSeparators.split('/')
+        require(segments.isNotEmpty() && segments.all { it.isNotBlank() }) {
+            "Dependency ${dep.id} has invalid session-view prefix '$rawPrefix': empty path segments are not allowed."
+        }
+        require(segments.none { it == "." || it == ".." || ':' in it }) {
+            "Dependency ${dep.id} has invalid session-view prefix '$rawPrefix': unsafe path segments are not allowed."
+        }
+
+        val path = Path.of(normalizedSeparators)
+        require(!path.isAbsolute) {
+            "Dependency ${dep.id} has invalid session-view prefix '$rawPrefix': absolute paths are not allowed."
+        }
+
+        val normalized = path.normalize().toString().replace('\\', '/')
+        require(normalized == normalizedSeparators) {
+            "Dependency ${dep.id} has invalid session-view prefix '$rawPrefix': normalized path escapes its declared prefix."
+        }
+
+        val reservedPrefix = GradleDependency.JDK_SOURCES_PREFIX
+        val usesReservedJdkPath = normalized == reservedPrefix || normalized.startsWith("$reservedPrefix/")
+        if (isSyntheticJdk) {
+            require(normalized == reservedPrefix) {
+                "Synthetic JDK dependency must use reserved session-view prefix '$reservedPrefix'."
+            }
+        } else {
+            require(!usesReservedJdkPath) {
+                "Dependency ${dep.id} uses reserved session-view prefix '$normalized'."
+            }
+        }
+
+        return normalized
     }
 
     context(progress: ProgressReporter)

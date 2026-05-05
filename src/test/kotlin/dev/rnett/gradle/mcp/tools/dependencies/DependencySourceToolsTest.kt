@@ -12,6 +12,7 @@ import dev.rnett.gradle.mcp.dependencies.search.SubPackageContents
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.CallToolResult
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createFile
+import kotlin.io.path.writeText
 import kotlin.test.assertContains
 import kotlin.test.assertFalse
 
@@ -275,5 +277,86 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         ) as CallToolResult
 
         assertContains(resultText(result), "too many sub-packages to expand")
+    }
+
+    // ─── JDK source auto-inclusion ────────────────────────────────────────────
+
+    @Test
+    fun `read_dependency_sources can read JDK sources from reserved session-view path`() = runTest {
+        val jdkFile = tempDir.resolve("jdk/sources/java.base/java/lang/String.java")
+        jdkFile.parent.createDirectories()
+        jdkFile.writeText("package java.lang;\npublic class String {}")
+
+        val result = server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("path", "jdk/sources/java.base/java/lang/String.java")
+                put("projectPath", ":")
+            }
+        ) as CallToolResult
+
+        val text = resultText(result)
+        assertContains(text, "package java.lang;")
+    }
+
+    @Test
+    fun `search includes JDK sources in unified index`() = runTest {
+        coEvery { indexService.search(any(), any(), any(), any()) } returns SearchResponse<SearchResult>(
+            results = listOf(
+                SearchResult(
+                    relativePath = "com/example/DepClass.kt",
+                    file = tempDir.resolve("com/example/DepClass.kt"),
+                    line = 1,
+                    snippet = "class DepClass",
+                    score = 1.0f,
+                    matchLines = listOf(1)
+                ),
+                SearchResult(
+                    relativePath = "jdk/sources/java.base/java/util/List.java",
+                    file = tempDir.resolve("jdk/sources/java.base/java/util/List.java"),
+                    line = 1,
+                    snippet = "public interface List",
+                    score = 1.0f,
+                    matchLines = listOf(1)
+                )
+            )
+        )
+
+        val result = server.client.callTool(
+            ToolNames.SEARCH_DEPENDENCY_SOURCES, buildJsonObject {
+                put("query", "List")
+                put("projectPath", ":")
+            }
+        ) as CallToolResult
+
+        val text = resultText(result)
+        assertContains(text, "DepClass")
+        assertContains(text, "List")
+    }
+
+    @Test
+    fun `gradle own source skips dependency source resolution`() = runTest {
+        val result = server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("gradleOwnSource", true)
+            }
+        ) as CallToolResult
+
+        val text = resultText(result)
+        assertContains(text, "Sources root:")
+        coVerify(exactly = 0) {
+            with(any<ProgressReporter>()) { sourcesService.resolveAndProcessProjectSources(any(), any(), any(), any(), any(), any()) }
+        }
+    }
+
+    @Test
+    fun `JDK sources missing gracefully skips`() = runTest {
+        val result = server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectPath", ":")
+            }
+        ) as CallToolResult
+
+        val text = resultText(result)
+        assertContains(text, "Sources root:")
     }
 }

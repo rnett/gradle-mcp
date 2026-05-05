@@ -6,11 +6,13 @@ import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.GradleVersionService
 import dev.rnett.gradle.mcp.TestFixturesBuildConfig
 import dev.rnett.gradle.mcp.dependencies.DefaultGradleSourceService
+import dev.rnett.gradle.mcp.dependencies.DefaultJdkSourceService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourcesService
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.GradleSourceService
+import dev.rnett.gradle.mcp.dependencies.JdkSourceService
 import dev.rnett.gradle.mcp.dependencies.SourceIndexService
 import dev.rnett.gradle.mcp.dependencies.SourceStorageService
 import dev.rnett.gradle.mcp.dependencies.SourcesService
@@ -149,6 +151,7 @@ class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
         single<SourceIndexService> { DefaultSourceIndexService(get()) }
         single<SourcesService> { DefaultSourcesService(get(), get(), get(), get()) }
         single<GradleSourceService> { DefaultGradleSourceService(get(), get(), get(), get(), get()) }
+        single<JdkSourceService> { DefaultJdkSourceService(get(), get()) }
 
         single<GradleProvider> {
             createProvider()

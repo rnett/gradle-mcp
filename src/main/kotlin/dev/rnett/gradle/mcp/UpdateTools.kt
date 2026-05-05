@@ -3,11 +3,13 @@ package dev.rnett.gradle.mcp
 import dev.rnett.gradle.mcp.dependencies.DependencyRequestOptions
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.GradleSourceService
+import dev.rnett.gradle.mcp.dependencies.JdkSourceService
 import dev.rnett.gradle.mcp.dependencies.SourcesService
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsPageContent
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsSearchResponse
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsSectionSummary
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
+import dev.rnett.gradle.mcp.dependencies.model.CASDependencySourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
 import dev.rnett.gradle.mcp.dependencies.model.GradleProjectDependencies
@@ -423,6 +425,12 @@ private object ThrowingDepsDevService : DepsDevService {
 private object ThrowingGradleSourceService : GradleSourceService {
     context(progress: ProgressReporter)
     override suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir =
+        throw UnsupportedOperationException("Not supported in tool generator")
+}
+
+private object ThrowingJdkSourceService : JdkSourceService {
+    context(progress: ProgressReporter)
+    override suspend fun resolveSources(jdkHome: String, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): CASDependencySourcesDir? =
         throw UnsupportedOperationException("Not supported in tool generator")
 }
 

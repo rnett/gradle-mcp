@@ -1,6 +1,5 @@
 package dev.rnett.gradle.mcp.dependencies.search
 
-import com.github.benmanes.caffeine.cache.Caffeine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.lucene.analysis.Analyzer
@@ -12,7 +11,6 @@ import org.apache.lucene.index.MultiReader
 import org.apache.lucene.store.FSDirectory
 import org.slf4j.Logger
 import java.nio.file.Path
-import java.util.concurrent.TimeUnit
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.readText
@@ -25,65 +23,64 @@ abstract class LuceneBaseSearchProvider : SearchProvider {
 
     protected abstract fun createAnalyzer(): Analyzer
 
-    protected val readerCache = Caffeine.newBuilder()
-        .maximumSize(1000)
-        .expireAfterAccess(1, TimeUnit.MINUTES)
-        .removalListener<Path, DirectoryReader> { _, reader, _ ->
-            reader?.close()
-        }
-        .build<Path, DirectoryReader> { path ->
-            val dir = FSDirectory.open(path)
-            val reader = DirectoryReader.open(dir)
-            reader.readerCacheHelper?.addClosedListener { _ ->
-                try {
-                    dir.close()
-                } catch (e: Exception) {
-                    logger.error("Failed to close directory for reader at $path", e)
-                }
-            }
-            reader
-        }
-
     protected inline fun <T> withReader(idxDir: Path, action: (DirectoryReader) -> T): T {
-        val reader = readerCache.get(idxDir)
-        reader.incRef()
-        try {
-            return action(reader)
-        } finally {
-            reader.decRef()
+        FSDirectory.open(idxDir).use { dir ->
+            DirectoryReader.open(dir).use { reader ->
+                return action(reader)
+            }
         }
     }
 
     protected inline fun <T> withMultiReader(indexDirs: List<Path>, action: (IndexReader) -> T): T? {
-        val readers = mutableListOf<DirectoryReader>()
+        val opened = mutableListOf<Pair<FSDirectory, DirectoryReader>>()
         try {
             for (dir in indexDirs) {
                 val resolved = resolveIndexDir(dir)
                 if (!resolved.exists()) continue
-                val reader = readerCache.get(resolved)
-                reader.incRef()
-                readers.add(reader)
+                val directory = FSDirectory.open(resolved)
+                try {
+                    opened.add(directory to DirectoryReader.open(directory))
+                } catch (e: Exception) {
+                    directory.close()
+                    throw e
+                }
             }
         } catch (e: Exception) {
-            readers.forEach { it.decRef() }
+            opened.asReversed().forEach { (directory, reader) ->
+                try {
+                    reader.close()
+                } finally {
+                    directory.close()
+                }
+            }
             throw e
         }
 
-        if (readers.isEmpty()) {
+        if (opened.isEmpty()) {
             return null
         }
 
         return try {
-            val multiReader = if (readers.size == 1) readers.first() else MultiReader(*readers.toTypedArray())
-            action(multiReader)
+            val readers = opened.map { it.second }
+            if (readers.size == 1) {
+                action(readers.first())
+            } else {
+                MultiReader(readers.toTypedArray(), false).use { multiReader ->
+                    action(multiReader)
+                }
+            }
         } finally {
-            readers.forEach { it.decRef() }
+            opened.asReversed().forEach { (directory, reader) ->
+                try {
+                    reader.close()
+                } finally {
+                    directory.close()
+                }
+            }
         }
     }
 
-    override fun invalidateCache(indexDir: Path) {
-        readerCache.invalidate(resolveIndexDir(indexDir))
-    }
+    override fun invalidateCache(indexDir: Path) {}
 
     abstract inner class LuceneBaseIndexer(protected val outputDir: Path) : Indexer {
         protected val analyzer = createAnalyzer()

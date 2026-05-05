@@ -3,7 +3,10 @@ package dev.rnett.gradle.mcp.dependencies
 
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.CASDependencySourcesDir
+import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
+import dev.rnett.gradle.mcp.dependencies.model.GradleProjectDependencies
+import dev.rnett.gradle.mcp.dependencies.model.GradleSourceSetDependencies
 import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
 import dev.rnett.gradle.mcp.dependencies.search.IndexEntry
 import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
@@ -106,6 +109,7 @@ class DefaultSourcesService(
     private val depService: GradleDependencyService,
     private val storageService: SourceStorageService,
     private val indexService: dev.rnett.gradle.mcp.dependencies.search.IndexService,
+    private val jdkSourceService: JdkSourceService,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : SourcesService {
     private val logger = LoggerFactory.getLogger(DefaultSourcesService::class.java)
@@ -118,6 +122,16 @@ class DefaultSourcesService(
     private data class CachedView(
         val sourcesDir: SourcesDir,
         val depToCasDir: Map<GradleDependency, CASDependencySourcesDir>
+    )
+
+    private data class SourceResolutionInput(
+        val dependencies: Sequence<GradleDependency>,
+        val jdkHome: String?
+    )
+
+    private data class ParsedScopedPath(
+        val projectPath: String,
+        val name: String
     )
 
     private val cache = ConcurrentHashMap<CacheKey, CachedView>()
@@ -138,8 +152,10 @@ class DefaultSourcesService(
         fresh: Boolean,
         providerToIndex: SearchProvider?
     ): SourcesDir {
+        val gradleDependencyFilter = dependency.takeUnless { it == "jdk" }
         return resolveAndProcessSourcesInternal(SourceScope.Project(projectRoot, projectPath), forceDownload, fresh, DependencyFilterMatcher(dependency), providerToIndex) {
-            depService.downloadProjectSources(projectRoot, projectPath, dependency, fresh = fresh || forceDownload, includeInternal = true).allDependencies()
+            val project = depService.downloadProjectSources(projectRoot, projectPath, gradleDependencyFilter, fresh = fresh || forceDownload, includeInternal = true)
+            SourceResolutionInput(project.allDependencies(), project.jdkHome.takeIf { project.hasJvmSourceSet() })
         }
     }
 
@@ -152,8 +168,20 @@ class DefaultSourcesService(
         fresh: Boolean,
         providerToIndex: SearchProvider?
     ): SourcesDir {
+        val gradleDependencyFilter = dependency.takeUnless { it == "jdk" }
         return resolveAndProcessSourcesInternal(SourceScope.Configuration(projectRoot, configurationPath), forceDownload, fresh, DependencyFilterMatcher(dependency), providerToIndex) {
-            depService.downloadConfigurationSources(projectRoot, configurationPath, dependency, fresh = fresh || forceDownload, includeInternal = true).allDependencies()
+            val parsed = parseScopedPath(configurationPath, "configurationPath", buildscriptNamespace = true)
+            val project = resolveScopedProjectDependencies(
+                projectRoot = projectRoot,
+                projectPath = parsed.projectPath,
+                dependency = gradleDependencyFilter,
+                fresh = fresh || forceDownload,
+                configuration = parsed.name
+            )
+            val configuration = project.configurationOrNull(parsed.name)
+                ?: throw IllegalArgumentException("Configuration not found in project ${parsed.projectPath}: ${parsed.name}")
+            val jdkHome = project.jdkHome.takeIf { project.configurationIsJvm(parsed.name) }
+            SourceResolutionInput(configuration.allDependencies(), jdkHome)
         }
     }
 
@@ -166,10 +194,89 @@ class DefaultSourcesService(
         fresh: Boolean,
         providerToIndex: SearchProvider?
     ): SourcesDir {
+        val gradleDependencyFilter = dependency.takeUnless { it == "jdk" }
         return resolveAndProcessSourcesInternal(SourceScope.SourceSet(projectRoot, sourceSetPath), forceDownload, fresh, DependencyFilterMatcher(dependency), providerToIndex) {
-            depService.downloadSourceSetSources(projectRoot, sourceSetPath, dependency, fresh = fresh || forceDownload, includeInternal = true).configurations.asSequence().flatMap { it.allDependencies() }
+            val parsed = parseScopedPath(sourceSetPath, "sourceSetPath")
+            val sourceSetName = if (parsed.name == "buildscript") DefaultGradleDependencyService.BUILDSCRIPT_SOURCE_SET else parsed.name
+            val project = resolveScopedProjectDependencies(
+                projectRoot = projectRoot,
+                projectPath = parsed.projectPath,
+                dependency = gradleDependencyFilter,
+                fresh = fresh || forceDownload,
+                sourceSet = sourceSetName
+            )
+            val sourceSet = project.sourceSetOrNull(parsed.name)
+                ?: throw IllegalArgumentException("Source set not found in project ${parsed.projectPath}: ${parsed.name}. Available: ${project.sourceSets.map { it.name }}")
+            val configurations = project.configurations.filter { it.name in sourceSet.configurations }
+            val jdkHome = project.jdkHome.takeIf { sourceSet.isJvm }
+            SourceResolutionInput(configurations.asSequence().flatMap { it.allDependencies() }, jdkHome)
         }
     }
+
+    private fun parseScopedPath(path: String, parameterName: String, buildscriptNamespace: Boolean = false): ParsedScopedPath {
+        val lastColon = path.lastIndexOf(':')
+        require(lastColon != -1) { "$parameterName must be an absolute Gradle path (e.g. :project:foo:main)" }
+        val parsedProject = DefaultGradleDependencyService.normalizeProjectPath(if (lastColon == 0) ":" else path.substring(0, lastColon))
+        val parsedName = path.substring(lastColon + 1)
+        val (projectPath, name) = if (buildscriptNamespace && parsedProject.endsWith(":buildscript")) {
+            val p = if (parsedProject == ":buildscript") ":" else parsedProject.substring(0, parsedProject.length - ":buildscript".length)
+            p to "buildscript:$parsedName"
+        } else {
+            parsedProject to parsedName
+        }
+        return ParsedScopedPath(projectPath, name)
+    }
+
+    context(progress: ProgressReporter)
+    private suspend fun resolveScopedProjectDependencies(
+        projectRoot: GradleProjectRoot,
+        projectPath: String,
+        dependency: String?,
+        fresh: Boolean,
+        configuration: String? = null,
+        sourceSet: String? = null
+    ): GradleProjectDependencies {
+        val report = depService.getDependencies(
+            projectRoot,
+            projectPath = projectPath,
+            options = DependencyRequestOptions(
+                configuration = configuration,
+                sourceSet = sourceSet,
+                dependency = dependency,
+                downloadSources = true,
+                excludeBuildscript = false,
+                fresh = fresh,
+                includeInternal = true
+            )
+        )
+        return report.projects.find { it.path == projectPath }
+            ?: throw IllegalArgumentException("Project not found in report: $projectPath")
+    }
+
+    private fun GradleProjectDependencies.hasJvmSourceSet(): Boolean =
+        sourceSets.any { it.isJvm && it.name != "buildscript" }
+
+    private fun GradleProjectDependencies.configurationIsJvm(name: String): Boolean =
+        name.startsWith("buildscript:") || sourceSets.any { it.isJvm && name in it.configurations }
+
+    private fun GradleProjectDependencies.sourceSetOrNull(name: String): GradleSourceSetDependencies? =
+        sourceSets.find { it.name == name }
+
+    private fun GradleProjectDependencies.configurationOrNull(name: String): GradleConfigurationDependencies? =
+        configurations.find { it.name == name }
+
+    context(progress: ProgressReporter)
+    private suspend fun resolveJdkSourcesDependency(
+        jdkHome: String?,
+        forceDownload: Boolean,
+        fresh: Boolean
+    ): Pair<GradleDependency, CASDependencySourcesDir>? {
+        val home = jdkHome ?: return null
+        val casDir = jdkSourceService.resolveSources(home, forceDownload = forceDownload, fresh = fresh, providerToIndex = null)
+            ?: return null
+        return GradleDependency.jdkSources(casDir.hash, casDir.sources) to casDir
+    }
+
     context(progress: ProgressReporter)
     private suspend fun resolveAndProcessSourcesInternal(
         scope: SourceScope,
@@ -177,7 +284,7 @@ class DefaultSourcesService(
         fresh: Boolean,
         matcher: DependencyFilterMatcher,
         providerToIndex: SearchProvider? = null,
-        resolve: suspend () -> Sequence<GradleDependency>
+        resolve: suspend () -> SourceResolutionInput
     ): SourcesDir {
         val key = CacheKey(scope, matcher.dependencyFilter)
         val lock = keyLocks.computeIfAbsent(key) { Mutex() }
@@ -197,10 +304,12 @@ class DefaultSourcesService(
 
             storageService.pruneSessionViews()
 
-            val allDepsSeq = resolve()
+            val resolvedInput = resolve()
             val filteredDepsSeq = if (matcher.dependencyFilter != null) {
-                allDepsSeq.filter { matcher.matchesDependency(it) }
-            } else allDepsSeq
+                resolvedInput.dependencies.filter { matcher.matchesDependency(it) }
+            } else {
+                resolvedInput.dependencies
+            }
 
             val filteredDeps = filteredDepsSeq.filter { it.hasSources }
                 // Deduplicate by relativePrefix: same group+name → keep only one entry.
@@ -210,11 +319,25 @@ class DefaultSourcesService(
                 .distinctBy { it.relativePrefix }
                 .toList()
 
-            if (filteredDeps.isEmpty()) {
+            if (filteredDeps.isEmpty() && matcher.dependencyFilter != null && !matcher.isJdkSelector) {
+                throw IllegalArgumentException("Dependency filter '${matcher.dependencyFilter}' matched zero dependencies in scope with sources.")
+            }
+
+            val includeJdk = matcher.dependencyFilter == null || matcher.isJdkSelector
+            val jdkEntry = if (includeJdk && filteredDeps.none { it.relativePrefix == GradleDependency.JDK_SOURCES_PREFIX }) {
+                resolveJdkSourcesDependency(resolvedInput.jdkHome, forceDownload, fresh)
+            } else {
+                if (filteredDeps.any { it.relativePrefix == GradleDependency.JDK_SOURCES_PREFIX }) {
+                    logger.warn("Skipping auto-included JDK sources because a dependency already uses the reserved path ${GradleDependency.JDK_SOURCES_PREFIX}.")
+                }
+                null
+            }
+
+            if (filteredDeps.isEmpty() && jdkEntry == null) {
                 if (matcher.dependencyFilter != null) {
                     throw IllegalArgumentException("Dependency filter '${matcher.dependencyFilter}' matched zero dependencies in scope with sources.")
                 } else {
-                    // Item 35: Don't throw for empty scope, just return an empty session view.
+                    // Return a stable sources root for empty scopes so callers can still inspect the manifest.
                     val emptyResult = storageService.createSessionView(emptyMap(), force = forceDownload)
                     cache[key] = CachedView(emptyResult, emptyMap())
                     return@withLock emptyResult
@@ -224,7 +347,7 @@ class DefaultSourcesService(
             val depToCasDir = filteredDeps.associateWith { dep ->
                 val hash = storageService.calculateHash(dep)
                 storageService.getCASDependencySourcesDir(hash)
-            }
+            } + listOfNotNull(jdkEntry).toMap()
 
             runProcessingLoop(depToCasDir, forceDownload, providerToIndex)
 
@@ -245,31 +368,34 @@ class DefaultSourcesService(
 
         val depToCasDirById = depToCasDir.entries.associate { it.key.id to it.value }
 
-        // Sort to process common siblings first, avoiding intra-process deadlock where all workers
-        // are waiting for common siblings. NOTE: this ordering is intra-process only — it does NOT
-        // guarantee ordering across separate JVM processes. Two independent MCP server instances
-        // can still mutually wait via waitForBase if they happen to start in opposite orders.
-        // The single-MCP-server-per-machine assumption makes cross-process livelock unlikely.
-        depToCasDir.entries
-            .sortedBy { it.key.commonComponentId != null }
-            .unorderedParallelMap(context = dispatcher) { (dep, casDir) ->
-            val taskId = dep.id
-            val subProgress = ProgressReporter { p, t, m ->
-                tracker.reportProgress(taskId, p, t, m)
-            }
+        // Process common siblings before platform artifacts. Sorting alone is insufficient because
+        // unorderedParallelMap starts the whole list concurrently; a platform artifact can otherwise
+        // observe the common sibling's unlocked, not-yet-started CAS directory as a failure.
+        val (baseEntries, platformEntries) = depToCasDir.entries.partition { it.key.commonComponentId == null }
+
+        suspend fun processEntries(entries: List<Map.Entry<GradleDependency, CASDependencySourcesDir>>) {
+            entries.unorderedParallelMap(context = dispatcher) { (dep, casDir) ->
+                val taskId = dep.id
+                val subProgress = ProgressReporter { p, t, m ->
+                    tracker.reportProgress(taskId, p, t, m)
+                }
 
                 val commonId = dep.commonComponentId
                 val commonCasDir = commonId?.let { depToCasDirById[it] }
 
-            try {
-                tracker.onStart(taskId)
-                with(subProgress) {
-                    processCasDependency(dep, casDir, forceDownload, providerToIndex, commonCasDir)
+                try {
+                    tracker.onStart(taskId)
+                    with(subProgress) {
+                        processCasDependency(dep, casDir, forceDownload, providerToIndex, commonCasDir)
+                    }
+                } finally {
+                    tracker.onComplete(taskId, count = 1)
                 }
-            } finally {
-                tracker.onComplete(taskId, count = 1)
             }
         }
+
+        processEntries(baseEntries)
+        processEntries(platformEntries)
     }
 
     context(progress: ProgressReporter)
@@ -281,6 +407,10 @@ class DefaultSourcesService(
         commonCasDir: CASDependencySourcesDir? = null
     ) {
         logger.debug("Processing CAS dependency: ${dep.id}")
+        if (dep.id.startsWith("JDK:")) {
+            processJdkCasDependency(dep, casDir, forceDownload, providerToIndex)
+            return
+        }
         // 1. Ensure Base is ready (sources extracted & normalized)
         // Catch IllegalStateException from calculatePlatformSpecificSets (missing sourceSetsFile) so a
         // single broken common sibling doesn't fail the entire unorderedParallelMap batch. The dep
@@ -316,6 +446,38 @@ class DefaultSourcesService(
                     } finally {
                         if (tempDir.exists()) tempDir.deleteRecursivelyWithRetry()
                     }
+                }
+            }
+        }
+    }
+
+    context(progress: ProgressReporter)
+    private suspend fun processJdkCasDependency(
+        dep: GradleDependency,
+        casDir: CASDependencySourcesDir,
+        forceDownload: Boolean,
+        providerToIndex: SearchProvider?
+    ) {
+        if (!casDir.baseCompletedMarker.exists()) {
+            logger.warn("Skipping JDK sources in session view: base processing is incomplete for ${casDir.hash}.")
+            return
+        }
+
+        if (providerToIndex == null) return
+
+        FileLockManager.withLock(casDir.baseLockFile, shared = true) {
+            FileLockManager.withLock(casDir.indexLockFile(providerToIndex.name)) {
+                if (!forceDownload && casDir.index.resolve(providerToIndex.markerFileName).exists()) {
+                    progress.report(1.0, 1.0, "Already indexed JDK sources with ${providerToIndex.name}")
+                    return@withLock
+                }
+
+                val tempDir = casDir.baseDir.resolveSibling("${casDir.hash}.index-${providerToIndex.name}.${Uuid.random()}.tmp")
+                tempDir.createDirectories()
+                try {
+                    indexStep(dep, tempDir, casDir, casDir.sources, providerToIndex)
+                } finally {
+                    if (tempDir.exists()) tempDir.deleteRecursivelyWithRetry()
                 }
             }
         }

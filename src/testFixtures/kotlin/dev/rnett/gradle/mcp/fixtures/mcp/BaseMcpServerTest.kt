@@ -5,6 +5,7 @@ import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.GradleVersionService
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.GradleSourceService
+import dev.rnett.gradle.mcp.dependencies.JdkSourceService
 import dev.rnett.gradle.mcp.dependencies.SourcesService
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultMarkdownService
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
@@ -78,6 +79,7 @@ abstract class BaseMcpServerTest {
         single<dev.rnett.gradle.mcp.dependencies.search.SearchProvider>(org.koin.core.qualifier.named("glob")) { mockk<dev.rnett.gradle.mcp.dependencies.search.GlobSearch>(relaxed = true).apply { every { name } returns "glob" } }
         single<dev.rnett.gradle.mcp.dependencies.SourceIndexService> { mockk<dev.rnett.gradle.mcp.dependencies.SourceIndexService>(relaxed = true) }
         single<GradleSourceService> { mockk<GradleSourceService>(relaxed = true) }
+        single<JdkSourceService> { mockk<JdkSourceService>(relaxed = true) }
 
         single<GradleProvider> {
             createProvider()

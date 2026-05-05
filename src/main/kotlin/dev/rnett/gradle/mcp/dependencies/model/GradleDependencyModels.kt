@@ -10,7 +10,9 @@ data class GradleProjectDependencies(
     val path: String,
     val sourceSets: List<GradleSourceSetDependencies>,
     val repositories: List<GradleRepository>,
-    val configurations: List<GradleConfigurationDependencies>
+    val configurations: List<GradleConfigurationDependencies>,
+    val jdkHome: String? = null,
+    val jdkVersion: String? = null
 ) {
     fun allDependencies(): Sequence<GradleDependency> {
         val resolved = mutableMapOf<Triple<String, String?, List<String>>, GradleDependency>()
@@ -113,12 +115,14 @@ data class GradleProjectDependencies(
 data class GradleSourceSetDependencyReport(
     val name: String,
     val configurations: List<GradleConfigurationDependencies>,
-    val repositories: List<GradleRepository>
+    val repositories: List<GradleRepository>,
+    val isJvm: Boolean = false
 )
 
 data class GradleSourceSetDependencies(
     val name: String,
-    val configurations: List<String>
+    val configurations: List<String>,
+    val isJvm: Boolean = false
 )
 
 data class GradleRepository(
@@ -162,12 +166,26 @@ data class GradleDependency(
     val updatesChecked: Boolean = false,
     val children: List<GradleDependency> = emptyList()
 ) {
+    companion object {
+        const val JDK_SOURCES_GROUP = "jdk"
+        const val JDK_SOURCES_NAME = "sources"
+        const val JDK_SOURCES_PREFIX = "$JDK_SOURCES_GROUP/$JDK_SOURCES_NAME"
+
+        fun jdkSources(hash: String, sourcesFile: Path): GradleDependency = GradleDependency(
+            id = "JDK:$hash",
+            group = JDK_SOURCES_GROUP,
+            name = JDK_SOURCES_NAME,
+            version = null,
+            sourcesFile = sourcesFile
+        )
+    }
+
     val hasSources: Boolean get() = sourcesFile != null
 
     /**
      * The relative path prefix for this dependency's sources in the session view.
      * Format: `{group}/{name}` — scopes libraries by their group and name.
-     * The junction at this prefix points to the CAS `v2/` normalized directory.
+     * The junction at this prefix points to the current CAS normalized directory.
      */
     val relativePrefix: String? by lazy {
         if (sourcesFile == null) return@lazy null

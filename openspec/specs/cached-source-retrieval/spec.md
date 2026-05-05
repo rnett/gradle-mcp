@@ -3,9 +3,7 @@
 ## Purpose
 
 Optimizes dependency source operations by caching resolved sources and skipping expensive Gradle resolution when cached data is available.
-
 ## Requirements
-
 ### Requirement: Skip Gradle dependency resolution when sources are cached
 
 The system SHALL allow skipping the expensive Gradle dependency resolution and re-download process when cached sources for a given scope (project, configuration, or source set) are already available on disk. The default cache root for this
@@ -36,3 +34,21 @@ The output of `read_dependency_sources` and `search_dependency_sources` SHALL st
 
 - **WHEN** the `read_dependency_sources` or `search_dependency_sources` tool returns its results
 - **THEN** the output SHALL include a header with a nicely formatted local timestamp of the last refresh and the elapsed time since that refresh (e.g., "Sources last refreshed at 2026-03-03 14:00 (15 minutes ago)")
+
+### Requirement: JDK Sources Use Dependency CAS Semantics
+
+JDK sources SHALL be stored as immutable content-addressed dependency CAS entries keyed by the full SHA-256 hash of `src.zip`.
+
+#### Scenario: Refresh JDK source resolution
+
+- **WHEN** `fresh` is requested for a scope that includes JDK sources
+- **THEN** completed JDK CAS base entries SHALL be reused
+- **AND** dependency resolution and session views SHALL be refreshed
+- **AND** readers SHALL be scoped to the active read/search call rather than cached across calls
+
+#### Scenario: Force rebuild JDK source CAS entry
+
+- **WHEN** `forceDownload` is requested for a scope that includes JDK sources
+- **THEN** the completed JDK CAS entry SHALL be cleared and rebuilt under the same base lock semantics as dependency source CAS entries
+- **AND** provider indexes SHALL be rebuilt under the provider index lock
+

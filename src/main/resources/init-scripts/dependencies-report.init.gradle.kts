@@ -23,6 +23,11 @@ class McpConfigurationMetadata(
     val isInternal: Boolean
 ) : java.io.Serializable
 
+class McpSourceSetMetadata(
+    val configurations: ArrayList<String>,
+    val isJvm: Boolean
+) : java.io.Serializable
+
 class McpResolvedComponent(
     val id: String,
     val group: String,
@@ -123,10 +128,18 @@ abstract class McpDependencyReportTask : DefaultTask() {
     abstract val buildscriptRepositories: ListProperty<McpRepositoryData>
 
     @get:Input
-    abstract val sourceSets: MapProperty<String, ArrayList<String>>
+    abstract val sourceSets: MapProperty<String, McpSourceSetMetadata>
 
     @get:Input
-    abstract val kotlinSourceSets: MapProperty<String, ArrayList<String>>
+    abstract val kotlinSourceSets: MapProperty<String, McpSourceSetMetadata>
+
+    @get:Input
+    @get:Optional
+    abstract val jdkHome: Property<String>
+
+    @get:Input
+    @get:Optional
+    abstract val jdkVersion: Property<String>
 
     init {
         group = "help"
@@ -258,6 +271,9 @@ abstract class McpDependencyReportTask : DefaultTask() {
         mcpRenderer.updatesCheckedDeps = if (checkUpdates) latestVersions.get().keys else emptySet()
 
         mcpRenderer.outputProject(projectPath, projectDisplayName)
+        jdkHome.orNull?.takeIf { it.isNotBlank() }?.let {
+            mcpRenderer.outputJdk(projectPath, it, jdkVersion.orNull?.takeIf { version -> version.isNotBlank() })
+        }
 
         repositories.get().forEach {
             mcpRenderer.outputRepository(projectPath, it.name, it.url)
@@ -266,14 +282,25 @@ abstract class McpDependencyReportTask : DefaultTask() {
             mcpRenderer.outputRepository(projectPath, "$BUILDSCRIPT_PREFIX${it.name}", it.url)
         }
 
-        sourceSets.get().forEach { (name, configs) ->
-            mcpRenderer.outputSourceSet(projectPath, name, configs)
+        val emittedSourceSets = linkedMapOf<String, McpSourceSetMetadata>()
+        fun addSourceSetMetadata(name: String, metadata: McpSourceSetMetadata) {
+            val existing = emittedSourceSets[name]
+            emittedSourceSets[name] = if (existing == null) {
+                metadata
+            } else {
+                McpSourceSetMetadata(
+                    ArrayList((existing.configurations + metadata.configurations).distinct()),
+                    existing.isJvm || metadata.isJvm
+                )
+            }
         }
+        sourceSets.get().forEach { (name, metadata) -> addSourceSetMetadata(name, metadata) }
         if (!excludeBuildscript.get() || isTargetingBuildscript) {
-            mcpRenderer.outputSourceSet(projectPath, BUILDSCRIPT_SOURCE_SET, buildscriptConfigurationsMetadata.get().keys.map { "$BUILDSCRIPT_PREFIX$it" })
+            addSourceSetMetadata(BUILDSCRIPT_SOURCE_SET, McpSourceSetMetadata(ArrayList(buildscriptConfigurationsMetadata.get().keys.map { "$BUILDSCRIPT_PREFIX$it" }), true))
         }
-        kotlinSourceSets.get().forEach { (name, configs) ->
-            mcpRenderer.outputSourceSet(projectPath, "kotlin:$name", configs)
+        kotlinSourceSets.get().forEach { (name, metadata) -> addSourceSetMetadata(name, metadata) }
+        emittedSourceSets.forEach { (name, metadata) ->
+            mcpRenderer.outputSourceSet(projectPath, name, metadata.configurations, metadata.isJvm)
         }
 
         // Phase 4: Collecting (Processing)
@@ -348,8 +375,12 @@ class McpDependencyReportRenderer {
         println("[gradle-mcp] [DEPENDENCIES] REPOSITORY | ${path.escape()} | ${name.escape()} | ${url.escape()}")
     }
 
-    fun outputSourceSet(path: String, name: String, configurations: List<String>) {
-        println("[gradle-mcp] [DEPENDENCIES] SOURCESET | ${path.escape()} | ${name.escape()} | ${configurations.joinToString(",").escape()}")
+    fun outputSourceSet(path: String, name: String, configurations: List<String>, isJvm: Boolean) {
+        println("[gradle-mcp] [DEPENDENCIES] SOURCESET | ${path.escape()} | ${name.escape()} | ${configurations.joinToString(",").escape()} | $isJvm")
+    }
+
+    fun outputJdk(path: String, jdkHome: String, version: String?) {
+        println("[gradle-mcp] [DEPENDENCIES] JDK | ${path.escape()} | ${jdkHome.escape()} | ${(version ?: "").escape()}")
     }
 
     fun startProject(path: String, displayName: String) {}
@@ -588,6 +619,204 @@ class McpGraphConverter(
     }
 }
 
+fun mcpNoArgMethod(target: Any, name: String) =
+    target.javaClass.methods.find { it.name == name && it.parameterCount == 0 }
+
+fun mcpReflectName(target: Any): String? =
+    mcpNoArgMethod(target, "getName")?.invoke(target) as? String
+
+fun mcpCollectSourceSetConfigurationNames(proj: org.gradle.api.Project, sourceSet: Any): ArrayList<String> {
+    val configs = ArrayList<String>()
+    listOf(
+        "apiConfigurationName",
+        "implementationConfigurationName",
+        "compileOnlyConfigurationName",
+        "runtimeOnlyConfigurationName",
+        "compileClasspathConfigurationName",
+        "runtimeClasspathConfigurationName",
+        "annotationProcessorConfigurationName"
+    ).forEach { propertyName ->
+        try {
+            val methodName = "get" + propertyName.replaceFirstChar { it.uppercaseChar() }
+            val configName = mcpNoArgMethod(sourceSet, methodName)?.invoke(sourceSet) as? String
+            if (configName != null && proj.configurations.findByName(configName) != null) {
+                configs.add(configName)
+            }
+        } catch (e: Exception) {
+            proj.logger.debug("Could not inspect source-set configuration property $propertyName for ${proj.path}.", e)
+        }
+    }
+    return configs
+}
+
+fun mcpAttributeValueName(value: Any?): String =
+    when (value) {
+        null -> ""
+        else -> mcpReflectName(value) ?: value.toString()
+    }
+
+fun mcpConfigurationAttributesIndicateJvm(proj: org.gradle.api.Project, configName: String): Boolean {
+    val config = proj.configurations.findByName(configName) ?: return false
+    return config.attributes.keySet().any { attribute ->
+        @Suppress("UNCHECKED_CAST")
+        val typedAttribute = attribute as org.gradle.api.attributes.Attribute<Any>
+        val valueName = mcpAttributeValueName(config.attributes.getAttribute(typedAttribute))
+        when (attribute.name) {
+            "org.jetbrains.kotlin.platform.type" -> valueName.equals("jvm", ignoreCase = true)
+            "org.gradle.jvm.environment" -> true
+            "org.gradle.usage" -> valueName in setOf("java-api", "java-runtime")
+            else -> false
+        }
+    }
+}
+
+fun mcpConfigurationsIndicateJvm(proj: org.gradle.api.Project, configs: Iterable<String>): Boolean =
+    configs.any { mcpConfigurationAttributesIndicateJvm(proj, it) }
+
+fun mcpCollectJavaSourceSetMetadata(proj: org.gradle.api.Project): Map<String, McpSourceSetMetadata> {
+    val sourceSetsContainer = proj.extensions.findByType(SourceSetContainer::class.java) ?: return emptyMap()
+    return sourceSetsContainer.associate { ss ->
+        val configs = mcpCollectSourceSetConfigurationNames(proj, ss)
+        ss.name to McpSourceSetMetadata(configs, true)
+    }
+}
+
+fun mcpKotlinTargetIsJvm(target: Any): Boolean {
+    val platformType = mcpNoArgMethod(target, "getPlatformType")?.invoke(target)
+    val platformName = mcpAttributeValueName(platformType)
+    return platformName.equals("jvm", ignoreCase = true)
+}
+
+fun mcpAddKotlinSourceSetName(value: Any?, result: MutableSet<String>) {
+    when (value) {
+        null -> return
+        is Iterable<*> -> value.forEach { if (it != null) mcpReflectName(it)?.let(result::add) }
+        else -> mcpReflectName(value)?.let(result::add)
+    }
+}
+
+fun mcpCollectJvmKotlinSourceSetNames(proj: org.gradle.api.Project, kotlinExtension: Any): Set<String> {
+    return try {
+        val targets = buildList {
+            val targetCollection = mcpNoArgMethod(kotlinExtension, "getTargets")?.invoke(kotlinExtension)
+            if (targetCollection is Iterable<*>) {
+                targetCollection.filterNotNull().forEach(::add)
+            }
+            mcpNoArgMethod(kotlinExtension, "getTarget")?.invoke(kotlinExtension)?.let(::add)
+        }
+        buildSet {
+            targets.filterNotNull().filter(::mcpKotlinTargetIsJvm).forEach { target ->
+                val compilations = mcpNoArgMethod(target, "getCompilations")?.invoke(target) as? Iterable<*> ?: emptyList<Any>()
+                compilations.filterNotNull().forEach { compilation ->
+                    mcpAddKotlinSourceSetName(mcpNoArgMethod(compilation, "getKotlinSourceSets")?.invoke(compilation), this)
+                    mcpAddKotlinSourceSetName(mcpNoArgMethod(compilation, "getDefaultSourceSet")?.invoke(compilation), this)
+                }
+            }
+        }
+    } catch (e: Exception) {
+        proj.logger.warn("Failed to inspect Kotlin JVM target source sets for JDK source detection; marking Kotlin source sets as non-JVM.")
+        proj.logger.debug("Kotlin JVM target source set inspection failed.", e)
+        emptySet()
+    }
+}
+
+fun mcpCollectKotlinSourceSetMetadata(proj: org.gradle.api.Project): Map<String, McpSourceSetMetadata> {
+    val kotlinExtension = proj.extensions.findByName("kotlin") ?: return emptyMap()
+    val jvmSourceSetNames = mcpCollectJvmKotlinSourceSetNames(proj, kotlinExtension)
+
+    return try {
+        val getSourceSets = mcpNoArgMethod(kotlinExtension, "getSourceSets")
+        if (getSourceSets == null) {
+            proj.logger.warn("Kotlin plugin detected for ${proj.path}, but getSourceSets was not found; marking Kotlin source sets as non-JVM")
+            return emptyMap()
+        }
+        val sourceSets = getSourceSets.invoke(kotlinExtension) as? NamedDomainObjectContainer<*> ?: return emptyMap()
+        sourceSets.filterNotNull().associate { ss ->
+            val ssName = mcpReflectName(ss) ?: ""
+            val configs = mcpCollectSourceSetConfigurationNames(proj, ss)
+            val isJvm = ssName in jvmSourceSetNames ||
+                    mcpConfigurationsIndicateJvm(proj, configs) ||
+                    (proj.plugins.hasPlugin("org.jetbrains.kotlin.jvm") && ssName in setOf("main", "test"))
+            ssName to McpSourceSetMetadata(configs, isJvm)
+        }
+    } catch (e: Exception) {
+        proj.logger.warn("Failed to inspect Kotlin source sets for JDK source detection; marking Kotlin source sets as non-JVM.")
+        proj.logger.debug("Kotlin source set inspection failed.", e)
+        emptyMap()
+    }
+}
+
+fun mcpHasJvmSourceSets(
+    proj: org.gradle.api.Project,
+    javaSourceSets: Map<String, McpSourceSetMetadata>,
+    kotlinSourceSets: Map<String, McpSourceSetMetadata>
+): Boolean =
+    javaSourceSets.values.any { it.isJvm } ||
+            kotlinSourceSets.values.any { it.isJvm } ||
+            proj.buildscript.configurations.findByName("classpath") != null
+
+fun mcpDetectJdk(
+    proj: org.gradle.api.Project,
+    javaSourceSets: Map<String, McpSourceSetMetadata>,
+    kotlinSourceSets: Map<String, McpSourceSetMetadata>
+): Pair<String, String?>? {
+    if (!mcpHasJvmSourceSets(proj, javaSourceSets, kotlinSourceSets)) return null
+
+    try {
+        val javaExt = proj.extensions.findByType(org.gradle.api.plugins.JavaPluginExtension::class.java)
+        if (javaExt != null && (
+                    javaExt.toolchain.languageVersion.isPresent ||
+                            javaExt.toolchain.vendor.isPresent ||
+                            javaExt.toolchain.implementation.isPresent
+                    )
+        ) {
+            val service = proj.extensions.getByType(org.gradle.jvm.toolchain.JavaToolchainService::class.java)
+            val launcher = service.launcherFor(javaExt.toolchain).get()
+            val metadata = launcher.metadata
+            return metadata.installationPath.asFile.absolutePath to metadata.languageVersion.asInt().toString()
+        }
+    } catch (e: Exception) {
+        proj.logger.warn("Java toolchain JDK detection failed for ${proj.path}; falling back to Kotlin toolchain or daemon JDK.")
+        proj.logger.debug("Java toolchain JDK detection failed for ${proj.path}.", e)
+    }
+
+    try {
+        val kotlinExt = proj.extensions.findByName("kotlin")
+        if (kotlinExt != null) {
+            val jvmToolchainMethod = mcpNoArgMethod(kotlinExt, "getJvmToolchain")
+            if (jvmToolchainMethod == null) {
+                proj.logger.warn("Kotlin plugin detected for ${proj.path}, but getJvmToolchain was not found; falling back to daemon JDK.")
+            }
+            val jvmToolchain = jvmToolchainMethod?.invoke(kotlinExt)
+            val languageVersionMethod = jvmToolchain?.let { mcpNoArgMethod(it, "getLanguageVersion") }
+            if (jvmToolchain != null && languageVersionMethod == null) {
+                proj.logger.warn("Kotlin JVM toolchain detected for ${proj.path}, but getLanguageVersion was not found; falling back to daemon JDK.")
+            }
+            val versionStr = languageVersionMethod?.invoke(jvmToolchain)?.toString()
+            val version = versionStr?.let { Regex("\\d+").find(it)?.value?.toIntOrNull() }
+            if (version != null) {
+                val service = proj.extensions.getByType(org.gradle.jvm.toolchain.JavaToolchainService::class.java)
+                val spec = proj.objects.newInstance(org.gradle.jvm.toolchain.JavaToolchainSpec::class.java)
+                spec.languageVersion.set(org.gradle.jvm.toolchain.JavaLanguageVersion.of(version))
+                val metadata = service.launcherFor(spec).get().metadata
+                return metadata.installationPath.asFile.absolutePath to metadata.languageVersion.asInt().toString()
+            }
+        }
+    } catch (e: Exception) {
+        proj.logger.warn("Kotlin toolchain JDK detection failed for ${proj.path}; falling back to daemon JDK.")
+        proj.logger.debug("Kotlin toolchain JDK detection failed for ${proj.path}.", e)
+    }
+
+    return try {
+        val current = org.gradle.internal.jvm.Jvm.current()
+        current.javaHome.absolutePath to current.javaVersion?.toString()
+    } catch (e: Exception) {
+        proj.logger.warn("Daemon JDK detection failed for ${proj.path}.")
+        proj.logger.debug("Daemon JDK detection failed for ${proj.path}.", e)
+        null
+    }
+}
+
 allprojects {
     tasks.register("mcpDependencyReport", McpDependencyReportTask::class.java) {
         val proj = this.project
@@ -778,50 +1007,18 @@ allprojects {
             }
         })
 
-        sourceSets.set(proj.provider {
-            val sourceSetsContainer = proj.extensions.findByType(SourceSetContainer::class.java)
-            sourceSetsContainer?.associate { ss ->
-                val configs = ArrayList<String>()
-                listOfNotNull(
-                    ss.apiConfigurationName.takeIf { proj.configurations.findByName(it) != null },
-                    ss.implementationConfigurationName.takeIf { proj.configurations.findByName(it) != null },
-                    ss.compileOnlyConfigurationName.takeIf { proj.configurations.findByName(it) != null },
-                    ss.runtimeOnlyConfigurationName.takeIf { proj.configurations.findByName(it) != null }
-                ).forEach { configs.add(it) }
-                ss.name to configs
-            } ?: emptyMap()
-        })
+        val javaSourceSetMetadata = proj.provider {
+            mcpCollectJavaSourceSetMetadata(proj)
+        }
+        val kotlinSourceSetMetadata = proj.provider {
+            mcpCollectKotlinSourceSetMetadata(proj)
+        }
 
-        kotlinSourceSets.set(proj.provider {
-            val kotlinData = mutableMapOf<String, ArrayList<String>>()
-            try {
-                val kotlinExtension = proj.extensions.findByName("kotlin")
-                if (kotlinExtension != null) {
-                    val getSourceSets = kotlinExtension.javaClass.getMethod("getSourceSets")
-                    val ssContainer = getSourceSets.invoke(kotlinExtension) as NamedDomainObjectContainer<*>
-                    ssContainer.forEach { ss ->
-                        val getName = ss.javaClass.getMethod("getName")
-                        val ssName = getName.invoke(ss) as String
-                        val configs = ArrayList<String>()
-                        val propNames = listOf("apiConfigurationName", "implementationConfigurationName", "compileOnlyConfigurationName", "runtimeOnlyConfigurationName")
-                        propNames.forEach {
-                            try {
-                                val methodName = "get" + it.replaceFirstChar { it.uppercaseChar() }
-                                val configName = ss.javaClass.getMethod(methodName).invoke(ss) as? String
-                                if (configName != null && proj.configurations.findByName(configName) != null) {
-                                    configs.add(configName)
-                                }
-                            } catch (e: Exception) {
-                                // Ignore
-                            }
-                        }
-                        kotlinData[ssName] = configs
-                    }
-                }
-            } catch (e: Exception) {
-                // Ignore
-            }
-            kotlinData
-        })
+        sourceSets.set(javaSourceSetMetadata)
+        kotlinSourceSets.set(kotlinSourceSetMetadata)
+
+        val detectedJdk = proj.provider { mcpDetectJdk(proj, javaSourceSetMetadata.get(), kotlinSourceSetMetadata.get()) }
+        jdkHome.set(detectedJdk.map { it?.first ?: "" })
+        jdkVersion.set(detectedJdk.map { it?.second ?: "" })
     }
 }

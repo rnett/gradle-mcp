@@ -2,11 +2,13 @@ package dev.rnett.gradle.mcp
 
 import dev.rnett.gradle.mcp.dependencies.DefaultGradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.DefaultGradleSourceService
+import dev.rnett.gradle.mcp.dependencies.DefaultJdkSourceService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourcesService
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.GradleSourceService
+import dev.rnett.gradle.mcp.dependencies.JdkSourceService
 import dev.rnett.gradle.mcp.dependencies.SourceIndexService
 import dev.rnett.gradle.mcp.dependencies.SourceStorageService
 import dev.rnett.gradle.mcp.dependencies.SourcesService
@@ -149,8 +151,9 @@ object DI {
         single<SourceStorageService> { DefaultSourceStorageService(get()) }
         single<CoroutineDispatcher> { Dispatchers.IO }
         single<SourceIndexService> { DefaultSourceIndexService(get()) }
-        single<SourcesService> { DefaultSourcesService(get(), get(), get(), get()) }
+        single<SourcesService> { DefaultSourcesService(get(), get(), get(), get(), get()) }
         single<GradleSourceService> { DefaultGradleSourceService(get(), get(), get(), get(), get()) }
+        single<JdkSourceService> { DefaultJdkSourceService(get(), get()) }
         single { BuildManager() }
         single<GradleConnectionService> { DefaultGradleConnectionService() }
         single<BuildExecutionService> { DefaultBuildExecutionService(envProvider = get()) }

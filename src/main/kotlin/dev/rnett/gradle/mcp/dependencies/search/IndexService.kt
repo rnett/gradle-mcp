@@ -4,6 +4,7 @@ import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
 import dev.rnett.gradle.mcp.tools.PaginationInput
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
@@ -109,10 +110,14 @@ class DefaultIndexService(
             markerFile.createParentDirectories()
             markerFile.createFile()
             return Index(dir)
+        } catch (e: CancellationException) {
+            logger.error("Indexing CAS directory $casBaseDir for provider ${provider.name} was cancelled", e)
+            providerDir.deleteRecursively()
+            throw e
         } catch (e: Exception) {
             logger.error("Failed to index CAS directory $casBaseDir for provider ${provider.name}", e)
             providerDir.deleteRecursively()
-            return null
+            throw e
         }
     }
 

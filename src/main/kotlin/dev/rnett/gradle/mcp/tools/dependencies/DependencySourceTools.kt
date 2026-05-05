@@ -21,7 +21,6 @@ import dev.rnett.gradle.mcp.tools.paginateText
 import dev.rnett.gradle.mcp.tools.resolveRoot
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
-import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
@@ -39,11 +38,6 @@ class DependencySourceTools(
     private val indexService: dev.rnett.gradle.mcp.dependencies.SourceIndexService,
     private val searchProviders: List<SearchProvider>
 ) : McpServerComponent("Project Dependency Source Tools", "Tools for searching and inspecting source code of Gradle dependencies.") {
-
-    companion object {
-        private val LOGGER = LoggerFactory.getLogger(DependencySourceTools::class.java)
-    }
-
     @Serializable
     enum class SearchType(val providerClass: KClass<out SearchProvider>) {
         @Description("Finds class, method, or interface declarations. Case-sensitive. Supports 'name:' and 'fqn:' fields (see tool description).")
@@ -65,7 +59,7 @@ class DependencySourceTools(
         val configurationPath: String? = null,
         @Description("Authoritatively targeting a source set (e.g., ':app:main'). Highest project precedence.")
         val sourceSetPath: String? = null,
-        @Description("Optional filter to scope the read to a single dependency by GAV (e.g., 'group:name'). Use this for performance/focus. Not recommended for general path specification; use `{group}/{artifact}/...` in `path` instead.")
+        @Description("Filter by GAV prefix or `jdk`; prefer `{group}/{artifact}/...` in `path` for reads.")
         val dependency: String? = null,
         @Description("Restricts the tool to Gradle Build Tool source code only; HIGHEST overall precedence.")
         val gradleOwnSource: Boolean = false,
@@ -81,7 +75,8 @@ class DependencySourceTools(
     val readDependencySources by tool<ReadDependencySourcesArgs, String>(
         ToolNames.READ_DEPENDENCY_SOURCES,
         """
-            |Reads and explores source code for external library dependencies, plugins, and Gradle Build Tool source code only; use instead of shell tools which cannot locate remote dependency sources.
+            |Reads dependency, plugin, Gradle, or JDK source trees; use instead of shell tools, which cannot locate remote dependency sources.
+            |JDK sources appear under `jdk/sources/...` for JVM scopes when local `src.zip` exists; use `dependency: "jdk"` for JDK-only reads.
             |Buildscript (plugin) dependencies are excluded by default to reduce noise. To search plugins, use `sourceSetPath: ":buildscript"` (root project) or `sourceSetPath: ":app:buildscript"` (subproject).
             |Supports dot-separated package paths via the symbol index. Use `${ToolNames.SEARCH_DEPENDENCY_SOURCES}` to find paths first.
             |Strongly recommended: Use the `{group}/{artifact}/...` syntax for `path`. The `dependency` parameter should primarily be used to filter the scope for performance, not as a shortcut for path specification.
@@ -92,9 +87,10 @@ class DependencySourceTools(
             |
             |### Examples
             |- Browse project deps: `{ projectPath: ":" }`
-            |- Browse single dep: `{ dependency: "org.jetbrains.kotlin:kotlin-stdlib" }`
-            |- Read file: `{ path: "org.jetbrains.kotlin/kotlin-stdlib/kotlin/collections/List.kt" }`
-            |- Read package: `{ path: "org.jetbrains.kotlin/kotlin-stdlib/kotlin.collections" }`
+            |- Browse single dep: `{ projectPath: ":", dependency: "org.jetbrains.kotlin:kotlin-stdlib" }`
+            |- Read file: `{ projectPath: ":", path: "org.jetbrains.kotlin/kotlin-stdlib/kotlin/collections/List.kt" }`
+            |- Read JDK source from a JVM source set: `{ sourceSetPath: ":app:main", dependency: "jdk", path: "jdk/sources/java.base/java/lang/String.java" }`
+            |- Read package: `{ projectPath: ":", path: "org.jetbrains.kotlin/kotlin-stdlib/kotlin.collections" }`
             |- Plugins: `{ sourceSetPath: ":buildscript" }`
             |- Gradle Build Tool source: `{ gradleOwnSource: true }`
         """.trimMargin()
@@ -161,7 +157,7 @@ class DependencySourceTools(
         val configurationPath: String? = null,
         @Description("Authoritatively targeting a source set (e.g., ':app:main'). Highest project precedence.")
         val sourceSetPath: String? = null,
-        @Description("Optional filter to scope the search to a single dependency by GAV (e.g., 'group:name'). Use this to focus the search and improve performance.")
+        @Description("Filter by GAV prefix or `jdk`; narrows search scope and improves performance.")
         val dependency: String? = null,
         @Description("Restricts the search to Gradle Build Tool source code only; HIGHEST overall precedence.")
         val gradleOwnSource: Boolean = false,
@@ -179,7 +175,8 @@ class DependencySourceTools(
     val searchDependencySources by tool<SearchDependencySourcesArgs, String>(
         ToolNames.SEARCH_DEPENDENCY_SOURCES,
         """
-            |Searches for symbols or text across source code for ALL external library dependencies, plugins, and Gradle Build Tool source code only; use instead of shell grep which cannot find remote dependency sources.
+            |Searches symbols or text across dependency, plugin, Gradle, or JDK source trees; use instead of shell grep, which cannot locate remote dependency sources.
+            |JDK sources appear under `jdk/sources/...` for JVM scopes when local `src.zip` exists; use `dependency: "jdk"` for JDK-only searches.
             |Buildscript (plugin) dependencies are excluded by default to reduce noise. To search plugins, use `sourceSetPath: ":buildscript"` (root project) or `sourceSetPath: ":app:buildscript"` (subproject).
             |Sources are CAS-cached (immutable). Use `fresh=true` for dependency changes; `forceDownload=true` only to recover corrupt/missing files.
             |ALWAYS scope with a project, configuration, or source set (or use `gradleOwnSource: true`) — unscoped search is no longer supported.
@@ -197,12 +194,12 @@ class DependencySourceTools(
             |- `GLOB`: Locates files by name or extension using Java glob syntax. **Case-insensitive** (e.g., `query: "**/AndroidManifest.xml"`).
             |
             |### Examples
-            |- All deps: `{ query: "CoroutineScope", searchType: "DECLARATION" }`
-            |- Full-text: `{ query: "TIMEOUT_MS" }`
-            |- Single dep: `{ dependency: "org.jetbrains.kotlinx:kotlinx-coroutines-core", query: "launch", searchType: "DECLARATION" }`
+            |- All deps: `{ projectPath: ":", query: "CoroutineScope", searchType: "DECLARATION" }`
+            |- Full-text: `{ projectPath: ":", query: "TIMEOUT_MS" }`
+            |- Single dep: `{ projectPath: ":", dependency: "org.jetbrains.kotlinx:kotlinx-coroutines-core", query: "launch", searchType: "DECLARATION" }`
             |- Gradle Build Tool source: `{ gradleOwnSource: true, query: "DefaultProject", searchType: "DECLARATION" }`
             |- Plugins: `{ sourceSetPath: ":buildscript", query: "MyPlugin", searchType: "DECLARATION" }`
-            |- Files: `{ query: "**/plugin.properties", searchType: "GLOB" }`
+            |- Files: `{ projectPath: ":", query: "**/plugin.properties", searchType: "GLOB" }`
             |
             |### Result Grouping
             |Results are grouped by proximity: matches within the snippet context range ($DEFAULT_SNIPPET_RANGE) are combined into a single result with a multi-line snippet showing context. Matches that are far apart in a file produce separate results.
@@ -229,12 +226,15 @@ class DependencySourceTools(
             )
         }
 
-        val response = indexService.search(sources, provider, args.query, args.pagination)
         val sourcesHeader = formatSourcesHeader(sources)
+
+        // Search unified sources (JDK is included in the same session view)
+        val response = indexService.search(sources, provider, args.query, args.pagination)
         if (response.error != null) {
             isError = true
             return@tool "$sourcesHeader\n\n${response.error}"
         }
+
         "$sourcesHeader\n\n${formatSearchResults(response, args.query, args.pagination)}"
     }
 

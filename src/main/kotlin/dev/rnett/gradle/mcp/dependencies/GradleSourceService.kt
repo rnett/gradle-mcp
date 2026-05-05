@@ -5,8 +5,8 @@ import dev.rnett.gradle.mcp.GradleVersionService
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.MergedSourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
-import dev.rnett.gradle.mcp.dependencies.search.IndexEntry
 import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
+import dev.rnett.gradle.mcp.dependencies.search.indexSources
 import dev.rnett.gradle.mcp.dependencies.search.markerFileName
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.tools.GradlePathUtils
@@ -19,10 +19,6 @@ import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.consumeAsFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import java.nio.file.FileSystems
@@ -39,7 +35,6 @@ import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
 import kotlin.io.path.name
 import kotlin.io.path.outputStream
-import kotlin.io.path.readText
 import kotlin.time.measureTime
 
 interface GradleSourceService {
@@ -92,7 +87,7 @@ class DefaultGradleSourceService(
         return@withContext FileLockManager.withLock(lockFile, shared = false) {
             if (markerFile.exists() && !forceDownload && !fresh) {
                 if (providerToIndex != null && !targetDir.index.resolve(providerToIndex.markerFileName).exists()) {
-                    indexInternal(version, null, targetDir, providerToIndex)
+                    indexInternal(targetDir, providerToIndex)
                 }
                 return@withLock targetDir
             }
@@ -158,47 +153,13 @@ class DefaultGradleSourceService(
     }
 
     context(progress: ProgressReporter)
-    private suspend fun indexInternal(version: String, sourceZip: Path?, targetDir: MergedSourcesDir, providerToIndex: SearchProvider? = null) {
+    private suspend fun indexInternal(targetDir: MergedSourcesDir, providerToIndex: SearchProvider? = null) {
         if (providerToIndex == null) return
-
-        LOGGER.info("Indexing Gradle sources at ${targetDir.sources} for version $version")
+        LOGGER.info("Indexing Gradle sources at ${targetDir.sources}")
         val duration = measureTime {
-            coroutineScope {
-                val channel = Channel<IndexEntry>(capacity = 20)
-
-                val indexJob = launch(Dispatchers.IO) {
-                    try {
-                        indexService.indexFiles(targetDir.metadataPath, channel.consumeAsFlow(), providerToIndex)
-                    } finally {
-                        for (entry in channel) {
-                        }
-                    }
-                }
-
-                try {
-                    val rootDir = targetDir.sources
-                    Files.walk(rootDir).use { stream ->
-                        for (file in stream) {
-                            if (Files.isRegularFile(file)) {
-                                val ext = file.fileName.toString().substringAfterLast('.', "")
-                                if (ext in SearchProvider.SOURCE_EXTENSIONS) {
-                                    val relativePath = rootDir.relativize(file).toString().replace('\\', '/')
-                                    channel.send(IndexEntry(relativePath) { file.readText() })
-                                }
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    indexJob.cancel()
-                    throw e
-                } finally {
-                    channel.close()
-                }
-
-                indexJob.join()
-            }
+            indexSources(indexService, targetDir.metadataPath, targetDir.sources, providerToIndex)
         }
-        LOGGER.info("Indexed Gradle sources in $duration for version $version")
+        LOGGER.info("Indexed Gradle sources in $duration")
     }
 
     context(progress: ProgressReporter)
@@ -219,7 +180,7 @@ class DefaultGradleSourceService(
 
         extractionProgress.report(1.0, 1.0, "Extracted Gradle $version sources")
 
-        indexInternal(version, sourceZip, targetDir, providerToIndex)
+        indexInternal(targetDir, providerToIndex)
     }
 
     @OptIn(ExperimentalPathApi::class)

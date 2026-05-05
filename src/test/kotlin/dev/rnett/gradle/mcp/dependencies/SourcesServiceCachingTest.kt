@@ -7,6 +7,8 @@ import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
 import dev.rnett.gradle.mcp.dependencies.model.GradleProjectDependencies
+import dev.rnett.gradle.mcp.dependencies.model.GradleSourceSetDependencies
+import dev.rnett.gradle.mcp.dependencies.model.GradleSourceSetDependencyReport
 import dev.rnett.gradle.mcp.dependencies.model.ProjectManifest
 import dev.rnett.gradle.mcp.dependencies.model.SessionViewSourcesDir
 import dev.rnett.gradle.mcp.dependencies.search.Index
@@ -19,6 +21,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -47,6 +50,7 @@ class SourcesServiceCachingTest {
     private val depService = mockk<GradleDependencyService>()
     private val storageService = mockk<SourceStorageService>()
     private val indexService = mockk<IndexService>()
+    private val jdkSourceService = mockk<JdkSourceService>()
     private val progress = ProgressReporter.NONE
 
     private lateinit var sourcesService: DefaultSourcesService
@@ -54,7 +58,195 @@ class SourcesServiceCachingTest {
     @BeforeEach
     fun setup() {
         io.mockk.coEvery { indexService.invalidateAllCaches(any()) } just io.mockk.Runs
-        sourcesService = DefaultSourcesService(depService, storageService, indexService)
+        sourcesService = DefaultSourcesService(depService, storageService, indexService, jdkSourceService)
+    }
+
+    private fun createSessionView(name: String = "view"): SessionViewSourcesDir {
+        val viewDir = tempDir.resolve(name).createDirectories()
+        return SessionViewSourcesDir(
+            sessionId = "test-session-$name",
+            baseDir = viewDir,
+            sources = viewDir.resolve("sources").createDirectories(),
+            manifest = ProjectManifest("test-session-$name", "now", emptyList()),
+            casBaseDir = tempDir.resolve("cas")
+        )
+    }
+
+    private fun createJdkCas(): CASDependencySourcesDir {
+        val jdkCasBase = tempDir.resolve("jdk-cas-${System.nanoTime()}").createDirectories()
+        val jdkCas = CASDependencySourcesDir("jdk-hash", jdkCasBase)
+        jdkCas.sources.createDirectories()
+        jdkCas.baseCompletedMarker.createFile()
+        return jdkCas
+    }
+
+    private fun projectWithSourceSet(
+        sourceSet: GradleSourceSetDependencies,
+        jdkHome: String? = tempDir.resolve("jdk").toString()
+    ): GradleProjectDependencies = GradleProjectDependencies(
+        path = ":",
+        sourceSets = listOf(sourceSet),
+        repositories = emptyList(),
+        configurations = sourceSet.configurations.map {
+            GradleConfigurationDependencies(
+                name = it,
+                description = null,
+                isResolvable = true,
+                dependencies = emptyList()
+            )
+        },
+        jdkHome = jdkHome,
+        jdkVersion = "21"
+    )
+
+    @Test
+    fun `JDK sources are added to the session view manifest as a synthetic dependency`() = runTest {
+        val root = GradleProjectRoot(tempDir.resolve("project").toString())
+        val jdkCas = createJdkCas()
+
+        val report = GradleProjectDependencies(
+            path = ":",
+            sourceSets = listOf(GradleSourceSetDependencies("main", emptyList(), isJvm = true)),
+            repositories = emptyList(),
+            configurations = emptyList(),
+            jdkHome = tempDir.resolve("jdk").toString(),
+            jdkVersion = "21"
+        )
+        coEvery {
+            with(any<ProgressReporter>()) { depService.downloadProjectSources(any(), any(), any(), any(), any()) }
+        } returns report
+        coEvery {
+            with(any<ProgressReporter>()) { jdkSourceService.resolveSources(any(), any(), any(), any()) }
+        } returns jdkCas
+        coEvery { storageService.pruneSessionViews() } just Runs
+
+        val viewDir = tempDir.resolve("view").createDirectories()
+        val sessionView = SessionViewSourcesDir(
+            sessionId = "test-session",
+            baseDir = viewDir,
+            sources = viewDir.resolve("sources").createDirectories(),
+            manifest = ProjectManifest("test-session", "now", emptyList()),
+            casBaseDir = tempDir.resolve("cas")
+        )
+        val viewDeps = slot<Map<GradleDependency, CASDependencySourcesDir>>()
+        coEvery { storageService.createSessionView(capture(viewDeps), any()) } returns sessionView
+
+        val serviceWithJdk = DefaultSourcesService(depService, storageService, indexService, jdkSourceService)
+        with(progress) {
+            serviceWithJdk.resolveAndProcessProjectSources(root, ":")
+        }
+
+        assertTrue(viewDeps.captured.keys.any { it.relativePrefix == GradleDependency.JDK_SOURCES_PREFIX })
+        assertTrue(viewDeps.captured.values.any { it == jdkCas })
+    }
+
+    @Test
+    fun `Java source set includes JDK sources from report metadata`() = runTest {
+        val root = GradleProjectRoot(tempDir.resolve("project").toString())
+        val jdkCas = createJdkCas()
+        val project = projectWithSourceSet(GradleSourceSetDependencies("main", listOf("implementation"), isJvm = true))
+        val sourceSetReport = GradleSourceSetDependencyReport("main", emptyList(), emptyList(), isJvm = true)
+
+        coEvery {
+            with(any<ProgressReporter>()) { depService.downloadSourceSetSources(any(), any(), any(), any(), any()) }
+        } returns sourceSetReport
+        coEvery {
+            with(any<ProgressReporter>()) { depService.getDependencies(any(), any(), any()) }
+        } returns GradleDependencyReport(listOf(project))
+        coEvery {
+            with(any<ProgressReporter>()) { jdkSourceService.resolveSources(any(), any(), any(), any()) }
+        } returns jdkCas
+        coEvery { storageService.pruneSessionViews() } just Runs
+        val viewDeps = slot<Map<GradleDependency, CASDependencySourcesDir>>()
+        coEvery { storageService.createSessionView(capture(viewDeps), any()) } returns createSessionView("jvm-source-set")
+
+        val serviceWithJdk = DefaultSourcesService(depService, storageService, indexService, jdkSourceService)
+        with(progress) {
+            serviceWithJdk.resolveAndProcessSourceSetSources(root, ":main")
+        }
+
+        assertTrue(viewDeps.captured.keys.any { it.relativePrefix == GradleDependency.JDK_SOURCES_PREFIX })
+        coVerify(exactly = 1) {
+            with(any<ProgressReporter>()) { jdkSourceService.resolveSources(any(), any(), any(), any()) }
+        }
+    }
+
+    @Test
+    fun `non-JVM source set skips JDK sources despite project JDK home`() = runTest {
+        val root = GradleProjectRoot(tempDir.resolve("project").toString())
+        val project = projectWithSourceSet(GradleSourceSetDependencies("commonMain", listOf("commonMainImplementation"), isJvm = false))
+        val sourceSetReport = GradleSourceSetDependencyReport("commonMain", emptyList(), emptyList(), isJvm = false)
+
+        coEvery {
+            with(any<ProgressReporter>()) { depService.downloadSourceSetSources(any(), any(), any(), any(), any()) }
+        } returns sourceSetReport
+        coEvery {
+            with(any<ProgressReporter>()) { depService.getDependencies(any(), any(), any()) }
+        } returns GradleDependencyReport(listOf(project))
+        coEvery { storageService.pruneSessionViews() } just Runs
+        coEvery { storageService.createSessionView(any(), any()) } returns createSessionView("non-jvm-source-set")
+
+        val serviceWithJdk = DefaultSourcesService(depService, storageService, indexService, jdkSourceService)
+        with(progress) {
+            serviceWithJdk.resolveAndProcessSourceSetSources(root, ":commonMain")
+        }
+
+        coVerify(exactly = 0) {
+            with(any<ProgressReporter>()) { jdkSourceService.resolveSources(any(), any(), any(), any()) }
+        }
+    }
+
+    @Test
+    fun `JVM configuration includes JDK sources when referenced by JVM source set`() = runTest {
+        val root = GradleProjectRoot(tempDir.resolve("project").toString())
+        val jdkCas = createJdkCas()
+        val config = GradleConfigurationDependencies("jvmMainImplementation", null, true, dependencies = emptyList())
+        val project = projectWithSourceSet(GradleSourceSetDependencies("jvmMain", listOf(config.name), isJvm = true))
+
+        coEvery {
+            with(any<ProgressReporter>()) { depService.downloadConfigurationSources(any(), any(), any(), any(), any()) }
+        } returns config
+        coEvery {
+            with(any<ProgressReporter>()) { depService.getDependencies(any(), any(), any()) }
+        } returns GradleDependencyReport(listOf(project))
+        coEvery {
+            with(any<ProgressReporter>()) { jdkSourceService.resolveSources(any(), any(), any(), any()) }
+        } returns jdkCas
+        coEvery { storageService.pruneSessionViews() } just Runs
+        val viewDeps = slot<Map<GradleDependency, CASDependencySourcesDir>>()
+        coEvery { storageService.createSessionView(capture(viewDeps), any()) } returns createSessionView("jvm-config")
+
+        val serviceWithJdk = DefaultSourcesService(depService, storageService, indexService, jdkSourceService)
+        with(progress) {
+            serviceWithJdk.resolveAndProcessConfigurationSources(root, ":jvmMainImplementation")
+        }
+
+        assertTrue(viewDeps.captured.keys.any { it.relativePrefix == GradleDependency.JDK_SOURCES_PREFIX })
+    }
+
+    @Test
+    fun `non-JVM configuration skips JDK sources`() = runTest {
+        val root = GradleProjectRoot(tempDir.resolve("project").toString())
+        val config = GradleConfigurationDependencies("commonMainImplementation", null, true, dependencies = emptyList())
+        val project = projectWithSourceSet(GradleSourceSetDependencies("commonMain", listOf(config.name), isJvm = false))
+
+        coEvery {
+            with(any<ProgressReporter>()) { depService.downloadConfigurationSources(any(), any(), any(), any(), any()) }
+        } returns config
+        coEvery {
+            with(any<ProgressReporter>()) { depService.getDependencies(any(), any(), any()) }
+        } returns GradleDependencyReport(listOf(project))
+        coEvery { storageService.pruneSessionViews() } just Runs
+        coEvery { storageService.createSessionView(any(), any()) } returns createSessionView("non-jvm-config")
+
+        val serviceWithJdk = DefaultSourcesService(depService, storageService, indexService, jdkSourceService)
+        with(progress) {
+            serviceWithJdk.resolveAndProcessConfigurationSources(root, ":commonMainImplementation")
+        }
+
+        coVerify(exactly = 0) {
+            with(any<ProgressReporter>()) { jdkSourceService.resolveSources(any(), any(), any(), any()) }
+        }
     }
 
     @Test

@@ -5,6 +5,7 @@ import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.TestFixturesBuildConfig
 import dev.rnett.gradle.mcp.dependencies.DefaultGradleDependencyService
+import dev.rnett.gradle.mcp.dependencies.DefaultJdkSourceService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourcesService
@@ -32,6 +33,7 @@ import org.koin.test.KoinTest
 import java.nio.file.Path
 import kotlin.io.path.createTempDirectory
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -79,7 +81,7 @@ class GradleDependencyIntegrationTest : KoinTest {
         indexService = getKoin().get<IndexService>() as DefaultIndexService
         val storageService = DefaultSourceStorageService(environment)
         sourceIndexService = DefaultSourceIndexService(indexService)
-        sourcesService = DefaultSourcesService(service, storageService, indexService)
+        sourcesService = DefaultSourcesService(service, storageService, indexService, DefaultJdkSourceService(storageService, indexService))
 
         // A single complex project to cover all test cases
         complexProject = testGradleProject {
@@ -208,6 +210,11 @@ class GradleDependencyIntegrationTest : KoinTest {
         val mainSourceSet = subA.sourceSets.find { it.name == "main" }
         assertNotNull(mainSourceSet)
         assertTrue(mainSourceSet.configurations.contains("implementation"))
+        assertTrue(mainSourceSet.isJvm, "Java main source set should be marked JVM by the init-script model")
+
+        val testSourceSet = subA.sourceSets.find { it.name == "test" }
+        assertNotNull(testSourceSet)
+        assertTrue(testSourceSet.isJvm, "Java test source set should be marked JVM by the init-script model")
     }
 
     @Test
@@ -221,6 +228,10 @@ class GradleDependencyIntegrationTest : KoinTest {
 
         val compileClasspath = subB.configurations.find { it.name == "compileClasspath" }
         assertNotNull(compileClasspath)
+
+        val kotlinMain = subB.sourceSets.find { it.name == "main" }
+        assertNotNull(kotlinMain)
+        assertTrue(kotlinMain.isJvm, "Kotlin JVM main source set should be marked JVM by the init-script model")
 
         fun hasKotlinStdlib(deps: List<GradleDependency>): Boolean {
             return deps.any { it.id.contains("kotlin-stdlib") || hasKotlinStdlib(it.children) }
@@ -302,13 +313,16 @@ class GradleDependencyIntegrationTest : KoinTest {
         val jvmMain = subKmp.sourceSets.find { it.name == "jvmMain" }
         assertNotNull(jvmMain)
         assertTrue(jvmMain.configurations.contains("jvmMainImplementation"))
+        assertTrue(jvmMain.isJvm, "KMP JVM source set should be marked JVM by the init-script model")
 
-        val linuxMain = subKmp.sourceSets.find { it.name == "kotlin:linuxX64Main" }
-        assertNotNull(linuxMain, "Should find linuxX64Main source set (prefixed with kotlin: in KMP)")
+        val linuxMain = subKmp.sourceSets.find { it.name == "linuxX64Main" }
+        assertNotNull(linuxMain, "Should find linuxX64Main source set")
+        assertFalse(linuxMain.isJvm, "KMP native source set should not be marked JVM by the init-script model")
 
         // Verify artifacts and variants for a common dependency
-        val commonMain = subKmp.sourceSets.find { it.name == "kotlin:commonMain" }
+        val commonMain = subKmp.sourceSets.find { it.name == "commonMain" }
         assertNotNull(commonMain)
+        assertFalse(commonMain.isJvm, "KMP common source set should not be marked JVM by the init-script model")
 
         val jvmCompileClasspath = subKmp.configurations.find { it.name == "jvmCompileClasspath" }
         assertNotNull(jvmCompileClasspath)
@@ -512,6 +526,7 @@ class GradleDependencyIntegrationTest : KoinTest {
 
         assertEquals("buildscript", report.name)
         assertTrue(report.configurations.any { it.name == "buildscript:classpath" })
+        assertTrue(report.isJvm, "Virtual buildscript source set should be marked JVM by the init-script model")
     }
 
     @Test
@@ -580,12 +595,12 @@ class GradleDependencyIntegrationTest : KoinTest {
 
         // First download normally
         with(ProgressReporter.PRINTLN) {
-            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", forceDownload = false, providerToIndex = getKoin().get<DeclarationSearch>())
+            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", dependency = "org.slf4j:slf4j-api", forceDownload = false, providerToIndex = getKoin().get<DeclarationSearch>())
         }
 
         // Then force download
         with(ProgressReporter.PRINTLN) {
-            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", forceDownload = true, providerToIndex = getKoin().get<DeclarationSearch>())
+            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", dependency = "org.slf4j:slf4j-api", forceDownload = true, providerToIndex = getKoin().get<DeclarationSearch>())
         }
     }
 

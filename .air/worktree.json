@@ -1,0 +1,12 @@
+{
+  "environment": [
+    {
+      "type": "env",
+      "key": "EXAMPLE_KEY",
+      "value": "example_value"
+    }
+  ],
+  "setup": {
+    "windows": []
+  }
+}

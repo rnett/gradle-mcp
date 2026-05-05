@@ -36,3 +36,9 @@ OpenSpec specs are the **primary source of truth** for architectural rationale, 
 - **Run All Tests**: `./gradlew test integrationTest`
 - **Quality Check**: `./gradlew check` (Linting + All tests)
 - **Update Tools**: `./gradlew :updateToolsList` (Mandatory after metadata changes)
+
+---
+
+## Misc Tips
+
+- We use Kotlin's Context Parameters feature. Look it up if you are unsure how to use it. IT IS DIFFERENT FROM CONTEXT RECEIVERS, which it replaced.
