@@ -5,13 +5,13 @@ import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.TestFixturesBuildConfig
 import dev.rnett.gradle.mcp.dependencies.DefaultGradleDependencyService
-import dev.rnett.gradle.mcp.dependencies.DefaultJdkSourceService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourcesService
 import dev.rnett.gradle.mcp.dependencies.DependencyRequestOptions
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
+import dev.rnett.gradle.mcp.fixtures.dependencies.createTestSourcesService
 import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
 import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
 import dev.rnett.gradle.mcp.gradle.BuildManager
@@ -81,7 +81,7 @@ class GradleDependencyIntegrationTest : KoinTest {
         indexService = getKoin().get<IndexService>() as DefaultIndexService
         val storageService = DefaultSourceStorageService(environment)
         sourceIndexService = DefaultSourceIndexService(indexService)
-        sourcesService = DefaultSourcesService(service, storageService, indexService, DefaultJdkSourceService(storageService, indexService))
+        sourcesService = createTestSourcesService(service, storageService, indexService)
 
         // A single complex project to cover all test cases
         complexProject = testGradleProject {

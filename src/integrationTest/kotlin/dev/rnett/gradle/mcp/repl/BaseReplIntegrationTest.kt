@@ -7,7 +7,6 @@ import dev.rnett.gradle.mcp.GradleVersionService
 import dev.rnett.gradle.mcp.TestFixturesBuildConfig
 import dev.rnett.gradle.mcp.dependencies.DefaultGradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.DefaultGradleSourceService
-import dev.rnett.gradle.mcp.dependencies.DefaultJdkSourceService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourcesService
@@ -34,6 +33,7 @@ import dev.rnett.gradle.mcp.dependencies.search.ParserDownloader
 import dev.rnett.gradle.mcp.dependencies.search.TreeSitterDeclarationExtractor
 import dev.rnett.gradle.mcp.dependencies.search.TreeSitterLanguageProvider
 import dev.rnett.gradle.mcp.fixtures.SharedTestInfrastructure
+import dev.rnett.gradle.mcp.fixtures.dependencies.NoJdkSourceService
 import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.gradle.BuildManager
@@ -187,7 +187,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single<SourceIndexService> { DefaultSourceIndexService(get()) }
         single<SourcesService> { DefaultSourcesService(get(), get(), get(), get()) }
         single<GradleSourceService> { DefaultGradleSourceService(get(), get(), get(), get(), get()) }
-        single<JdkSourceService> { DefaultJdkSourceService(get(), get()) }
+        single<JdkSourceService> { NoJdkSourceService }
         single<GradleProvider> { createProvider() }
         single {
             val provider: GradleProvider = get()

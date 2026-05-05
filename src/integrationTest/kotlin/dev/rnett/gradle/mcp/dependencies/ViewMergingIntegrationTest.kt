@@ -8,6 +8,7 @@ import dev.rnett.gradle.mcp.dependencies.model.CASDependencySourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.SessionViewSourcesDir
 import dev.rnett.gradle.mcp.dependencies.search.FullTextSearch
+import dev.rnett.gradle.mcp.fixtures.dependencies.createTestSourcesService
 import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
@@ -47,7 +48,7 @@ class ViewMergingIntegrationTest {
         val storageService = DefaultSourceStorageService(environment)
         val rawIndexService = dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(environment, listOf(FullTextSearch()))
         val indexService = DefaultSourceIndexService(rawIndexService) // Simplified for this test
-        val sourcesService = DefaultSourcesService(depService, storageService, rawIndexService, DefaultJdkSourceService(storageService, rawIndexService))
+        val sourcesService = createTestSourcesService(depService, storageService, rawIndexService)
 
         testGradleProject {
             useKotlinDsl(true)
@@ -119,7 +120,7 @@ class ViewMergingIntegrationTest {
         val depService = DefaultGradleDependencyService(provider)
         val storageService = DefaultSourceStorageService(environment)
         val indexService = dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(environment, listOf(FullTextSearch()))
-        val sourcesService = DefaultSourcesService(depService, storageService, indexService, DefaultJdkSourceService(storageService, indexService))
+        val sourcesService = createTestSourcesService(depService, storageService, indexService)
 
         testGradleProject {
             useKotlinDsl(true)

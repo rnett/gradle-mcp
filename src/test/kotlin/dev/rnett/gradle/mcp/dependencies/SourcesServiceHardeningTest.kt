@@ -7,6 +7,7 @@ import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.model.CASDependencySourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.search.IndexService
+import dev.rnett.gradle.mcp.fixtures.dependencies.NoJdkSourceService
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -27,11 +28,10 @@ class SourcesServiceHardeningTest : BaseMcpServerTest() {
     private val depService = mockk<GradleDependencyService>(relaxed = true)
     private val storageService = mockk<SourceStorageService>(relaxed = true)
     private val indexService = mockk<IndexService>(relaxed = true)
-    private val jdkSourceService = mockk<JdkSourceService>(relaxed = true)
 
     @BeforeEach
     fun setupHardening() {
-        sourcesService = DefaultSourcesService(depService, storageService, indexService, jdkSourceService, dispatcher = Dispatchers.Default)
+        sourcesService = DefaultSourcesService(depService, storageService, indexService, NoJdkSourceService, dispatcher = Dispatchers.Default)
     }
 
     private fun createCasDir(hash: String): CASDependencySourcesDir {

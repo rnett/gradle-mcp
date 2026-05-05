@@ -10,6 +10,7 @@ import dev.rnett.gradle.mcp.dependencies.search.Index
 import dev.rnett.gradle.mcp.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
 import dev.rnett.gradle.mcp.dependencies.search.markerFileName
+import dev.rnett.gradle.mcp.fixtures.dependencies.NoJdkSourceService
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import io.mockk.Runs
 import io.mockk.coEvery
@@ -42,9 +43,8 @@ class ParallelIndexingTest {
         val depService = mockk<GradleDependencyService>()
         val storageService = DefaultSourceStorageService(env)
         val indexService = mockk<IndexService>()
-        val jdkSourceService = mockk<JdkSourceService>(relaxed = true)
         io.mockk.coEvery { indexService.invalidateAllCaches(any()) } just io.mockk.Runs
-        val sourcesService = DefaultSourcesService(depService, storageService, indexService, jdkSourceService)
+        val sourcesService = DefaultSourcesService(depService, storageService, indexService, NoJdkSourceService)
 
         val projectRoot = GradleProjectRoot(tempDir.resolve("project").createDirectories().toString())
 

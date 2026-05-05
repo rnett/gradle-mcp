@@ -5,11 +5,11 @@ import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.TestFixturesBuildConfig
 import dev.rnett.gradle.mcp.dependencies.DefaultGradleDependencyService
-import dev.rnett.gradle.mcp.dependencies.DefaultJdkSourceService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourcesService
 import dev.rnett.gradle.mcp.dependencies.model.SessionViewSourcesDir
+import dev.rnett.gradle.mcp.fixtures.dependencies.createTestSourcesService
 import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
@@ -69,7 +69,7 @@ class KmpSearchIntegrationTest : KoinTest {
         val storageService = DefaultSourceStorageService(environment)
         val rawIndexService = getKoin().get<IndexService>()
         indexService = DefaultSourceIndexService(rawIndexService)
-        sourcesService = DefaultSourcesService(depService, storageService, rawIndexService, DefaultJdkSourceService(storageService, rawIndexService))
+        sourcesService = createTestSourcesService(depService, storageService, rawIndexService)
     }
 
     @AfterEach

@@ -4,7 +4,6 @@ import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.DefaultSourcesService
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
-import dev.rnett.gradle.mcp.dependencies.JdkSourceService
 import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
@@ -17,6 +16,7 @@ import dev.rnett.gradle.mcp.dependencies.search.ParserDownloader
 import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
 import dev.rnett.gradle.mcp.dependencies.search.TreeSitterDeclarationExtractor
 import dev.rnett.gradle.mcp.dependencies.search.TreeSitterLanguageProvider
+import dev.rnett.gradle.mcp.fixtures.dependencies.createTestSourcesService
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import io.ktor.client.HttpClient
 import io.mockk.coEvery
@@ -88,7 +88,7 @@ abstract class SearchIntegrationTestBase : KoinTest {
         indexService = getKoin().get()
         storageService = dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService(environment)
         sourceIndexService = dev.rnett.gradle.mcp.dependencies.DefaultSourceIndexService(indexService)
-        sourcesService = dev.rnett.gradle.mcp.dependencies.DefaultSourcesService(dependencyService, storageService, indexService, mockk<JdkSourceService>(relaxed = true))
+        sourcesService = createTestSourcesService(dependencyService, storageService, indexService)
     }
 
     @AfterEach
