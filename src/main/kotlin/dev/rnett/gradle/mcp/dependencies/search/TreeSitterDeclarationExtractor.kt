@@ -224,6 +224,8 @@ class TreeSitterDeclarationExtractor(private val languageProvider: TreeSitterLan
     }
 
     private fun extractPackageName(root: Node, srcBytes: ByteArray, packageQuery: Query): String {
+        extractPackageDeclarationText(root, srcBytes)?.let { return it }
+
         packageQuery.matches(root).forEach { match ->
             val captures = match.captures.filter { it.name == "name" }
             if (captures.isNotEmpty()) {
@@ -236,5 +238,27 @@ class TreeSitterDeclarationExtractor(private val languageProvider: TreeSitterLan
             }
         }
         return ""
+    }
+
+    private fun extractPackageDeclarationText(root: Node, srcBytes: ByteArray): String? {
+        val packageNode = root.findFirstNode("package_header")
+            ?: root.findFirstNode("package_declaration")
+            ?: return null
+        val declaration = srcBytes.decodeToString(packageNode.startByte.toInt(), packageNode.endByte.toInt())
+        return declaration
+            .removePrefix("package")
+            .substringBefore("//")
+            .trim()
+            .removeSuffix(";")
+            .trim()
+            .takeIf { it.isNotEmpty() }
+    }
+
+    private fun Node.findFirstNode(type: String): Node? {
+        if (this.type == type) return this
+        children.forEach { child ->
+            child.findFirstNode(type)?.let { return it }
+        }
+        return null
     }
 }

@@ -101,6 +101,29 @@ class TreeSitterDeclarationExtractorTest : KoinTest {
     }
 
     @Test
+    fun `test Kotlin file annotation before package extraction`() = runTest(timeout = 10.minutes) {
+        val src = """
+            @file:OptIn(ExperimentalSerializationApi::class)
+            package kotlinx.serialization.json
+
+            import kotlinx.serialization.ExperimentalSerializationApi
+
+            public interface Json {
+                fun encode()
+            }
+        """.trimIndent()
+
+        val ktFile = tempDir.resolve("Json.kt")
+        ktFile.writeText(src)
+
+        val symbols = extractor.extractSymbols(ktFile)
+        val json = symbols.find { it.name == "Json" }
+        assertNotNull(json, "Should find Json interface in annotated file")
+        assertEquals("kotlinx.serialization.json", json.packageName)
+        assertEquals("kotlinx.serialization.json.Json", json.fqn)
+    }
+
+    @Test
     fun `test deep FQN calculation`() = runTest(timeout = 10.minutes) {
         val src = """
             package com.example

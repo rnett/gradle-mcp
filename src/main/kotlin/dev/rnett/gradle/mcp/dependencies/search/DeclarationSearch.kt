@@ -35,7 +35,7 @@ class DeclarationSearch(
 
     override val logger = LoggerFactory.getLogger(DeclarationSearch::class.java)
     override val name: String = "declarations"
-    override val indexVersion: Int = 12
+    override val indexVersion: Int = 13
 
     override fun createAnalyzer() = org.apache.lucene.analysis.miscellaneous.PerFieldAnalyzerWrapper(
         LuceneUtils.createCaseSensitiveAnalyzer(),
