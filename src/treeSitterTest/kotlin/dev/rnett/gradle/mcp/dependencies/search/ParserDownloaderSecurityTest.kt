@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp.dependencies.search
 
+import com.github.luben.zstd.ZstdOutputStream
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -10,15 +11,20 @@ import io.mockk.every
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import kotlinx.coroutines.test.runTest
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry
+import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.io.ByteArrayOutputStream
 import java.nio.file.Path
 import java.security.MessageDigest
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
+import kotlin.io.path.readBytes
 import kotlin.io.path.writeText
+import kotlin.test.assertContentEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
@@ -49,6 +55,26 @@ class ParserDownloaderSecurityTest {
             else -> "so"
         }
         return "${prefix}tree_sitter_$name.$ext"
+    }
+
+    private fun sha256(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256")
+        .digest(bytes)
+        .joinToString("") { "%02x".format(it) }
+
+    private fun parserBundle(vararg entries: Pair<String, ByteArray>): ByteArray {
+        val compressed = ByteArrayOutputStream()
+        ZstdOutputStream(compressed).use { zstdOut ->
+            TarArchiveOutputStream(zstdOut).use { tarOut ->
+                entries.forEach { (name, content) ->
+                    val entry = TarArchiveEntry(name).apply { size = content.size.toLong() }
+                    tarOut.putArchiveEntry(entry)
+                    tarOut.write(content)
+                    tarOut.closeArchiveEntry()
+                }
+                tarOut.finish()
+            }
+        }
+        return compressed.toByteArray()
     }
 
     @Test
@@ -166,5 +192,47 @@ class ParserDownloaderSecurityTest {
 
         assertTrue(result.exists())
         assertTrue(!bundleDownloadAttempted, "Should NOT have attempted to download the bundle for valid cache")
+    }
+
+    @Test
+    fun `test missing unrelated group languages do not fail requested extraction`() = runTest(timeout = 10.minutes) {
+        val version = "1.0.0"
+        val javaContent = "java library content".toByteArray()
+        val bundleBytes = parserBundle(getLibName("java") to javaContent)
+        val javaHash = sha256(javaContent)
+        val bundleHash = sha256(bundleBytes)
+
+        val manifestJson = """
+            {
+                "version": "$version",
+                "platforms": {
+                    "linux-x86_64": {
+                        "url": "http://example.com/bundle.tar.zst",
+                        "sha256": "$bundleHash",
+                        "size": ${bundleBytes.size}
+                    }
+                },
+                "languages": {
+                    "java": {"group": "all", "sha256": "$javaHash", "size": ${javaContent.size}},
+                    "embeddedtemplate": {"group": "all", "sha256": "missing", "size": 1},
+                    "nushell": {"group": "all", "sha256": "missing", "size": 1},
+                    "vb": {"group": "all", "sha256": "missing", "size": 1}
+                },
+                "groups": {"all": ["java", "embeddedtemplate", "nushell", "vb"]}
+            }
+        """.trimIndent()
+
+        val mockEngine = MockEngine { request ->
+            if (request.url.encodedPath.endsWith("parsers.json")) {
+                respond(manifestJson, HttpStatusCode.OK, headersOf("Content-Type", "application/json"))
+            } else {
+                respond(bundleBytes, HttpStatusCode.OK)
+            }
+        }
+        val downloader = ParserDownloader(HttpClient(mockEngine), version, cacheDirOverride = tempDir.resolve("mcp/cache/tree-sitter-language-pack/v$version/libs"))
+
+        val result = downloader.ensureLanguage("java")
+
+        assertContentEquals(javaContent, result.readBytes())
     }
 }

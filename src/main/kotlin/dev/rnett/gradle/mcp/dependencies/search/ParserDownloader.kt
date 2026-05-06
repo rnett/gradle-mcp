@@ -120,10 +120,8 @@ class ParserDownloader(
                 logger.info("Downloading tree-sitter parser bundle for $platformKey...")
                 val tempFile = downloadToTemp(bundle.url, bundle.sha256)
                 try {
-                    val group = languageInfo.group
-                    val languagesInGroup = manifest.languages.filter { it.value.group == group }.keys
-                    logger.info("Extracting languages in group '$group' from bundle...")
-                    extractLanguages(tempFile, languagesInGroup)
+                    logger.info("Extracting language '$name' from bundle...")
+                    extractLanguages(tempFile, setOf(name))
                 } finally {
                     tempFile.deleteIfExists()
                 }

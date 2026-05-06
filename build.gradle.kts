@@ -167,16 +167,9 @@ testing {
                     testTask.configure {
                         maxParallelForks = if (isCI) 3 else 8
                         if (isCI) {
-                            mustRunAfter("test", "integrationTest")
+                            mustRunAfter("test")
                         } else {
-                            shouldRunAfter("test", "integrationTest")
-                        }
-                        testLogging {
-                            events("failed")
-                            exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
-                            showCauses = true
-                            showStackTraces = true
-                            showStandardStreams = true
+                            shouldRunAfter("test")
                         }
                         maxHeapSize = "1g"
                     }
