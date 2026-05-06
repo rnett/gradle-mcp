@@ -14,10 +14,12 @@ import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.fixtures.dependencies.createTestSourcesService
 import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
 import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
+import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
+import dev.rnett.gradle.mcp.gradle.GradleProvider
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterAll
@@ -45,7 +47,7 @@ class GradleDependencyIntegrationTest : KoinTest {
     private lateinit var koinApp: KoinApplication
     override fun getKoin(): Koin = koinApp.koin
 
-    private lateinit var provider: DefaultGradleProvider
+    private lateinit var provider: GradleProvider
     private lateinit var service: GradleDependencyService
     private lateinit var indexService: DefaultIndexService
     private lateinit var sourceIndexService: dev.rnett.gradle.mcp.dependencies.SourceIndexService
@@ -76,7 +78,7 @@ class GradleDependencyIntegrationTest : KoinTest {
         provider = DefaultGradleProvider(
             config = GradleConfiguration(),
             buildManager = BuildManager()
-        )
+        ).withTestGradleDefaults()
         service = DefaultGradleDependencyService(provider)
         indexService = getKoin().get<IndexService>() as DefaultIndexService
         val storageService = DefaultSourceStorageService(environment)

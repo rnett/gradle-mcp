@@ -3,10 +3,18 @@ package dev.rnett.gradle.mcp.tools
 import dev.rnett.gradle.mcp.TestFixturesBuildConfig
 import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
 import dev.rnett.gradle.mcp.fixtures.gradle.testKotlinProject
+import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
+import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProvider
+import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
+import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
+import dev.rnett.gradle.mcp.gradle.build.RunningBuild
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.Root
 import io.modelcontextprotocol.kotlin.sdk.TextContent
 import kotlinx.coroutines.test.runTest
@@ -17,78 +25,85 @@ import kotlinx.serialization.json.put
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.koin.core.scope.Scope
 import kotlin.test.assertContains
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.minutes
 
 class GradleExecutionToolTest : BaseMcpServerTest() {
 
-    private lateinit var _project: GradleProjectFixture
+    @BeforeEach
+    fun setupTest() = runTest {
+        server.setServerRoots(Root(tempDir.toUri().toString(), "root"))
+    }
+
+    @ParameterizedTest(name = "gradle {0} is passed through without hidden defaults")
+    @CsvSource(
+        "--version, Gradle",
+        "-v, Gradle",
+        "--help, USAGE: gradle",
+        "-h, USAGE: gradle"
+    )
+    fun `gradle alias passthrough uses raw provider args`(flag: String, expectedSnippet: String) = runTest {
+        val finishedBuild = mockk<FinishedBuild>(relaxed = true)
+        every { finishedBuild.outcome } returns BuildOutcome.Success
+        every { finishedBuild.id } returns buildManager.newId()
+        every { finishedBuild.args } returns GradleInvocationArguments(additionalArguments = listOf(flag))
+        every { finishedBuild.consoleOutput } returns expectedSnippet
+        coEvery { finishedBuild.awaitFinished() } returns finishedBuild
+
+        val runningBuild = mockk<RunningBuild>(relaxed = true)
+        coEvery { runningBuild.awaitFinished() } returns finishedBuild
+
+        val capturedArgs = mutableListOf<GradleInvocationArguments>()
+        every { provider.runBuild(any(), any(), any(), any(), any(), any()) } answers {
+            capturedArgs += secondArg<GradleInvocationArguments>()
+            runningBuild
+        }
+
+        val response = server.client.callTool(
+            ToolNames.GRADLE,
+            mapOf("commandLine" to JsonArray(listOf(JsonPrimitive(flag))))
+        )
+
+        val text = response!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        assertContains(text, expectedSnippet)
+        assertTrue(response.isError != true, "Call should not be an error, but was: $text")
+        assertEquals(1, capturedArgs.size)
+        assertEquals(listOf(flag), capturedArgs.single().additionalArguments)
+        assertTrue(capturedArgs.single().additionalSystemProps.isEmpty(), "Expected no hidden Gradle defaults for CLI alias passthrough")
+    }
+}
+
+class GradleExecutionToolRealBuildTest : BaseMcpServerTest() {
+
+    private lateinit var project: GradleProjectFixture
 
     override fun Scope.createProvider(): GradleProvider {
         return DefaultGradleProvider(
             config = get(),
             buildManager = get()
-        )
+        ).withTestGradleDefaults()
     }
 
     @BeforeEach
     override fun setup() = runTest {
-        _project = testKotlinProject()
+        project = testKotlinProject()
         super.setup()
-        server.setServerRoots(Root(_project.path().toUri().toString(), "root"))
+        server.setServerRoots(Root(project.path().toUri().toString(), "root"))
     }
 
     @AfterEach
     override fun cleanup() = runTest {
-        _project.close()
+        project.close()
         super.cleanup()
     }
 
     @Test
-    fun `gradle --version works with real project`() = runTest {
-        val args = mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("--version"))))
-        val call = server.client.callTool(ToolNames.GRADLE, args)
-
-        val text = call!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
-        // Should contain Gradle version info
-        assertContains(text, "Gradle")
-        assertTrue(call.isError != true, "Call should not be an error, but was: $text")
-    }
-
-    @Test
-    fun `gradle --help works with real project`() = runTest {
-        val args = mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("--help"))))
-        val call = server.client.callTool(ToolNames.GRADLE, args)
-
-        val text = call!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
-        // Should contain Gradle help text
-        assertContains(text, "USAGE: gradle")
-        assertTrue(call.isError != true, "Call should not be an error, but was: $text")
-    }
-
-    @Test
-    fun `gradle -v works with real project`() = runTest {
-        val args = mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("-v"))))
-        val call = server.client.callTool(ToolNames.GRADLE, args)
-
-        val text = call!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
-        assertContains(text, "Gradle")
-        assertTrue(call.isError != true, "Call should not be an error, but was: $text")
-    }
-
-    @Test
-    fun `gradle -h works with real project`() = runTest {
-        val args = mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("-h"))))
-        val call = server.client.callTool(ToolNames.GRADLE, args)
-
-        val text = call!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
-        assertContains(text, "USAGE: gradle")
-        assertTrue(call.isError != true, "Call should not be an error, but was: $text")
-    }
-
-    @Test
-    fun `query_build shows provenance for binary plugin task from real build`() = runTest {
+    fun `query_build shows provenance for binary plugin task from real build`() = runTest(timeout = 5.minutes) {
         server.client.callTool(
             ToolNames.GRADLE,
             mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("compileKotlin"), JsonPrimitive("--rerun"))))
@@ -110,9 +125,9 @@ class GradleExecutionToolTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `query_build shows provenance for script task from real build`() = runTest {
-        _project.close()
-        _project = testKotlinProject {
+    fun `query_build shows provenance for script task from real build`() = runTest(timeout = 5.minutes) {
+        project.close()
+        project = testKotlinProject {
             buildScript(
                 """
                 plugins {
@@ -140,7 +155,7 @@ class GradleExecutionToolTest : BaseMcpServerTest() {
                 """.trimIndent()
             )
         }
-        server.setServerRoots(Root(_project.path().toUri().toString(), "root"))
+        server.setServerRoots(Root(project.path().toUri().toString(), "root"))
 
         server.client.callTool(
             ToolNames.GRADLE,

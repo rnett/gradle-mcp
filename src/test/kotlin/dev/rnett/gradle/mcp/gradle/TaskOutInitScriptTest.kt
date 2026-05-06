@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.gradle
 
 import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
+import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
 import dev.rnett.gradle.mcp.gradle.build.BuildComponentOutcome
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.utils.OS
@@ -42,9 +43,8 @@ class TaskOutInitScriptTest {
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
                 additionalArguments = listOf("help", "-Pgradle-mcp.init-scripts.hello"),
-                envSource = EnvSource.NONE,
-                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
-            ).withInitScript("task-out")
+                envSource = EnvSource.NONE
+            ).withTestGradleDefaults().withInitScript("task-out")
 
             val runningBuild = provider.runBuild(
                 projectRoot = projectRoot,
@@ -73,9 +73,8 @@ class TaskOutInitScriptTest {
         }.use { project ->
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
-                additionalArguments = listOf("printMessage"),
-                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
-            ).withInitScript("task-out")
+                additionalArguments = listOf("printMessage")
+            ).withTestGradleDefaults().withInitScript("task-out")
 
             val runningBuild = provider.runBuild(
                 projectRoot = projectRoot,
@@ -125,9 +124,8 @@ class TaskOutInitScriptTest {
         }.use { project ->
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
-                additionalArguments = listOf("execTask"),
-                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
-            ).withInitScript("task-out")
+                additionalArguments = listOf("execTask")
+            ).withTestGradleDefaults().withInitScript("task-out")
 
             val runningBuild = provider.runBuild(
                 projectRoot = projectRoot,
@@ -161,9 +159,8 @@ class TaskOutInitScriptTest {
         }.use { project ->
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
-                additionalArguments = listOf("printMessage"),
-                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
-            ).withInitScript("task-out")
+                additionalArguments = listOf("printMessage")
+            ).withTestGradleDefaults().withInitScript("task-out")
 
             val runningBuild = provider.runBuild(projectRoot = projectRoot, args = args)
             val result = runningBuild.awaitFinished()
@@ -202,9 +199,8 @@ class TaskOutInitScriptTest {
         }.use { project ->
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
-                additionalArguments = listOf("printMessage"),
-                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
-            ).withInitScript("task-out")
+                additionalArguments = listOf("printMessage")
+            ).withTestGradleDefaults().withInitScript("task-out")
 
             val runningBuild = provider.runBuild(projectRoot = projectRoot, args = args)
             val result = runningBuild.awaitFinished()
@@ -238,9 +234,8 @@ class TaskOutInitScriptTest {
         }.use { project ->
             val projectRoot = GradleProjectRoot(project.pathString())
             val args = GradleInvocationArguments(
-                additionalArguments = listOf("failInit"),
-                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
-            )
+                additionalArguments = listOf("failInit")
+            ).withTestGradleDefaults()
 
             val runningBuild = provider.runBuild(
                 projectRoot = projectRoot,

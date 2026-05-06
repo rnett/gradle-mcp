@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.tools
 
 import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
 import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
+import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.fixtures.mcp.McpServerFixture
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
@@ -40,6 +41,8 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
         return DefaultGradleProvider(
             config = get(),
             buildManager = get()
+        ).withTestGradleDefaults(
+            additionalSystemProps = mapOf("org.gradle.configuration-cache" to "false")
         )
     }
 

@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.gradle
 
 import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
 import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
+import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.tools.toOutputString
 import kotlinx.coroutines.test.runTest
@@ -25,7 +26,6 @@ class InitScriptCompilationTest {
         provider = DefaultGradleProvider(GradleConfiguration(), buildManager = buildManager)
         project = testGradleProject {
             buildScript("")
-            file("gradle.properties", "org.gradle.kotlin.dsl.allWarningsAsErrors=true")
         }
     }
 
@@ -49,7 +49,8 @@ class InitScriptCompilationTest {
         val projectRoot = GradleProjectRoot(project.pathString())
         val args = GradleInvocationArguments(
             additionalArguments = listOf("help"),
-            additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
+        ).withTestGradleDefaults(
+            additionalSystemProps = mapOf("org.gradle.kotlin.dsl.allWarningsAsErrors" to "true")
         ).withInitScript(scriptName)
 
         val result = provider.runBuild(projectRoot, args).awaitFinished()

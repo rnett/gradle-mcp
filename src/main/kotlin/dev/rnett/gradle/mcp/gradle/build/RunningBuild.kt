@@ -20,6 +20,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
+import kotlinx.coroutines.CancellationException
 
 /**
  * Represents a running Gradle build.
@@ -122,10 +123,10 @@ class RunningBuild(
         return finishedBuildDeferred.await()
     }
 
-    private fun toFinishedBuild(exception: GradleConnectionException? = null): FinishedBuild {
-        val buildFailures = exception?.failures?.map { indexer.withIndex(it.toContent()) }.orEmpty()
+    private fun toFinishedBuild(exception: Exception? = null): FinishedBuild {
+        val buildFailures = (exception as? GradleConnectionException)?.failures?.map { indexer.withIndex(it.toContent()) }.orEmpty()
         val outcome = when {
-            exception is BuildCancelledException -> BuildOutcome.Canceled
+            exception is BuildCancelledException || exception is CancellationException -> BuildOutcome.Canceled
             buildFailures.isNotEmpty() -> BuildOutcome.Failed(buildFailures)
             exception != null -> BuildOutcome.Failed(listOf(indexer.withIndex(FailureContent(exception.message, exception.toString(), emptySet(), emptyMap()))))
             else -> BuildOutcome.Success
@@ -134,7 +135,7 @@ class RunningBuild(
         return RefFinishedBuild(this, Clock.System.now(), outcome)
     }
 
-    fun finish(exception: GradleConnectionException? = null, store: (FinishedBuild) -> Unit): FinishedBuild {
+    fun finish(exception: Exception? = null, store: (FinishedBuild) -> Unit): FinishedBuild {
         val finished = toFinishedBuild(exception)
         this.status = finished.outcome
         store(finished)

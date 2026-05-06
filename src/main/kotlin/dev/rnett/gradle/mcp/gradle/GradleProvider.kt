@@ -208,7 +208,7 @@ class DefaultGradleProvider(
                 // Always finalize the build so RunningBuild never stays in Running state
                 // indefinitely. When outcome is null the scope was cancelled (server shutdown).
                 val finalOutcome = outcome ?: Result.failure(CancellationException("Build coroutine cancelled"))
-                runningBuild.finish(exception = finalOutcome.exceptionOrNull() as? org.gradle.tooling.GradleConnectionException) {
+                runningBuild.finish(exception = finalOutcome.exceptionOrNull() as? Exception) {
                     buildManager.storeResult(it)
                 }
             }

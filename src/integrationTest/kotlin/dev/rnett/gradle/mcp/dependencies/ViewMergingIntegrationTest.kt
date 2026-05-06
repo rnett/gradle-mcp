@@ -10,6 +10,7 @@ import dev.rnett.gradle.mcp.dependencies.model.SessionViewSourcesDir
 import dev.rnett.gradle.mcp.dependencies.search.FullTextSearch
 import dev.rnett.gradle.mcp.fixtures.dependencies.createTestSourcesService
 import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
+import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleConfiguration
@@ -43,7 +44,7 @@ class ViewMergingIntegrationTest {
         val provider = DefaultGradleProvider(
             config = GradleConfiguration(),
             buildManager = BuildManager()
-        )
+        ).withTestGradleDefaults()
         val depService = DefaultGradleDependencyService(provider)
         val storageService = DefaultSourceStorageService(environment)
         val rawIndexService = dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(environment, listOf(FullTextSearch()))
@@ -111,7 +112,7 @@ class ViewMergingIntegrationTest {
         val provider = DefaultGradleProvider(
             config = GradleConfiguration(),
             buildManager = BuildManager()
-        )
+        ).withTestGradleDefaults()
         val depService = DefaultGradleDependencyService(provider)
         val storageService = DefaultSourceStorageService(environment)
         val indexService = dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService(environment, listOf(FullTextSearch()))

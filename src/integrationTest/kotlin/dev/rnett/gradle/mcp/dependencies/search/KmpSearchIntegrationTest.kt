@@ -11,10 +11,12 @@ import dev.rnett.gradle.mcp.dependencies.DefaultSourcesService
 import dev.rnett.gradle.mcp.dependencies.model.SessionViewSourcesDir
 import dev.rnett.gradle.mcp.fixtures.dependencies.createTestSourcesService
 import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
+import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
+import dev.rnett.gradle.mcp.gradle.GradleProvider
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -42,7 +44,7 @@ class KmpSearchIntegrationTest : KoinTest {
     override fun getKoin(): Koin = koinApp.koin
 
     lateinit var environment: GradleMcpEnvironment
-    lateinit var provider: DefaultGradleProvider
+    lateinit var provider: GradleProvider
     lateinit var indexService: DefaultSourceIndexService
     lateinit var sourcesService: DefaultSourcesService
 
@@ -64,7 +66,7 @@ class KmpSearchIntegrationTest : KoinTest {
         provider = DefaultGradleProvider(
             config = GradleConfiguration(),
             buildManager = BuildManager()
-        )
+        ).withTestGradleDefaults()
         val depService = DefaultGradleDependencyService(provider)
         val storageService = DefaultSourceStorageService(environment)
         val rawIndexService = getKoin().get<IndexService>()

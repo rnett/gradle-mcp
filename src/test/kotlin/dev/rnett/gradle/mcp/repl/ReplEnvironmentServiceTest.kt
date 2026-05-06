@@ -4,11 +4,13 @@ import dev.rnett.gradle.mcp.PRINTLN
 import dev.rnett.gradle.mcp.TestFixturesBuildConfig
 import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
 import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
+import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
+import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.tools.toOutputString
 import kotlinx.coroutines.runBlocking
@@ -25,9 +27,19 @@ import kotlin.time.Duration.Companion.seconds
 class ReplEnvironmentServiceTest {
 
     private lateinit var buildManager: BuildManager
-    private lateinit var provider: DefaultGradleProvider
+    private lateinit var provider: GradleProvider
     private lateinit var replEnvService: DefaultReplEnvironmentService
     private lateinit var complexProject: GradleProjectFixture
+
+    private suspend fun resetSharedProjectState() {
+        runGradle(
+            complexProject,
+            ":kotlin-jvm:createSource",
+            ":kmp-project:createSource",
+            ":clean-test:createSource",
+            ":compiler-args:createSource"
+        )
+    }
 
     @BeforeAll
     fun setupAll() {
@@ -35,7 +47,7 @@ class ReplEnvironmentServiceTest {
         provider = DefaultGradleProvider(
             GradleConfiguration(),
             buildManager = buildManager
-        )
+        ).withTestGradleDefaults()
         replEnvService = DefaultReplEnvironmentService(provider)
 
         complexProject = testGradleProject {
@@ -144,8 +156,7 @@ class ReplEnvironmentServiceTest {
             val res = provider.runBuild(
                 projectRoot,
                 GradleInvocationArguments(
-                    additionalArguments = listOf(":kotlin-jvm:createSource", ":kmp-project:createSource", ":clean-test:createSource", ":compiler-args:createSource"),
-                    additionalEnvVars = mapOf("GRADLE_USER_HOME" to complexProject.gradleUserHome().toString())
+                    additionalArguments = listOf(":kotlin-jvm:createSource", ":kmp-project:createSource", ":clean-test:createSource", ":compiler-args:createSource")
                 )
             ).awaitFinished()
             if (res.outcome !is BuildOutcome.Success) {
@@ -237,24 +248,32 @@ class ReplEnvironmentServiceTest {
 
     @Test
     fun `repl-env init script ensures compiled sources are built even when clean`() = runTest(timeout = 300.seconds) {
-        runGradle(complexProject, ":clean-test:clean")
-        val env = resolveEnv(complexProject, projectPath = ":clean-test")
+        try {
+            runGradle(complexProject, ":clean-test:clean")
+            val env = resolveEnv(complexProject, projectPath = ":clean-test")
 
-        val classpath = env.config.classpath
-        val matchingClassesDirs = classpath.filter { (it.contains("classes") || it.contains("bin")) && (it.contains("main") || it.contains("clean-test")) }
-        assertTrue(matchingClassesDirs.isNotEmpty(), "Classpath should contain classes directory after clean. Classpath: $classpath")
-        assertTrue(matchingClassesDirs.any { File(it).exists() }, "At least one classes directory should exist after clean. Matching: $matchingClassesDirs")
+            val classpath = env.config.classpath
+            val matchingClassesDirs = classpath.filter { (it.contains("classes") || it.contains("bin")) && (it.contains("main") || it.contains("clean-test")) }
+            assertTrue(matchingClassesDirs.isNotEmpty(), "Classpath should contain classes directory after clean. Classpath: $classpath")
+            assertTrue(matchingClassesDirs.any { File(it).exists() }, "At least one classes directory should exist after clean. Matching: $matchingClassesDirs")
+        } finally {
+            resetSharedProjectState()
+        }
     }
 
     @Test
     fun `repl-env init script ensures KMP compiled sources are built and included`() = runTest(timeout = 300.seconds) {
-        runGradle(complexProject, ":kmp-project:clean")
-        val env = resolveEnv(complexProject, projectPath = ":kmp-project", sourceSet = "jvmMain")
+        try {
+            runGradle(complexProject, ":kmp-project:clean")
+            val env = resolveEnv(complexProject, projectPath = ":kmp-project", sourceSet = "jvmMain")
 
-        val classpath = env.config.classpath
-        val matchingClassesDirs = classpath.filter { (it.contains("classes") || it.contains("bin")) && (it.contains("jvm") || it.contains("main") || it.contains("kmp-project")) }
-        assertTrue(matchingClassesDirs.isNotEmpty(), "Classpath should contain KMP classes directory. Classpath: $classpath")
-        assertTrue(matchingClassesDirs.any { File(it).exists() }, "At least one KMP classes directory should exist. Matching: $matchingClassesDirs")
+            val classpath = env.config.classpath
+            val matchingClassesDirs = classpath.filter { (it.contains("classes") || it.contains("bin")) && (it.contains("jvm") || it.contains("main") || it.contains("kmp-project")) }
+            assertTrue(matchingClassesDirs.isNotEmpty(), "Classpath should contain KMP classes directory. Classpath: $classpath")
+            assertTrue(matchingClassesDirs.any { File(it).exists() }, "At least one KMP classes directory should exist. Matching: $matchingClassesDirs")
+        } finally {
+            resetSharedProjectState()
+        }
     }
 
     @Test
@@ -272,8 +291,7 @@ class ReplEnvironmentServiceTest {
     ) {
         val projectRoot = GradleProjectRoot(project.pathString())
         val args = GradleInvocationArguments(
-            additionalArguments = tasks.toList(),
-            additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
+            additionalArguments = tasks.toList()
         ).withInitScript("task-out")
 
         val runningBuild = provider.runBuild(

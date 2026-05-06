@@ -3,6 +3,7 @@ package dev.rnett.gradle.mcp.gradle
 import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
 import dev.rnett.gradle.mcp.fixtures.gradle.testJavaProject
 import dev.rnett.gradle.mcp.fixtures.gradle.testKotlinProject
+import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
 import dev.rnett.gradle.mcp.gradle.build.failuresIfFailed
@@ -17,6 +18,10 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 
@@ -49,7 +54,7 @@ class GradleProviderTest {
         val args = GradleInvocationArguments(
             additionalArguments = listOf("help"),
             javaHome = currentJavaHome
-        )
+        ).withTestGradleDefaults()
 
         val runningBuild = provider.runBuild(
             projectRoot = projectRoot,
@@ -63,25 +68,29 @@ class GradleProviderTest {
     @Test
     fun `closing provider stops background builds and cancels scope`() = runTest {
         val testProvider = createTestProvider()
-        testJavaProject().use { project ->
+        longRunningJavaProject().use { project ->
             val projectRoot = GradleProjectRoot(project.pathString())
+            val startedFile = longTaskStartedFile(project.path())
+            Files.deleteIfExists(startedFile)
             val args = GradleInvocationArguments(
-                additionalArguments = listOf("help"),
-                additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
-            )
+                additionalArguments = listOf("longTask")
+            ).withTestGradleDefaults(additionalSystemProps = mapOf("gradle.mcp.longTaskStartedFile" to startedFile.toString()))
 
-            // Start a build
             val runningBuild = testProvider.runBuild(
                 projectRoot = projectRoot,
                 args = args
             )
 
-            // Close provider
+            waitForFile(startedFile)
+            assertTrue(testProvider.buildManager.listRunningBuilds().any { it.id == runningBuild.id })
             testProvider.close()
 
-            // Internal scope should be cancelled
+            val result = runningBuild.awaitFinished()
+            assertEquals(BuildOutcome.Canceled, result.outcome)
+            assertTrue(testProvider.buildManager.getBuild(runningBuild.id) is FinishedBuild)
+            assertTrue(testProvider.buildManager.listRunningBuilds().none { it.id == runningBuild.id })
             val scope = testProvider.scope
-            assert(!scope.coroutineContext[Job]!!.isActive)
+            assertTrue(!scope.coroutineContext[Job]!!.isActive)
         }
     }
 
@@ -104,7 +113,7 @@ class GradleProviderTest {
             val args = GradleInvocationArguments(
                 additionalArguments = listOf("help"),
                 envSource = EnvSource.INHERIT
-            )
+            ).withTestGradleDefaults()
 
             val runningBuild = p.runBuild(
                 projectRoot = projectRoot,
@@ -140,7 +149,7 @@ class GradleProviderTest {
                 additionalArguments = listOf("help"),
                 javaHome = currentJavaHome,
                 envSource = EnvSource.INHERIT
-            )
+            ).withTestGradleDefaults()
 
             val runningBuild = p.runBuild(
                 projectRoot = projectRoot,
@@ -172,7 +181,7 @@ class GradleProviderTest {
             val args = GradleInvocationArguments(
                 additionalArguments = listOf("help"),
                 envSource = EnvSource.INHERIT
-            )
+            ).withTestGradleDefaults()
 
             val runningBuild = p.runBuild(
                 projectRoot = projectRoot,
@@ -193,14 +202,17 @@ class GradleProviderTest {
 
     @Test
     fun `can get connection to gradle project`() = runTest(timeout = 120.seconds) {
-        val connection = provider.getConnection(javaProject.path())
+        provider.getConnection(javaProject.path()).use { connection ->
+            val model = connection.model(BuildEnvironment::class.java).get()
+            assertNotNull(model.gradle.gradleVersion)
+        }
     }
 
 
     @Test
     fun `can get build model from gradle project`() = runTest(timeout = 120.seconds) {
         val projectRoot = GradleProjectRoot(javaProject.pathString())
-        val args = GradleInvocationArguments.DEFAULT
+        val args = GradleInvocationArguments.DEFAULT.withTestGradleDefaults()
 
         val result = provider.getBuildModel(
             projectRoot = projectRoot,
@@ -221,13 +233,12 @@ class GradleProviderTest {
         val args = GradleInvocationArguments(
             additionalArguments = listOf("help", "-Pgradle-mcp.init-scripts.hello"),
             additionalEnvVars = mapOf(
-                "GRADLE_USER_HOME" to javaProject.gradleUserHome().toString(),
                 "TEST_VAR" to "test_value"
             ),
             additionalSystemProps = mapOf("test.prop" to "test_value"),
             additionalJvmArgs = listOf("-Xmx512m"),
             requestedInitScripts = listOf(InitScriptNames.TASK_OUT)
-        )
+        ).withTestGradleDefaults()
 
         val runningBuild = provider.runBuild(
             projectRoot = projectRoot,
@@ -248,7 +259,7 @@ class GradleProviderTest {
         val projectRoot = GradleProjectRoot(javaProject.pathString())
         val args = GradleInvocationArguments(
             additionalArguments = listOf("help")
-        )
+        ).withTestGradleDefaults()
 
         val runningBuild = provider.runBuild(
             projectRoot = projectRoot,
@@ -273,7 +284,7 @@ class GradleProviderTest {
     @Test
     fun `can run tests in java project with and without filters`() = runTest(timeout = 120.seconds) {
         val projectRoot = GradleProjectRoot(javaProject.pathString())
-        val args = GradleInvocationArguments.DEFAULT
+        val args = GradleInvocationArguments.DEFAULT.withTestGradleDefaults()
 
         // Run all tests
         val runningBuild = provider.runTests(
@@ -304,7 +315,7 @@ class GradleProviderTest {
         val projectRoot = GradleProjectRoot(javaProject.pathString())
         val args = GradleInvocationArguments(
             additionalArguments = listOf("nonExistentTask")
-        )
+        ).withTestGradleDefaults()
 
         val runningBuild = provider.runBuild(
             projectRoot = projectRoot,
@@ -322,7 +333,7 @@ class GradleProviderTest {
         val projectRoot2 = GradleProjectRoot(kotlinProject.pathString())
         val args = GradleInvocationArguments(
             additionalArguments = listOf("help")
-        )
+        ).withTestGradleDefaults()
 
         val runningBuild1 = provider.runBuild(
             projectRoot = projectRoot1,
@@ -351,19 +362,27 @@ class GradleProviderTest {
 
     @Test
     fun `can cancel running build`() = runTest(timeout = 120.seconds) {
-        val projectRoot = GradleProjectRoot(javaProject.pathString())
+        longRunningJavaProject().use { project ->
+            val projectRoot = GradleProjectRoot(project.pathString())
+            val startedFile = longTaskStartedFile(project.path())
+            Files.deleteIfExists(startedFile)
+            val runningBuild = provider.runBuild(
+                projectRoot = projectRoot,
+                args = GradleInvocationArguments(additionalArguments = listOf("longTask")).withTestGradleDefaults(
+                    additionalSystemProps = mapOf("gradle.mcp.longTaskStartedFile" to startedFile.toString())
+                )
+            )
 
-        // Use a task that takes some time or just cancel immediately
-        val runningBuild = provider.runBuild(
-            projectRoot = projectRoot,
-            args = GradleInvocationArguments(additionalArguments = listOf("help"))
-        )
+            waitForFile(startedFile)
+            assertTrue(provider.buildManager.listRunningBuilds().any { it.id == runningBuild.id })
+            runningBuild.stop()
 
-        runningBuild.stop()
-
-        val result = runningBuild.awaitFinished()
-        assert(runningBuild.status == BuildOutcome.Canceled)
-        assert(provider.buildManager.getBuild(runningBuild.id) is FinishedBuild)
+            val result = runningBuild.awaitFinished()
+            assertEquals(BuildOutcome.Canceled, result.outcome)
+            assertEquals(BuildOutcome.Canceled, runningBuild.status)
+            assertTrue(provider.buildManager.getBuild(runningBuild.id) is FinishedBuild)
+            assertTrue(provider.buildManager.listRunningBuilds().none { it.id == runningBuild.id })
+        }
     }
 
     @Test
@@ -380,9 +399,8 @@ class GradleProviderTest {
                 val projectRoot = GradleProjectRoot(project.pathString())
                 val args = GradleInvocationArguments(
                     additionalArguments = listOf("help"),
-                    publishScan = true,
-                    additionalEnvVars = mapOf("GRADLE_USER_HOME" to project.gradleUserHome().toString())
-                )
+                    publishScan = true
+                ).withTestGradleDefaults()
 
                 val runningBuild = provider.runBuild(
                     projectRoot = projectRoot,
@@ -396,4 +414,34 @@ class GradleProviderTest {
             }
         }
     }
+
+    private fun longRunningJavaProject() = testJavaProject(hasTests = false) {
+        buildScript(
+            """
+            plugins {
+                java
+            }
+            tasks.register("longTask") {
+                doLast {
+                    val startedFile = file(System.getProperty("gradle.mcp.longTaskStartedFile")!!)
+                    startedFile.parentFile.mkdirs()
+                    startedFile.writeText("started")
+                    Thread.sleep(30000)
+                }
+            }
+            """.trimIndent()
+        )
+    }
+
+    private fun longTaskStartedFile(projectPath: Path): Path =
+        projectPath.resolve("build").resolve("long-task-started.txt")
+
+    private suspend fun waitForFile(path: Path, timeoutMillis: Long = 30_000) {
+        val deadline = System.currentTimeMillis() + timeoutMillis
+        while (!Files.exists(path)) {
+            assertTrue(System.currentTimeMillis() < deadline, "Timed out waiting for Gradle start signal at $path")
+            Thread.sleep(100)
+        }
+    }
+
 }

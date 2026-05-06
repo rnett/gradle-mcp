@@ -326,6 +326,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         val completedTasksFlow = MutableSharedFlow<String>(replay = 1)
 
         val runningBuild = createMockRunningBuild(buildId, completingTasksFlow = completedTasksFlow)
+        every { runningBuild.completedTaskPaths } returns emptySet()
         coEvery { runningBuild.awaitFinished() } coAnswers { suspendCancellableCoroutine { } }
 
         buildManager.registerBuild(runningBuild)

@@ -35,6 +35,7 @@ import dev.rnett.gradle.mcp.dependencies.search.TreeSitterLanguageProvider
 import dev.rnett.gradle.mcp.fixtures.SharedTestInfrastructure
 import dev.rnett.gradle.mcp.fixtures.dependencies.NoJdkSourceService
 import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
+import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.BundledJarProvider
@@ -144,7 +145,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
             connectionService = get<GradleConnectionService>(),
             executionService = get<BuildExecutionService>(),
             buildManager = get<BuildManager>()
-        )
+        ).withTestGradleDefaults()
     }
 
     override fun createTestModule() = module {

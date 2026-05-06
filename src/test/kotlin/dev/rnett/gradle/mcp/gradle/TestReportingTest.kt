@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.gradle
 
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.fixtures.gradle.testJavaProject
+import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
 import dev.rnett.gradle.mcp.tools.toOutputString
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
@@ -74,7 +75,7 @@ class TestReportingTest {
                         "com.example.ReportingTest.testDisabled"
                     )
                 ),
-                args = GradleInvocationArguments.DEFAULT
+                args = GradleInvocationArguments.DEFAULT.withTestGradleDefaults()
             )
             val result = runningBuild.awaitFinished()
 
@@ -125,7 +126,7 @@ class TestReportingTest {
                         "com.example.ReportingTest.testFail"
                     )
                 ),
-                args = GradleInvocationArguments.DEFAULT,
+                args = GradleInvocationArguments.DEFAULT.withTestGradleDefaults(),
                 progress = ProgressReporter { _, _, msg ->
                     if (msg != null) progressMessages.add(msg)
                 }
@@ -177,7 +178,7 @@ class TestReportingTest {
                         "com.example.SuiteB.testFail3"
                     )
                 ),
-                args = GradleInvocationArguments.DEFAULT
+                args = GradleInvocationArguments.DEFAULT.withTestGradleDefaults()
             )
             val result = runningBuild.awaitFinished()
             val output = result.toOutputString()

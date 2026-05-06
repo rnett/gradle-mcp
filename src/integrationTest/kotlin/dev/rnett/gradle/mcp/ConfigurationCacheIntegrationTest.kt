@@ -8,8 +8,10 @@ import dev.rnett.gradle.mcp.dependencies.SourceStorageService
 import dev.rnett.gradle.mcp.dependencies.SourcesService
 import dev.rnett.gradle.mcp.dependencies.search.IndexService
 import dev.rnett.gradle.mcp.fixtures.dependencies.NoJdkSourceService
+import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectBuilder
 import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
 import dev.rnett.gradle.mcp.fixtures.gradle.testKotlinProject
+import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.fixtures.mcp.McpServerFixture
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
@@ -32,7 +34,9 @@ import org.junit.jupiter.api.Test
 import org.koin.core.module.Module
 import org.koin.core.scope.Scope
 import org.koin.dsl.module
+import java.util.ArrayDeque
 import kotlin.io.path.absolutePathString
+import kotlin.io.path.deleteIfExists
 import kotlin.io.path.writeText
 import kotlin.test.assertContains
 import kotlin.test.assertFalse
@@ -42,12 +46,15 @@ import kotlin.time.Duration.Companion.minutes
 class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
 
     private lateinit var _project: GradleProjectFixture
+    private val extraProjects = ArrayDeque<GradleProjectFixture>()
 
     override fun Scope.createProvider(): GradleProvider {
         return DefaultGradleProvider(
             config = get(),
             buildManager = get(),
             initScriptProvider = get<InitScriptProvider>() as DefaultInitScriptProvider
+        ).withTestGradleDefaults(
+            additionalSystemProps = mapOf("org.gradle.configuration-cache.problems" to "fail")
         )
     }
 
@@ -80,19 +87,40 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
 
     @AfterEach
     override fun cleanup() = runTest {
+        while (extraProjects.isNotEmpty()) {
+            extraProjects.removeLast().close()
+        }
         _project.close()
         super.cleanup()
     }
 
     private fun resetProjectDefaults() {
         _project.projectDir.resolve("settings.gradle.kts").writeText("rootProject.name = \"test-project\"")
-        _project.projectDir.resolve("gradle.properties").writeText("org.gradle.jvmargs=-Xmx256m\n")
+        _project.projectDir.resolve("build.gradle.kts").writeText(defaultBuildScript())
+        _project.projectDir.resolve("gradle.properties").deleteIfExists()
+    }
+
+    private fun createIsolatedProject(builder: GradleProjectBuilder.() -> Unit = {}): GradleProjectFixture {
+        return testKotlinProject {
+            buildScript(
+                """
+                plugins {
+                    kotlin("jvm") version "${TestFixturesBuildConfig.KOTLIN_VERSION}"
+                }
+                repositories {
+                    mavenCentral()
+                }
+                dependencies {
+                    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+                }
+                """.trimIndent()
+            )
+            builder()
+        }.also(extraProjects::addLast)
     }
 
     @Test
     fun `inspect_dependencies works with configuration cache`() = runTest(timeout = 5.minutes) {
-        _project.projectDir.resolve("gradle.properties").writeText("org.gradle.configuration-cache=true\norg.gradle.configuration-cache.problems=fail")
-
         val result = server.client.callTool(
             ToolNames.INSPECT_DEPENDENCIES,
             buildJsonObject {
@@ -110,8 +138,6 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
 
     @Test
     fun `inspect_dependencies works with configuration cache re-use`() = runTest(timeout = 10.minutes) {
-        _project.projectDir.resolve("gradle.properties").writeText("org.gradle.configuration-cache=true\norg.gradle.configuration-cache.problems=fail")
-
         // First run: Serializing
         val result1 = server.client.callTool(
             ToolNames.INSPECT_DEPENDENCIES,
@@ -139,19 +165,21 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
 
     @Test
     fun `inspect_dependencies with updates works with configuration cache`() = runTest(timeout = 10.minutes) {
-        _project.projectDir.resolve("gradle.properties").writeText("org.gradle.configuration-cache=true\norg.gradle.configuration-cache.problems=fail")
-        _project.projectDir.resolve("build.gradle.kts").writeText(
-            """
-            plugins { kotlin("jvm") version "${TestFixturesBuildConfig.KOTLIN_VERSION}" }
-            repositories { mavenCentral() }
-            dependencies { implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0") }
-        """.trimIndent()
-        )
+        val project = createIsolatedProject {
+            buildScript(
+                """
+                plugins { kotlin("jvm") version "${TestFixturesBuildConfig.KOTLIN_VERSION}" }
+                repositories { mavenCentral() }
+                dependencies { implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0") }
+                """.trimIndent()
+            )
+        }
+        server.setServerRoots(Root(project.path().toUri().toString(), "root"))
 
         val result = server.client.callTool(
             ToolNames.INSPECT_DEPENDENCIES,
             buildJsonObject {
-                put("projectRoot", _project.path().absolutePathString())
+                put("projectRoot", project.path().absolutePathString())
                 put("checkUpdates", true)
             }
         ) as CallToolResult
@@ -203,21 +231,23 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
 
     @Test
     fun `inspect_dependencies works with multi-project build and configuration cache`() = runTest(timeout = 10.minutes) {
-        _project.projectDir.resolve("gradle.properties").writeText("org.gradle.configuration-cache=true\norg.gradle.configuration-cache.problems=fail")
-        _project.projectDir.resolve("settings.gradle.kts").writeText("rootProject.name = \"test-root\"\ninclude(\":sub\")")
-        _project.projectDir.resolve("sub").toFile().mkdirs()
-        _project.projectDir.resolve("sub/build.gradle.kts").writeText(
-            """
-            plugins { kotlin("jvm") version "${TestFixturesBuildConfig.KOTLIN_VERSION}" }
-            repositories { mavenCentral() }
-            dependencies { implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.0") }
-        """.trimIndent()
-        )
+        val project = createIsolatedProject {
+            settings("rootProject.name = \"test-root\"\ninclude(\":sub\")")
+            subproject(
+                "sub",
+                buildScript = """
+                plugins { kotlin("jvm") version "${TestFixturesBuildConfig.KOTLIN_VERSION}" }
+                repositories { mavenCentral() }
+                dependencies { implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.0") }
+                """.trimIndent()
+            )
+        }
+        server.setServerRoots(Root(project.path().toUri().toString(), "root"))
 
         val result = server.client.callTool(
             ToolNames.INSPECT_DEPENDENCIES,
             buildJsonObject {
-                put("projectRoot", _project.path().absolutePathString())
+                put("projectRoot", project.path().absolutePathString())
                 put("projectPath", ":sub")
             }
         ) as CallToolResult
@@ -230,8 +260,6 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
 
     @Test
     fun `kotlin_repl start works with configuration cache`() = runTest(timeout = 5.minutes) {
-        _project.projectDir.resolve("gradle.properties").writeText("org.gradle.configuration-cache=true\norg.gradle.configuration-cache.problems=fail")
-
         val result = server.client.callTool(
             ToolNames.REPL,
             buildJsonObject {
