@@ -236,6 +236,9 @@ enum MyJavaEnum {
         val response = declarationSearch.search(listOf(indexDir), "fqn:kotlinx.serialization.json.Json")
         val results = response.results
         // println removed (Finding 48)
-        assertTrue(results.any { it.relativePath == "Json.kt" && it.line == 9 }, "Json interface not found at Json.kt:9")
+        assertTrue(
+            results.any { it.relativePath == "Json.kt" && it.line == 9 },
+            "Json interface not found at Json.kt:9. Interpreted query: ${response.interpretedQuery}. Found: $results"
+        )
     }
 }

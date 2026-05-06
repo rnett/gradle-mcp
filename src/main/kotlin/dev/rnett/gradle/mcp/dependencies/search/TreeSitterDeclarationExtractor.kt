@@ -20,6 +20,8 @@ data class ExtractedSymbol(
     val offset: Int
 )
 
+private val PACKAGE_DECLARATION_REGEX = Regex("""\bpackage\s+([A-Za-z_][A-Za-z0-9_]*(?:\s*\.\s*[A-Za-z_][A-Za-z0-9_]*)*)""")
+
 private class ExtractionContext(
     val parser: Parser,
     val javaQuery: Query,
@@ -245,13 +247,11 @@ class TreeSitterDeclarationExtractor(private val languageProvider: TreeSitterLan
             ?: root.findFirstNode("package_declaration")
             ?: return null
         val declaration = srcBytes.decodeToString(packageNode.startByte.toInt(), packageNode.endByte.toInt())
-        return declaration
-            .removePrefix("package")
-            .substringBefore("//")
-            .trim()
-            .removeSuffix(";")
-            .trim()
-            .takeIf { it.isNotEmpty() }
+        return PACKAGE_DECLARATION_REGEX.find(declaration)
+            ?.groupValues
+            ?.get(1)
+            ?.replace(Regex("""\s+"""), "")
+            ?.takeIf { it.isNotEmpty() }
     }
 
     private fun Node.findFirstNode(type: String): Node? {
