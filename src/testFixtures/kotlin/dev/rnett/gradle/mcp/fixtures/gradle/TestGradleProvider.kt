@@ -30,11 +30,21 @@ fun GradleProvider.withTestGradleDefaults(
 
 fun GradleInvocationArguments.withTestGradleDefaults(
     additionalSystemProps: Map<String, String> = emptyMap()
-): GradleInvocationArguments = copy(
-    additionalSystemProps = defaultTestGradleSystemProperties
+): GradleInvocationArguments {
+    val systemProps = defaultTestGradleSystemProperties
         .withOverriddenSystemProperties(additionalSystemProps)
         .withOverriddenSystemProperties(this.additionalSystemProps)
-)
+
+    val cacheArgs = listOf(
+        if (systemProps["org.gradle.configuration-cache"] == "false") "--no-configuration-cache" else "--configuration-cache",
+        if (systemProps["org.gradle.caching"] == "false") "--no-build-cache" else "--build-cache"
+    )
+
+    return copy(
+        additionalSystemProps = systemProps,
+        additionalArguments = cacheArgs + additionalArguments
+    )
+}
 
 private fun Map<String, String>.withOverriddenSystemProperties(
     overrides: Map<String, String>

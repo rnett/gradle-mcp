@@ -74,7 +74,12 @@ class GradleProviderTest {
             Files.deleteIfExists(startedFile)
             val args = GradleInvocationArguments(
                 additionalArguments = listOf("longTask")
-            ).withTestGradleDefaults(additionalSystemProps = mapOf("gradle.mcp.longTaskStartedFile" to startedFile.toString()))
+            ).withTestGradleDefaults(
+                additionalSystemProps = mapOf(
+                    "gradle.mcp.longTaskStartedFile" to startedFile.toString(),
+                    "org.gradle.configuration-cache" to "false"
+                )
+            )
 
             val runningBuild = testProvider.runBuild(
                 projectRoot = projectRoot,
@@ -369,7 +374,10 @@ class GradleProviderTest {
             val runningBuild = provider.runBuild(
                 projectRoot = projectRoot,
                 args = GradleInvocationArguments(additionalArguments = listOf("longTask")).withTestGradleDefaults(
-                    additionalSystemProps = mapOf("gradle.mcp.longTaskStartedFile" to startedFile.toString())
+                    additionalSystemProps = mapOf(
+                        "gradle.mcp.longTaskStartedFile" to startedFile.toString(),
+                        "org.gradle.configuration-cache" to "false"
+                    )
                 )
             )
 

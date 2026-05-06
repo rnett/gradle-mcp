@@ -31,13 +31,15 @@ class ReplEnvironmentServiceTest {
     private lateinit var replEnvService: DefaultReplEnvironmentService
     private lateinit var complexProject: GradleProjectFixture
 
+    private fun sourceCreationArguments() = GradleInvocationArguments(
+        additionalArguments = listOf(":kotlin-jvm:createSource", ":kmp-project:createSource", ":clean-test:createSource", ":compiler-args:createSource"),
+        additionalSystemProps = mapOf("org.gradle.configuration-cache" to "false")
+    )
+
     private suspend fun resetSharedProjectState() {
         runGradle(
             complexProject,
-            ":kotlin-jvm:createSource",
-            ":kmp-project:createSource",
-            ":clean-test:createSource",
-            ":compiler-args:createSource"
+            sourceCreationArguments()
         )
     }
 
@@ -155,9 +157,7 @@ class ReplEnvironmentServiceTest {
             val projectRoot = GradleProjectRoot(complexProject.pathString())
             val res = provider.runBuild(
                 projectRoot,
-                GradleInvocationArguments(
-                    additionalArguments = listOf(":kotlin-jvm:createSource", ":kmp-project:createSource", ":clean-test:createSource", ":compiler-args:createSource")
-                )
+                sourceCreationArguments()
             ).awaitFinished()
             if (res.outcome !is BuildOutcome.Success) {
                 error("Failed to initialize source files: ${res.toOutputString()}")
@@ -288,15 +288,23 @@ class ReplEnvironmentServiceTest {
     private suspend fun runGradle(
         project: GradleProjectFixture,
         vararg tasks: String
+    ) = runGradle(
+        project,
+        GradleInvocationArguments(
+            additionalArguments = tasks.toList()
+        )
+    )
+
+    private suspend fun runGradle(
+        project: GradleProjectFixture,
+        args: GradleInvocationArguments
     ) {
         val projectRoot = GradleProjectRoot(project.pathString())
-        val args = GradleInvocationArguments(
-            additionalArguments = tasks.toList()
-        ).withInitScript("task-out")
+        val buildArgs = args.withInitScript("task-out")
 
         val runningBuild = provider.runBuild(
             projectRoot = projectRoot,
-            args = args
+            args = buildArgs
         )
         val result = runningBuild.awaitFinished()
         assert(result.outcome is BuildOutcome.Success)

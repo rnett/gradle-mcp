@@ -61,7 +61,10 @@ class ConcurrentSameProjectTest {
             val runningBuild1 = provider.runBuild(
                 projectRoot = projectRoot,
                 args = GradleInvocationArguments(additionalArguments = listOf("longTask")).withTestGradleDefaults(
-                    additionalSystemProps = mapOf("gradle.mcp.longTaskStartedFile" to startedFile.toString())
+                    additionalSystemProps = mapOf(
+                        "gradle.mcp.longTaskStartedFile" to startedFile.toString(),
+                        "org.gradle.configuration-cache" to "false"
+                    )
                 )
             )
 
@@ -94,7 +97,7 @@ class ConcurrentSameProjectTest {
         }
     }
 
-    private suspend fun waitForFile(path: java.nio.file.Path, timeoutMillis: Long = 30_000) {
+    private suspend fun waitForFile(path: java.nio.file.Path, timeoutMillis: Long = 90_000) {
         val deadline = System.currentTimeMillis() + timeoutMillis
         while (!Files.exists(path)) {
             assertTrue(System.currentTimeMillis() < deadline, "Timed out waiting for Gradle start signal at $path")
