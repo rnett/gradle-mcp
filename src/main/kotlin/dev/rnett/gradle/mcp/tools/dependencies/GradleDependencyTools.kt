@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.tools.dependencies
 
 import dev.rnett.gradle.mcp.dependencies.DependencyRequestOptions
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
+import dev.rnett.gradle.mcp.dependencies.normalizeDependencyFilter
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
 import dev.rnett.gradle.mcp.dependencies.model.GradleProjectDependencies
@@ -28,7 +29,7 @@ class GradleDependencyTools(
         val configuration: String? = null,
         @Description("Filtering the report by a specific source set (e.g., 'test').")
         val sourceSet: String? = null,
-        @Description("Filtering reported components to those matching a GAV coordinate (`group:name:version:variant`, `group:name:version`, `group:name`, or `group`). Transitive children of matched components are shown when `onlyDirect=false`.")
+        @Description("Full-string regex over group:name:version[:variant]; blank ignored.")
         val dependency: String? = null,
         @Description("Checking project repositories for newer versions of all dependencies authoritatively. Always `true` when `updatesOnly=true`.")
         val checkUpdates: Boolean = true,
@@ -53,13 +54,14 @@ class GradleDependencyTools(
             |- **Update Check**: `checkUpdates=true` (default) detects newer versions — individual lines show `[UPDATE AVAILABLE: X.Y.Z]`; use `updatesOnly=true` for a flat summary: `group:artifact: current → latest` with the project paths where each dep is used (forces `checkUpdates=true`). Use `stableOnly=true` to exclude pre-release versions.
             |- **[UPDATE CHECK SKIPPED]**: Appears only for dependencies that were in scope for update checking but whose resolution genuinely failed — not for dependencies intentionally excluded from the update-check scope (e.g., transitive deps when `onlyDirect=true`).
             |- **Plugin Auditing**: Use `sourceSet="buildscript"` to audit plugins.
-            |- **Targeted**: Use `dependency="org:artifact"` to target a single library — significantly faster.
+            |- **Targeted**: Use `dependency` as a full-string Kotlin regex to narrow report output and update-check candidates. Resolved modules match `group:name:version[:variant]`; unresolved deps match `group:name`; project deps match `project::path`; blank strings are ignored.
             |- Use `${ToolNames.LOOKUP_MAVEN_VERSIONS}` to find released versions; `${ToolNames.GRADLE}` for `dependencyInsight`.
         """.trimMargin()
     ) {
         val root = with(server) { it.projectRoot.resolveRoot() }
         // updatesOnly forces checkUpdates regardless of the explicit checkUpdates value.
         val checkUpdatesEnabled = it.checkUpdates || it.updatesOnly
+        val dependencyFilter = normalizeDependencyFilter(it.dependency)
         val report = with(progressReporter) {
             dependencyService.getDependencies(
                 projectRoot = root,
@@ -67,7 +69,7 @@ class GradleDependencyTools(
                 options = DependencyRequestOptions(
                     configuration = it.configuration,
                     sourceSet = it.sourceSet,
-                    dependency = it.dependency,
+                    dependency = dependencyFilter,
                     checkUpdates = checkUpdatesEnabled,
                     versionFilter = it.versionFilter,
                     stableOnly = it.stableOnly,
@@ -94,6 +96,7 @@ class GradleDependencyTools(
         return buildString {
             appendLine("Dependency Report")
             appendLine("Note: (*) indicates a dependency that has already been listed; its transitive dependencies are not shown again.")
+            report.notes.forEach { appendLine("Note: $it") }
             appendLine()
 
             val pagedProjects = paginate(report.projects, pagination, "projects") { project ->
@@ -192,10 +195,14 @@ class GradleDependencyTools(
             .toList().sortedBy { it.first }
 
         return if (groupedUpdates.isEmpty()) {
-            "No dependency updates found."
+            buildString {
+                appendLine("No dependency updates found.")
+                report.notes.forEach { appendLine("Note: $it") }
+            }.trim()
         } else {
             buildString {
                 appendLine("Available Dependency Updates:")
+                report.notes.forEach { appendLine("Note: $it") }
                 val paged = paginate(groupedUpdates, pagination, "dependency updates") { (dependencyId, projectSourceSets) ->
                     buildString {
                         // Get current/latest version from the first update for this dependencyId

@@ -17,6 +17,7 @@ import dev.rnett.gradle.mcp.utils.FileUtils
 import dev.rnett.gradle.mcp.utils.FileUtils.deleteRecursivelyWithRetry
 import dev.rnett.gradle.mcp.utils.unorderedParallelMap
 import dev.rnett.gradle.mcp.withPhase
+import com.github.benmanes.caffeine.cache.Caffeine
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -29,7 +30,6 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createFile
@@ -42,6 +42,8 @@ import kotlin.io.path.readText
 import kotlin.io.path.writeBytes
 import kotlin.io.path.writeText
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.toJavaDuration
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -134,13 +136,50 @@ class DefaultSourcesService(
         val name: String
     )
 
-    private val cache = ConcurrentHashMap<CacheKey, CachedView>()
-    private val keyLocks = ConcurrentHashMap<CacheKey, Mutex>()
+    private class SourceDependencyFilter private constructor(
+        val value: String?,
+        private val regex: Regex?
+    ) {
+        val isJdkOnly: Boolean = value == JDK_SOURCE_SELECTOR
+        val includeJdk: Boolean = value == null || isJdkOnly
+        val gradleProperty: String? = value.takeUnless { isJdkOnly }
+
+        fun matches(dep: GradleDependency): Boolean =
+            regex?.let { filter -> dep.canonicalCoordinateCandidates().any(filter::matches) } ?: true
+
+        companion object {
+            fun from(dependency: String?): SourceDependencyFilter {
+                val normalized = normalizeDependencyFilter(dependency)
+                val jdkOnly = normalized == JDK_SOURCE_SELECTOR
+                return SourceDependencyFilter(normalized, normalized.takeUnless { jdkOnly }?.let(::Regex))
+            }
+        }
+    }
+
+    private val cache = Caffeine.newBuilder()
+        .maximumSize(MAX_CACHED_SESSION_VIEWS)
+        .expireAfterAccess(CACHED_SESSION_VIEW_TTL.toJavaDuration())
+        .build<CacheKey, CachedView>()
+    // Caffeine bounds stored views; these stripes only serialize suspend-based view creation.
+    private val keyLocks = Array(SESSION_VIEW_LOCK_STRIPES) { Mutex() }
+
+    private companion object {
+        const val MAX_CACHED_SESSION_VIEWS = 128L
+        val CACHED_SESSION_VIEW_TTL = 30.minutes
+        const val SESSION_VIEW_LOCK_STRIPES = 64
+        const val JDK_SOURCE_SELECTOR = "jdk"
+    }
 
     private sealed interface SourceScope {
         data class Project(val projectRoot: GradleProjectRoot, val projectPath: String) : SourceScope
         data class Configuration(val projectRoot: GradleProjectRoot, val configurationPath: String) : SourceScope
         data class SourceSet(val projectRoot: GradleProjectRoot, val sourceSetPath: String) : SourceScope
+    }
+
+    private fun SourceScope.description(): String = when (this) {
+        is SourceScope.Project -> "project '$projectPath'"
+        is SourceScope.Configuration -> "configuration '$configurationPath'"
+        is SourceScope.SourceSet -> "source set '$sourceSetPath'"
     }
 
     context(progress: ProgressReporter)
@@ -152,9 +191,25 @@ class DefaultSourcesService(
         fresh: Boolean,
         providerToIndex: SearchProvider?
     ): SourcesDir {
-        val gradleDependencyFilter = dependency.takeUnless { it == "jdk" }
-        return resolveAndProcessSourcesInternal(SourceScope.Project(projectRoot, projectPath), forceDownload, fresh, DependencyFilterMatcher(dependency), providerToIndex) {
-            val project = depService.downloadProjectSources(projectRoot, projectPath, gradleDependencyFilter, fresh = fresh || forceDownload, includeInternal = true)
+        val filter = SourceDependencyFilter.from(dependency)
+        return resolveAndProcessSourcesInternal(
+            SourceScope.Project(projectRoot, projectPath),
+            forceDownload,
+            fresh,
+            filter,
+            providerToIndex
+        ) {
+            val project = if (filter.isJdkOnly) {
+                resolveScopedProjectDependencies(
+                    projectRoot = projectRoot,
+                    projectPath = projectPath,
+                    dependency = filter.gradleProperty,
+                    fresh = fresh,
+                    downloadSources = false
+                )
+            } else {
+                depService.downloadProjectSources(projectRoot, projectPath, filter.gradleProperty, fresh = fresh, includeInternal = true)
+            }
             SourceResolutionInput(project.allDependencies(), project.jdkHome.takeIf { project.hasJvmSourceSet() })
         }
     }
@@ -168,20 +223,19 @@ class DefaultSourcesService(
         fresh: Boolean,
         providerToIndex: SearchProvider?
     ): SourcesDir {
-        val gradleDependencyFilter = dependency.takeUnless { it == "jdk" }
-        return resolveAndProcessSourcesInternal(SourceScope.Configuration(projectRoot, configurationPath), forceDownload, fresh, DependencyFilterMatcher(dependency), providerToIndex) {
+        val filter = SourceDependencyFilter.from(dependency)
+        return resolveAndProcessSourcesInternal(
+            SourceScope.Configuration(projectRoot, configurationPath),
+            forceDownload,
+            fresh,
+            filter,
+            providerToIndex
+        ) {
             val parsed = parseScopedPath(configurationPath, "configurationPath", buildscriptNamespace = true)
-            val project = resolveScopedProjectDependencies(
-                projectRoot = projectRoot,
-                projectPath = parsed.projectPath,
-                dependency = gradleDependencyFilter,
-                fresh = fresh || forceDownload,
-                configuration = parsed.name
-            )
+            val project = resolveScopedProjectSources(projectRoot, parsed.projectPath, filter, fresh, configuration = parsed.name)
             val configuration = project.configurationOrNull(parsed.name)
                 ?: throw IllegalArgumentException("Configuration not found in project ${parsed.projectPath}: ${parsed.name}")
-            val jdkHome = project.jdkHome.takeIf { project.configurationIsJvm(parsed.name) }
-            SourceResolutionInput(configuration.allDependencies(), jdkHome)
+            SourceResolutionInput(configuration.allDependencies(), project.jdkHome.takeIf { project.configurationIsJvm(parsed.name) })
         }
     }
 
@@ -194,22 +248,21 @@ class DefaultSourcesService(
         fresh: Boolean,
         providerToIndex: SearchProvider?
     ): SourcesDir {
-        val gradleDependencyFilter = dependency.takeUnless { it == "jdk" }
-        return resolveAndProcessSourcesInternal(SourceScope.SourceSet(projectRoot, sourceSetPath), forceDownload, fresh, DependencyFilterMatcher(dependency), providerToIndex) {
+        val filter = SourceDependencyFilter.from(dependency)
+        return resolveAndProcessSourcesInternal(
+            SourceScope.SourceSet(projectRoot, sourceSetPath),
+            forceDownload,
+            fresh,
+            filter,
+            providerToIndex
+        ) {
             val parsed = parseScopedPath(sourceSetPath, "sourceSetPath")
             val sourceSetName = if (parsed.name == "buildscript") DefaultGradleDependencyService.BUILDSCRIPT_SOURCE_SET else parsed.name
-            val project = resolveScopedProjectDependencies(
-                projectRoot = projectRoot,
-                projectPath = parsed.projectPath,
-                dependency = gradleDependencyFilter,
-                fresh = fresh || forceDownload,
-                sourceSet = sourceSetName
-            )
+            val project = resolveScopedProjectSources(projectRoot, parsed.projectPath, filter, fresh, sourceSet = sourceSetName)
             val sourceSet = project.sourceSetOrNull(parsed.name)
                 ?: throw IllegalArgumentException("Source set not found in project ${parsed.projectPath}: ${parsed.name}. Available: ${project.sourceSets.map { it.name }}")
             val configurations = project.configurations.filter { it.name in sourceSet.configurations }
-            val jdkHome = project.jdkHome.takeIf { sourceSet.isJvm }
-            SourceResolutionInput(configurations.asSequence().flatMap { it.allDependencies() }, jdkHome)
+            SourceResolutionInput(configurations.asSequence().flatMap { it.allDependencies() }, project.jdkHome.takeIf { sourceSet.isJvm })
         }
     }
 
@@ -228,11 +281,31 @@ class DefaultSourcesService(
     }
 
     context(progress: ProgressReporter)
+    private suspend fun resolveScopedProjectSources(
+        projectRoot: GradleProjectRoot,
+        projectPath: String,
+        filter: SourceDependencyFilter,
+        fresh: Boolean,
+        configuration: String? = null,
+        sourceSet: String? = null
+    ): GradleProjectDependencies =
+        resolveScopedProjectDependencies(
+            projectRoot = projectRoot,
+            projectPath = projectPath,
+            dependency = filter.gradleProperty,
+            fresh = fresh,
+            downloadSources = !filter.isJdkOnly,
+            configuration = configuration,
+            sourceSet = sourceSet
+        )
+
+    context(progress: ProgressReporter)
     private suspend fun resolveScopedProjectDependencies(
         projectRoot: GradleProjectRoot,
         projectPath: String,
         dependency: String?,
         fresh: Boolean,
+        downloadSources: Boolean = true,
         configuration: String? = null,
         sourceSet: String? = null
     ): GradleProjectDependencies {
@@ -243,7 +316,7 @@ class DefaultSourcesService(
                 configuration = configuration,
                 sourceSet = sourceSet,
                 dependency = dependency,
-                downloadSources = true,
+                downloadSources = downloadSources,
                 excludeBuildscript = false,
                 fresh = fresh,
                 includeInternal = true
@@ -282,19 +355,19 @@ class DefaultSourcesService(
         scope: SourceScope,
         forceDownload: Boolean,
         fresh: Boolean,
-        matcher: DependencyFilterMatcher,
+        filter: SourceDependencyFilter,
         providerToIndex: SearchProvider? = null,
         resolve: suspend () -> SourceResolutionInput
     ): SourcesDir {
-        val key = CacheKey(scope, matcher.dependencyFilter)
-        val lock = keyLocks.computeIfAbsent(key) { Mutex() }
+        val key = CacheKey(scope, filter.value)
+        val lock = lockFor(key)
 
         return lock.withLock {
             if (fresh || forceDownload) {
-                cache.remove(key)
+                cache.invalidate(key)
             }
 
-            val cached = cache[key]
+            val cached = cache.getIfPresent(key)
             if (cached != null && cached.sourcesDir.sources.exists()) {
                 if (providerToIndex != null) {
                     runProcessingLoop(cached.depToCasDir, forceDownload, providerToIndex)
@@ -305,41 +378,43 @@ class DefaultSourcesService(
             storageService.pruneSessionViews()
 
             val resolvedInput = resolve()
-            val filteredDepsSeq = if (matcher.dependencyFilter != null) {
-                resolvedInput.dependencies.filter { matcher.matchesDependency(it) }
+            val allDeps = resolvedInput.dependencies.toList()
+            val matchingDeps = if (filter.isJdkOnly) {
+                emptyList()
             } else {
-                resolvedInput.dependencies
+                allDeps.asSequence().filter { filter.matches(it) }.toList()
             }
 
-            val filteredDeps = filteredDepsSeq.filter { it.hasSources }
-                // Deduplicate by relativePrefix: same group+name → keep only one entry.
-                // Prevents multiple Gradle variants of the same artifact from creating separate
-                // manifest entries that would all point to the same CAS index, causing duplicate results.
-                // Safe because version resolution is unique per project.
-                .distinctBy { it.relativePrefix }
-                .toList()
-
-            if (filteredDeps.isEmpty() && matcher.dependencyFilter != null && !matcher.isJdkSelector) {
-                throw IllegalArgumentException("Dependency filter '${matcher.dependencyFilter}' matched zero dependencies in scope with sources.")
-            }
-
-            val includeJdk = matcher.dependencyFilter == null || matcher.isJdkSelector
-            val jdkEntry = if (includeJdk && filteredDeps.none { it.relativePrefix == GradleDependency.JDK_SOURCES_PREFIX }) {
+            val jdkEntry = if (filter.includeJdk && matchingDeps.none { it.relativePrefix == GradleDependency.JDK_SOURCES_PREFIX }) {
                 resolveJdkSourcesDependency(resolvedInput.jdkHome, forceDownload, fresh)
             } else {
-                if (filteredDeps.any { it.relativePrefix == GradleDependency.JDK_SOURCES_PREFIX }) {
+                if (matchingDeps.any { it.relativePrefix == GradleDependency.JDK_SOURCES_PREFIX }) {
                     logger.warn("Skipping auto-included JDK sources because a dependency already uses the reserved path ${GradleDependency.JDK_SOURCES_PREFIX}.")
                 }
                 null
             }
 
+            if (allDeps.isEmpty() && jdkEntry == null) {
+                val emptyResult = storageService.createSessionView(emptyMap(), force = forceDownload)
+                cache.put(key, CachedView(emptyResult, emptyMap()))
+                return@withLock emptyResult
+            }
+
+            if (matchingDeps.isEmpty() && filter.value != null && !filter.isJdkOnly) {
+                throw IllegalArgumentException("Dependency filter '${filter.value}' matched zero dependencies in ${scope.description()}.")
+            }
+
+            val filteredDeps = matchingDeps.asSequence()
+                .filter { it.hasSources }
+                .distinctBy { it.relativePrefix }
+                .toList()
+
             if (filteredDeps.isEmpty() && jdkEntry == null) {
-                if (matcher.dependencyFilter != null) {
-                    throw IllegalArgumentException("Dependency filter '${matcher.dependencyFilter}' matched zero dependencies in scope with sources.")
+                if (filter.value != null && !filter.isJdkOnly) {
+                    throw IllegalArgumentException("Dependency filter '${filter.value}' matched dependencies in ${scope.description()}, but none have sources.")
                 } else {
-                    // Return a stable sources root for empty scopes so callers can still inspect the manifest.
                     val emptyResult = storageService.createSessionView(emptyMap(), force = forceDownload)
-                    cache[key] = CachedView(emptyResult, emptyMap())
+                    cache.put(key, CachedView(emptyResult, emptyMap()))
                     return@withLock emptyResult
                 }
             }
@@ -352,9 +427,14 @@ class DefaultSourcesService(
             runProcessingLoop(depToCasDir, forceDownload, providerToIndex)
 
             val result = storageService.createSessionView(depToCasDir, force = forceDownload)
-            cache[key] = CachedView(result, depToCasDir)
+            cache.put(key, CachedView(result, depToCasDir))
             result
         }
+    }
+
+    private fun lockFor(key: CacheKey): Mutex {
+        val index = Math.floorMod(key.hashCode(), keyLocks.size)
+        return keyLocks[index]
     }
 
     context(progress: ProgressReporter)
@@ -386,7 +466,11 @@ class DefaultSourcesService(
                 try {
                     tracker.onStart(taskId)
                     with(subProgress) {
-                        processCasDependency(dep, casDir, forceDownload, providerToIndex, commonCasDir)
+                        try {
+                            processCasDependency(dep, casDir, forceDownload, providerToIndex, commonCasDir)
+                        } catch (e: Exception) {
+                            logger.error("Failed to process base CAS entry for ${dep.id}", e)
+                        }
                     }
                 } finally {
                     tracker.onComplete(taskId, count = 1)

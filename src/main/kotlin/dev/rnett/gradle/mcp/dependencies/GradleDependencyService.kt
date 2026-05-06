@@ -346,6 +346,8 @@ class DefaultGradleDependencyService(
         options: DependencyRequestOptions
     ): GradleDependencyReport {
         progress.report(0.0, 1.0, "Preparing dependency report...")
+        val dependencyFilter = normalizeDependencyFilter(options.dependency)
+        dependencyFilter?.let(::Regex)
         // Prepare invocation args: include the init script and arguments
         var args = GradleInvocationArguments.DEFAULT
             .withInitScript(InitScriptNames.DEPENDENCIES_REPORT)
@@ -376,7 +378,7 @@ class DefaultGradleDependencyService(
 
         addProp("configuration", options.configuration)
         addProp("sourceSet", options.sourceSet)
-        addProp("dependencyFilter", options.dependency)
+        addProp("dependencyFilter", dependencyFilter)
         addProp("checkUpdates", options.checkUpdates)
         addProp("versionFilter", options.versionFilter)
         addProp("stableOnly", options.stableOnly)
@@ -417,7 +419,7 @@ class DefaultGradleDependencyService(
 
                     var newSourceSets = if (!options.sourceSet.isNullOrBlank()) {
                         val sourceSetFilter = if (options.sourceSet == BUILDSCRIPT_SOURCE_SET) "buildscript" else options.sourceSet
-                        p.sourceSets.filter { it.name == sourceSetFilter }
+                        p.sourceSets.filter { it.name == sourceSetFilter || it.name == "kotlin:$sourceSetFilter" }
                     } else p.sourceSets
 
                     if (!options.includeInternal) {
@@ -627,9 +629,15 @@ class DefaultGradleDependencyService(
         )
     }
 
+    private val structuredFieldSeparator = Regex("(?<!\\\\)\\|")
+
+    private fun parseStructuredFields(data: String): List<String> =
+        data.split(structuredFieldSeparator).map { it.replace("\\|", "|").trim() }
+
     internal fun parseStructuredOutput(output: String): GradleDependencyReport {
         val projectParsers = mutableMapOf<String, ProjectParser>()
         val projectOrder = mutableListOf<String>()
+        val notes = mutableListOf<String>()
 
         val marker = "[gradle-mcp] [DEPENDENCIES]"
 
@@ -640,14 +648,18 @@ class DefaultGradleDependencyService(
             val data = line.substringAfter(marker).trim()
             if (data.isEmpty()) return@forEach
 
-            val type = data.substringBefore("|").trim().uppercase()
-            val remaining = data.substringAfter("|").trim()
-            val parts = remaining.split(Regex("(?<!\\\\)\\|")).map { it.trim().replace("\\|", "|") }
+            val fields = parseStructuredFields(data)
+            val type = fields.firstOrNull().orEmpty().uppercase()
+            if (type !in setOf("PROJECT", "REPOSITORY", "SOURCESET", "CONFIGURATION", "DEP", "JDK", "NOTE")) return@forEach
 
-            if (type !in setOf("PROJECT", "REPOSITORY", "SOURCESET", "CONFIGURATION", "DEP", "JDK")) return@forEach
-
+            val parts = fields.drop(1)
             val rawProjectPath = parts.getOrNull(0).orEmpty()
             val projectPath = if (rawProjectPath.isBlank()) ":" else rawProjectPath
+
+            if (type == "NOTE") {
+                notes.add(parts.drop(1).joinToString("|"))
+                return@forEach
+            }
 
             val parser = projectParsers.getOrPut(projectPath) {
                 projectOrder.add(projectPath)
@@ -674,7 +686,7 @@ class DefaultGradleDependencyService(
         projects.forEach { p -> p.configurations.forEach { c -> c.topLevelDeps.forEach { recordKnown(it) } } }
 
         return GradleDependencyReport(
-            projects.map { p ->
+            projects = projects.map { p ->
                 GradleProjectDependencies(
                     p.path,
                     p.sourceSets.toList(),
@@ -692,7 +704,8 @@ class DefaultGradleDependencyService(
                     jdkHome = p.jdkHome,
                     jdkVersion = p.jdkVersion
                 )
-            }
+            },
+            notes = notes
         )
     }
 }

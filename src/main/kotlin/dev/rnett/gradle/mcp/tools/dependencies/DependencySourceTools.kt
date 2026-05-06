@@ -2,6 +2,8 @@ package dev.rnett.gradle.mcp.tools.dependencies
 
 import dev.rnett.gradle.mcp.dependencies.GradleSourceService
 import dev.rnett.gradle.mcp.dependencies.SourcesService
+import dev.rnett.gradle.mcp.dependencies.normalizeDependencyFilter
+import dev.rnett.gradle.mcp.dependencies.model.SessionViewSourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
 import dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch
 import dev.rnett.gradle.mcp.dependencies.search.FullTextSearch
@@ -59,7 +61,7 @@ class DependencySourceTools(
         val configurationPath: String? = null,
         @Description("Authoritatively targeting a source set (e.g., ':app:main'). Highest project precedence.")
         val sourceSetPath: String? = null,
-        @Description("Filter by GAV prefix or `jdk`; prefer `{group}/{artifact}/...` in `path` for reads.")
+        @Description("Full-string regex over group:name:version[:variant], or `jdk`; blank ignored.")
         val dependency: String? = null,
         @Description("Restricts the tool to Gradle Build Tool source code only; HIGHEST overall precedence.")
         val gradleOwnSource: Boolean = false,
@@ -79,15 +81,15 @@ class DependencySourceTools(
             |JDK sources appear under `jdk/sources/...` for JVM scopes when local `src.zip` exists; use `dependency: "jdk"` for JDK-only reads.
             |Buildscript (plugin) dependencies are excluded by default to reduce noise. To search plugins, use `sourceSetPath: ":buildscript"` (root project) or `sourceSetPath: ":app:buildscript"` (subproject).
             |Supports dot-separated package paths via the symbol index. Use `${ToolNames.SEARCH_DEPENDENCY_SOURCES}` to find paths first.
-            |Strongly recommended: Use the `{group}/{artifact}/...` syntax for `path`. The `dependency` parameter should primarily be used to filter the scope for performance, not as a shortcut for path specification.
-            |Sources are CAS-cached (immutable). Use `fresh=true` for dependency changes; `forceDownload=true` only to recover corrupt/missing files.
+            |Strongly recommended: Use the `{group}/{artifact}/...` syntax for `path`. The `dependency` parameter narrows the source view with a full-string Kotlin regex over `group:name:version[:variant]`; unresolved deps use `group:name`, and blank strings are ignored.
+            |Sources are CAS-cached (immutable). Filtered calls use distinct session-view cache entries, but the dependency regex never changes CAS identity. Use `fresh=true` for dependency changes; `forceDownload=true` only to recover corrupt/missing files.
             |ALWAYS scope with a project, configuration, or source set (or use `gradleOwnSource: true`) — unscoped access is no longer supported.
             |Returns the absolute path of the sources root. 
             |**NOTE:** Dependency directories are junctions (Windows) or symlinks; standard CLI tools like `rg` or `fd` will NOT follow them by default. ALWAYS pass `--follow` or equivalent (e.g., `rg --follow <pattern> <path>`).
             |
             |### Examples
             |- Browse project deps: `{ projectPath: ":" }`
-            |- Browse single dep: `{ projectPath: ":", dependency: "org.jetbrains.kotlin:kotlin-stdlib" }`
+            |- Browse single dep: `{ projectPath: ":", dependency: "^org\\.jetbrains\\.kotlinx:kotlinx-coroutines-core(:.*)?${'$'}" }`
             |- Read file: `{ projectPath: ":", path: "org.jetbrains.kotlin/kotlin-stdlib/kotlin/collections/List.kt" }`
             |- Read JDK source from a JVM source set: `{ sourceSetPath: ":app:main", dependency: "jdk", path: "jdk/sources/java.base/java/lang/String.java" }`
             |- Read package: `{ projectPath: ":", path: "org.jetbrains.kotlin/kotlin-stdlib/kotlin.collections" }`
@@ -96,6 +98,7 @@ class DependencySourceTools(
         """.trimMargin()
     ) { args ->
         val root = with(server) { args.projectRoot.resolveRoot() }
+        val dependencyFilter = normalizeDependencyFilter(args.dependency)
         val sources = with(progressReporter) {
             resolveSources(
                 root,
@@ -103,15 +106,15 @@ class DependencySourceTools(
                 args.sourceSetPath,
                 args.configurationPath,
                 args.projectPath,
-                args.dependency,
+                dependencyFilter,
                 args.forceDownload,
-                args.fresh || args.forceDownload,
+                args.fresh,
                 searchProviders.filterIsInstance<DeclarationSearch>().firstOrNull()
             )
         }
 
         val baseDir = sources.sources.normalize()
-        val sourcesHeader = formatSourcesHeader(sources)
+        val sourcesHeader = formatSourcesHeader(sources, dependencyFilter)
 
         if (args.path != null) {
             val targetPath = baseDir.resolve(args.path).normalize()
@@ -157,7 +160,7 @@ class DependencySourceTools(
         val configurationPath: String? = null,
         @Description("Authoritatively targeting a source set (e.g., ':app:main'). Highest project precedence.")
         val sourceSetPath: String? = null,
-        @Description("Filter by GAV prefix or `jdk`; narrows search scope and improves performance.")
+        @Description("Full-string regex over group:name:version[:variant], or `jdk`; blank ignored.")
         val dependency: String? = null,
         @Description("Restricts the search to Gradle Build Tool source code only; HIGHEST overall precedence.")
         val gradleOwnSource: Boolean = false,
@@ -178,8 +181,9 @@ class DependencySourceTools(
             |Searches symbols or text across dependency, plugin, Gradle, or JDK source trees; use instead of shell grep, which cannot locate remote dependency sources.
             |JDK sources appear under `jdk/sources/...` for JVM scopes when local `src.zip` exists; use `dependency: "jdk"` for JDK-only searches.
             |Buildscript (plugin) dependencies are excluded by default to reduce noise. To search plugins, use `sourceSetPath: ":buildscript"` (root project) or `sourceSetPath: ":app:buildscript"` (subproject).
-            |Sources are CAS-cached (immutable). Use `fresh=true` for dependency changes; `forceDownload=true` only to recover corrupt/missing files.
+            |Sources are CAS-cached (immutable). Filtered calls use distinct session-view cache entries, but the dependency regex never changes CAS identity. Use `fresh=true` for dependency changes; `forceDownload=true` only to recover corrupt/missing files.
             |ALWAYS scope with a project, configuration, or source set (or use `gradleOwnSource: true`) — unscoped search is no longer supported.
+            |The `dependency` parameter narrows the searched view with a full-string Kotlin regex over `group:name:version[:variant]`; unresolved deps use `group:name`, and blank strings are ignored.
             |Returns the absolute path of the sources root. 
             |**NOTE:** Dependency directories are junctions (Windows) or symlinks; standard CLI tools like `rg` or `fd` will NOT follow them by default. ALWAYS pass `--follow` or equivalent (e.g., `rg --follow <pattern> <path>`).
             |
@@ -196,7 +200,8 @@ class DependencySourceTools(
             |### Examples
             |- All deps: `{ projectPath: ":", query: "CoroutineScope", searchType: "DECLARATION" }`
             |- Full-text: `{ projectPath: ":", query: "TIMEOUT_MS" }`
-            |- Single dep: `{ projectPath: ":", dependency: "org.jetbrains.kotlinx:kotlinx-coroutines-core", query: "launch", searchType: "DECLARATION" }`
+            |- Single dep: `{ projectPath: ":", dependency: "^org\\.jetbrains\\.kotlinx:kotlinx-coroutines-core(:.*)?${'$'}", query: "launch", searchType: "DECLARATION" }`
+            |- JDK sources: `{ sourceSetPath: ":app:main", dependency: "jdk", query: "String", searchType: "DECLARATION" }`
             |- Gradle Build Tool source: `{ gradleOwnSource: true, query: "DefaultProject", searchType: "DECLARATION" }`
             |- Plugins: `{ sourceSetPath: ":buildscript", query: "MyPlugin", searchType: "DECLARATION" }`
             |- Files: `{ projectPath: ":", query: "**/plugin.properties", searchType: "GLOB" }`
@@ -212,6 +217,7 @@ class DependencySourceTools(
             ?: error("Search provider '${args.searchType}' (${providerClass.simpleName}) not registered. This usually indicates a dependency injection configuration error.")
 
         val root = with(server) { args.projectRoot.resolveRoot() }
+        val dependencyFilter = normalizeDependencyFilter(args.dependency)
         val sources = with(progressReporter) {
             resolveSources(
                 root,
@@ -219,17 +225,15 @@ class DependencySourceTools(
                 args.sourceSetPath,
                 args.configurationPath,
                 args.projectPath,
-                args.dependency,
+                dependencyFilter,
                 args.forceDownload,
-                args.fresh || args.forceDownload,
+                args.fresh,
                 provider
             )
         }
 
-        val sourcesHeader = formatSourcesHeader(sources)
-
-        // Search unified sources (JDK is included in the same session view)
         val response = indexService.search(sources, provider, args.query, args.pagination)
+        val sourcesHeader = formatSourcesHeader(sources, dependencyFilter)
         if (response.error != null) {
             isError = true
             return@tool "$sourcesHeader\n\n${response.error}"
@@ -309,10 +313,23 @@ class DependencySourceTools(
         }
     }
 
-    private fun formatSourcesHeader(sources: SourcesDir): String =
+    private fun formatSourcesHeader(sources: SourcesDir, dependency: String? = null): String =
         "Sources root: ${sources.sources.normalize()}\n" +
                 "**NOTE:** Dependency directories are junctions/symlinks; use `--follow` or equivalent with tools like `rg` or `fd`.\n" +
-                formatRefreshMessage(sources.lastRefresh())
+                formatRefreshMessage(sources.lastRefresh()) +
+                emptyFilteredScopeNote(sources, dependency)
+
+    private fun emptyFilteredScopeNote(sources: SourcesDir, dependency: String?): String {
+        val hasEmptyFilteredSession = dependency != null &&
+                sources is SessionViewSourcesDir &&
+                sources.manifest.dependencies.isEmpty() &&
+                sources.manifest.failedDependencies.isEmpty()
+        return if (hasEmptyFilteredSession) {
+            "\n\n**NOTE:** The selected scope contains no dependency sources, so the dependency filter was not matched against any candidates."
+        } else {
+            ""
+        }
+    }
 
     private fun formatRefreshMessage(lastRefresh: Instant?): String {
         if (lastRefresh == null) return "Sources have not been refreshed yet."

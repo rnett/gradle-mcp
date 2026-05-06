@@ -338,6 +338,107 @@ class GradleDependencyIntegrationTest : KoinTest {
     }
 
     @Test
+    fun `dependency regex exact version matches variant-bearing selected dependency`() = runTest(timeout = 180.seconds) {
+        val projectRoot = GradleProjectRoot(complexProject.pathString())
+        val report = with(ProgressReporter.PRINTLN) {
+            service.getDependencies(
+                projectRoot,
+                projectPath = ":sub-kmp",
+                options = DependencyRequestOptions(
+                    dependency = "^org\\.jetbrains\\.kotlinx:kotlinx-serialization-json(-jvm)?:${Regex.escape(TestFixturesBuildConfig.KOTLINX_SERIALIZATION_VERSION)}$",
+                    checkUpdates = false
+                )
+            )
+        }
+
+        val deps = allDependencies(report)
+        val serializationDeps = deps.filter { it.name.contains("kotlinx-serialization-json") }
+        assertTrue(serializationDeps.isNotEmpty(), "Expected serialization dependency to match exact G:A:V regex")
+        assertTrue(
+            serializationDeps.all { it.version == TestFixturesBuildConfig.KOTLINX_SERIALIZATION_VERSION },
+            "Exact G:A:V regex should only return the selected serialization version. Found: ${serializationDeps.map { it.id }}"
+        )
+        assertTrue(
+            serializationDeps.any { it.variant?.contains("jvm", ignoreCase = true) == true },
+            "Expected at least one variant-bearing JVM dependency. Found variants: ${serializationDeps.map { it.variant }}"
+        )
+        assertTrue(deps.none { it.name.contains("slf4j-api") }, "Filtered report should not include unrelated dependencies")
+
+        val wrongVersion = assertThrows<Exception> {
+            with(ProgressReporter.PRINTLN) {
+                service.getDependencies(
+                    projectRoot,
+                    projectPath = ":sub-kmp",
+                    options = DependencyRequestOptions(
+                        dependency = "^org\\.jetbrains\\.kotlinx:kotlinx-serialization-json(-jvm)?:0\\.0\\.0$",
+                        checkUpdates = false
+                    )
+                )
+            }
+        }
+        assertTrue(wrongVersion.toString().contains("matched zero dependencies"), "Expected wrong version to fail, got: $wrongVersion")
+
+        val wrongVariant = assertThrows<Exception> {
+            with(ProgressReporter.PRINTLN) {
+                service.getDependencies(
+                    projectRoot,
+                    projectPath = ":sub-kmp",
+                    options = DependencyRequestOptions(
+                        dependency = "^org\\.jetbrains\\.kotlinx:kotlinx-serialization-json(-jvm)?:${Regex.escape(TestFixturesBuildConfig.KOTLINX_SERIALIZATION_VERSION)}:definitelyWrongVariant$",
+                        checkUpdates = false
+                    )
+                )
+            }
+        }
+        assertTrue(wrongVariant.toString().contains("matched zero dependencies"), "Expected wrong variant to fail, got: $wrongVariant")
+    }
+
+    @Test
+    fun `dependency regex init script path supports group and group-name candidates`() = runTest(timeout = 180.seconds) {
+        val projectRoot = GradleProjectRoot(complexProject.pathString())
+
+        val groupOnly = with(ProgressReporter.PRINTLN) {
+            service.getDependencies(
+                projectRoot,
+                projectPath = ":sub-a",
+                options = DependencyRequestOptions(
+                    dependency = "^org\\.slf4j(:.*)?$",
+                    checkUpdates = false
+                )
+            )
+        }
+        val groupOnlyDeps = allDependencies(groupOnly)
+        assertTrue(groupOnlyDeps.any { it.group == "org.slf4j" && it.name == "slf4j-api" }, "Group regex should match slf4j-api")
+        assertTrue(groupOnlyDeps.none { it.group == "org.junit.jupiter" }, "Group regex should not match unrelated groups")
+
+        val groupAndName = with(ProgressReporter.PRINTLN) {
+            service.getDependencies(
+                projectRoot,
+                projectPath = ":sub-a",
+                options = DependencyRequestOptions(
+                    dependency = "^org\\.slf4j:slf4j-api(:.*)?$",
+                    checkUpdates = false
+                )
+            )
+        }
+        assertTrue(allDependencies(groupAndName).any { it.group == "org.slf4j" && it.name == "slf4j-api" }, "G:A regex should match slf4j-api")
+
+        val noMatch = assertThrows<Exception> {
+            with(ProgressReporter.PRINTLN) {
+                service.getDependencies(
+                    projectRoot,
+                    projectPath = ":sub-a",
+                    options = DependencyRequestOptions(
+                        dependency = "^org\\.slf4j:missing(:.*)?$",
+                        checkUpdates = false
+                    )
+                )
+            }
+        }
+        assertTrue(noMatch.toString().contains("matched zero dependencies"), "Expected missing artifact to fail, got: $noMatch")
+    }
+
+    @Test
     fun `can get dependencies for particular configuration path`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
         val config = with(ProgressReporter.PRINTLN) { service.getConfigurationDependencies(projectRoot, ":sub-a:implementation") }
@@ -368,6 +469,27 @@ class GradleDependencyIntegrationTest : KoinTest {
         assertNotNull(slf4j)
         assertNotNull(slf4j.latestVersion, "latestVersion should not be null when checkUpdates is true")
         assertTrue(slf4j.latestVersion != slf4j.version, "latestVersion should be different from current version")
+    }
+
+    @Test
+    fun `dependency regex narrows update candidates`() = runTest(timeout = 180.seconds) {
+        val projectRoot = GradleProjectRoot(complexProject.pathString())
+        val report = with(ProgressReporter.PRINTLN) {
+            service.getDependencies(
+                projectRoot,
+                projectPath = ":sub-a",
+                options = DependencyRequestOptions(
+                    dependency = "^org\\.slf4j:slf4j-api:${Regex.escape(TestFixturesBuildConfig.SLF4J_VERSION)}$",
+                    checkUpdates = true
+                )
+            )
+        }
+
+        val deps = allDependencies(report)
+        val slf4j = deps.find { it.name == "slf4j-api" }
+        assertNotNull(slf4j, "Filtered report should contain slf4j-api")
+        assertNotNull(slf4j.latestVersion, "Filtered update check should process the matched dependency")
+        assertTrue(deps.none { it.name.contains("junit-jupiter") }, "Filtered report should not include unrelated test dependencies")
     }
 
     @Test
@@ -409,6 +531,42 @@ class GradleDependencyIntegrationTest : KoinTest {
 
         val message = exception.toString()
         assertTrue(message.contains("Configuration 'fakeConfig' not found"), "Expected message to contain 'Configuration 'fakeConfig' not found', but got: $message")
+    }
+
+    @Test
+    fun `unresolved dependency regex uses group and name only`() = runTest(timeout = 180.seconds) {
+        val unresolvedProject = testGradleProject {
+            useKotlinDsl(true)
+            buildScript(
+                """
+                plugins { id("java") }
+                repositories { mavenCentral() }
+                dependencies { implementation("com.example:missing-artifact:1.0") }
+            """.trimIndent()
+            )
+        }
+        try {
+            val projectRoot = GradleProjectRoot(unresolvedProject.pathString())
+            val matching = with(ProgressReporter.PRINTLN) {
+                service.getDependencies(
+                    projectRoot,
+                    options = DependencyRequestOptions(dependency = "^com\\.example:missing-artifact$", checkUpdates = false)
+                )
+            }
+            assertTrue(allDependencies(matching).any { it.id == "UNRESOLVED:com.example:missing-artifact:1.0" })
+
+            val exception = assertThrows<Exception> {
+                with(ProgressReporter.PRINTLN) {
+                    service.getDependencies(
+                        projectRoot,
+                        options = DependencyRequestOptions(dependency = "^com\\.example:missing-artifact:1\\.0$", checkUpdates = false)
+                    )
+                }
+            }
+            assertTrue(exception.toString().contains("matched zero dependencies"), "Expected G:A:V unresolved filter to fail, got: $exception")
+        } finally {
+            unresolvedProject.close()
+        }
     }
 
     @Test
@@ -593,14 +751,16 @@ class GradleDependencyIntegrationTest : KoinTest {
     fun `force download should succeed`() = runTest(timeout = 180.seconds) {
         val projectRoot = GradleProjectRoot(complexProject.pathString())
 
+        val dependencyFilter = "^org\\.slf4j:slf4j-api(:.*)?$"
+
         // First download normally
         with(ProgressReporter.PRINTLN) {
-            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", dependency = "org.slf4j:slf4j-api", forceDownload = false, providerToIndex = getKoin().get<DeclarationSearch>())
+            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", dependency = dependencyFilter, forceDownload = false, providerToIndex = getKoin().get<DeclarationSearch>())
         }
 
         // Then force download
         with(ProgressReporter.PRINTLN) {
-            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", dependency = "org.slf4j:slf4j-api", forceDownload = true, providerToIndex = getKoin().get<DeclarationSearch>())
+            sourcesService.resolveAndProcessConfigurationSources(projectRoot, ":sub-a:compileClasspath", dependency = dependencyFilter, forceDownload = true, providerToIndex = getKoin().get<DeclarationSearch>())
         }
     }
 
@@ -632,4 +792,10 @@ class GradleDependencyIntegrationTest : KoinTest {
             ivyProject.close()
         }
     }
+
+    private fun allDependencies(report: dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport): List<GradleDependency> =
+        report.projects.flatMap { project -> project.configurations.flatMap { it.dependencies.flatMap(::flattenDependency) } }
+
+    private fun flattenDependency(dep: GradleDependency): List<GradleDependency> =
+        listOf(dep) + dep.children.flatMap(::flattenDependency)
 }

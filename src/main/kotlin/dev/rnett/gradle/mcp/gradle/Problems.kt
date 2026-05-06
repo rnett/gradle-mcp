@@ -47,5 +47,4 @@ enum class ProblemSeverity {
 }
 
 @Suppress("SENSELESS_COMPARISON")
-val ProblemGroup.fqName: String get() = if (parent == null) name else parent.fqName + "." + name
-
+val ProblemGroup.fqName: String get() = parent?.fqName?.let { "$it.$name" } ?: name

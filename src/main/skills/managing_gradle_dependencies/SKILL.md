@@ -29,8 +29,7 @@ Audits project dependencies, performs high-resolution update checks, and discove
 - **Inspect plugins and build scripts**: Build script dependencies (like plugins) are automatically included in `inspect_dependencies` output under configurations prefixed with `buildscript:` (e.g. `buildscript:classpath`).
 - **Monitor for updates**: ALWAYS use `updatesOnly: true` in `inspect_dependencies` to retrieve a flat, high-signal report of available library updates: `group:artifact: current → latest` with the project paths where each dep is used.
   Configuration and source-set detail is intentionally omitted; use `inspect_dependencies` with a specific `dependency` filter if that detail is needed.
-- **Target dependencies surgically**: Use the `dependency` parameter in `inspect_dependencies` to target a single library. It supports `group:name:version:variant`, `group:name:version`, `group:name`, or just `group`. This is significantly
-  faster than resolving the entire project graph.
+- **Target dependencies surgically**: Use the `dependency` parameter in `inspect_dependencies` to target a single library with a full-string Kotlin regex over `group:name:version[:variant]` coordinates.
 - **Efficient Transitive Isolation**: When isolating a single library, filter the flattened list of resolved components using the dependency filter rather than traversing the dependency graph. This naturally and efficiently excludes
   transitive dependencies that do not match the targeted filter.
 - **Discover libraries surgically**: ALWAYS use `lookup_maven_versions` to check the version history of an existing artifact.
@@ -65,7 +64,7 @@ Audits project dependencies, performs high-resolution update checks, and discove
 ### 4. Targeted Dependency Inspection
 
 1. Identify the dependency you want to check (e.g., `org.mongodb:mongodb-driver-sync`).
-2. Call `inspect_dependencies(dependency="org.mongodb:mongodb-driver-sync")`.
+2. Call `inspect_dependencies(dependency="^org\\.mongodb:mongodb-driver-sync(:.*)?$")`.
 3. The report will be focused ONLY on that library across all matched configurations.
 
 ## Examples
@@ -83,7 +82,7 @@ Audits project dependencies, performs high-resolution update checks, and discove
 
 ```json
 {
-  "dependency": "org.jetbrains.kotlinx:kotlinx-coroutines-core",
+  "dependency": "^org\\.jetbrains\\.kotlinx:kotlinx-coroutines-core(:.*)?$",
   "updatesOnly": true
 }
 // Reasoning: Surgically checking if a specific library has available updates.

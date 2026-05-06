@@ -5,7 +5,7 @@ package dev.rnett.gradle.mcp.dependencies
  *
  * @property configuration The name of the configuration to get dependencies for (e.g. "implementation"). If null, all configurations are included.
  * @property sourceSet The name of the source set to get dependencies for (e.g. "main"). If null, all source sets are included.
- * @property dependency The coordinates of the dependency to filter by (e.g. "group:name").
+ * @property dependency Full-string regex over canonical dependency coordinates (`group:name:version` or `group:name:version:variant`; unresolved dependencies use `group:name`; blank strings are treated as absent).
  * @property checkUpdates Whether to check for dependency updates.
  * @property versionFilter Regex filter for considered update versions.
  * @property stableOnly Whether to only include stable versions when checking for updates.

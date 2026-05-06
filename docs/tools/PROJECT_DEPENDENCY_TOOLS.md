@@ -11,7 +11,7 @@ Inspects the project's resolved dependency graph, checks for updates, and audits
 - **Update Check**: `checkUpdates=true` (default) detects newer versions — individual lines show `[UPDATE AVAILABLE: X.Y.Z]`; use `updatesOnly=true` for a flat summary: `group:artifact: current → latest` with the project paths where each dep is used (forces `checkUpdates=true`). Use `stableOnly=true` to exclude pre-release versions.
 - **[UPDATE CHECK SKIPPED]**: Appears only for dependencies that were in scope for update checking but whose resolution genuinely failed — not for dependencies intentionally excluded from the update-check scope (e.g., transitive deps when `onlyDirect=true`).
 - **Plugin Auditing**: Use `sourceSet="buildscript"` to audit plugins.
-- **Targeted**: Use `dependency="org:artifact"` to target a single library — significantly faster.
+- **Targeted**: Use `dependency` as a full-string Kotlin regex to narrow report output and update-check candidates. Resolved modules match `group:name:version[:variant]`; unresolved deps match `group:name`; project deps match `project::path`; blank strings are ignored.
 - Use `lookup_maven_versions` to find released versions; `gradle` for `dependencyInsight`.
 
 <details>
@@ -54,7 +54,7 @@ Inspects the project's resolved dependency graph, checks for updates, and audits
         "string",
         "null"
       ],
-      "description": "Filtering reported components to those matching a GAV coordinate (`group:name:version:variant`, `group:name:version`, `group:name`, or `group`). Transitive children of matched components are shown when `onlyDirect=false`."
+      "description": "Full-string regex over group:name:version[:variant]; blank ignored."
     },
     "checkUpdates": {
       "type": "boolean",

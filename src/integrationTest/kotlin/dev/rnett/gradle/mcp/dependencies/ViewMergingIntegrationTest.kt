@@ -71,8 +71,9 @@ class ViewMergingIntegrationTest {
         }.use { project ->
             val projectRoot = GradleProjectRoot(project.pathString())
 
+            val dependencyFilter = "^org\\.jetbrains\\.kotlinx:kotlinx-coroutines-core(-jvm)?:1\\.8\\.0(:.*)?$"
             val sourcesDir = with(ProgressReporter.PRINTLN) {
-                sourcesService.resolveAndProcessProjectSources(projectRoot, ":", dependency = "org.jetbrains.kotlinx:kotlinx-coroutines-core", providerToIndex = FullTextSearch())
+                sourcesService.resolveAndProcessProjectSources(projectRoot, ":", dependency = dependencyFilter, providerToIndex = FullTextSearch())
             }
 
             assertNotNull(sourcesDir)
@@ -81,29 +82,23 @@ class ViewMergingIntegrationTest {
             val sessionView = sourcesDir as SessionViewSourcesDir
             val depsDir = sessionView.sources
 
-            // ... (existing logging)
-
-            // Check for coroutines dependencies
             val coroutinesEntries = depsDir.resolve("org.jetbrains.kotlinx").listDirectoryEntries("kotlinx-coroutines-core*")
-            assertTrue(coroutinesEntries.isNotEmpty(), "Should find coroutines entries")
+            val coroutinesEntryNames = coroutinesEntries.map { it.fileName.toString() }
+            assertTrue("kotlinx-coroutines-core" in coroutinesEntryNames, "Common coroutines entry should be present. Found: $coroutinesEntryNames")
+            assertTrue("kotlinx-coroutines-core-jvm" in coroutinesEntryNames, "JVM coroutines entry should be present. Found: $coroutinesEntryNames")
 
-            // ...
-
-            // Perform a search to see how results from different variants are reported
-            // 'Job' is a good candidate as it's defined in common.
             val searchResponse = indexService.search(sessionView, FullTextSearch(), "interface Job", dev.rnett.gradle.mcp.tools.PaginationInput(0, 10))
-            println("Search results for 'interface Job':")
-            searchResponse.results.forEach { println("  ${it.relativePath}") }
-
-            // 'Dispatchers' might have platform-specific parts
             val searchResponse2 = indexService.search(sessionView, FullTextSearch(), "object Dispatchers", dev.rnett.gradle.mcp.tools.PaginationInput(0, 10))
-            println("Search results for 'object Dispatchers':")
-            searchResponse2.results.forEach { println("  ${it.relativePath}") }
+            val jobPaths = searchResponse.results.map { it.relativePath }
+            val dispatcherPaths = searchResponse2.results.map { it.relativePath }
 
-            // Verify that we can read files from both variants
-            searchResponse.results.forEach { result ->
-                val path = sessionView.sources.resolve(result.relativePath)
-                assertTrue(path.exists(), "Search result path should be readable: ${result.relativePath}")
+            assertTrue(jobPaths.isNotEmpty(), "Expected common Job search results")
+            assertTrue(dispatcherPaths.isNotEmpty(), "Expected platform Dispatchers search results")
+            assertTrue(jobPaths.any { it.contains("kotlinx-coroutines-core/") }, "Job should be found in common sources. Found: $jobPaths")
+            assertTrue(dispatcherPaths.any { it.contains("kotlinx-coroutines-core-jvm/") }, "Dispatchers should be found in JVM sources. Found: $dispatcherPaths")
+            assertTrue(jobPaths.toSet() != dispatcherPaths.toSet(), "Common and platform searches should not collapse to the same paths")
+            (jobPaths + dispatcherPaths).forEach { relativePath ->
+                assertTrue(sessionView.sources.resolve(relativePath).exists(), "Search result path should be readable: $relativePath")
             }
         }
         provider.close()
@@ -143,8 +138,9 @@ class ViewMergingIntegrationTest {
         }.use { project ->
             val projectRoot = GradleProjectRoot(project.pathString())
 
+            val dependencyFilter = "^org\\.jetbrains\\.kotlinx:kotlinx-coroutines-core(-jvm)?:1\\.8\\.0(:.*)?$"
             val sourcesDir = with(ProgressReporter.PRINTLN) {
-                sourcesService.resolveAndProcessProjectSources(projectRoot, ":", dependency = "org.jetbrains.kotlinx:kotlinx-coroutines-core", providerToIndex = FullTextSearch())
+                sourcesService.resolveAndProcessProjectSources(projectRoot, ":", dependency = dependencyFilter, providerToIndex = FullTextSearch())
             }
 
             assertTrue(sourcesDir is SessionViewSourcesDir)

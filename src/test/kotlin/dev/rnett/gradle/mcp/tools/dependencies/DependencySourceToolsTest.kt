@@ -3,6 +3,8 @@ package dev.rnett.gradle.mcp.tools.dependencies
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.SourceIndexService
 import dev.rnett.gradle.mcp.dependencies.SourcesService
+import dev.rnett.gradle.mcp.dependencies.model.ProjectManifest
+import dev.rnett.gradle.mcp.dependencies.model.SessionViewSourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
 import dev.rnett.gradle.mcp.dependencies.search.NestedPackageContents
 import dev.rnett.gradle.mcp.dependencies.search.PackageContents
@@ -28,6 +30,7 @@ import kotlin.io.path.createFile
 import kotlin.io.path.writeText
 import kotlin.test.assertContains
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class DependencySourceToolsTest : BaseMcpServerTest() {
 
@@ -97,6 +100,58 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         assertContains(text, "Path not found:")
     }
 
+    @Test
+    fun `read_dependency_sources reports empty filtered scope note for genuinely empty session view`() = runTest {
+        coEvery { with(any<ProgressReporter>()) { sourcesService.resolveAndProcessProjectSources(any(), any(), any(), any(), any(), any()) } } returns sessionView(
+            name = "empty-session",
+            failedDependencies = emptyList()
+        )
+
+        val result = server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectPath", ":")
+                put("dependency", "^org\\.example:missing(:.*)?$")
+            }
+        ) as CallToolResult
+
+        assertContains(resultText(result), "selected scope contains no dependency sources")
+    }
+
+    @Test
+    fun `read_dependency_sources does not report empty filtered scope note for failed session view`() = runTest {
+        coEvery { with(any<ProgressReporter>()) { sourcesService.resolveAndProcessProjectSources(any(), any(), any(), any(), any(), any()) } } returns sessionView(
+            name = "failed-session",
+            failedDependencies = listOf("org.example:broken:1.0")
+        )
+
+        val result = server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectPath", ":")
+                put("dependency", "^org\\.example:broken(:.*)?$")
+            }
+        ) as CallToolResult
+
+        assertFalse(resultText(result).contains("selected scope contains no dependency sources"))
+    }
+
+    @Test
+    fun `read_dependency_sources surfaces no-source diagnostic as tool error`() = runTest {
+        coEvery { with(any<ProgressReporter>()) { sourcesService.resolveAndProcessProjectSources(any(), any(), any(), any(), any(), any()) } } throws IllegalArgumentException(
+            "Dependency filter '^org\\.example:no-sources(:.*)?$' matched dependencies in project ':', but none have sources."
+        )
+
+        val result = server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectPath", ":")
+                put("dependency", "^org\\.example:no-sources(:.*)?$")
+            }
+        ) as CallToolResult
+
+        assertTrue(result.isError == true)
+        assertContains(resultText(result), "matched dependencies")
+        assertContains(resultText(result), "none have sources")
+    }
+
     // ─── search_dependency_sources ─────────────────────────────────────────────
 
     @Test
@@ -132,7 +187,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         val text = resultText(result)
         assertContains(text, "Sources root:")
         assertContains(text, "Index not found")
-        assert(result.isError == true)
+        assertTrue(result.isError == true)
     }
 
     @Test
@@ -358,5 +413,16 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         val text = resultText(result)
         assertContains(text, "Sources root:")
+    }
+
+    private fun sessionView(name: String, failedDependencies: List<String>): SessionViewSourcesDir {
+        val baseDir = tempDir.resolve(name).createDirectories()
+        return SessionViewSourcesDir(
+            sessionId = name,
+            baseDir = baseDir,
+            sources = baseDir.resolve("sources").createDirectories(),
+            manifest = ProjectManifest(name, "now", emptyList(), failedDependencies = failedDependencies),
+            casBaseDir = tempDir.resolve("cas")
+        )
     }
 }

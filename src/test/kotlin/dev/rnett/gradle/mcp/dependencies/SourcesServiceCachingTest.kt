@@ -34,7 +34,7 @@ import kotlin.io.path.extension
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.walk
 import kotlin.io.path.writeText
-import kotlin.test.assertFailsWith
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -138,6 +138,62 @@ class SourcesServiceCachingTest {
 
         assertTrue(viewDeps.captured.keys.any { it.relativePrefix == GradleDependency.JDK_SOURCES_PREFIX })
         assertTrue(viewDeps.captured.values.any { it == jdkCas })
+    }
+
+    @Test
+    fun `explicit JDK dependency selector creates JDK-only view without resolving normal dependency sources`() = runTest {
+        val root = GradleProjectRoot(tempDir.resolve("project").toString())
+        val jdkCas = createJdkCas()
+        val normalDependency = GradleDependency(
+            id = "org.example:library:1.0",
+            group = "org.example",
+            name = "library",
+            version = "1.0",
+            fromConfiguration = "compile",
+            sourcesFile = tempDir.resolve("library-sources.jar").createFile()
+        )
+        val report = GradleDependencyReport(
+            projects = listOf(
+                GradleProjectDependencies(
+                    path = ":",
+                    sourceSets = listOf(GradleSourceSetDependencies("main", listOf("compile"), isJvm = true)),
+                    repositories = emptyList(),
+                    configurations = listOf(
+                        GradleConfigurationDependencies(
+                            name = "compile",
+                            description = null,
+                            isResolvable = true,
+                            dependencies = listOf(normalDependency)
+                        )
+                    ),
+                    jdkHome = tempDir.resolve("jdk").toString(),
+                    jdkVersion = "21"
+                )
+            )
+        )
+        coEvery {
+            with(any<ProgressReporter>()) { depService.getDependencies(any(), any(), any()) }
+        } returns report
+        coEvery {
+            with(any<ProgressReporter>()) { jdkSourceService.resolveSources(any(), any(), any(), any()) }
+        } returns jdkCas
+        coEvery { storageService.pruneSessionViews() } just Runs
+        val viewDeps = slot<Map<GradleDependency, CASDependencySourcesDir>>()
+        coEvery { storageService.createSessionView(capture(viewDeps), any()) } returns createSessionView("jdk-only")
+
+        val result = with(progress) {
+            sourcesService.resolveAndProcessProjectSources(root, ":", dependency = "jdk")
+        }
+
+        assertTrue(result is SessionViewSourcesDir)
+        assertEquals(listOf(GradleDependency.JDK_SOURCES_PREFIX), viewDeps.captured.keys.map { it.relativePrefix })
+        coVerify(exactly = 1) {
+            with(any<ProgressReporter>()) { depService.getDependencies(any(), any(), any()) }
+        }
+        coVerify(exactly = 0) {
+            with(any<ProgressReporter>()) { depService.downloadProjectSources(any(), any(), any(), any(), any()) }
+        }
+        coVerify(exactly = 0) { storageService.calculateHash(normalDependency) }
     }
 
     @Test
@@ -249,6 +305,18 @@ class SourcesServiceCachingTest {
         }
     }
 
+    private fun sessionView(name: String): SessionViewSourcesDir {
+        val viewDir = tempDir.resolve(name).createDirectories()
+        val sourcesPath = viewDir.resolve("sources").createDirectories()
+        return SessionViewSourcesDir(
+            sessionId = name,
+            baseDir = viewDir,
+            sources = sourcesPath,
+            manifest = ProjectManifest(name, "now", emptyList()),
+            casBaseDir = tempDir.resolve("cas")
+        )
+    }
+
     @Test
     fun `test view reuse and cache hits`() = runTest {
         val root = GradleProjectRoot(tempDir.resolve("project").toString())
@@ -353,8 +421,6 @@ class SourcesServiceCachingTest {
         coVerify(exactly = 1) { storageService.createSessionView(any(), any()) }
 
         // 3. Call with different provider - should hit cache but run indexing
-        // 3. Call with different provider - should hit cache but run indexing
-        // 3. Call with different provider - should hit cache but run indexing
         val provider = mockk<SearchProvider>(relaxed = true)
         every { provider.name } returns "test-provider"
         every { provider.indexVersion } returns 1
@@ -378,6 +444,159 @@ class SourcesServiceCachingTest {
                 indexService.indexFiles(any(), any(), any())
             }
         }
+    }
+
+    private data class FilteredCacheScenario(
+        val root: GradleProjectRoot,
+        val slf4j: GradleDependency,
+        val kotlin: GradleDependency,
+        val createdViewKeys: MutableList<Set<GradleDependency>>,
+        val createdViewForce: MutableList<Boolean>
+    )
+
+    private fun setupFilteredCacheScenario(vararg sessionViews: SessionViewSourcesDir): FilteredCacheScenario {
+        val root = GradleProjectRoot(tempDir.resolve("filtered-project").toString())
+        val slf4j = GradleDependency(
+            id = "org.slf4j:slf4j-api:2.0.13",
+            group = "org.slf4j",
+            name = "slf4j-api",
+            version = "2.0.13",
+            fromConfiguration = "compile",
+            sourcesFile = tempDir.resolve("slf4j-sources.jar").createFile()
+        )
+        val kotlin = GradleDependency(
+            id = "org.jetbrains.kotlin:kotlin-stdlib:2.2.21",
+            group = "org.jetbrains.kotlin",
+            name = "kotlin-stdlib",
+            version = "2.2.21",
+            fromConfiguration = "compile",
+            sourcesFile = tempDir.resolve("kotlin-sources.jar").createFile()
+        )
+        val report = GradleProjectDependencies(
+            path = ":",
+            sourceSets = emptyList(),
+            repositories = emptyList(),
+            configurations = listOf(
+                GradleConfigurationDependencies(
+                    name = "compile",
+                    description = null,
+                    dependencies = listOf(slf4j, kotlin),
+                    isResolvable = true
+                )
+            )
+        )
+        val slf4jCas = CASDependencySourcesDir("slf4j-hash", tempDir.resolve("slf4j-cas").createDirectories())
+        val kotlinCas = CASDependencySourcesDir("kotlin-hash", tempDir.resolve("kotlin-cas").createDirectories())
+        coEvery {
+            with(any<ProgressReporter>()) { depService.downloadProjectSources(any(), any(), any(), any(), any()) }
+        } returns report
+        coEvery { storageService.calculateHash(slf4j) } returns "slf4j-hash"
+        coEvery { storageService.calculateHash(kotlin) } returns "kotlin-hash"
+        every { storageService.getCASDependencySourcesDir("slf4j-hash") } returns slf4jCas
+        every { storageService.getCASDependencySourcesDir("kotlin-hash") } returns kotlinCas
+        coEvery {
+            with(any<ProgressReporter>()) { storageService.extractSources(any(), any(), any()) }
+        } answers {
+            (it.invocation.args[1] as Path).createDirectories()
+        }
+        val createdViewKeys = mutableListOf<Set<GradleDependency>>()
+        val createdViewForce = mutableListOf<Boolean>()
+        var sessionViewIndex = 0
+        coEvery { storageService.createSessionView(any(), any()) } answers {
+            @Suppress("UNCHECKED_CAST")
+            val deps = invocation.args[0] as Map<GradleDependency, CASDependencySourcesDir>
+            createdViewKeys += deps.keys
+            createdViewForce += invocation.args[1] as Boolean
+            sessionViews[sessionViewIndex++]
+        }
+        coEvery { storageService.pruneSessionViews() } just Runs
+        every { storageService.getLockFile(any()) } returns tempDir.resolve("lock")
+
+        return FilteredCacheScenario(root, slf4j, kotlin, createdViewKeys, createdViewForce)
+    }
+
+    @Test
+    fun `dependency filter is part of view cache key`() = runTest {
+        val slf4jView = sessionView("slf4j-view")
+        val kotlinView = sessionView("kotlin-view")
+        val scenario = setupFilteredCacheScenario(slf4jView, kotlinView)
+        val slf4jFilter = "^org\\.slf4j:slf4j-api(:.*)?$"
+        val kotlinFilter = "^org\\.jetbrains\\.kotlin:kotlin-stdlib(:.*)?$"
+
+        val firstSlf4j = with(progress) { sourcesService.resolveAndProcessProjectSources(scenario.root, ":", dependency = slf4jFilter) }
+        val cachedSlf4j = with(progress) { sourcesService.resolveAndProcessProjectSources(scenario.root, ":", dependency = slf4jFilter) }
+        val firstKotlin = with(progress) { sourcesService.resolveAndProcessProjectSources(scenario.root, ":", dependency = kotlinFilter) }
+
+        assertSame(slf4jView, firstSlf4j)
+        assertSame(slf4jView, cachedSlf4j)
+        assertSame(kotlinView, firstKotlin)
+        assertEquals(listOf(setOf(scenario.slf4j), setOf(scenario.kotlin)), scenario.createdViewKeys)
+        coVerify(exactly = 2) {
+            with(any<ProgressReporter>()) {
+                depService.downloadProjectSources(any(), any(), any(), any(), any())
+            }
+        }
+    }
+
+    @Test
+    fun `force download invalidates only the exact filtered view key`() = runTest {
+        val slf4jView = sessionView("slf4j-view")
+        val kotlinView = sessionView("kotlin-view")
+        val refreshedSlf4jView = sessionView("slf4j-view-refresh")
+        val scenario = setupFilteredCacheScenario(slf4jView, kotlinView, refreshedSlf4jView)
+        val slf4jFilter = "^org\\.slf4j:slf4j-api(:.*)?$"
+        val kotlinFilter = "^org\\.jetbrains\\.kotlin:kotlin-stdlib(:.*)?$"
+
+        with(progress) { sourcesService.resolveAndProcessProjectSources(scenario.root, ":", dependency = slf4jFilter) }
+        val firstKotlin = with(progress) { sourcesService.resolveAndProcessProjectSources(scenario.root, ":", dependency = kotlinFilter) }
+        val refreshedSlf4j = with(progress) { sourcesService.resolveAndProcessProjectSources(scenario.root, ":", dependency = slf4jFilter, forceDownload = true) }
+        val cachedKotlin = with(progress) { sourcesService.resolveAndProcessProjectSources(scenario.root, ":", dependency = kotlinFilter) }
+        val cachedRefreshedSlf4j = with(progress) { sourcesService.resolveAndProcessProjectSources(scenario.root, ":", dependency = slf4jFilter) }
+
+        assertSame(kotlinView, firstKotlin)
+        assertSame(refreshedSlf4jView, refreshedSlf4j)
+        assertSame(kotlinView, cachedKotlin)
+        assertSame(refreshedSlf4jView, cachedRefreshedSlf4j)
+        assertEquals(listOf(setOf(scenario.slf4j), setOf(scenario.kotlin), setOf(scenario.slf4j)), scenario.createdViewKeys)
+        assertEquals(listOf(false, false, true), scenario.createdViewForce)
+    }
+
+    @Test
+    fun `blank dependency filter shares the unfiltered view cache key`() = runTest {
+        val allView = sessionView("all-view")
+        val scenario = setupFilteredCacheScenario(allView)
+
+        val unfiltered = with(progress) { sourcesService.resolveAndProcessProjectSources(scenario.root, ":") }
+        val blankFiltered = with(progress) { sourcesService.resolveAndProcessProjectSources(scenario.root, ":", dependency = " ") }
+
+        assertSame(allView, unfiltered)
+        assertSame(allView, blankFiltered)
+        assertEquals(listOf(setOf(scenario.slf4j, scenario.kotlin)), scenario.createdViewKeys)
+        coVerify(exactly = 1) {
+            with(any<ProgressReporter>()) {
+                depService.downloadProjectSources(any(), any(), any(), any(), any())
+            }
+        }
+    }
+
+    @Test
+    fun `dependency filter does not affect CAS identity`() = runTest {
+        val slf4jView = sessionView("slf4j-view")
+        val allView = sessionView("all-view")
+        val scenario = setupFilteredCacheScenario(slf4jView, allView)
+        val slf4jFilter = "^org\\.slf4j:slf4j-api(:.*)?$"
+
+        with(progress) { sourcesService.resolveAndProcessProjectSources(scenario.root, ":", dependency = slf4jFilter) }
+        with(progress) { sourcesService.resolveAndProcessProjectSources(scenario.root, ":") }
+
+        coVerify(exactly = 2) {
+            with(any<ProgressReporter>()) {
+                depService.downloadProjectSources(any(), any(), any(), any(), any())
+            }
+        }
+        coVerify(exactly = 2) { storageService.calculateHash(scenario.slf4j) }
+        coVerify(exactly = 1) { storageService.calculateHash(scenario.kotlin) }
+        assertEquals(listOf(setOf(scenario.slf4j), setOf(scenario.slf4j, scenario.kotlin)), scenario.createdViewKeys)
     }
 
     @Test
@@ -863,10 +1082,10 @@ class SourcesServiceCachingTest {
         }
     }
 
-    // ── M4: waitForBase returning false propagates as ISE ────────────────────────────────────────
+    // ── M4: waitForBase returning false is recorded without aborting the session ───────────────────
 
     @Test
-    fun `waitForBase returning false propagates as IllegalStateException out of resolveAndProcessProjectSources`() = runTest(timeout = 10.minutes) {
+    fun `waitForBase returning false records failed platform dependency without aborting resolveAndProcessProjectSources`() = runTest(timeout = 10.minutes) {
         val root = GradleProjectRoot(tempDir.resolve("m4-project").toString())
 
         val commonDep = GradleDependency(
@@ -924,10 +1143,18 @@ class SourcesServiceCachingTest {
             val dir = it.invocation.args[1] as Path
             dir.createDirectories()
         }
+        val sessionView = mockk<SessionViewSourcesDir>()
+        coEvery { storageService.createSessionView(any(), any()) } returns sessionView
         coEvery { storageService.pruneSessionViews() } just Runs
 
-        assertFailsWith<IllegalStateException> {
-            with(progress) { sourcesService.resolveAndProcessProjectSources(root, ":") }
+        val result = with(progress) { sourcesService.resolveAndProcessProjectSources(root, ":") }
+
+        assertSame(sessionView, result)
+        coVerify {
+            storageService.createSessionView(
+                match { map -> commonDep in map && platformDep in map },
+                false
+            )
         }
     }
 

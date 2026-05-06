@@ -3,7 +3,8 @@ package dev.rnett.gradle.mcp.dependencies.model
 import java.nio.file.Path
 
 data class GradleDependencyReport(
-    val projects: List<GradleProjectDependencies>
+    val projects: List<GradleProjectDependencies>,
+    val notes: List<String> = emptyList()
 )
 
 data class GradleProjectDependencies(

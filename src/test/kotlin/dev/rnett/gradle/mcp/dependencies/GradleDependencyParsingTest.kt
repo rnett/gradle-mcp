@@ -212,6 +212,31 @@ class GradleDependencyParsingTest {
     }
 
     @Test
+    fun `can parse note containing escaped pipe`() {
+        val output = """
+            [gradle-mcp] [DEPENDENCIES] NOTE | : | update check regex: ^foo\|bar$
+        """.trimIndent()
+
+        val service = DefaultGradleDependencyService(MockGradleProvider())
+        val report = service.parseStructuredOutput(output)
+
+        assertEquals(listOf("update check regex: ^foo|bar$"), report.notes)
+    }
+
+    @Test
+    fun `can parse escaped pipe in repository field`() {
+        val output = """
+            [gradle-mcp] [DEPENDENCIES] PROJECT | : | project ':'
+            [gradle-mcp] [DEPENDENCIES] REPOSITORY | : | Releases\|Snapshots | https://repo.maven.apache.org/maven2/
+        """.trimIndent()
+
+        val service = DefaultGradleDependencyService(MockGradleProvider())
+        val report = service.parseStructuredOutput(output)
+
+        assertEquals("Releases|Snapshots", report.projects.single().repositories.single().name)
+    }
+
+    @Test
     fun `getDependencies filters internal configurations by default`() = runTest {
         val output = """
             [gradle-mcp] [DEPENDENCIES] PROJECT | : | project ':'

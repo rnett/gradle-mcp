@@ -1,7 +1,13 @@
 package dev.rnett.gradle.mcp
 
 import dev.rnett.gradle.mcp.dependencies.DefaultGradleDependencyService
+import dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService
+import dev.rnett.gradle.mcp.dependencies.DefaultSourcesService
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
+import dev.rnett.gradle.mcp.dependencies.SourceStorageService
+import dev.rnett.gradle.mcp.dependencies.SourcesService
+import dev.rnett.gradle.mcp.dependencies.search.IndexService
+import dev.rnett.gradle.mcp.fixtures.dependencies.NoJdkSourceService
 import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
 import dev.rnett.gradle.mcp.fixtures.gradle.testKotlinProject
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
@@ -16,6 +22,7 @@ import io.modelcontextprotocol.kotlin.sdk.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.ClientCapabilities
 import io.modelcontextprotocol.kotlin.sdk.Root
 import io.modelcontextprotocol.kotlin.sdk.TextContent
+import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -27,6 +34,7 @@ import org.koin.core.scope.Scope
 import org.koin.dsl.module
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.writeText
+import kotlin.test.assertContains
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
@@ -45,6 +53,9 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
 
     override fun createTestModule(): Module = module {
         single<GradleDependencyService> { DefaultGradleDependencyService(get()) }
+        single<SourceStorageService> { DefaultSourceStorageService(get()) }
+        single<IndexService> { mockk(relaxed = true) }
+        single<SourcesService> { DefaultSourcesService(get(), get(), get(), NoJdkSourceService) }
         single { GradleDependencyTools(get()) }
     }
 
@@ -60,20 +71,9 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
     @BeforeEach
     override fun setup() = runTest {
         _project = testKotlinProject {
-            buildScript(
-                """
-                plugins {
-                    kotlin("jvm") version "${TestFixturesBuildConfig.KOTLIN_VERSION}"
-                }
-                repositories {
-                    mavenCentral()
-                }
-                dependencies {
-                    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-                }
-                """.trimIndent()
-            )
+            buildScript(defaultBuildScript())
         }
+        resetProjectDefaults()
         super.setup()
         server.setServerRoots(Root(_project.path().toUri().toString(), "root"))
     }
@@ -82,6 +82,11 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
     override fun cleanup() = runTest {
         _project.close()
         super.cleanup()
+    }
+
+    private fun resetProjectDefaults() {
+        _project.projectDir.resolve("settings.gradle.kts").writeText("rootProject.name = \"test-project\"")
+        _project.projectDir.resolve("gradle.properties").writeText("org.gradle.jvmargs=-Xmx256m\n")
     }
 
     @Test
@@ -129,6 +134,7 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
         assertFalse(result2.isError == true, "Second call (re-use) failed: ${(result2.content.firstOrNull() as? TextContent)?.text}")
         val text = (result2.content.first() as TextContent).text!!
         assertTrue(text.contains("kotlinx-coroutines-core"), "Cached report should still contain coroutines")
+        assertLatestBuildReusedConfigurationCache()
     }
 
     @Test
@@ -155,6 +161,45 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
         assertTrue(text.contains("kotlinx-coroutines-core"), "Report should contain coroutines. Output: $text")
         assertTrue(text.contains("[UPDATE AVAILABLE:"), "Report should contain updates for older coroutines. Output: $text")
     }
+
+    @Test
+    fun `read_dependency_sources with source set and dependency works with configuration cache reuse`() = runTest(timeout = 10.minutes) {
+        _project.projectDir.resolve("gradle.properties").writeText("org.gradle.configuration-cache=true\norg.gradle.configuration-cache.problems=fail")
+        _project.projectDir.resolve("build.gradle.kts").writeText(
+            """
+            plugins { kotlin("jvm") version "${TestFixturesBuildConfig.KOTLIN_VERSION}" }
+            repositories { mavenCentral() }
+            dependencies {
+                implementation("org.slf4j:slf4j-api:2.0.13")
+                testImplementation("commons-io:commons-io:2.15.1")
+            }
+        """.trimIndent()
+        )
+
+        val result1 = callReadDependencySources(
+            dependency = "^org\\.slf4j:slf4j-api(:.*)?$",
+            sourceSetPath = ":main"
+        )
+        server.close()
+        server = createFixture()
+        server.start()
+        server.setServerRoots(Root(_project.path().toUri().toString(), "root"))
+        val result2 = callReadDependencySources(
+            dependency = "^org\\.slf4j:slf4j-api(:.*)?$",
+            sourceSetPath = ":main"
+        )
+
+        assertFalse(result1.isError == true, "First filtered source-set call failed. Error: ${resultText(result1)}")
+        assertFalse(result2.isError == true, "Second filtered source-set call failed. Error: ${resultText(result2)}")
+        val text1 = resultText(result1)
+        val text2 = resultText(result2)
+        assertContains(text1, "slf4j/")
+        assertContains(text2, "slf4j/")
+        assertFalse(text1.contains("commons-io/"), "First filtered source-set result should not include excluded test dependency sources. Output: $text1")
+        assertFalse(text2.contains("commons-io/"), "Second filtered source-set result should not include excluded test dependency sources. Output: $text2")
+        assertLatestBuildReusedConfigurationCache()
+    }
+
 
     @Test
     fun `inspect_dependencies works with multi-project build and configuration cache`() = runTest(timeout = 10.minutes) {
@@ -200,5 +245,47 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
         assertFalse(result.isError == true, "REPL start should not fail. Error: ${(result.content.firstOrNull() as? TextContent)?.text}")
         val text = (result.content.first() as TextContent).text!!
         assertTrue(text.contains("REPL session started"), "REPL should start")
+    }
+
+    private suspend fun callReadDependencySources(dependency: String, sourceSetPath: String? = null): CallToolResult {
+        return server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES,
+            buildJsonObject {
+                put("projectRoot", _project.path().absolutePathString())
+                if (sourceSetPath == null) {
+                    put("projectPath", ":")
+                } else {
+                    put("sourceSetPath", sourceSetPath)
+                }
+                put("dependency", dependency)
+            }
+        ) as CallToolResult
+    }
+
+    private fun resultText(result: CallToolResult): String {
+        return result.content.filterIsInstance<TextContent>().joinToString("\n") { it.text.orEmpty() }
+    }
+
+    private fun defaultBuildScript(): String {
+        return """
+            plugins {
+                kotlin("jvm") version "${TestFixturesBuildConfig.KOTLIN_VERSION}"
+            }
+            repositories {
+                mavenCentral()
+            }
+            dependencies {
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+                implementation("org.slf4j:slf4j-api:2.0.13")
+            }
+        """.trimIndent()
+    }
+
+    private fun assertLatestBuildReusedConfigurationCache() {
+        val console = buildManager.latestFinished(1).single().consoleOutput.toString()
+        assertTrue(
+            console.contains("Reusing configuration cache.") || console.contains("Configuration cache entry reused."),
+            "Second Gradle invocation should reuse the configuration cache. Console output:\n$console"
+        )
     }
 }

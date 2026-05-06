@@ -2,13 +2,13 @@
 
 ## Purpose
 
-TBD
+Defines immutable per-request dependency-source session views and the cache semantics that allow safe reuse without mutating active views.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Ephemeral Session Views
 
-The system SHALL create a unique, immutable snapshot directory for every dependency resolution tool call.
+The system SHALL create or reuse an immutable snapshot directory for dependency resolution requests. Newly materialized session-view directories SHALL be unique; later requests MAY reuse a cached view when the same scope/filter cache key is still valid.
 
 - The path MUST be uniquely identified by a timestamp and UUID.
 - It SHALL contain a `manifest.json` describing the View's contents.
@@ -17,7 +17,13 @@ The system SHALL create a unique, immutable snapshot directory for every depende
 #### Scenario: Tool call view isolation
 
 - **WHEN** a resolution tool call starts
-- **THEN** it creates its own private session view and returns its sources path
+- **THEN** it receives an immutable session view and returns its sources path
+
+#### Scenario: Reusing a cached session view
+
+- **WHEN** the same scope and dependency filter are requested again before cache expiry
+- **THEN** the system MAY return the existing immutable session-view directory instead of materializing a new one
+- **AND** the reused view SHALL remain stable for the full duration of the later tool call
 
 ### Requirement: Stable Snapshot Mapping
 
