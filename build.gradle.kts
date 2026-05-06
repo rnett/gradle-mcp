@@ -167,9 +167,9 @@ testing {
                     testTask.configure {
                         maxParallelForks = if (isCI) 3 else 8
                         if (isCI) {
-                            mustRunAfter("test")
+                            mustRunAfter("test", "integrationTest")
                         } else {
-                            shouldRunAfter("test")
+                            shouldRunAfter("test", "integrationTest")
                         }
                         maxHeapSize = "1g"
                     }
