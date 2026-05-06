@@ -171,6 +171,13 @@ testing {
                         } else {
                             shouldRunAfter("test", "integrationTest")
                         }
+                        testLogging {
+                            events("failed")
+                            exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+                            showCauses = true
+                            showStackTraces = true
+                            showStandardStreams = true
+                        }
                         maxHeapSize = "1g"
                     }
                 }
