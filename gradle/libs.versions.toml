@@ -10,7 +10,7 @@ commonsIo = "2.22.0"
 schemaKenerator = "2.7.2"
 kotlinxSerializationJson = "1.11.0"
 flexmark = "0.64.8"
-coroutines = "1.10.2"
+coroutines = "1.11.0"
 mcpSdk = "0.7.2"
 gradleToolingApi = "9.5.0" # renovate: ignoreUnstable=false
 buildconfig = "6.0.9"
