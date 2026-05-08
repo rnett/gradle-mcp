@@ -89,14 +89,10 @@ Agent Skills are specialized guides that help AI agents navigate common Gradle w
 
 Included skills:
 
-- `running_gradle_builds`: Running Gradle Commands, Background Jobs, and Investigating Failures.
-- `running_gradle_tests`: Running and Investigating Tests.
-- `managing_gradle_dependencies`: Auditing and updating dependencies.
-- `introspecting_gradle_projects`: Mapping project structure, modules, and tasks.
-- `searching_dependency_sources`: Searching and reading dependency source code.
+- `gradle`: Running builds, tests, introspecting projects, creating modules, and diagnosing failures.
+- `exploring_dependency_sources`: Searching and reading dependency, plugin, and Gradle internal source code.
+- `managing_gradle_dependencies`: Auditing, updating, and adding dependencies.
 - `interacting_with_project_runtime`: Running Code in the Project's Environment (REPL).
-- `researching_gradle_internals`: Searching and reading the Gradle User Guide and source code.
 - `verifying_compose_ui`: Visually verifying Compose UI components.
-- `gradle_expert`: Senior Build Engineer guidance for build scripts and failures.
 
 For instructions on how to use these skills, see the [Agent Skills](https://gradle-mcp.rnett.dev/latest/skills/) documentation.

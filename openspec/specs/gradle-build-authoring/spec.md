@@ -2,13 +2,13 @@
 
 ## Purpose
 
-Specifies how the `gradle_expert` skill guides users in creating, modifying, and managing Gradle build files and modules.
+Specifies how the `gradle` skill guides users in creating, modifying, and managing Gradle build files and modules.
 
 ## Requirements
 
 ### Requirement: Skill for Gradle build authoring
 
-The system SHALL provide a `gradle_expert` skill that guides users in creating and modifying Gradle build files.
+The system SHALL provide a `gradle` skill that guides users in creating and modifying Gradle build files.
 
 #### Scenario: User asks to add a dependency
 

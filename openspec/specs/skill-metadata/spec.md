@@ -14,7 +14,7 @@ frontmatter.
 
 #### Scenario: Agent chooses skill over shell with detailed context
 
-- **WHEN** the agent reads the skill description for `managing-gradle-builds`
+- **WHEN** the agent reads the skill description for `gradle`
 - **THEN** it understands in one concise paragraph that the `gradle` tool provides managed background builds and task output capturing
 - **AND** it uses the `gradle` tool instead of `./gradlew`
 
@@ -26,24 +26,24 @@ list. Full scenario detail belongs in the body section only.
 #### Scenario: High-signal selection
 
 - **WHEN** the agent is unsure which tool to use for a large test suite
-- **THEN** it finds a terse scenario keyword in the `executing-gradle-tests` skill description (e.g., "large test suite monitoring")
+- **THEN** it finds a terse scenario keyword in the `gradle` skill description (e.g., "large test suite monitoring")
 - **AND** it activates the skill to get full scenario detail
 
 ### Requirement: Authoritative Task Path Syntax Documentation
 
-The `managing-gradle-builds`, `executing-gradle-tests`, and `introspecting-gradle-projects` skills SHALL include authoritative information about Gradle project and task path syntax, specifically clarifying the difference between task
+The `gradle` skill SHALL include authoritative information about Gradle project and task path syntax, specifically clarifying the difference between task
 selectors and absolute task paths.
 
 #### Scenario: Agent correctly targets tasks in all projects
 
 - **WHEN** the agent needs to run tests in all subprojects
-- **THEN** it reads the authoritative path documentation in the `executing-gradle-tests` skill
+- **THEN** it reads the authoritative path documentation in the `gradle` skill
 - **AND** it uses the task selector `test` (without a leading colon) to run tests across all projects
 
 #### Scenario: Agent correctly targets a root project task
 
 - **WHEN** the agent needs to run a task only in the root project
-- **THEN** it reads the authoritative path documentation in the `managing-gradle-builds` skill
+- **THEN** it reads the authoritative path documentation in the `gradle` skill
 - **AND** it uses an absolute path like `:test` (with a leading colon) to target the root project specifically
 
 ### Requirement: Expanded and Structured Tool Descriptions
@@ -54,7 +54,7 @@ MUST/NEVER/ALWAYS directives and usage patterns, but SHALL eliminate prose ratio
 #### Scenario: Detailed tool guidance without redundancy
 
 - **WHEN** the agent reads the `query_build` description
-- **THEN** it learns specific usage patterns (e.g., "Wait for Log," "Surgical Diagnostics") without encountering repeated justifications already present in the `running_gradle_builds` skill
+- **THEN** it learns specific usage patterns (e.g., "Wait for Log," "Surgical Diagnostics") without encountering repeated justifications already present in the `gradle` skill
 
 ### Requirement: Argument-Level Guidance with Efficiency Hints
 

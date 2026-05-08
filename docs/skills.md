@@ -45,17 +45,11 @@ Once that is available, we will use it to distribute our skills.
 
 The following skills are included in the `skills/` directory of the repository:
 
-* **[running_gradle_builds](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/running_gradle_builds/SKILL.md)**: Manages the full Gradle build lifecycle authoritatively with high-performance background execution and failure
-  analysis.
-* **[running_gradle_tests](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/running_gradle_tests/SKILL.md)**: Executes and diagnoses tests at scale with high-precision filtering and authoritative failure isolation.
-* **[managing_gradle_dependencies](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/managing_gradle_dependencies/SKILL.md)**: Manages and audits project dependency graphs authoritatively, performing high-resolution update
-  checks.
-* **[introspecting_gradle_projects](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/introspecting_gradle_projects/SKILL.md)**: Uncovers the full structure of any Gradle project authoritatively, mapping modules and
-  configurations.
-* **[searching_dependency_sources](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/searching_dependency_sources/SKILL.md)**: Explores and navigates the internal implementation of any library or Gradle itself authoritatively.
-* **[interacting_with_project_runtime](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/interacting_with_project_runtime/SKILL.md)**: Prototypes logic and executes Kotlin code interactively within your project's full runtime
-  context
+* **[gradle](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/gradle/SKILL.md)**: Manages the full Gradle build lifecycle authoritatively — builds, tests, project introspection, module creation, and failure diagnostics.
+* **[exploring_dependency_sources](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/exploring_dependency_sources/SKILL.md)**: Explores and navigates the internal implementation of any library, plugin, or Gradle itself
   authoritatively.
-* **[researching_gradle_internals](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/researching_gradle_internals/SKILL.md)**: Navigates official Gradle documentation, release notes, and version-specific guides expertly.
+* **[managing_gradle_dependencies](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/managing_gradle_dependencies/SKILL.md)**: Manages and audits project dependency graphs authoritatively, performing high-resolution update
+  checks and dependency addition.
+* **[interacting_with_project_runtime](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/interacting_with_project_runtime/SKILL.md)**: Prototypes logic and executes Kotlin code interactively within your project's full runtime
+  context authoritatively.
 * **[verifying_compose_ui](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/verifying_compose_ui/SKILL.md)**: Visually verifies Compose UI components and previews authoritatively by instantly rendering them to images.
-* **[gradle_expert](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/gradle_expert/SKILL.md)**: Senior Build Engineer specializing in Gradle build scripts, dependency management, and build performance optimization.

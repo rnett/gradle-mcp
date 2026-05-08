@@ -3,7 +3,7 @@ name: interacting_with_project_runtime
 description: >
   Executes Kotlin code interactively within the project's full JVM classpath.
   Use when you need to RUN code: verify runtime behavior, experiment with logic, or render Compose UI previews.
-  Do NOT use to understand an API's shape or signature — read its source with `searching_dependency_sources` instead.
+  Do NOT use to understand an API's shape or signature — read its source with `exploring_dependency_sources` instead.
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
@@ -52,7 +52,7 @@ Runs Kotlin code interactively within the project's exact JVM classpath — for 
 
 Ask yourself: *"Am I trying to understand this API, or run it?"*
 
-If you're trying to understand it — what methods it has, what its parameters are, how it's implemented — **stop and use `searching_dependency_sources` first**. The REPL cannot tell you what you don't already know to ask; source reading can.
+If you're trying to understand it — what methods it has, what its parameters are, how it's implemented — **stop and use `exploring_dependency_sources` first**. The REPL cannot tell you what you don't already know to ask; source reading can.
 Examples of what belongs in source reading, not the REPL:
 
 - "What methods does `SomeClass` have?" → `search_dependency_sources` DECLARATION search

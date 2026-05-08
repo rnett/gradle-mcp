@@ -2,13 +2,13 @@
 
 ## Purpose
 
-Specifies how the `gradle_expert` skill provides best practices reference documents for Gradle build authoring and performance optimization.
+Specifies how the `gradle` skill provides best practices reference documents for Gradle build authoring and performance optimization.
 
 ## Requirements
 
 ### Requirement: Integrated best practices reference
 
-The `gradle_expert` skill SHALL include a set of reference documents that detail best practices for Gradle build authoring.
+The `gradle` skill SHALL include a set of reference documents that detail best practices for Gradle build authoring.
 
 #### Scenario: User asks for performance optimization
 

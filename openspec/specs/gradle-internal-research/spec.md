@@ -17,7 +17,7 @@ The system SHALL use concrete versions resolved from aliases when searching for 
 
 ### Requirement: Authoritative Gradle internal and documentation lookup
 
-The `gradle_expert` skill SHALL provide clear instructions for researching Gradle's internals and official documentation using specialized tools.
+The `gradle` skill SHALL provide clear instructions for researching Gradle's internals and official documentation using specialized tools.
 
 #### Scenario: Researching a Gradle internal API
 

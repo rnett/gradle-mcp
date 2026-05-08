@@ -3,7 +3,7 @@ name: managing_gradle_dependencies
 description: >
   Audits and manages Gradle dependency graphs with high-resolution update checks, transitive tree analysis, and Maven Central discovery;
   use for dependency auditing, finding stable updates, and resolving GAV coordinates.
-  Do NOT use for exploring dependency source code (use `searching_dependency_sources`) or running builds.
+  Do NOT use for exploring dependency source code (use `exploring_dependency_sources`) or running builds/tests (use `gradle`).
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
@@ -67,6 +67,55 @@ Audits project dependencies, performs high-resolution update checks, and discove
 2. Call `inspect_dependencies(dependency="^org\\.mongodb:mongodb-driver-sync(:.*)?$")`.
 3. The report will be focused ONLY on that library across all matched configurations.
 
+### 5. Adding a New Dependency
+
+1. **Search Maven Central**: Use `lookup_maven_versions(coordinates="group:artifact")` to find the artifact and its latest version.
+2. **Update Version Catalog**: Add the dependency coordinates to `gradle/libs.versions.toml`:
+   ```toml
+   [versions]
+   my-lib = "X.Y.Z"
+
+   [libraries]
+   my-lib = { group = "com.example", name = "my-lib", version.ref = "my-lib" }
+   ```
+3. **Apply to `build.gradle.kts`**: Use the type-safe catalog accessor (e.g., `implementation(libs.my.lib)`) in the appropriate dependency configuration.
+4. **Verify Resolution**: Run `inspect_dependencies(fresh: true)` to confirm the dependency resolves correctly.
+
+#### Example: Adding a dependency to a subproject
+
+```json
+// Step 1: Discover the library
+{
+  "coordinates": "com.squareup.retrofit2:retrofit"
+}
+// Step 2: Update libs.versions.toml with the version and library entry
+// Step 3: Add `implementation(libs.retrofit)` to the subproject's build.gradle.kts
+// Step 4: Verify
+{
+  "projectPath": ":app",
+  "dependency": "^com\\.squareup\\.retrofit2:retrofit(:.*)?$"
+}
+// Reasoning: Adding the Retrofit library to the 'app' module with full resolution verification.
+```
+
+### 6. Verifying Plugin Dependencies
+
+Build script dependencies (plugins) are automatically reported under `buildscript:` configurations. To specifically verify plugin resolution:
+
+1. Call `inspect_dependencies(sourceSetPath=":buildscript")` for the root project, or `sourceSetPath=":app:buildscript"` for a subproject.
+2. Review the `buildscript:classpath` configuration for plugin dependencies.
+3. Use `fresh: true` if plugins were recently added or updated.
+
+#### Example: Verifying a specific plugin
+
+```json
+{
+  "sourceSetPath": ":buildscript",
+  "dependency": "^org\\.jetbrains\\.kotlin:kotlin-gradle-plugin(:.*)?$"
+}
+// Reasoning: Verifying the Kotlin plugin is properly resolved in the buildscript classpath.
+```
+
 ## Examples
 
 ### List dependencies for a specific module
@@ -109,7 +158,7 @@ Audits project dependencies, performs high-resolution update checks, and discove
 
 ## Troubleshooting
 
-- **Dependency Not Found**: Verify the `projectPath` using the `projects` task in the `introspecting_gradle_projects` skill.
+- **Dependency Not Found**: Verify the `projectPath` using the `projects` task in the `gradle` skill.
 - **Update Not Showing**: If a known update is missing, ensure `stableOnly` is set correctly and check if a `versionFilter` is active.
 - **[UPDATE CHECK SKIPPED]**: This annotation means the dep was in scope for update checking but its resolution genuinely failed — it does NOT appear for dependencies intentionally excluded from the update-check scope (e.g., transitive deps
   when `onlyDirect=true`, or deps excluded by a `dependency` filter).
