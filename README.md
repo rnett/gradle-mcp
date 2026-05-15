@@ -5,6 +5,8 @@
 
 # Gradle MCP server
 
+[![Revved up by Develocity](https://img.shields.io/badge/Revved%20up%20by-Develocity-06A0CE?logo=Gradle&labelColor=02303A)](https://community.develocity.cloud/scans?search.rootProjectNames=gradle-mcp)
+
 A Model Context Protocol (MCP) server for Gradle. It gives AI agents the tools they need to explore project structures, run tasks, audit dependencies, and interact with the JVM runtime.
 
 ##### Features
