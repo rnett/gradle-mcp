@@ -27,13 +27,11 @@ jobs:
             21
             25
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
+      - name: Set up OSS Community Develocity Instance for Gradle
+        uses: gradle/actions/setup-gradle@v6.1.0
         with:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-          build-scan-publish: true
-          build-scan-terms-of-use-url: 'https://gradle.com/terms-of-service'
-          build-scan-terms-of-use-agree: 'yes'
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
 
       - name: Build library
         run: |
@@ -63,13 +61,11 @@ jobs:
             21
             25
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
+      - name: Set up OSS Community Develocity Instance for Gradle
+        uses: gradle/actions/setup-gradle@v6.1.0
         with:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-          build-scan-publish: true
-          build-scan-terms-of-use-url: 'https://gradle.com/terms-of-service'
-          build-scan-terms-of-use-agree: 'yes'
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
 
       - name: Publish to Maven staging
         env:

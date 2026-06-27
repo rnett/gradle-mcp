@@ -45,15 +45,13 @@ jobs:
           distribution: 'temurin'
           java-version: 25
 
-      - name: Setup Gradle
+      - name: Set up OSS Community Develocity Instance for Gradle
         if: github.event_name != 'schedule' || steps.check_commits.outputs.run_tests == 'true'
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.1.0
         with:
           # Use setup-gradle caching
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-          build-scan-publish: true
-          build-scan-terms-of-use-url: 'https://gradle.com/terms-of-service'
-          build-scan-terms-of-use-agree: 'yes'
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
 
       - name: Run Tree-Sitter Tests
         if: github.event_name != 'schedule' || steps.check_commits.outputs.run_tests == 'true'
