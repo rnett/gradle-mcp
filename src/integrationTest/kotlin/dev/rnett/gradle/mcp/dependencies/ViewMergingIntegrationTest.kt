@@ -189,7 +189,7 @@ class ViewMergingIntegrationTest {
         commonCas.normalizedDir.createDirectories()
         commonCas.normalizedDir.resolve("shared.txt").writeText("same")
         commonCas.sourceSetsFile.writeText("commonMain")
-        commonCas.completionMarker.writeText("")
+        commonCas.baseCompletedMarker.writeText("")
 
         platformCas.normalizedDir.createDirectories()
         platformCas.normalizedDir.resolve("shared.txt").writeText("same")
@@ -199,7 +199,7 @@ class ViewMergingIntegrationTest {
         // Simulate target view creation (normally done by SourcesService during normalization)
         platformCas.normalizedTargetDir.createDirectories()
         platformCas.normalizedTargetDir.resolve("jvm-only.txt").writeText("unique")
-        platformCas.completionMarker.writeText("")
+        platformCas.baseCompletedMarker.writeText("")
 
         assertTrue(platformCas.normalizedTargetDir.exists(), "Target dir should exist")
         assertFalse(platformCas.normalizedTargetDir.resolve("shared.txt").exists(), "Shared file should not be in target view")
@@ -236,12 +236,12 @@ class ViewMergingIntegrationTest {
 
         commonCas.normalizedDir.createDirectories()
         commonCas.normalizedDir.resolve("common.txt").writeText("common")
-        commonCas.completionMarker.createFile()
+        commonCas.baseCompletedMarker.createFile()
 
         platformCas.normalizedDir.createDirectories()
         platformCas.normalizedDir.resolve("common.txt").writeText("common")
         // NOTE: No normalizedTargetDir created for platform!
-        platformCas.completionMarker.createFile()
+        platformCas.baseCompletedMarker.createFile()
 
         val deps = mapOf(
             commonDep to commonCas,
@@ -273,11 +273,11 @@ class ViewMergingIntegrationTest {
 
         casDir1.normalizedDir.createDirectories()
         casDir1.normalizedDir.resolve("file1.txt").writeText("v1")
-        casDir1.completionMarker.createFile()
+        casDir1.baseCompletedMarker.createFile()
 
         casDir2.normalizedDir.createDirectories()
         casDir2.normalizedDir.resolve("file2.txt").writeText("v2")
-        casDir2.completionMarker.createFile()
+        casDir2.baseCompletedMarker.createFile()
 
         val deps = mapOf(dep1 to casDir1, dep2 to casDir2)
 
@@ -305,11 +305,11 @@ class ViewMergingIntegrationTest {
 
         casDir1.normalizedDir.createDirectories()
         casDir1.normalizedDir.resolve("file1.txt").writeText("v1")
-        casDir1.completionMarker.createFile()
+        casDir1.baseCompletedMarker.createFile()
 
         casDir2.normalizedDir.createDirectories()
         casDir2.normalizedDir.resolve("file2.txt").writeText("v2")
-        casDir2.completionMarker.createFile()
+        casDir2.baseCompletedMarker.createFile()
 
         val deps = mapOf(dep1 to casDir1, dep2 to casDir2)
 

@@ -44,6 +44,8 @@ class McpServer(
     private val components: List<McpServerComponent> = emptyList()
 ) : Server(serverInfo, options) {
     private val LOGGER = LoggerFactory.getLogger(McpServer::class.java)
+    // The scope is intentionally NOT a child of the SDK session scope. Cancellation decoupling:
+    // cancelling an MCP request via notifications/cancelled must not terminate the entire server session.
     val scope = CoroutineScope(Dispatchers.Default + SupervisorJob() + CoroutineExceptionHandler { ctx, e ->
         LOGGER.error("Error in MCP server job {}", ctx[CoroutineName]?.name ?: "unnamed", e)
     })
@@ -93,6 +95,8 @@ class McpServer(
     }
 
     init {
+        // Note: SSE sessions bypass connect() and are created directly via createSession() by the SDK.
+        // This init callback runs for every session (including those from SSE), so we set up handlers on all existing sessions.
         onConnect {
             // Set up notification handlers on all sessions (idempotent — replaces with same handler)
             sessions.values.forEach { session -> setupSessionHandlers(session) }

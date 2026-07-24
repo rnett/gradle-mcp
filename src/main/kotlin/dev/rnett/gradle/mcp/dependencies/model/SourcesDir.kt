@@ -45,9 +45,6 @@ data class CASDependencySourcesDir(
     /** Lock for a specific index provider. */
     fun indexLockFile(providerName: String): Path = baseDir.resolveSibling("${baseDir.fileName}.index.$providerName.lock")
 
-    @Deprecated("Use baseLockFile", ReplaceWith("baseLockFile"))
-    val advisoryLockFile: Path get() = baseLockFile
-
     /**
      * Completion marker indicating this CAS entry's base sources (sources/, normalized/) are ready.
      */
@@ -58,10 +55,6 @@ data class CASDependencySourcesDir(
      * (normalized-target/ is stable).
      */
     val processedWithCommonMarker: Path = baseDir.resolve(".processed-with-common")
-
-    @Deprecated("Use baseCompletedMarker", ReplaceWith("baseCompletedMarker"))
-    val completionMarker: Path get() = baseCompletedMarker
-
     override fun lastRefresh(): kotlin.time.Instant? {
         if (baseCompletedMarker.exists()) {
             return try {

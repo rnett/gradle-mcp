@@ -334,7 +334,7 @@ class SourcesServiceCachingTest {
         val casDir = CASDependencySourcesDir("hash", casBaseDir)
         casDir.sources.createDirectories()
         casDir.index.createDirectories()
-        casDir.completionMarker.createFile()
+        casDir.baseCompletedMarker.createFile()
 
         val viewDir = tempDir.resolve("view").createDirectories()
         val sourcesPath = viewDir.resolve("sources").createDirectories()

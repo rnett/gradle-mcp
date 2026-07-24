@@ -36,7 +36,6 @@ internal class ProblemsAccumulator {
 
     fun aggregateBySeverity(): Map<ProblemSeverity, List<ProblemAggregation>> = aggregate().groupBy { it.definition.severity }
 
-    @Suppress("UNNECESSARY_SAFE_CALL")
     fun org.gradle.tooling.events.problems.ProblemAggregation.toModel(): ProblemAggregation {
         val aggregation = this
         return ProblemAggregation(
@@ -62,7 +61,6 @@ internal class ProblemsAccumulator {
         )
     }
 
-    @Suppress("UNNECESSARY_SAFE_CALL")
     fun Problem.toModel(): ProblemAggregation = ProblemAggregation(
         definition = ProblemAggregation.ProblemDefinition(
             id = definition.id.toId(),

@@ -231,6 +231,8 @@ fun JsonNode.toKotlinxSerialization(): JsonElement = when (this) {
     is JsonObject -> {
         val props = properties.mapValues { it.value.toKotlinxSerialization() }.toMutableMap()
         if (props.containsKey("enum") && !props.containsKey("type")) {
+            // Schema-generator quirk: enums without an explicit "type" field are coerced to string
+            // so that kotlinx.serialization can deserialize them. See openspec/specs/mcp-schema-simplification/spec.md
             props["type"] = JsonPrimitive("string")
         }
         kotlinx.serialization.json.JsonObject(props)

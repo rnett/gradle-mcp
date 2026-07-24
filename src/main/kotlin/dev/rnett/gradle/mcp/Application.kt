@@ -42,12 +42,7 @@ sealed class Transport(val name: String) {
                 input,
                 output
             )
-            val mcpServer: McpServer = try {
-                application.koinContext.get<McpServer>()
-            } catch (t: Throwable) {
-                LOGGER.error("Failed to initialize MCP Server", t)
-                throw t
-            }
+            val mcpServer = application.resolveMcpServer()
             val job = application.scope.launch {
                 val session = mcpServer.connect(transport)
                 suspendCoroutine {
@@ -74,13 +69,7 @@ sealed class Transport(val name: String) {
             this.server = server
             server.application.apply {
                 mcp {
-                    val mcpServer: McpServer = try {
-                        application.koinContext.get<McpServer>()
-                    } catch (t: Throwable) {
-                        LOGGER.error("Failed to initialize MCP Server", t)
-                        throw t
-                    }
-                    mcpServer
+                    application.resolveMcpServer()
                 }
             }
 
@@ -110,6 +99,15 @@ class Application(val args: Array<String>, val transport: Transport) {
     val scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob() + CoroutineExceptionHandler { context, throwable ->
         LOGGER.error("Unhandled exception in coroutine", throwable)
     })
+
+    internal fun resolveMcpServer(): McpServer {
+        return try {
+            koinContext.get<McpServer>()
+        } catch (t: Throwable) {
+            LOGGER.error("Failed to initialize MCP Server", t)
+            throw t
+        }
+    }
 
     suspend fun start(wait: Boolean = true) {
         System.err.println("Starting Gradle MCP server with ${transport.name} transport...")

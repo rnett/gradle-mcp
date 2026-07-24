@@ -46,5 +46,4 @@ enum class ProblemSeverity {
     ADVICE, WARNING, ERROR, OTHER
 }
 
-@Suppress("SENSELESS_COMPARISON")
 val ProblemGroup.fqName: String get() = parent?.fqName?.let { "$it.$name" } ?: name
