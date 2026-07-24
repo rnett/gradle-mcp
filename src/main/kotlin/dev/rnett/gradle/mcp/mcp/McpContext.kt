@@ -184,18 +184,27 @@ open class McpContext(
     }
 }
 
-fun CompiledJsonSchemaData.toInput(): ToolSchema {
+/**
+ * Converts schema-kenerator output to an MCP [ToolSchema].
+ * Returns `null` if the top-level schema type is not `"object"`.
+ * `$defs` from the source schema are preserved via [ToolSchema.defs].
+ */
+private fun CompiledJsonSchemaData.toToolSchema(): ToolSchema? {
     val obj = json.toKotlinxSerialization().jsonObject
 
     if (obj["type"]?.jsonPrimitive?.contentOrNull != "object") {
-        error("Object schema expected")
+        return null
     }
 
     return ToolSchema(
         properties = obj.getValue("properties").jsonObject,
-        required = obj["required"]?.jsonArray?.let { it.map { it.jsonPrimitive.content } }
+        required = obj["required"]?.jsonArray?.let { it.map { it.jsonPrimitive.content } },
+        defs = obj["\$defs"]?.jsonObject
     )
 }
+
+fun CompiledJsonSchemaData.toInput(): ToolSchema =
+    toToolSchema() ?: error("Object schema expected")
 
 fun CompiledJsonSchemaData.toRequestedSchema(): ElicitRequestParams.RequestedSchema {
     val obj = json.toKotlinxSerialization().jsonObject
@@ -212,16 +221,7 @@ fun CompiledJsonSchemaData.toRequestedSchema(): ElicitRequestParams.RequestedSch
     )
 }
 
-fun CompiledJsonSchemaData.toOutput(): ToolSchema? {
-    val obj = json.toKotlinxSerialization().jsonObject
-    if (obj["type"]?.jsonPrimitive?.contentOrNull != "object") {
-        return null
-    }
-    return ToolSchema(
-        properties = obj.getValue("properties").jsonObject,
-        required = obj["required"]?.jsonArray?.let { it.map { it.jsonPrimitive.content } }
-    )
-}
+fun CompiledJsonSchemaData.toOutput(): ToolSchema? = toToolSchema()
 
 fun JsonNode.toKotlinxSerialization(): JsonElement = when (this) {
     is JsonArray -> kotlinx.serialization.json.JsonArray(
@@ -230,9 +230,9 @@ fun JsonNode.toKotlinxSerialization(): JsonElement = when (this) {
 
     is JsonObject -> {
         val props = properties.mapValues { it.value.toKotlinxSerialization() }.toMutableMap()
+        // schema-kenerator emits enum schemas without a `type` field, which the MCP SDK schema model
+        // rejects unless `"type": "string"` is injected. See openspec/specs/mcp-schema-simplification/spec.md
         if (props.containsKey("enum") && !props.containsKey("type")) {
-            // Schema-generator quirk: enums without an explicit "type" field are coerced to string
-            // so that kotlinx.serialization can deserialize them. See openspec/specs/mcp-schema-simplification/spec.md
             props["type"] = JsonPrimitive("string")
         }
         kotlinx.serialization.json.JsonObject(props)
