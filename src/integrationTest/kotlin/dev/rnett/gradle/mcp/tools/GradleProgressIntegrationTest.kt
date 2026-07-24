@@ -7,12 +7,15 @@ import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.fixtures.mcp.McpServerFixture
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleProvider
-import io.modelcontextprotocol.kotlin.sdk.CallToolRequest
-import io.modelcontextprotocol.kotlin.sdk.CallToolResult
-import io.modelcontextprotocol.kotlin.sdk.ClientCapabilities
-import io.modelcontextprotocol.kotlin.sdk.Method
-import io.modelcontextprotocol.kotlin.sdk.ProgressNotification
-import io.modelcontextprotocol.kotlin.sdk.Root
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequestParams
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.ClientCapabilities
+import io.modelcontextprotocol.kotlin.sdk.types.Method
+import io.modelcontextprotocol.kotlin.sdk.types.ProgressNotificationParams
+import io.modelcontextprotocol.kotlin.sdk.types.RequestMeta
+import io.modelcontextprotocol.kotlin.sdk.types.Root
+import io.modelcontextprotocol.kotlin.sdk.types.ProgressNotification
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonArray
@@ -50,7 +53,7 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
         return McpServerFixture(
             clientCapabilities = ClientCapabilities(
                 roots = ClientCapabilities.Roots(listChanged = true),
-                elicitation = buildJsonObject { }
+                elicitation = ClientCapabilities.Elicitation()
             ),
             koinModules = listOf(createTestModule())
         )
@@ -75,7 +78,7 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
 
     @Test
     fun `gradle build emits progress percentages and phase prefixes`() = runTest(timeout = 120.seconds) {
-        val progressNotifications = ConcurrentLinkedQueue<ProgressNotification.Params>()
+        val progressNotifications = ConcurrentLinkedQueue<ProgressNotificationParams>()
 
         server.client.setNotificationHandler<ProgressNotification>(Method.Defined.NotificationsProgress) { notification: ProgressNotification ->
             progressNotifications.add(notification.params)
@@ -85,14 +88,16 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
         // Run build
         server.client.request<CallToolResult>(
             CallToolRequest(
-                name = ToolNames.GRADLE,
-                arguments = buildJsonObject {
-                    put("commandLine", JsonArray(listOf(JsonPrimitive("help"))))
-                    put("projectRoot", _project.path().absolutePathString())
-                },
-                _meta = buildJsonObject {
-                    put("progressToken", "test-token")
-                }
+                CallToolRequestParams(
+                    name = ToolNames.GRADLE,
+                    arguments = buildJsonObject {
+                        put("commandLine", JsonArray(listOf(JsonPrimitive("help"))))
+                        put("projectRoot", _project.path().absolutePathString())
+                    },
+                    meta = RequestMeta(buildJsonObject {
+                        put("progressToken", "test-token")
+                    })
+                )
             )
         )
 
@@ -117,7 +122,7 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
 
     @Test
     fun `gradle build with multiple tasks shows descriptive progress`() = runTest(timeout = 120.seconds) {
-        val progressNotifications = ConcurrentLinkedQueue<ProgressNotification.Params>()
+        val progressNotifications = ConcurrentLinkedQueue<ProgressNotificationParams>()
 
         server.client.setNotificationHandler<ProgressNotification>(Method.Defined.NotificationsProgress) { notification: ProgressNotification ->
             progressNotifications.add(notification.params)
@@ -127,14 +132,16 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
         // Run build with two tasks
         server.client.request<CallToolResult>(
             CallToolRequest(
-                name = ToolNames.GRADLE,
-                arguments = buildJsonObject {
-                    put("commandLine", JsonArray(listOf(JsonPrimitive("help"), JsonPrimitive("tasks"))))
-                    put("projectRoot", _project.path().absolutePathString())
-                },
-                _meta = buildJsonObject {
-                    put("progressToken", "test-token")
-                }
+                CallToolRequestParams(
+                    name = ToolNames.GRADLE,
+                    arguments = buildJsonObject {
+                        put("commandLine", JsonArray(listOf(JsonPrimitive("help"), JsonPrimitive("tasks"))))
+                        put("projectRoot", _project.path().absolutePathString())
+                    },
+                    meta = RequestMeta(buildJsonObject {
+                        put("progressToken", "test-token")
+                    })
+                )
             )
         )
 
@@ -156,7 +163,7 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
 
     @Test
     fun `gradle configuration phase shows detailed progress`() = runTest(timeout = 120.seconds) {
-        val progressNotifications = ConcurrentLinkedQueue<ProgressNotification.Params>()
+        val progressNotifications = ConcurrentLinkedQueue<ProgressNotificationParams>()
 
         server.client.setNotificationHandler(Method.Defined.NotificationsProgress) { notification: ProgressNotification ->
             progressNotifications.add(notification.params)
@@ -166,14 +173,16 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
         // Run build
         server.client.request<CallToolResult>(
             CallToolRequest(
-                name = ToolNames.GRADLE,
-                arguments = buildJsonObject {
-                    put("commandLine", JsonArray(listOf(JsonPrimitive("help"))))
-                    put("projectRoot", _project.path().absolutePathString())
-                },
-                _meta = buildJsonObject {
-                    put("progressToken", "test-token")
-                }
+                CallToolRequestParams(
+                    name = ToolNames.GRADLE,
+                    arguments = buildJsonObject {
+                        put("commandLine", JsonArray(listOf(JsonPrimitive("help"))))
+                        put("projectRoot", _project.path().absolutePathString())
+                    },
+                    meta = RequestMeta(buildJsonObject {
+                        put("progressToken", "test-token")
+                    })
+                )
             )
         )
 

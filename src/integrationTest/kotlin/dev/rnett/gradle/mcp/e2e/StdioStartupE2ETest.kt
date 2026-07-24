@@ -2,7 +2,7 @@ package dev.rnett.gradle.mcp.e2e
 
 import dev.rnett.gradle.mcp.Application
 import dev.rnett.gradle.mcp.Transport
-import io.modelcontextprotocol.kotlin.sdk.Implementation
+import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.ClientOptions
 import io.modelcontextprotocol.kotlin.sdk.client.StdioClientTransport

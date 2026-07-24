@@ -1,13 +1,13 @@
 package dev.rnett.gradle.mcp.mcp
 
 import dev.rnett.gradle.mcp.runCatchingExceptCancellation
-import io.modelcontextprotocol.kotlin.sdk.CallToolResult
-import io.modelcontextprotocol.kotlin.sdk.PromptMessageContent
-import io.modelcontextprotocol.kotlin.sdk.Request
-import io.modelcontextprotocol.kotlin.sdk.TextContent
-import io.modelcontextprotocol.kotlin.sdk.Tool
-import io.modelcontextprotocol.kotlin.sdk.ToolAnnotations
-import io.modelcontextprotocol.kotlin.sdk.WithMeta
+import io.modelcontextprotocol.kotlin.sdk.server.ClientConnection
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.ContentBlock
+import io.modelcontextprotocol.kotlin.sdk.types.TextContent
+import io.modelcontextprotocol.kotlin.sdk.types.Tool
+import io.modelcontextprotocol.kotlin.sdk.types.ToolAnnotations
 import kotlinx.coroutines.async
 import kotlinx.serialization.serializer
 import kotlin.coroutines.cancellation.CancellationException
@@ -45,10 +45,10 @@ abstract class McpServerComponent(val name: String, val description: String) {
         }
     }
 
-    class McpToolContext(server: McpServer, request: Request, withMeta: WithMeta) : McpContext(server, request, withMeta) {
-        private val additionalResults = mutableListOf<PromptMessageContent>()
+    class McpToolContext(server: McpServer, clientConnection: ClientConnection, request: CallToolRequest) : McpContext(server, clientConnection, request) {
+        private val additionalResults = mutableListOf<ContentBlock>()
 
-        fun addAdditionalContent(content: PromptMessageContent) {
+        fun addAdditionalContent(content: ContentBlock) {
             additionalResults.add(content)
         }
 
@@ -57,7 +57,7 @@ abstract class McpServerComponent(val name: String, val description: String) {
         @PublishedApi
         internal fun auxiliaryResults(): AuxiliaryResults = AuxiliaryResults(additionalResults.toList(), isError)
 
-        data class AuxiliaryResults(val additionalResults: List<PromptMessageContent>, val isError: Boolean)
+        data class AuxiliaryResults(val additionalResults: List<ContentBlock>, val isError: Boolean)
     }
 
     // avoid using structured output when possible, just return strings
@@ -90,7 +90,7 @@ abstract class McpServerComponent(val name: String, val description: String) {
             tool
         ) { request ->
             McpToolHelper.logger.info("Executing tool call {} (request={})", tool.name, request)
-            val input = server.json.decodeFromJsonElement(inputSerializer, request.arguments)
+            val input = server.json.decodeFromJsonElement(inputSerializer, request.arguments ?: kotlinx.serialization.json.JsonObject(emptyMap()))
 
             // The request ID was injected into the coroutine context by McpServer's transport
             // interceptor — the only point where the raw JSONRPCRequest.id is accessible.
@@ -100,8 +100,9 @@ abstract class McpServerComponent(val name: String, val description: String) {
             // SDK's message-processing coroutine. This allows notifications/cancelled to unblock
             // the message loop by cancelling this deferred, even when the tool is waiting on a
             // long-running operation (e.g., awaitFinished() on a hung build).
+            val clientConnection = this
             val deferred = server.scope.async {
-                McpToolContext(server, request, request).use {
+                McpToolContext(server, clientConnection, request).use {
                     runCatchingExceptCancellation { handler(it, input) } to it.auxiliaryResults()
                 }
             }
@@ -143,7 +144,7 @@ abstract class McpServerComponent(val name: String, val description: String) {
                     val text = server.json.encodeToString(structured)
                     CallToolResult(
                         listOf(TextContent(text)) + aux.additionalResults,
-                        structured as? kotlinx.serialization.json.JsonObject,
+                        structuredContent = structured as? kotlinx.serialization.json.JsonObject,
                         isError = aux.isError
                     )
                 },

@@ -5,7 +5,7 @@ import dev.rnett.gradle.mcp.Transport
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.sse.SSE
-import io.modelcontextprotocol.kotlin.sdk.Implementation
+import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.ClientOptions
 import io.modelcontextprotocol.kotlin.sdk.client.SseClientTransport
@@ -45,7 +45,7 @@ class SseStartupE2ETest {
                 ClientOptions()
             )
 
-            val transport = SseClientTransport(httpClient, "http://localhost:$port/sse")
+            val transport = SseClientTransport(httpClient, "http://localhost:$port")
             try {
                 client.connect(transport)
 

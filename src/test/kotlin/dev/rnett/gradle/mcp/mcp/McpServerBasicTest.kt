@@ -5,7 +5,12 @@ import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.mockk.coEvery
-import io.modelcontextprotocol.kotlin.sdk.Progress
+import io.modelcontextprotocol.kotlin.sdk.types.Progress
+import io.modelcontextprotocol.kotlin.sdk.types.ProgressNotification
+import io.modelcontextprotocol.kotlin.sdk.types.Method
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequestParams
+import io.modelcontextprotocol.kotlin.sdk.types.RequestMeta
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
@@ -44,20 +49,22 @@ class McpServerBasicTest : BaseMcpServerTest() {
             DocsPageContent.Markdown("# Test")
         }
 
-        server.client.setNotificationHandler<io.modelcontextprotocol.kotlin.sdk.ProgressNotification>(io.modelcontextprotocol.kotlin.sdk.Method.Defined.NotificationsProgress) {
+        server.client.setNotificationHandler<ProgressNotification>(Method.Defined.NotificationsProgress) {
             progressUpdates.add(Progress(it.params.progress, it.params.total, it.params.message))
             progressReceived.complete(Unit)
             CompletableDeferred(Unit)
         }
 
-        val req = io.modelcontextprotocol.kotlin.sdk.CallToolRequest(
-            name = ToolNames.GRADLE_DOCS,
-            arguments = kotlinx.serialization.json.buildJsonObject {
-                put("path", JsonPrimitive("test.md"))
-            },
-            _meta = kotlinx.serialization.json.buildJsonObject {
-                put("progressToken", JsonPrimitive("test-token-123"))
-            }
+        val req = CallToolRequest(
+            CallToolRequestParams(
+                name = ToolNames.GRADLE_DOCS,
+                arguments = kotlinx.serialization.json.buildJsonObject {
+                    put("path", JsonPrimitive("test.md"))
+                },
+                meta = RequestMeta(kotlinx.serialization.json.buildJsonObject {
+                    put("progressToken", JsonPrimitive("test-token-123"))
+                })
+            )
         )
 
         val job = launch {

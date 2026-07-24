@@ -13,12 +13,15 @@ import dev.rnett.gradle.mcp.gradle.build.TestResults
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import io.modelcontextprotocol.kotlin.sdk.CallToolRequest
-import io.modelcontextprotocol.kotlin.sdk.CallToolResult
-import io.modelcontextprotocol.kotlin.sdk.Method
-import io.modelcontextprotocol.kotlin.sdk.ProgressNotification
-import io.modelcontextprotocol.kotlin.sdk.Root
-import io.modelcontextprotocol.kotlin.sdk.TextContent
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequestParams
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.Method
+import io.modelcontextprotocol.kotlin.sdk.types.ProgressNotificationParams
+import io.modelcontextprotocol.kotlin.sdk.types.RequestMeta
+import io.modelcontextprotocol.kotlin.sdk.types.Root
+import io.modelcontextprotocol.kotlin.sdk.types.TextContent
+import io.modelcontextprotocol.kotlin.sdk.types.ProgressNotification
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -504,7 +507,7 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         buildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
-        val progressNotifications = ConcurrentLinkedQueue<ProgressNotification.Params>()
+        val progressNotifications = ConcurrentLinkedQueue<ProgressNotificationParams>()
         val firstProgressReceived = CompletableDeferred<Unit>()
         val secondProgressReceived = CompletableDeferred<Unit>()
 
@@ -522,15 +525,17 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         val toolCall = async {
             server.client.request<CallToolResult>(
                 CallToolRequest(
-                    name = ToolNames.WAIT_BUILD,
-                    arguments = buildJsonObject {
-                        put("buildId", buildId.toString())
-                        put("timeout", 5.0)
-                        put("waitForTask", ":targetTask")
-                    },
-                    _meta = buildJsonObject {
-                        put("progressToken", "test-token")
-                    }
+                    CallToolRequestParams(
+                        name = ToolNames.WAIT_BUILD,
+                        arguments = buildJsonObject {
+                            put("buildId", buildId.toString())
+                            put("timeout", 5.0)
+                            put("waitForTask", ":targetTask")
+                        },
+                        meta = RequestMeta(buildJsonObject {
+                            put("progressToken", "test-token")
+                        })
+                    )
                 )
             )
         }

@@ -20,10 +20,10 @@ import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.tools.ToolNames
 import dev.rnett.gradle.mcp.tools.dependencies.GradleDependencyTools
-import io.modelcontextprotocol.kotlin.sdk.CallToolResult
-import io.modelcontextprotocol.kotlin.sdk.ClientCapabilities
-import io.modelcontextprotocol.kotlin.sdk.Root
-import io.modelcontextprotocol.kotlin.sdk.TextContent
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.ClientCapabilities
+import io.modelcontextprotocol.kotlin.sdk.types.Root
+import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.buildJsonObject
@@ -70,7 +70,7 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
         return McpServerFixture(
             clientCapabilities = ClientCapabilities(
                 roots = ClientCapabilities.Roots(listChanged = true),
-                elicitation = buildJsonObject { }),
+                elicitation = ClientCapabilities.Elicitation()),
             koinModules = listOf(super.createTestModule(), createTestModule())
         )
     }

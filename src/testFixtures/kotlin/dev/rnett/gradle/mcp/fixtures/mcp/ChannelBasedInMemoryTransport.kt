@@ -1,7 +1,8 @@
 package dev.rnett.gradle.mcp.fixtures.mcp
 
-import io.modelcontextprotocol.kotlin.sdk.JSONRPCMessage
 import io.modelcontextprotocol.kotlin.sdk.shared.AbstractTransport
+import io.modelcontextprotocol.kotlin.sdk.shared.TransportSendOptions
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
@@ -36,11 +37,11 @@ class ChannelBasedInMemoryTransport(private val scope: CoroutineScope, private v
         if (!incomingChannel.isClosedForReceive) {
             incomingChannel.close()
             otherTransport.incomingChannel.close()
-            _onClose()
+            invokeOnCloseCallback()
         }
     }
 
-    override suspend fun send(message: JSONRPCMessage) {
+    override suspend fun send(message: JSONRPCMessage, options: TransportSendOptions?) {
         if (otherTransport.incomingChannel.isClosedForSend) {
             throw IllegalStateException("Not connected")
         }

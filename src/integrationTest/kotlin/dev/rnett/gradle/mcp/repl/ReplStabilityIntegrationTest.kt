@@ -2,8 +2,8 @@ package dev.rnett.gradle.mcp.repl
 
 import dev.rnett.gradle.mcp.fixtures.gradle.testKotlinProject
 import dev.rnett.gradle.mcp.tools.ToolNames
-import io.modelcontextprotocol.kotlin.sdk.CallToolResult
-import io.modelcontextprotocol.kotlin.sdk.TextContent
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject

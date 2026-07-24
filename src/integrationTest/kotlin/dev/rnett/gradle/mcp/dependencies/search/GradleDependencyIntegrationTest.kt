@@ -603,7 +603,7 @@ class GradleDependencyIntegrationTest : KoinTest {
         assertNotNull(rootProject)
 
         val subDeps = rootProject.allDependencies("compileClasspath").filter { it.id.contains(":sub-lib") }
-        assertEquals(2, subDeps.size, "Should have 2 separate entries for :sub-lib because they have different capabilities")
+        assertEquals(3, subDeps.size, "Should have separate entries for the default and feature capabilities of :sub-lib")
 
         assertTrue(subDeps.any { it.children.any { c -> c.id.contains("slf4j-api") } }, "One :sub-lib should have slf4j-api")
         assertTrue(subDeps.any { it.children.any { c -> c.id.contains("guava") } }, "One :sub-lib should have guava")

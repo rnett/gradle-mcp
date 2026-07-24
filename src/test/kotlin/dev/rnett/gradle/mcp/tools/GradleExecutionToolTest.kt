@@ -15,8 +15,8 @@ import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import io.modelcontextprotocol.kotlin.sdk.Root
-import io.modelcontextprotocol.kotlin.sdk.TextContent
+import io.modelcontextprotocol.kotlin.sdk.types.Root
+import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive

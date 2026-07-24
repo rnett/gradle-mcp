@@ -139,7 +139,7 @@ class TreeSitterDeclarationExtractor(private val languageProvider: TreeSitterLan
     private fun extract(root: Node, src: String, query: Query, packageQuery: Query): List<ExtractedSymbol> {
         val srcBytes = src.toByteArray(Charsets.UTF_8)
         val packageName = extractPackageName(root, srcBytes, packageQuery)
-        val matches = query.matches(root).toList()
+        val matches = query(root).matches().toList()
 
         val byteOffsets = matches.mapNotNull { match ->
             match.captures.find { it.name == "name" }?.node?.startByte?.toInt()
@@ -228,7 +228,7 @@ class TreeSitterDeclarationExtractor(private val languageProvider: TreeSitterLan
     private fun extractPackageName(root: Node, srcBytes: ByteArray, packageQuery: Query): String {
         extractPackageDeclarationText(root, srcBytes)?.let { return it }
 
-        packageQuery.matches(root).forEach { match ->
+        packageQuery(root).matches().forEach { match ->
             val captures = match.captures.filter { it.name == "name" }
             if (captures.isNotEmpty()) {
                 val node = captures.map { it.node }.lastOrNull {

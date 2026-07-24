@@ -9,10 +9,10 @@ import dev.rnett.gradle.mcp.repl.ReplRequest
 import dev.rnett.gradle.mcp.repl.ReplResponse
 import dev.rnett.gradle.mcp.utils.EnvProvider
 import io.github.smiley4.schemakenerator.core.annotations.Description
-import io.modelcontextprotocol.kotlin.sdk.CallToolResult
-import io.modelcontextprotocol.kotlin.sdk.ImageContent
-import io.modelcontextprotocol.kotlin.sdk.PromptMessageContent
-import io.modelcontextprotocol.kotlin.sdk.TextContent
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.ContentBlock
+import io.modelcontextprotocol.kotlin.sdk.types.ImageContent
+import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.serialization.Serializable
 import org.slf4j.LoggerFactory
 import java.util.UUID
@@ -155,7 +155,7 @@ class ReplTools(
             isError = true
         )
 
-        val contents = mutableListOf<PromptMessageContent>()
+        val contents = mutableListOf<ContentBlock>()
         val textBuffer = StringBuilder()
 
         fun flushText() {

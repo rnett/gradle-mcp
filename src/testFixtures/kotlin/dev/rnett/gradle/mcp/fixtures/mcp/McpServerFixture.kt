@@ -2,9 +2,9 @@ package dev.rnett.gradle.mcp.fixtures.mcp
 
 import dev.rnett.gradle.mcp.mcp.McpServer
 import dev.rnett.gradle.mcp.repl.ReplManager
-import io.modelcontextprotocol.kotlin.sdk.ClientCapabilities
-import io.modelcontextprotocol.kotlin.sdk.Implementation
-import io.modelcontextprotocol.kotlin.sdk.Root
+import io.modelcontextprotocol.kotlin.sdk.types.ClientCapabilities
+import io.modelcontextprotocol.kotlin.sdk.types.Implementation
+import io.modelcontextprotocol.kotlin.sdk.types.Root
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.ClientOptions
 import kotlinx.coroutines.CompletableDeferred
@@ -16,7 +16,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.buildJsonObject
 import org.koin.core.module.Module
 import org.koin.dsl.koinApplication
 import org.slf4j.LoggerFactory
@@ -27,7 +26,7 @@ import org.slf4j.LoggerFactory
 class McpServerFixture(
     private val clientSupportsElicitation: Boolean = true,
     private val clientCapabilities: ClientCapabilities = ClientCapabilities(
-        elicitation = buildJsonObject { }.takeIf { clientSupportsElicitation }
+        elicitation = ClientCapabilities.Elicitation().takeIf { clientSupportsElicitation }
     ),
     private val koinModules: List<Module> = emptyList()
 ) {
@@ -56,10 +55,10 @@ class McpServerFixture(
     suspend fun start() {
         val serverStarted = CompletableDeferred<Unit>()
         scope.launch {
-            server.onInitialized {
+            val session = server.connect(transports.second)
+            session.onInitialized {
                 serverStarted.complete(Unit)
             }
-            server.connect(transports.second)
         }
         scope.launch {
             client.connect(transports.first)

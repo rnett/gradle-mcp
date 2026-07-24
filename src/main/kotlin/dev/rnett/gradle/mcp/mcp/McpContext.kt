@@ -9,16 +9,20 @@ import io.github.smiley4.schemakenerator.jsonschema.jsonDsl.JsonNullValue
 import io.github.smiley4.schemakenerator.jsonschema.jsonDsl.JsonNumericValue
 import io.github.smiley4.schemakenerator.jsonschema.jsonDsl.JsonObject
 import io.github.smiley4.schemakenerator.jsonschema.jsonDsl.JsonTextValue
-import io.modelcontextprotocol.kotlin.sdk.CreateElicitationRequest
-import io.modelcontextprotocol.kotlin.sdk.CreateElicitationResult
-import io.modelcontextprotocol.kotlin.sdk.LoggingLevel
-import io.modelcontextprotocol.kotlin.sdk.LoggingMessageNotification
-import io.modelcontextprotocol.kotlin.sdk.Notification
-import io.modelcontextprotocol.kotlin.sdk.ProgressNotification
-import io.modelcontextprotocol.kotlin.sdk.Request
-import io.modelcontextprotocol.kotlin.sdk.RequestId
-import io.modelcontextprotocol.kotlin.sdk.Tool
-import io.modelcontextprotocol.kotlin.sdk.WithMeta
+import io.modelcontextprotocol.kotlin.sdk.server.ClientConnection
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
+import io.modelcontextprotocol.kotlin.sdk.types.ElicitRequestParams
+import io.modelcontextprotocol.kotlin.sdk.types.ElicitResult
+import io.modelcontextprotocol.kotlin.sdk.types.LoggingLevel
+import io.modelcontextprotocol.kotlin.sdk.types.LoggingMessageNotification
+import io.modelcontextprotocol.kotlin.sdk.types.LoggingMessageNotificationParams
+import io.modelcontextprotocol.kotlin.sdk.types.McpJson
+import io.modelcontextprotocol.kotlin.sdk.types.PrimitiveSchemaDefinition
+import io.modelcontextprotocol.kotlin.sdk.types.ProgressNotification
+import io.modelcontextprotocol.kotlin.sdk.types.ProgressNotificationParams
+import io.modelcontextprotocol.kotlin.sdk.types.RequestId
+import io.modelcontextprotocol.kotlin.sdk.types.ServerNotification
+import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
 import io.modelcontextprotocol.kotlin.sdk.shared.DEFAULT_REQUEST_TIMEOUT
 import io.modelcontextprotocol.kotlin.sdk.shared.RequestOptions
 import kotlinx.coroutines.CoroutineScope
@@ -41,6 +45,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.serializer
@@ -63,10 +68,10 @@ sealed interface ElicitationResult<out T> {
 
 open class McpContext(
     val server: McpServer,
-    private val request: Request,
-    val requestWithMeta: WithMeta
+    val clientConnection: ClientConnection,
+    private val request: CallToolRequest,
 ) : AutoCloseable {
-    private val notificationQueue = MutableSharedFlow<Notification>(0, 500, BufferOverflow.DROP_OLDEST)
+    private val notificationQueue = MutableSharedFlow<ServerNotification>(0, 500, BufferOverflow.DROP_OLDEST)
 
     protected open val disableSampling: Boolean
         get() = System.getProperty("gradle.mcp.test.disableSampling") == "true"
@@ -80,45 +85,45 @@ open class McpContext(
         private val LOGGER = LoggerFactory.getLogger(McpContext::class.java)
     }
 
-    suspend fun sendNotification(notification: Notification) {
-        server.sendNotification(notification)
+    suspend fun sendNotification(notification: ServerNotification) {
+        clientConnection.notification(notification)
     }
 
-    fun emitNotification(notification: Notification) {
+    fun emitNotification(notification: ServerNotification) {
         notificationQueue.tryEmit(notification)
     }
 
     fun emitLoggingNotification(logger: String, loggingLevel: LoggingLevel, message: String) {
-        emitNotification(LoggingMessageNotification(LoggingMessageNotification.Params(loggingLevel, logger, JsonPrimitive(message))))
+        emitNotification(LoggingMessageNotification(LoggingMessageNotificationParams(loggingLevel, JsonPrimitive(message), logger)))
     }
 
     suspend inline fun <reified O> elicit(message: String, timeout: Duration = DEFAULT_REQUEST_TIMEOUT): ElicitationResult<O> {
-        if (server.clientCapabilities?.elicitation == null) return ElicitationResult.NotSupported
+        val session = server.sessions[clientConnection.sessionId] ?: return ElicitationResult.NotSupported
+        if (session.clientCapabilities?.elicitation == null) return ElicitationResult.NotSupported
 
         val responseSerializer = json.serializersModule.serializer<O>()
         val responseSchema = JsonSchemaFactory.generateSchema<O>(json.serializersModule)
-        val result = server.createElicitation(message, responseSchema.toRequestedSchema(), RequestOptions(null, timeout))
+        val result = clientConnection.createElicitation(message, responseSchema.toRequestedSchema(), RequestOptions(timeout = timeout))
         return when (result.action) {
-            CreateElicitationResult.Action.accept -> ElicitationResult.Accept(json.decodeFromJsonElement(responseSerializer, result.content ?: JsonNull))
-            CreateElicitationResult.Action.decline -> ElicitationResult.Decline
-            CreateElicitationResult.Action.cancel -> ElicitationResult.Cancel
+            ElicitResult.Action.Accept -> ElicitationResult.Accept(json.decodeFromJsonElement(responseSerializer, result.content ?: JsonNull))
+            ElicitResult.Action.Decline -> ElicitationResult.Decline
+            ElicitResult.Action.Cancel -> ElicitationResult.Cancel
         }
     }
 
     suspend inline fun elicitUnit(message: String, timeout: Duration = DEFAULT_REQUEST_TIMEOUT): ElicitationResult<Unit> {
-        if (server.clientCapabilities?.elicitation == null) return ElicitationResult.NotSupported
+        val session = server.sessions[clientConnection.sessionId] ?: return ElicitationResult.NotSupported
+        if (session.clientCapabilities?.elicitation == null) return ElicitationResult.NotSupported
 
-        val result = server.createElicitation(message, CreateElicitationRequest.RequestedSchema(), RequestOptions(null, timeout))
+        val result = clientConnection.createElicitation(message, ElicitRequestParams.RequestedSchema(properties = emptyMap()), RequestOptions(timeout = timeout))
         return when (result.action) {
-            CreateElicitationResult.Action.accept -> ElicitationResult.Accept(Unit)
-            CreateElicitationResult.Action.decline -> ElicitationResult.Decline
-            CreateElicitationResult.Action.cancel -> ElicitationResult.Cancel
+            ElicitResult.Action.Accept -> ElicitationResult.Accept(Unit)
+            ElicitResult.Action.Decline -> ElicitationResult.Decline
+            ElicitResult.Action.Cancel -> ElicitationResult.Cancel
         }
     }
 
-    private val progressToken: RequestId? = requestWithMeta._meta["progressToken"]?.jsonPrimitive?.let {
-        it.longOrNull?.let { RequestId.NumberId(it) } ?: it.contentOrNull?.let { RequestId.StringId(it) }
-    }
+    private val progressToken: RequestId? = request.meta?.progressToken
 
     @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
     val progressReporter: ProgressReporter by lazy {
@@ -155,9 +160,9 @@ open class McpContext(
         if (progressToken != null) {
             emitNotification(
                 ProgressNotification(
-                    ProgressNotification.Params(
-                        progress,
+                    ProgressNotificationParams(
                         progressToken,
+                        progress,
                         total,
                         message
                     )
@@ -179,40 +184,42 @@ open class McpContext(
     }
 }
 
-fun CompiledJsonSchemaData.toInput(): Tool.Input {
+fun CompiledJsonSchemaData.toInput(): ToolSchema {
     val obj = json.toKotlinxSerialization().jsonObject
 
     if (obj["type"]?.jsonPrimitive?.contentOrNull != "object") {
         error("Object schema expected")
     }
 
-    return Tool.Input(
-        obj.getValue("properties").jsonObject,
-        obj["required"]?.jsonArray?.let { it.map { it.jsonPrimitive.content } }
+    return ToolSchema(
+        properties = obj.getValue("properties").jsonObject,
+        required = obj["required"]?.jsonArray?.let { it.map { it.jsonPrimitive.content } }
     )
 }
 
-fun CompiledJsonSchemaData.toRequestedSchema(): CreateElicitationRequest.RequestedSchema {
+fun CompiledJsonSchemaData.toRequestedSchema(): ElicitRequestParams.RequestedSchema {
     val obj = json.toKotlinxSerialization().jsonObject
 
     if (obj["type"]?.jsonPrimitive?.contentOrNull != "object") {
         error("Object schema expected")
     }
 
-    return CreateElicitationRequest.RequestedSchema(
-        obj.getValue("properties").jsonObject,
-        obj["required"]?.jsonArray?.let { it.map { it.jsonPrimitive.content } }
+    return ElicitRequestParams.RequestedSchema(
+        properties = obj.getValue("properties").jsonObject.mapValues { (_, v) ->
+            McpJson.decodeFromJsonElement<PrimitiveSchemaDefinition>(v)
+        },
+        required = obj["required"]?.jsonArray?.let { it.map { it.jsonPrimitive.content } }
     )
 }
 
-fun CompiledJsonSchemaData.toOutput(): Tool.Output? {
+fun CompiledJsonSchemaData.toOutput(): ToolSchema? {
     val obj = json.toKotlinxSerialization().jsonObject
     if (obj["type"]?.jsonPrimitive?.contentOrNull != "object") {
         return null
     }
-    return Tool.Output(
-        obj.getValue("properties").jsonObject,
-        obj["required"]?.jsonArray?.let { it.map { it.jsonPrimitive.content } }
+    return ToolSchema(
+        properties = obj.getValue("properties").jsonObject,
+        required = obj["required"]?.jsonArray?.let { it.map { it.jsonPrimitive.content } }
     )
 }
 

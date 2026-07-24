@@ -23,7 +23,8 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
-import io.modelcontextprotocol.kotlin.sdk.Root
+import io.modelcontextprotocol.kotlin.sdk.types.Root
+import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -276,14 +277,14 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         // test inspect_gradle_build (dashboard)
         val listCall = server.client.callTool(ToolNames.QUERY_BUILD, emptyMap())
         assert(listCall != null)
-        val listText = listCall!!.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
+        val listText = listCall!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assertContains(listText, buildId.toString())
         assertContains(listText, "BUILD IN PROGRESS")
 
         // test inspect_gradle_build with buildId
         val statusCall = server.client.callTool(ToolNames.QUERY_BUILD, mapOf("buildId" to buildId.toString()))
         assert(statusCall != null)
-        val statusText = statusCall!!.content.filterIsInstance<io.modelcontextprotocol.kotlin.sdk.TextContent>().joinToString { it.text ?: "" }
+        val statusText = statusCall!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assertContains(statusText, "BUILD IN PROGRESS")
 
         // test gradle_execute stop

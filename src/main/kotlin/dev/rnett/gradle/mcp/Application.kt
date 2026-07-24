@@ -49,11 +49,9 @@ sealed class Transport(val name: String) {
                 throw t
             }
             val job = application.scope.launch {
-                mcpServer.apply {
-                    connect(transport)
-                    suspendCoroutine {
-                        onClose { it.resume(Unit) }
-                    }
+                val session = mcpServer.connect(transport)
+                suspendCoroutine {
+                    session.onClose { it.resume(Unit) }
                 }
             }
             if (wait)

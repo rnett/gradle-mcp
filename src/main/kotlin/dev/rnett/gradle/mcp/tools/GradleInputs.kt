@@ -5,7 +5,7 @@ import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.mcp.McpContext
 import dev.rnett.gradle.mcp.mcp.McpServer
 import io.github.smiley4.schemakenerator.core.annotations.Description
-import io.modelcontextprotocol.kotlin.sdk.Root
+import io.modelcontextprotocol.kotlin.sdk.types.Root
 import kotlinx.serialization.Serializable
 import org.slf4j.LoggerFactory
 import java.net.URI
