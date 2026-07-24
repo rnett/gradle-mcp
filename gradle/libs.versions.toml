@@ -54,6 +54,7 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 flexmark-html2md = { module = "com.vladsch.flexmark:flexmark-html2md-converter", version.ref = "flexmark" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 mcp-sdk = { module = "io.modelcontextprotocol:kotlin-sdk", version.ref = "mcpSdk" }
+mcp-sdk-testing = { module = "io.modelcontextprotocol:kotlin-sdk-testing", version.ref = "mcpSdk" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 ktor-server-netty = { module = "io.ktor:ktor-server-netty", version.ref = "ktor" }
 ktor-server-di = { module = "io.ktor:ktor-server-di", version.ref = "ktor" }

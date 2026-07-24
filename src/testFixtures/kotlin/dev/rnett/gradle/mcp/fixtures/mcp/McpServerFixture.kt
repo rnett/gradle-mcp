@@ -7,6 +7,7 @@ import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.Root
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.ClientOptions
+import io.modelcontextprotocol.kotlin.sdk.testing.ChannelTransport
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -14,7 +15,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.koin.core.module.Module
 import org.koin.dsl.koinApplication
@@ -36,7 +36,7 @@ class McpServerFixture(
         logger.error("Exception in fixture scope", it)
     })
 
-    private val transports = ChannelBasedInMemoryTransport.createLinkedPair(scope)
+    private val transports = ChannelTransport.createLinkedPair()
 
     val koinApp = koinApplication {
         allowOverride(true)
@@ -55,31 +55,30 @@ class McpServerFixture(
     suspend fun start() {
         val serverStarted = CompletableDeferred<Unit>()
         scope.launch {
-            val session = server.connect(transports.second)
+            val session = server.connect(transports.serverTransport)
             session.onInitialized {
                 serverStarted.complete(Unit)
             }
         }
         scope.launch {
-            client.connect(transports.first)
+            client.connect(transports.clientTransport)
         }
         serverStarted.await()
     }
 
     /**
-     * Force the server to believe the client has configured roots. Uses reflection to set the private MutableStateFlow.
+     * Force the server to believe the client has configured roots.
      */
     fun setServerRoots(vararg roots: Root) {
-        val field = server.javaClass.getDeclaredField("_roots")
-        field.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val flow = field.get(server) as MutableStateFlow<Set<Root>?>
-        flow.value = roots.toSet()
+        server.setRootsForTesting(roots.toSet())
     }
 
     suspend fun close() {
         runCatching { client.close() }
         runCatching { server.close() }
+        // Explicitly close transports to ensure proper cleanup
+        runCatching { transports.clientTransport.close() }
+        runCatching { transports.serverTransport.close() }
         // Allow onClose hooks and OS handles to settle, especially on Windows
         delay(50)
         koin.get<ReplManager>().close()

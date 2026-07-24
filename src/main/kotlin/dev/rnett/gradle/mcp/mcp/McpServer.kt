@@ -51,6 +51,17 @@ class McpServer(
     })
     private val _roots = MutableStateFlow<Set<Root>?>(null)
     val roots: StateFlow<Set<Root>?> = _roots.asStateFlow()
+
+    /**
+     * Sets the roots for testing purposes, bypassing the normal client notification flow.
+     * This allows tests to simulate roots being configured without a real client round-trip.
+     *
+     * Note: This method is intended for testing only.
+     */
+    fun setRootsForTesting(roots: Set<Root>) {
+        _roots.value = roots
+    }
+
     private val activeToolCallJobs = ConcurrentHashMap<io.modelcontextprotocol.kotlin.sdk.types.RequestId, Job>()
 
     @PublishedApi internal fun registerToolCallJob(requestId: io.modelcontextprotocol.kotlin.sdk.types.RequestId?, job: Job) { if (requestId != null) activeToolCallJobs[requestId] = job }

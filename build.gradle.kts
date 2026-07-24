@@ -114,6 +114,7 @@ dependencies {
     testFixturesApi(libs.ktor.client.cio)
     testFixturesApi(libs.ktor.client.content.negotiation)
     testFixturesApi(libs.ktor.client.mock)
+    testFixturesApi(libs.mcp.sdk.testing)
 
     testImplementation(testFixtures(project))
 }
