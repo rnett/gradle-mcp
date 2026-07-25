@@ -47,7 +47,7 @@ jobs:
 
       - name: Set up OSS Community Develocity Instance for Gradle
         if: github.event_name != 'schedule' || steps.check_commits.outputs.run_tests == 'true'
-        uses: gradle/actions/setup-gradle@v6.1.0
+        uses: gradle/actions/setup-gradle@v6.2.0
         with:
           # Use setup-gradle caching
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
