@@ -8,6 +8,7 @@ import io.ktor.server.netty.EngineMain
 import io.ktor.server.netty.NettyApplicationEngine
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
 import io.modelcontextprotocol.kotlin.sdk.server.mcp
+import io.modelcontextprotocol.kotlin.sdk.server.mcpStreamableHttp
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,7 +43,7 @@ sealed class Transport(val name: String) {
                 input,
                 output
             )
-            val mcpServer = application.resolveMcpServer()
+            val mcpServer = Application.resolveMcpServer(application)
             val job = application.scope.launch {
                 val session = mcpServer.connect(transport)
                 suspendCoroutine {
@@ -69,10 +70,30 @@ sealed class Transport(val name: String) {
             this.server = server
             server.application.apply {
                 mcp {
-                    application.resolveMcpServer()
+                    Application.resolveMcpServer(application)
                 }
             }
 
+            server.startSuspend(wait = wait)
+        }
+
+        override suspend fun stop(application: Application) {
+            server?.stopSuspend()
+        }
+    }
+
+    class StreamableHttp : Transport("STREAMABLE_HTTP") {
+        private var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>? = null
+
+        override suspend fun start(application: Application, wait: Boolean) {
+            if (server != null) error("Already started")
+            val server = EngineMain.createServer(application.args)
+            this.server = server
+            server.application.apply {
+                mcpStreamableHttp {
+                    Application.resolveMcpServer(application)
+                }
+            }
             server.startSuspend(wait = wait)
         }
 
@@ -99,15 +120,6 @@ class Application(val args: Array<String>, val transport: Transport) {
     val scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob() + CoroutineExceptionHandler { context, throwable ->
         LOGGER.error("Unhandled exception in coroutine", throwable)
     })
-
-    internal fun resolveMcpServer(): McpServer {
-        return try {
-            koinContext.get<McpServer>()
-        } catch (t: Throwable) {
-            LOGGER.error("Failed to initialize MCP Server", t)
-            throw t
-        }
-    }
 
     suspend fun start(wait: Boolean = true) {
         System.err.println("Starting Gradle MCP server with ${transport.name} transport...")
@@ -139,7 +151,18 @@ class Application(val args: Array<String>, val transport: Transport) {
     }
 
     companion object {
-        val LOGGER = LoggerFactory.getLogger(Application::class.java)
+        private val LOGGER = LoggerFactory.getLogger(Application::class.java)
+
+        /**
+         * Resolves the MCP server from the Koin context, with consistent error handling across all transports.
+         */
+        @JvmStatic
+        fun resolveMcpServer(application: Application): McpServer = try {
+            application.koinContext.get<McpServer>()
+        } catch (t: Throwable) {
+            LOGGER.error("Failed to initialize MCP Server", t)
+            throw t
+        }
 
         @JvmStatic
         fun stdio(args: Array<String>) = runBlocking {
@@ -151,6 +174,11 @@ class Application(val args: Array<String>, val transport: Transport) {
         @JvmStatic
         fun server(args: Array<String>) = runBlocking {
             Application(args, Transport.Sse()).start()
+        }
+
+        @JvmStatic
+        fun streamableHttp(args: Array<String>) = runBlocking {
+            Application(args, Transport.StreamableHttp()).start()
         }
 
         @JvmStatic
@@ -169,6 +197,8 @@ class Application(val args: Array<String>, val transport: Transport) {
                 stdio(if (mode == "stdio") args.drop(1).toTypedArray() else args)
             } else if (mode == "server") {
                 server(args.drop(1).toTypedArray())
+            } else if (mode == "streamable-http") {
+                streamableHttp(args.drop(1).toTypedArray())
             } else {
                 server(args)
             }
