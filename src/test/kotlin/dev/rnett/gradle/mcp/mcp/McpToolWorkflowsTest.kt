@@ -37,18 +37,19 @@ import org.junit.jupiter.api.TestInstance
 import kotlin.io.path.absolutePathString
 import kotlin.test.assertContains
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class McpToolWorkflowsTest : BaseMcpServerTest() {
 
     @BeforeAll
-    fun setupAll() = runTest {
+    fun setupAll() = runTest(timeout = 2.minutes) {
         super.setup()
     }
 
     @AfterAll
-    fun cleanupAll() = runTest {
+    fun cleanupAll() = runTest(timeout = 2.minutes) {
         super.cleanup()
     }
 

@@ -30,6 +30,10 @@ import kotlin.uuid.ExperimentalUuidApi
 
 class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponent("Lookup Tools", "Tools for looking up detailed information about past Gradle builds ran by this MCP server.") {
 
+    override suspend fun close() {
+        buildResults.close()
+    }
+
     @Serializable
     enum class QueryKind { DASHBOARD, CONSOLE, TASKS, TESTS, FAILURES, PROBLEMS }
 

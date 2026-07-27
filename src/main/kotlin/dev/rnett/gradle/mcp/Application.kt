@@ -42,7 +42,9 @@ sealed class Transport(val name: String) {
             val transport = StdioServerTransport(
                 input,
                 output
-            )
+            ) {
+                // Defaults are intentional; identical to the deprecated 2-arg constructor's behavior.
+            }
             val mcpServer = Application.resolveMcpServer(application)
             val job = application.scope.launch {
                 val session = mcpServer.connect(transport)
@@ -56,7 +58,7 @@ sealed class Transport(val name: String) {
 
         override suspend fun stop(application: Application) {
             if (started) {
-                application.koinContext.get<McpServer>().close()
+                runCatching { application.koinContext.get<McpServer>().shutdown() }
             }
         }
     }
@@ -79,6 +81,7 @@ sealed class Transport(val name: String) {
 
         override suspend fun stop(application: Application) {
             server?.stopSuspend()
+            runCatching { application.koinContext.get<McpServer>().shutdown() }
         }
     }
 
@@ -99,6 +102,7 @@ sealed class Transport(val name: String) {
 
         override suspend fun stop(application: Application) {
             server?.stopSuspend()
+            runCatching { application.koinContext.get<McpServer>().shutdown() }
         }
     }
 }

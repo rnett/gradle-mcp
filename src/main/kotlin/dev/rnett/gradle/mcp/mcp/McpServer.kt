@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,9 +27,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -37,13 +40,23 @@ class ToolCallRequestId(val value: io.modelcontextprotocol.kotlin.sdk.types.Requ
     override val key: CoroutineContext.Key<*> = Key
 }
 
+/**
+ * Grace period [McpServer.shutdown] waits for the tool-execution scope to drain before abandoning stuck work. Long
+ * enough for cooperative teardown of well-behaved tools, short enough not to hang CI (or a `runTest` cleanup) on a
+ * tool body that ignores cancellation.
+ */
+private const val SHUTDOWN_GRACE_MS = 5_000L
+
 class McpServer(
     serverInfo: Implementation,
     options: ServerOptions,
     val json: Json,
-    private val components: List<McpServerComponent> = emptyList()
+    private val components: List<McpServerComponent> = emptyList(),
 ) : Server(serverInfo, options) {
     private val LOGGER = LoggerFactory.getLogger(McpServer::class.java)
+
+    private val closed = AtomicBoolean(false)
+
     // The scope is intentionally NOT a child of the SDK session scope. Cancellation decoupling:
     // cancelling an MCP request via notifications/cancelled must not terminate the entire server session.
     val scope = CoroutineScope(Dispatchers.Default + SupervisorJob() + CoroutineExceptionHandler { ctx, e ->
@@ -68,8 +81,18 @@ class McpServer(
     @PublishedApi internal fun unregisterToolCallJob(requestId: io.modelcontextprotocol.kotlin.sdk.types.RequestId?) { if (requestId != null) activeToolCallJobs.remove(requestId) }
 
     /**
-     * Wraps a transport to inject [ToolCallRequestId] into the coroutine context for tool call messages.
-     * This allows tool handlers to access the raw JSON-RPC request ID for cancellation support.
+     * Wraps a transport to inject [ToolCallRequestId] into the coroutine context for tool-call messages, so tool
+     * handlers can read the raw JSON-RPC request id and key their cancellation jobs by it.
+     *
+     * Each inbound message is dispatched on [scope], decoupled from the transport's receive loop, so a long-running
+     * or client-cancelled tool call neither blocks the message stream nor tears down the session (see [scope]).
+     *
+     * NOTE (SDK gap): the SDK does not expose the JSON-RPC request id to tool handlers — `Server.addTool` receives
+     * only the deserialized `CallToolRequest` and `RequestHandlerExtra` is empty — so this context injection is the
+     * only way to key cancellation. It is applied in [connect], which only the stdio transport goes through. SSE and
+     * StreamableHttp sessions are created inside the SDK's Ktor extensions (`Application.mcp` / `mcpStreamableHttp`)
+     * with no transport-interception hook, so they bypass this wrapper and client-driven cancellation does not reach
+     * them. Cancellation is therefore stdio-only until the SDK exposes a request id or a transport hook.
      */
     private fun wrapTransport(transport: Transport): Transport {
         return object : Transport by transport {
@@ -78,7 +101,9 @@ class McpServer(
                     scope.launch {
                         if (message is JSONRPCRequest && message.method == Method.Defined.ToolsCall.value) {
                             withContext(ToolCallRequestId(message.id)) { block(message) }
-                        } else block(message)
+                        } else {
+                            block(message)
+                        }
                     }
                 }
             }
@@ -101,7 +126,7 @@ class McpServer(
         }
         session.setNotificationHandler<CancelledNotification>(Method.Defined.NotificationsCancelled) {
             activeToolCallJobs[it.requestId]?.cancel(CancellationException("Tool call cancelled by client: ${it.reason}"))
-            scope.async {}
+            CompletableDeferred(Unit)
         }
     }
 
@@ -113,18 +138,39 @@ class McpServer(
             sessions.values.forEach { session -> setupSessionHandlers(session) }
         }
         onClose {
-            kotlinx.coroutines.runBlocking {
-                components.forEach { it.close() }
-                components.mapNotNull {
-                    when (it) {
-                        is dev.rnett.gradle.mcp.tools.ReplTools -> it.replManager
-                        is dev.rnett.gradle.mcp.tools.GradleExecutionTools -> it.gradleProvider
-                        is dev.rnett.gradle.mcp.tools.GradleBuildLookupTools -> it.buildResults
-                        else -> null
-                    }
-                }.distinct().forEach { it.close() }
-            }
+            // The SDK invokes this synchronously from Server.close(), so it must stay cheap and non-blocking.
+            // The suspending cleanup (closing components and joining the tool scope) lives in shutdown(), which
+            // the fixture/Application call and await. Cancelling the scope here is synchronous and idempotent.
+            activeToolCallJobs.clear()
             scope.cancel("Server closing")
+        }
+    }
+
+    /**
+     * Deterministic, suspending shutdown — the SINGLE teardown entry point. Closes the SDK sessions and notification
+     * service (which fires the synchronous [onClose] cleanup), then closes the components, and finally cancels AND
+     * joins the tool-execution [scope] so no orphaned work outlives the server. Idempotent — callers (fixture,
+     * Application) must await it. The synchronous [onClose] callback performs only cheap, non-blocking state cleanup
+     * (clearing jobs + cancelling the scope) and must NOT be relied on to close components.
+     */
+    suspend fun shutdown() {
+        if (!closed.compareAndSet(false, true)) return
+        // Server.close() is final; it closes all sessions + the notification service and fires the onClose callback,
+        // which cancels the tool scope BEFORE components are closed. This ordering is deliberate: closing components
+        // unblocks resource-bound tool bodies (running builds / REPL sessions) so the bounded join below can complete.
+        // Do not reorder.
+        close()
+        components.forEach { runCatching { it.close() } }
+        scope.cancel("Server closing")
+        // Bounded join: a non-cooperatively-cancellable tool body must not hang shutdown forever — which, inside
+        // runTest { server.close() }, reproduces the exact UncompletedCoroutinesError this teardown avoids. After the
+        // grace period we log a warning and abandon the stuck work rather than block.
+        val joined = withTimeoutOrNull(SHUTDOWN_GRACE_MS) { scope.coroutineContext[Job]?.join() }
+        if (joined == null) {
+            LOGGER.warn(
+                "MCP server shutdown timed out after {}ms waiting for the tool-execution scope to drain; abandoning stuck work",
+                SHUTDOWN_GRACE_MS
+            )
         }
     }
 

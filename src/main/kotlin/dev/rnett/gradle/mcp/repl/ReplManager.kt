@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory
 import org.slf4j.MDC
 import java.util.Scanner
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.io.path.absolutePathString
 import kotlin.time.Instant
 
@@ -57,6 +58,7 @@ class DefaultReplManager(
 ) : ReplManager {
     private val sessions = ConcurrentHashMap<String, ReplSessionState>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val closed = AtomicBoolean(false)
 
     private data class ReplSessionState(
         val process: Process,
@@ -354,6 +356,7 @@ class DefaultReplManager(
      * Terminates all active worker processes.
      */
     override suspend fun closeAll() {
+        if (!closed.compareAndSet(false, true)) return
         sessions.keys().toList().forEach { terminateSession(it) }
         // Give the OS a brief moment to release any file handles on Windows
         delay(20)

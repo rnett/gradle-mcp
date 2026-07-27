@@ -39,6 +39,7 @@ import org.koin.core.module.Module
 import org.koin.core.scope.Scope
 import org.koin.dsl.module
 import java.nio.file.Path
+import kotlin.time.Duration.Companion.minutes
 
 abstract class BaseMcpServerTest {
 
@@ -126,13 +127,13 @@ abstract class BaseMcpServerTest {
     open fun createFixture(): McpServerFixture = McpServerFixture(koinModules = listOf(createTestModule()))
 
     @BeforeEach
-    open fun setup() = runTest {
+    open fun setup() = runTest(timeout = 2.minutes) {
         server = createFixture()
         server.start()
     }
 
     @AfterEach
-    open fun cleanup() = runTest {
+    open fun cleanup() = runTest(timeout = 2.minutes) {
         server.close()
     }
 }

@@ -31,3 +31,19 @@ Test fixtures SHALL NOT use reflection to read or mutate private fields of MCP S
 - **WHEN** `setRootsForTesting(roots)` is called
 - **THEN** the public `McpServer.roots` `StateFlow` SHALL emit the supplied set
 - **AND** root-dependent tool behavior SHALL be indistinguishable from a real `notifications/roots/list_changed` round-trip.
+
+### Requirement: Deterministic Server and Fixture Teardown
+
+The MCP server and its test fixture SHALL shut down deterministically so that no orphaned coroutine work bleeds across the separate `runTest` blocks (setup / test / cleanup) that JUnit runs for each test.
+
+- **Suspending shutdown**: `McpServer` SHALL expose a suspending, idempotent `shutdown()` that closes the SDK sessions, closes the components, and then cancels its tool-execution `scope` and joins it for up to a bounded grace period (`SHUTDOWN_GRACE_MS`); if the scope does not drain in time, `shutdown()` SHALL log a warning and abandon the stuck, non-cooperatively-cancellable work rather than wait indefinitely.
+- **Synchronous SDK callback**: The SDK invokes `Server.onClose` synchronously, so that callback SHALL perform only cheap, non-blocking state cleanup (clearing the active-tool-call map and cancelling the scope). It SHALL NOT bridge to suspending work via `runBlocking`; the suspending cleanup lives in `shutdown()`, which callers await.
+- **Fixture teardown**: `McpServerFixture.close()` SHALL await `McpServer.shutdown()` and SHALL cancel AND join its own scope (`scope.cancel(...); scope.coroutineContext[Job]?.join()`), never fire-and-forget.
+- **Idempotent component close**: `McpServerComponent.close()` implementations SHALL be safe to call more than once, because the fixture may also close shared managers (e.g., `ReplManager`) directly.
+- **Generous real-time budget**: Because fixture lifecycle blocks perform real I/O (Gradle builds, REPL workers) under virtual-time `runTest`, the fixture setup/cleanup `runTest` blocks SHALL use an explicit generous real-time timeout (e.g., `runTest(timeout = 2.minutes)`) so that slow CI dispatch does not fail deterministic teardown.
+
+#### Scenario: Cleanup fully drains before the next test
+
+- **WHEN** `McpServerFixture.close()` returns
+- **THEN** the server's tool-execution scope and the fixture scope SHALL have no active coroutines
+- **AND** the SDK `onClose` callback SHALL NOT have blocked on a `runBlocking` bridge.

@@ -12,6 +12,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
@@ -27,6 +28,7 @@ class BuildManager : AutoCloseable {
     private val builds = ConcurrentHashMap<BuildId, Build>()
     private val lastAccess = ConcurrentHashMap<BuildId, Instant>()
     private val latestFinished = AtomicReference<FinishedBuild?>(null)
+    private val closed = AtomicBoolean(false)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -119,6 +121,7 @@ class BuildManager : AutoCloseable {
     }
 
     override fun close() {
+        if (!closed.compareAndSet(false, true)) return
         builds.values.filterIsInstance<RunningBuild>().forEach { it.stop() }
         scope.cancel()
     }

@@ -19,6 +19,10 @@ class GradleExecutionTools(
         private const val TASK_OUTPUT_MAX_LINES = 100
     }
 
+    override suspend fun close() {
+        gradleProvider.close()
+    }
+
     @Serializable
     data class GradleExecuteArgs(
         val projectRoot: GradleProjectRootInput = GradleProjectRootInput.DEFAULT,

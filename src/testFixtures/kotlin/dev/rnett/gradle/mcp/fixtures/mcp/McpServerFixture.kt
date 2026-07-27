@@ -8,14 +8,13 @@ import io.modelcontextprotocol.kotlin.sdk.types.Root
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.ClientOptions
 import io.modelcontextprotocol.kotlin.sdk.testing.ChannelTransport
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.koin.core.module.Module
 import org.koin.dsl.koinApplication
 import org.slf4j.LoggerFactory
@@ -53,17 +52,8 @@ class McpServerFixture(
     )
 
     suspend fun start() {
-        val serverStarted = CompletableDeferred<Unit>()
-        scope.launch {
-            val session = server.connect(transports.serverTransport)
-            session.onInitialized {
-                serverStarted.complete(Unit)
-            }
-        }
-        scope.launch {
-            client.connect(transports.clientTransport)
-        }
-        serverStarted.await()
+        server.connect(transports.serverTransport)
+        client.connect(transports.clientTransport)
     }
 
     /**
@@ -75,14 +65,19 @@ class McpServerFixture(
 
     suspend fun close() {
         runCatching { client.close() }
-        runCatching { server.close() }
-        // Explicitly close transports to ensure proper cleanup
+        // Deterministic shutdown: closes the SDK sessions, the components, and cancels AND joins the server's
+        // tool-execution scope so no orphaned tool work survives the test.
+        runCatching { server.shutdown() }
+        // Explicitly close transports to ensure proper cleanup (joins their event-loop scopes).
         runCatching { transports.clientTransport.close() }
         runCatching { transports.serverTransport.close() }
         // Allow onClose hooks and OS handles to settle, especially on Windows
         delay(50)
-        koin.get<ReplManager>().close()
+        // Idempotent; also closed via the server components above.
+        runCatching { koin.get<ReplManager>().close() }
         koinApp.close()
+        // Cancel AND join so no orphaned connection work bleeds into the next test's runTest block.
         scope.cancel("Test cleanup")
+        scope.coroutineContext[Job]?.join()
     }
 }
