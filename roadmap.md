@@ -4,9 +4,8 @@ Steps are in order, from next to furthest.
 - Tree sitter query language queries over deps
 - Include project sources in dep views/read/search
 - Always include gradle sources for buildscript dependency scopes?
-- Regex based filtering for dependencies sources, applied to coordinates. More consistent than the current hacky version.
 - Tests take forever and spawn (and orphan) a lot of Gradle daemons. Indexing JDK sources is certainly one cause
-- A "Gradle doctor" like skill with best practices embedded in it (via gradle task), or enhance the expert skill.
+- A "Gradle doctor" like skill with the current best practices embedded in it (at build time, via gradle task), or enhance the expert skill.
 - Dedicated "render this compose preview" tool that takes the file+function name or line number
 - More skills in general.
 - Investigate how tests with `@Ignore` are reported, compare with IDE.

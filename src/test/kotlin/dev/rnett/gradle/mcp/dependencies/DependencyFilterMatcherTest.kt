@@ -7,12 +7,20 @@ import kotlin.test.assertTrue
 
 class DependencyFilterMatcherTest {
 
-    private fun dep(group: String, name: String, version: String? = "1.0.0", variant: String? = null, unresolved: Boolean = false) = GradleDependency(
+    private fun dep(
+        group: String,
+        name: String,
+        version: String? = "1.0.0",
+        variant: String? = null,
+        unresolved: Boolean = false,
+        latestVersion: String? = null
+    ) = GradleDependency(
         id = if (unresolved) "UNRESOLVED:$group:$name" else "$group:$name:$version",
         group = group,
         name = name,
         version = version,
         variant = variant,
+        latestVersion = latestVersion,
         sourcesFile = null
     )
 
@@ -74,6 +82,38 @@ class DependencyFilterMatcherTest {
         val d = dep("org.example", "artifact", version = null, unresolved = true)
         assertTrue(matchesFilter(d, "^org\\.example:artifact$"))
         assertFalse(matchesFilter(d, "^org\\.example:artifact:1\\.0\\.0$"))
+    }
+
+    @Test
+    fun `matches uses latest version when available`() {
+        val d = dep("org.example", "artifact", version = "1.0.0", latestVersion = "2.0.0")
+
+        assertTrue(DependencyFilterMatcher(null, Regex("^2\\..*$")).matches(d))
+        assertFalse(DependencyFilterMatcher(null, Regex("^1\\..*$")).matches(d))
+    }
+
+    @Test
+    fun `matches falls back to current version`() {
+        val d = dep("org.example", "artifact", version = "1.0.0")
+
+        assertTrue(DependencyFilterMatcher(null, Regex("^1\\..*$")).matches(d))
+        assertFalse(DependencyFilterMatcher(null, Regex("^2\\..*$")).matches(d))
+    }
+
+    @Test
+    fun `matches requires both coordinate and version filters`() {
+        val d = dep("org.example", "artifact", version = "1.0.0", latestVersion = "2.0.0")
+
+        assertTrue(DependencyFilterMatcher(Regex("^org\\.example:artifact:1\\.0\\.0$"), Regex("^2\\..*$")).matches(d))
+        assertFalse(DependencyFilterMatcher(Regex("^org\\.other:.*$"), Regex("^2\\..*$")).matches(d))
+        assertFalse(DependencyFilterMatcher(Regex("^org\\.example:.*$"), Regex("^3\\..*$")).matches(d))
+    }
+
+    @Test
+    fun `version filter rejects dependency without a version`() {
+        val d = dep("org.example", "artifact", version = null)
+
+        assertFalse(DependencyFilterMatcher(null, Regex(".*")).matches(d))
     }
 
 }

@@ -42,3 +42,10 @@ OpenSpec specs are the **primary source of truth** for architectural rationale, 
 ## Misc Tips
 
 - We use Kotlin's Context Parameters feature. Look it up if you are unsure how to use it. IT IS DIFFERENT FROM CONTEXT RECEIVERS, which it replaced.
+
+---
+
+## Build Verification
+
+- **Last verified**: `2026-07-27` — `./gradlew :check` — BUILD SUCCESSFUL (21 actionable tasks: 5 executed, 16 up-to-date)
+- **Context**: After `regex-dependency-filter` OpenSpec change implementation (filterDependencyTree extraction, FilterDependencyTreeTest, spec sync)

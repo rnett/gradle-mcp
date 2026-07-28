@@ -237,6 +237,57 @@ class GradleDependencyParsingTest {
     }
 
     @Test
+    fun `getDependencies retains non-matching ancestors of matching dependencies`() = runTest {
+        val output = """
+            [gradle-mcp] [DEPENDENCIES] PROJECT | : | project ':'
+            [gradle-mcp] [DEPENDENCIES] CONFIGURATION | : | implementation | true | | Implementation | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | * | parent:container:1.0 | parent | container | 1.0 | | | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | ** | target:match:1.0 | target | match | 1.0 | | 2.0 | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | ** | other:drop:1.0 | other | drop | 1.0 | | 2.0 | false
+            [gradle-mcp] [DEPENDENCIES] DEP | : | * | other:root:1.0 | other | root | 1.0 | | 2.0 | false
+        """.trimIndent()
+
+        val provider = object : MockGradleProvider() {
+            override fun runBuild(
+                projectRoot: GradleProjectRoot,
+                args: GradleInvocationArguments,
+                additionalProgressListeners: Map<ProgressListener, Set<OperationType>>,
+                stdoutLineHandler: ((String) -> Unit)?,
+                stderrLineHandler: ((String) -> Unit)?,
+                progress: ProgressReporter
+            ): RunningBuild {
+                val runningBuild = RunningBuild(
+                    id = dev.rnett.gradle.mcp.gradle.BuildId("test"),
+                    args = args,
+                    startTime = kotlin.time.Clock.System.now(),
+                    projectRoot = java.nio.file.Path.of(""),
+                    cancellationTokenSource = org.gradle.tooling.GradleConnector.newCancellationTokenSource(),
+                    scope = this@runTest
+                )
+                runningBuild.logBuffer.append(output)
+                runningBuild.finish(null) {}
+                return runningBuild
+            }
+        }
+
+        val service = DefaultGradleDependencyService(provider)
+
+        with(ProgressReporter.PRINTLN) {
+            val report = service.getDependencies(
+                GradleProjectRoot(""),
+                options = DependencyRequestOptions(
+                    dependency = "^target:match:1\\.0$",
+                    versionFilter = "^2\\.0$"
+                )
+            )
+            val dependencies = report.projects.single().configurations.single().dependencies
+
+            assertEquals(listOf("parent:container:1.0"), dependencies.map { it.id })
+            assertEquals(listOf("target:match:1.0"), dependencies.single().children.map { it.id })
+        }
+    }
+
+    @Test
     fun `getDependencies filters internal configurations by default`() = runTest {
         val output = """
             [gradle-mcp] [DEPENDENCIES] PROJECT | : | project ':'

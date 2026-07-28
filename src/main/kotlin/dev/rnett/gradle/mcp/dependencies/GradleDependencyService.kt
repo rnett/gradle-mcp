@@ -339,6 +339,7 @@ class DefaultGradleDependencyService(
         }
     }
 
+
     context(progress: ProgressReporter)
     override suspend fun getDependencies(
         projectRoot: GradleProjectRoot,
@@ -347,7 +348,13 @@ class DefaultGradleDependencyService(
     ): GradleDependencyReport {
         progress.report(0.0, 1.0, "Preparing dependency report...")
         val dependencyFilter = normalizeDependencyFilter(options.dependency)
-        dependencyFilter?.let(::Regex)
+        val dependencyFilterRegex = dependencyFilter?.let(::Regex)
+        val versionFilterRegex = options.versionFilter?.let(::Regex)
+        val matcher = if (dependencyFilterRegex != null || versionFilterRegex != null) {
+            DependencyFilterMatcher(dependencyFilterRegex, versionFilterRegex)
+        } else {
+            null
+        }
         // Prepare invocation args: include the init script and arguments
         var args = GradleInvocationArguments.DEFAULT
             .withInitScript(InitScriptNames.DEPENDENCIES_REPORT)
@@ -449,7 +456,7 @@ class DefaultGradleDependencyService(
             result
         } else parsed
 
-        return filtered
+        return filterDependencyTree(filtered, matcher)
     }
 
     context(progress: ProgressReporter)
