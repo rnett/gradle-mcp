@@ -51,7 +51,7 @@ jobs:
         with:
           # Use setup-gradle caching
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+          develocity-access-key: community.develocity.cloud=${{ secrets.DEVELOCITY_ACCESS_KEY }}
 
       - name: Run Tree-Sitter Tests
         if: github.event_name != 'schedule' || steps.check_commits.outputs.run_tests == 'true'
