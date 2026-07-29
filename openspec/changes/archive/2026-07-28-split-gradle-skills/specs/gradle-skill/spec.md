@@ -1,8 +1,4 @@
-# gradle-skill
-
-## Purpose
-
-Defines the `gradle` skill, the entry point for all Gradle build execution, test running, project introspection, and failure diagnostics using the `gradle` MCP tool.
+# Capability: gradle-skill
 
 ## MODIFIED Requirements
 
@@ -30,10 +26,31 @@ The `gradle` skill SHALL provide authoritative guidance for build execution, tes
 - **WHEN** an agent needs to look up Gradle user guide topics or release notes
 - **THEN** the `gradle` skill provides `gradle_docs` tag syntax guidance for execution and diagnostic research (`tag:release-notes`, `tag:userguide`). Gradle DSL syntax lookup is a build-authoring concern and routes to `gradle-build-authoring`.
 
-### Requirement: Gradle Skill Constitution enforces Gradle MCP tool usage
+## REMOVED Requirements
+
+### Requirement REMOVED: Gradle Skill includes idiomatic build patterns
+
+The `gradle` skill no longer covers:
+- Module creation (moved to `gradle-build-authoring`)
+- Performance audits (moved to `gradle-build-authoring`)
+- Build logic refactoring (moved to `gradle-build-authoring`)
+- Best-practices reference (moved to `gradle-build-authoring`)
+- Common build patterns (moved to `gradle-build-authoring`)
+
+#### Scenario: Agent creates a new module
+
+- **WHEN** an agent needs to add a new subproject to a Gradle build
+- **THEN** the `gradle` skill's cross-reference section directs the agent to `gradle-build-authoring` for module creation guidance
+
+#### Scenario: Agent needs performance guidance
+
+- **WHEN** an agent asks about build performance or build logic patterns
+- **THEN** the `gradle` skill's negative trigger description excludes this concern
+- **AND** the `gradle-build-authoring` skill is activated instead
+
+### Requirement REMOVED: Gradle Skill Constitution enforces Gradle MCP tool usage
 
 The `gradle` skill constitution SHALL mandate:
-
 - Using the `gradle` tool instead of raw shell `./gradlew`
 - Providing absolute paths for `projectRoot`
 - Preferring foreground execution unless tasks are persistent or extremely long-running
@@ -42,32 +59,4 @@ The `gradle` skill constitution SHALL mandate:
 - Using `:properties --property` for surgical property extraction
 - Using `gradle_docs` for authoritative documentation lookup
 
-#### Scenario: Agent debugs a build failure
-
-- **WHEN** a build fails
-- **THEN** the skill directs the agent to use `query_build(kind="FAILURES")` and `query_build(kind="PROBLEMS")` before reading raw console logs
-
-#### Scenario: Agent introspects a task
-
-- **WHEN** an agent needs task output or property values
-- **THEN** the skill directs the agent to use `captureTaskOutput` with the appropriate task path rather than parsing full console output
-
-## REMOVED Requirements
-
-### Requirement REMOVED: Shared query_build diagnostics reference eliminates duplication
-
-This requirement (shared `query_build_diagnostics.md` reference file) is removed because the `gradle` skill is trimmed to execution/diagnostics only; detailed reference material belongs in the `gradle` skill itself as concise inline guidance.
-
-### Requirement REMOVED: Gradle Skill includes idiomatic build patterns
-
-The `gradle` skill no longer covers:
-
-- Module creation (moved to `gradle-build-authoring`)
-- Performance audits (moved to `gradle-build-authoring`)
-- Build logic refactoring (moved to `gradle-build-authoring`)
-- Best-practices reference (moved to `gradle-build-authoring`)
-- Common build patterns (moved to `gradle-build-authoring`)
-
-## Cross-references
-
-When a question involves build-script modification, module creation, plugin development, or build performance, the `gradle` skill MUST direct the agent to `gradle-build-authoring`.
+The constitution SHALL NOT include build-authoring rules (lazy APIs, version catalogs, convention plugins, DSL patterns, configuration cache, allprojects/subprojects, Project object access, or configuration-phase resolution).

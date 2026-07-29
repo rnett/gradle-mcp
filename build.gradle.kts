@@ -71,13 +71,13 @@ val generateBestPracticesDoc = tasks.register<JavaExec>("generateBestPracticesDo
     dependsOn(generatorProject.tasks.named("classes"))
     mainClass.set("dev.rnett.gradle.mcp.bestpractices.GenerateBestPracticesDoc")
     args(
-        project.rootDir.resolve("src/main/skills/gradle/references").absolutePath,
+        project.rootDir.resolve("src/main/skills/gradle-build-authoring/references").absolutePath,
         gradleDocsVersion.get(),
     )
     inputs.property("gradleDocsVersion", gradleDocsVersion)
     inputs.dir(generatorProject.layout.projectDirectory.dir("src/main/kotlin"))
         .withPathSensitivity(PathSensitivity.RELATIVE)
-    outputs.dir(project.rootDir.resolve("src/main/skills/gradle/references/best-practices"))
+    outputs.dir(project.rootDir.resolve("src/main/skills/gradle-build-authoring/references/best-practices"))
 }
 
 zipSkills.configure {

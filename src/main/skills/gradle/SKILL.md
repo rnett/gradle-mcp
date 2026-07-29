@@ -1,13 +1,24 @@
 ---
 name: gradle
-description: >
-  Provides authoritative guidance for ALL Gradle operations: executing builds, running tests with surgical filtering, introspecting project structure, creating modules, and diagnosing failures;
-  ALWAYS use instead of raw shell `./gradlew` for build execution, test runs, task introspection, module creation, performance audits, and documentation research.
-  Do NOT use for dependency graph auditing/updates (use `managing_gradle_dependencies`) or dependency/plugin/Gradle source exploration (use `exploring_dependency_sources`).
+description: |
+  Provides authoritative guidance for ALL Gradle operations: executing builds, running tests with surgical filtering, and diagnosing failures;
+  ALWAYS use instead of raw shell `./gradlew` for build execution, test runs, task introspection, and documentation research.
+
+  ## Positive Triggers (when to activate)
+  - User asks to run a Gradle build, test, or any lifecycle task
+  - User asks to inspect project structure, task graphs, or properties
+  - User asks to investigate test failures, build errors, or task problems
+  - User asks about Gradle task syntax, test selectors, or execution modes
+  - User needs background job management or build progress monitoring
+  - User wants to look up official Gradle documentation or DSL reference
+
+  ## Negative Triggers (when NOT to activate)
+  - User needs to create or modify build.gradle(.kts)/settings.gradle(.kts), add/remove dependencies, or create modules (route to gradle-build-authoring)
+  - User needs performance auditing or build script refactoring (route to gradle-build-authoring)
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
-  version: "4.0"
+  version: "5.0"
 ---
 
 # Authoritative Gradle Build Execution, Testing & Project Introspection
@@ -27,13 +38,13 @@ Executes builds, runs tests with high-precision filtering, introspects project s
 - **NEVER** use `--rerun-tasks` unless investigating project-wide cache-specific corruption; prefer `--rerun` for individual tasks.
 - **NEVER** guess task names or options; use the `help --task <name>` command for authoritative documentation.
 - **NEVER** leave background builds running; use `stopBuildId` to release resources when finished.
-- **ALWAYS** prefer Kotlin DSL (`.kts`) unless the project explicitly uses Groovy.
-- **ALWAYS** use lazy APIs (e.g., `tasks.register<MyTask>("myTask")`) instead of eager APIs (e.g., `tasks.create<MyTask>("myTask")`) to maintain configuration performance.
-- **ALWAYS** use version catalogs (`libs.versions.toml`) for dependency management when present.
 - **ALWAYS** use `gradle_docs` for authoritative documentation lookup instead of generic web searches.
-- **ALWAYS** check for existing conventions in the current project before proposing changes.
-- **ALWAYS** use safe navigation (`?.url?.toString()`) and provide fallback values when accessing `ArtifactRepository` URLs in Gradle init scripts or plugins to prevent `NullPointerException`.
+
 - **ALWAYS** use `:properties --property <name>` for surgical property extraction.
+
+## Build Authoring (Cross-Reference)
+
+For build script authoring, module creation, performance optimization, build logic refactoring, and dependency management, use the **[gradle-build-authoring](../gradle-build-authoring/SKILL.md)** skill.
 
 ## Directives
 
@@ -99,17 +110,6 @@ Use `gradle_docs` for authoritative documentation. Always scope with tags:
 
 Explore sections with `path="."`. Search scoped with `tag:<section> <term>`.
 
-### Idiomatic DSL Patterns
-
-- **Prefer `register` over `create` (Lazy APIs)**: Use `tasks.register<MyTask>("myTask")` to avoid eager task configuration.
-- **Use Type-Safe Accessors**: Prefer `tasks.test { ... }` or `tasks.named<Test>("test") { ... }` over `tasks.getByName("test")`.
-- **Use Lazy Properties**: Employ `Property<T>` and `Provider<T>` APIs for late binding and configuration cache compatibility.
-- **Use Version Catalogs**: Centralize dependencies in `gradle/libs.versions.toml`.
-- **Avoid `allprojects`/`subprojects`**: These blocks create tight coupling; use convention plugins and apply them selectively.
-- **Enable Configuration Cache**: Ensure build logic avoids accessing the `Project` object inside task actions.
-- **Use Specific Annotations**: Properly label task properties with `@Input`, `@OutputFiles`, `@Internal`, etc.
-- **Minimize Logic in Build Scripts**: Move complex logic into convention plugins or `build-logic`.
-
 ### Resource Management
 
 - Use `query_build()` without arguments to view the build dashboard and ensure no orphaned background builds are consuming system resources.
@@ -149,30 +149,13 @@ to: [query_build Diagnostics Reference](references/query_build_diagnostics.md).
 4. Run `gradle(commandLine=[":properties", "--property", "version"], captureTaskOutput=":properties")` for surgical property extraction.
 5. For detailed dependency resolution paths: `gradle(commandLine=[":app:dependencyInsight", "--dependency", "slf4j-api", "--configuration", "compileClasspath"], captureTaskOutput=":app:dependencyInsight")`.
 
-### Creating a New Module
-
-1. Map the project structure: `gradle(commandLine=[":projects"], captureTaskOutput=":projects")` to find the correct parent path.
-2. Create directory structure: `New-Item -ItemType Directory -Force -Path "<module-name>/src/main/kotlin"`.
-3. Add to `settings.gradle.kts`: Append `include(":<module-name>")`.
-4. Create `build.gradle.kts` with idiomatic patterns (apply convention plugins, set up standard configuration).
-5. Verify: `gradle(commandLine=[":<module-name>:tasks"], captureTaskOutput=":<module-name>:tasks")`.
-
-### Performance Audit
-
-1. Check configuration cache status: `gradle(commandLine=[":help", "--configuration-cache"])`.
-2. Analyze task compatibility and identify violations.
-3. Propose fixes: migrate to lazy APIs (`Property<T>`, `Provider<T>`) or use `@Internal`/`@Input` annotations correctly.
-4. Consult the generated best-practices reference first: read `references/best-practices/_index.md`, pick the relevant practice by area or tag, then open its detail file.
-5. If the generated reference doesn't fully answer the question, use `gradle_docs(query="tag:best-practices <term>", projectRoot="/path/to/project")` for version-specific or deeper guidance.
-
 ### Documentation Research
 
 1. Search the user guide: `gradle_docs(query="tag:userguide <term>", projectRoot="/path/to/project")`.
 2. Navigate the DSL reference: `gradle_docs(path="dsl/org.gradle.api.Project.html", projectRoot="/path/to/project")`.
 3. Check for breaking changes: `gradle_docs(query="tag:release-notes", version="8.6")`.
-4. Find best practices: Read `references/best-practices/_index.md`, pick the relevant practice by area or tag, then open its detail file. For version-specific or deeper queries, use `gradle_docs(query="tag:best-practices <term>", projectRoot="/path/to/project")`.
-5. Search for samples: `gradle_docs(query="tag:samples toolchains", projectRoot="/path/to/project")`.
-6. Search javadocs: `gradle_docs(query="tag:javadoc Project", projectRoot="/path/to/project")`.
+4. Search for samples: `gradle_docs(query="tag:samples toolchains", projectRoot="/path/to/project")`.
+5. Search javadocs: `gradle_docs(query="tag:javadoc Project", projectRoot="/path/to/project")`.
 
 ### Investigating Test Failures
 
@@ -190,10 +173,8 @@ to: [query_build Diagnostics Reference](references/query_build_diagnostics.md).
 - **Persistent Development Processes**: When starting dev servers (`bootRun`) or continuous builds where background management is required.
 - **Task-Specific Information Retrieval**: When you need isolated output from a single task (`help`, `projects`, `tasks`) without build noise.
 - **Build Failure Diagnostics**: When performing deep-dive analysis of task failures, problems, or compilation errors.
-- **New Module Creation**: When adding a new project or module to a multi-project build.
-- **Build Logic Refactoring**: When cleaning up complex build scripts or creating convention plugins.
-- **Performance Troubleshooting**: When builds are slow or failing during the configuration phase.
 - **Documentation & DSL Research**: When looking up official Gradle syntax, user guide topics, or release notes.
+- **Build Script Authoring**: When writing or modifying `build.gradle.kts`, `settings.gradle.kts`, creating modules, or optimizing build performance — use `gradle-build-authoring` instead.
 
 ## Examples
 
@@ -306,17 +287,6 @@ Tool: `gradle_docs`
 // Reasoning: Using the DSL tag to find authoritative syntax for the signing plugin configuration.
 ```
 
-### Create a new sub-project module
-
-Tool: `run_shell_command`
-
-```json
-{
-  "command": "New-Item -ItemType Directory -Force -Path subproject/src/main/kotlin"
-}
-// Reasoning: Creating the standard directory structure for a Kotlin JVM project using correct PowerShell syntax.
-```
-
 ### List all failed tests in a build
 
 Tool: `query_build`
@@ -341,6 +311,4 @@ Tool: `query_build`
 - [query_build Diagnostics Reference](references/query_build_diagnostics.md) — Complete diagnostic patterns for DASHBOARD, SUMMARY, FAILURES, PROBLEMS, TASKS, TESTS, CONSOLE, and PROGRESS.
 - [Background Monitoring Patterns](references/background_monitoring.md)
 - [Authoritative Diagnostic Tasks](references/diagnostic_tasks.md) — Built-in introspection tasks.
-- [Gradle Best Practices](references/best-practices/_index.md) — Start at `_index.md` — a categorized index (by area, with one-line summaries and tags) linking to per-topic detail files. Consult it first for build-quality questions; then open the linked detail file.
-- [Common Build Patterns](references/common_build_patterns.md) — Idiomatic patterns for multi-project builds, convention plugins, and task registration.
 - [Official Gradle Documentation Research](references/gradle_docs_research.md) — Guidance on using `gradle_docs` for authoritative documentation.

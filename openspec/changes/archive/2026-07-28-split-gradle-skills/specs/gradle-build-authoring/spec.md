@@ -1,9 +1,5 @@
 # Capability: gradle-build-authoring
 
-## Purpose
-
-Specifies how the `gradle-build-authoring` skill guides build engineers in authoring and maintaining Gradle build logic, separate from the `gradle` skill which covers build execution and diagnostics.
-
 ## MODIFIED Requirements
 
 ### Requirement: Skill for Gradle build authoring
@@ -38,7 +34,6 @@ The system SHALL provide a `gradle-build-authoring` skill that guides build engi
 ### Requirement: Build-authoring skill references
 
 The `gradle-build-authoring` skill SHALL reference the following resources:
-
 - `../gradle/references/common_build_patterns.md` for multi-project builds and convention plugin patterns
 - `references/best-practices/_index.md` for categorized best-practices (co-located in the same skill directory)
 - 10 gap-filling reference documents under `references/` covering version catalogs, testing, CI/CD, dependency locking, Worker API, JDK toolchains, build scans, continuous builds, Kotlin compiler options, and artifact publishing
@@ -52,8 +47,6 @@ The `gradle-build-authoring` skill SHALL reference the following resources:
 
 - **WHEN** an agent in `gradle-build-authoring` needs CI/CD configuration guidance
 - **THEN** it opens `references/ci-cd-builds.md` for best practices
-
-## ADDED Requirements
 
 ### Requirement: Cross-reference from gradle skill
 

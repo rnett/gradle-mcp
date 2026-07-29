@@ -135,6 +135,87 @@ application {
 }
 ```
 
+## 5. Build-Logic Composite Build Setup
+
+A `build-logic` composite build allows sharing build logic across subprojects without external publishing.
+
+### build-logic/settings.gradle.kts
+
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "build-logic"
+include(":conventions")
+```
+
+### build-logic/build.gradle.kts
+
+```kotlin
+plugins {
+    `kotlin-dsl`
+}
+
+dependencies {
+    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.21")
+}
+```
+
+### Precompiled Script Plugin (build-logic/conventions/build.gradle.kts)
+
+```kotlin
+plugins {
+    `kotlin-dsl`
+}
+```
+
+### Precompiled Plugin Definition
+
+`build-logic/conventions/src/main/kotlin/my-project.java-library.gradle.kts`:
+
+```kotlin
+plugins {
+    id("java-library")
+    id("org.jetbrains.kotlin.jvm")
+}
+
+java {
+    withSourcesJar()
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
+}
+```
+
+### Including the Build-Logic in Main Build
+
+In `settings.gradle.kts`:
+
+```kotlin
+pluginManagement {
+    includeBuild("build-logic")
+}
+```
+
+### Type-Safe Project Accessors
+
+When using `includeBuild("build-logic")`, Gradle generates type-safe accessors for project-level properties of included builds. Use `plugins { id("my-project.java-library") }` in any subproject.
+
+### Applying Convention Plugins
+
+In `app/build.gradle.kts`:
+
+```kotlin
+plugins {
+    id("my-project.java-library")
+    id("application")
+}
+```
 ## Resources
 
 - [Multi-project builds](https://docs.gradle.org/current/userguide/multi_project_builds.html)
