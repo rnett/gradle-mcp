@@ -26,7 +26,7 @@ application {
     )
 }
 
-val updateToolsList by tasks.registering(JavaExec::class) {
+val updateToolsList = tasks.register<JavaExec>("updateToolsList") {
     inputs.files(sourceSets.main.get().runtimeClasspath).withPathSensitivity(PathSensitivity.NONE)
     inputs.files(sourceSets.main.get().kotlin).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.dir(project.rootDir.resolve("docs/tools")).withPathSensitivity(PathSensitivity.RELATIVE)
@@ -35,7 +35,7 @@ val updateToolsList by tasks.registering(JavaExec::class) {
     args = listOf(project.rootDir.resolve("docs/tools").absolutePath)
 }
 
-val verifyToolsList by tasks.registering(JavaExec::class) {
+val verifyToolsList = tasks.register<JavaExec>("verifyToolsList") {
     inputs.files(sourceSets.main.get().runtimeClasspath).withPathSensitivity(PathSensitivity.NONE)
     inputs.files(sourceSets.main.get().kotlin).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.dir(project.rootDir.resolve("docs/tools")).withPathSensitivity(PathSensitivity.RELATIVE)
@@ -48,10 +48,34 @@ tasks.check {
     dependsOn(verifyToolsList)
 }
 
-val zipSkills by tasks.registering(Zip::class) {
+val zipSkills = tasks.register<Zip>("zipSkills") {
     from("src/main/skills")
     archiveFileName.set("skills.zip")
     destinationDirectory.set(layout.buildDirectory.dir("generated/resources/skills"))
+}
+
+val generateBestPracticesDoc = tasks.register<JavaExec>("generateBestPracticesDoc") {
+    val generatorProject = project(":best-practices-generator")
+    val generatorSourceSet = generatorProject.sourceSets.main.get()
+    val gradleDocsVersion = providers.gradleProperty("gradleDocsVersion").orElse(gradle.gradleVersion)
+
+    classpath(
+        generatorSourceSet.output,
+        generatorProject.configurations.named("runtimeClasspath"),
+    )
+    dependsOn(generatorProject.tasks.named("classes"))
+    mainClass.set("dev.rnett.gradle.mcp.bestpractices.GenerateBestPracticesDoc")
+    args(
+        project.rootDir.resolve("src/main/skills/gradle/references").absolutePath,
+        gradleDocsVersion.get(),
+    )
+    inputs.property("gradleDocsVersion", gradleDocsVersion)
+    inputs.files(generatorSourceSet.kotlin).withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dir(project.rootDir.resolve("src/main/skills/gradle/references/best-practices"))
+}
+
+zipSkills.configure {
+    dependsOn(generateBestPracticesDoc)
 }
 
 sourceSets {
@@ -138,7 +162,7 @@ testing {
         val integrationTest by registering(JvmTestSuite::class) {
             dependencies {
                 implementation(project())
-                implementation(project.dependencies.testFixtures(project()))
+                implementation(dependencies.testFixtures(project()))
             }
 
 

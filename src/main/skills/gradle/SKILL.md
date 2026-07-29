@@ -162,14 +162,15 @@ to: [query_build Diagnostics Reference](references/query_build_diagnostics.md).
 1. Check configuration cache status: `gradle(commandLine=[":help", "--configuration-cache"])`.
 2. Analyze task compatibility and identify violations.
 3. Propose fixes: migrate to lazy APIs (`Property<T>`, `Provider<T>`) or use `@Internal`/`@Input` annotations correctly.
-4. Verify against latest guidance: `gradle_docs(query="tag:best-practices", projectRoot="/path/to/project")`.
+4. Consult the generated best-practices reference first: read `references/best-practices/_index.md`, pick the relevant practice by area or tag, then open its detail file.
+5. If the generated reference doesn't fully answer the question, use `gradle_docs(query="tag:best-practices <term>", projectRoot="/path/to/project")` for version-specific or deeper guidance.
 
 ### Documentation Research
 
 1. Search the user guide: `gradle_docs(query="tag:userguide <term>", projectRoot="/path/to/project")`.
 2. Navigate the DSL reference: `gradle_docs(path="dsl/org.gradle.api.Project.html", projectRoot="/path/to/project")`.
 3. Check for breaking changes: `gradle_docs(query="tag:release-notes", version="8.6")`.
-4. Find best practices: `gradle_docs(query="tag:best-practices dependency management", projectRoot="/path/to/project")`.
+4. Find best practices: Read `references/best-practices/_index.md`, pick the relevant practice by area or tag, then open its detail file. For version-specific or deeper queries, use `gradle_docs(query="tag:best-practices <term>", projectRoot="/path/to/project")`.
 5. Search for samples: `gradle_docs(query="tag:samples toolchains", projectRoot="/path/to/project")`.
 6. Search javadocs: `gradle_docs(query="tag:javadoc Project", projectRoot="/path/to/project")`.
 
@@ -340,6 +341,6 @@ Tool: `query_build`
 - [query_build Diagnostics Reference](references/query_build_diagnostics.md) — Complete diagnostic patterns for DASHBOARD, SUMMARY, FAILURES, PROBLEMS, TASKS, TESTS, CONSOLE, and PROGRESS.
 - [Background Monitoring Patterns](references/background_monitoring.md)
 - [Authoritative Diagnostic Tasks](references/diagnostic_tasks.md) — Built-in introspection tasks.
-- [Best Practices Snapshot](references/best_practices.md) — High-level best practices; always verify with `gradle_docs`.
+- [Gradle Best Practices](references/best-practices/_index.md) — Start at `_index.md` — a categorized index (by area, with one-line summaries and tags) linking to per-topic detail files. Consult it first for build-quality questions; then open the linked detail file.
 - [Common Build Patterns](references/common_build_patterns.md) — Idiomatic patterns for multi-project builds, convention plugins, and task registration.
 - [Official Gradle Documentation Research](references/gradle_docs_research.md) — Guidance on using `gradle_docs` for authoritative documentation.

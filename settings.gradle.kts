@@ -32,7 +32,7 @@ buildCache {
 }
 
 rootProject.name = "gradle-mcp"
-include("repl-worker", "repl-shared")
+include("repl-worker", "repl-shared", "best-practices-generator")
 
 dependencyResolutionManagement {
     repositories {
