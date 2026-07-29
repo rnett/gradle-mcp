@@ -54,15 +54,20 @@ val zipSkills = tasks.register<Zip>("zipSkills") {
     destinationDirectory.set(layout.buildDirectory.dir("generated/resources/skills"))
 }
 
+val bestPracticesGeneratorClasspath = configurations.create("bestPracticesGeneratorClasspath") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+}
+
+dependencies {
+    add(bestPracticesGeneratorClasspath.name, project(":best-practices-generator"))
+}
+
 val generateBestPracticesDoc = tasks.register<JavaExec>("generateBestPracticesDoc") {
     val generatorProject = project(":best-practices-generator")
-    val generatorSourceSet = generatorProject.sourceSets.main.get()
     val gradleDocsVersion = providers.gradleProperty("gradleDocsVersion").orElse(gradle.gradleVersion)
 
-    classpath(
-        generatorSourceSet.output,
-        generatorProject.configurations.named("runtimeClasspath"),
-    )
+    classpath(bestPracticesGeneratorClasspath)
     dependsOn(generatorProject.tasks.named("classes"))
     mainClass.set("dev.rnett.gradle.mcp.bestpractices.GenerateBestPracticesDoc")
     args(
@@ -70,7 +75,8 @@ val generateBestPracticesDoc = tasks.register<JavaExec>("generateBestPracticesDo
         gradleDocsVersion.get(),
     )
     inputs.property("gradleDocsVersion", gradleDocsVersion)
-    inputs.files(generatorSourceSet.kotlin).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.dir(generatorProject.layout.projectDirectory.dir("src/main/kotlin"))
+        .withPathSensitivity(PathSensitivity.RELATIVE)
     outputs.dir(project.rootDir.resolve("src/main/skills/gradle/references/best-practices"))
 }
 
@@ -147,12 +153,18 @@ kotlin {
     jvmToolchain(25)
 
     compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
         freeCompilerArgs.addAll(
             "-Xannotation-default-target=param-property",
             "-Xcontext-parameters",
             "-opt-in=kotlin.concurrent.atomics.ExperimentalAtomicApi"
         )
     }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 val isCI = providers.environmentVariable("CI").orNull != null
@@ -169,6 +181,8 @@ testing {
             targets {
                 all {
                     testTask.configure {
+                        // must keep to ensure compatability with jbang catalog entry
+                        javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
                         maxParallelForks = if (isCI) 3 else 8
                         if (isCI) {
                             mustRunAfter("test")
@@ -213,7 +227,8 @@ tasks.test {
     maxHeapSize = "2g"
 }
 
-tasks.withType<Test>().all {
+tasks.withType<Test>().configureEach {
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
     jvmArgs("--add-modules", "jdk.incubator.vector")
     useJUnitPlatform()
     systemProperty("GRADLE_MCP_LOG_DIR", layout.buildDirectory.dir("test-logs").get().asFile.absolutePath)
