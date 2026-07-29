@@ -40,8 +40,10 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.absolutePathString
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
@@ -327,32 +329,36 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         val buildManager = server.koin.get<BuildManager>()
         val buildId = buildManager.newId()
         val completedTasksFlow = MutableSharedFlow<String>(replay = 1)
+        val completedTaskPaths = AtomicReference(emptySet<String>())
+        val taskStateChecked = CompletableDeferred<Unit>()
 
         val runningBuild = createMockRunningBuild(buildId, completingTasksFlow = completedTasksFlow)
-        every { runningBuild.completedTaskPaths } returns emptySet()
+        every { runningBuild.completedTaskPaths } answers {
+            taskStateChecked.complete(Unit)
+            completedTaskPaths.get()
+        }
         coEvery { runningBuild.awaitFinished() } coAnswers { suspendCancellableCoroutine { } }
 
         buildManager.registerBuild(runningBuild)
         server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
-        launch {
-            delay(500.milliseconds)
-            every { runningBuild.completedTaskPaths } returns setOf(":help")
-            completedTasksFlow.emit(":help")
+        val statusCall = async {
+            server.client.callTool(
+                ToolNames.WAIT_BUILD, buildJsonObject {
+                    put("buildId", buildId.toString())
+                    put("timeout", 2.0)
+                    put("waitForTask", ":help")
+                }
+            ) as CallToolResult
         }
 
-        val startTime = testScheduler.currentTime
-        val statusCall = server.client.callTool(
-            ToolNames.WAIT_BUILD, buildJsonObject {
-                put("buildId", buildId.toString())
-                put("timeout", 2.0)
-                put("waitForTask", ":help")
-            }
-        ) as CallToolResult
-        val duration = testScheduler.currentTime - startTime
+        taskStateChecked.await()
+        assertFalse(statusCall.isCompleted, "wait_build should remain pending until the requested task completes")
 
-        assert(duration >= 500)
-        val statusText = statusCall.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
+        completedTaskPaths.set(setOf(":help"))
+        completedTasksFlow.emit(":help")
+
+        val statusText = statusCall.await().content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
         assertTrue(statusText.contains("Build is still running"), "Expected status text to contain 'Build is still running', but was: $statusText")
     }
     @Test
