@@ -4,7 +4,7 @@
 
 Defines the structure, coverage, and behavior of the generated best-practices reference content produced by the `generate-best-practices-doc` capability. Output is a `best-practices/` directory with individual `.md` files per best-practice subsection plus a categorized `_index.md` index for LLM agent consumption.
 
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Coverage of official Gradle best practices
 
@@ -12,9 +12,9 @@ The generated reference SHALL cover all best-practices pages present in the Grad
 
 #### Scenario: Comprehensive coverage
 
-- **WHEN** an agent reads the `best-practices/_index.md`
-- **THEN** the index SHALL list entries covering every best-practices page in the docs distribution
-- **AND** each entry SHALL link to the corresponding detail file and be grouped under its source page (area) heading.
+- `WHEN` an agent reads the `best-practices/_index.md`
+- `THEN` the index SHALL list entries covering every best-practices page in the docs distribution
+- `AND` each entry SHALL link to the corresponding detail file and be grouped under its source page (area) heading.
 
 ### Requirement: Per-subsection directory structure
 
@@ -27,9 +27,9 @@ Large pages are split at each `##` heading boundary; heading levels are promoted
 
 #### Scenario: Directory output
 
-- **WHEN** generation completes
-- **THEN** the `best-practices/` directory SHALL contain multiple `.md` files including `_index.md`
-- **AND** no single monolithic `best_practices.md` file SHALL exist.
+- `WHEN` generation completes
+- `THEN` the `best-practices/` directory SHALL contain multiple `.md` files including `_index.md`
+- `AND` no single monolithic `best_practices.md` file SHALL exist.
 
 ### Requirement: Categorized discoverable index
 
@@ -40,10 +40,10 @@ The `_index.md` SHALL provide structured discoverability for agents:
 
 #### Scenario: Agent navigation through index
 
-- **WHEN** an agent loads the `_index.md`
-- **THEN** the document SHALL start with a description line directing the agent to read it first and pick by area or tag
-- **AND** SHALL group all entries under their source-page headings with summaries and tags
-- **AND** SHALL include a "Browse by Tag" section at the bottom.
+- `WHEN` an agent loads the `_index.md`
+- `THEN` the document SHALL start with a description line directing the agent to read it first and pick by area or tag
+- `AND` SHALL group all entries under their source-page headings with summaries and tags
+- `AND` SHALL include a "Browse by Tag" section at the bottom.
 
 ### Requirement: Freshness disclaimer
 
@@ -51,6 +51,6 @@ The generated reference SHALL include a disclaimer that it was generated from a 
 
 #### Scenario: Version transparency
 
-- **WHEN** an agent reads the `_index.md`
-- **THEN** the document SHALL state the Gradle version it was generated from
-- **AND** SHALL direct the agent to `gradle_docs tag:best-practices` for authoritative, version-appropriate guidance.
+- `WHEN` an agent reads the `_index.md`
+- `THEN` the document SHALL state the Gradle version it was generated from
+- `AND` SHALL direct the agent to `gradle_docs tag:best-practices` for authoritative, version-appropriate guidance.
