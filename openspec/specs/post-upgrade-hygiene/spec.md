@@ -3,9 +3,7 @@
 ## Purpose
 
 Defines the code-hygiene standards to be satisfied after the dependency upgrades (MCP SDK 0.14.0, gradle-tooling-api 9.6.1, ktor 3.5.1, and related). Covers removal of dead deprecated aliases, re-validation of nullability suppressions, deduplication of Koin server resolution, and documentation of non-obvious coroutine and session-lifecycle design decisions.
-
 ## Requirements
-
 ### Requirement: No Dead Deprecated Aliases
 
 Deprecated compatibility aliases that have no remaining callers SHALL be removed from `CASDependencySourcesDir` in `SourcesDir.kt`.
@@ -35,27 +33,19 @@ Every `@Suppress("UNNECESSARY_SAFE_CALL")` and `@Suppress("SENSELESS_COMPARISON"
 - **AND** a safe call SHALL be removed only if the value is provably non-null at runtime
 - **AND** no site SHALL retain a stale `@Suppress` for a warning that 9.6.1 eliminated.
 
-### Requirement: Shared Koin McpServer Resolution
+### Requirement: Shared Koin Server Resolution
+The duplicated transport-specific Koin resolution of the MCP server SHALL be replaced with one shared `Application.resolveServer(): Server` helper returning the Kotlin MCP SDK `Server`. Stdio, SSE, and Streamable HTTP SHALL use this helper. The helper SHALL log `"Failed to initialize MCP Server"` and rethrow on resolution failure, preserving current failure behavior. The implementation SHALL resolve the directly composed SDK server and SHALL not resolve a project-owned `McpServer` aggregate.
 
-The duplicated try/catch that resolves `McpServer` from the Koin context — currently present in both the `Stdio` and `Sse` transports in `Application.kt` — SHALL be extracted into a single shared helper, `Application.resolveMcpServer(): McpServer`, used by every transport (including the Streamable HTTP transport from `streamable-http-transport`).
-
-- **Behavior Preserved**: The helper SHALL log `"Failed to initialize MCP Server"` and rethrow on Koin resolution failure, exactly as the current inline blocks do.
-
-#### Scenario: Single resolution path
-
-- **WHEN** any transport needs the `McpServer`
-- **THEN** it SHALL call `Application.resolveMcpServer()`
-- **AND** no transport SHALL contain its own copy of the resolution try/catch.
+#### Scenario: Single SDK server resolution path
+- **WHEN** any application transport needs the MCP server
+- **THEN** it SHALL call `Application.resolveServer()`
+- **AND** no transport SHALL contain its own Koin resolution try/catch
+- **AND** the returned type SHALL be the SDK `Server`.
 
 ### Requirement: Documented Coroutine and Session Design
+Non-obvious MCP server design decisions SHALL have adjacent comments that describe direct SDK `Server` composition, SDK-owned bounded tool-handler jobs, the on-demand per-session roots resolution, and SDK-first close through the shared lifecycle helper. Comments SHALL not describe a project wrapper, custom cancellation handler, detached tool scope, active-tool registry, server roots setter, or `onConnect` root registration. The `toKotlinxSerialization()` enum special case SHALL remain documented because schema-kenerator emits `enum` without `type`.
 
-Non-obvious design decisions in the MCP server layer SHALL carry explanatory comments so their rationale survives future refactors.
-
-- **`McpServer.scope`**: A comment SHALL explain that the scope is deliberately **not** a child of the SDK session/message-processing scope. Tool execution must be decoupled from the protocol session so that a `notifications/cancelled` can cancel a hung tool (via `activeToolCallJobs`) without cancelling the session's message-processing coroutine.
-- **`McpServer.init` `onConnect` block**: A comment SHALL note that SSE (and Streamable HTTP) sessions bypass `connect()` — they are created by the Ktor plugin via `createSession()` — so `onConnect` is what ensures those sessions receive the cancellation and roots-list notification handlers.
-- **`toKotlinxSerialization()` enum special case**: Documented per `mcp-schema-simplification` (schema-kenerator emits `enum` without `type`).
-
-#### Scenario: Rationale is documented at the declaration
-
-- **WHEN** a developer reads `McpServer.scope` or the `onConnect` block
-- **THEN** an adjacent comment SHALL explain the cancellation-decoupling and SSE-bypass rationale respectively.
+#### Scenario: Lifecycle rationale is documented without stale design
+- **WHEN** a developer reads the direct server construction, on-demand root resolution, or `closeServer` declaration
+- **THEN** adjacent comments SHALL explain the SDK ownership and SDK-first close rationale
+- **AND** no removed workaround terminology SHALL remain in the documented design.
