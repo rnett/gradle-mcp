@@ -52,8 +52,7 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
     override fun createFixture(): McpServerFixture {
         return McpServerFixture(
             clientCapabilities = ClientCapabilities(
-                roots = ClientCapabilities.Roots(listChanged = true),
-                elicitation = ClientCapabilities.Elicitation()
+                roots = ClientCapabilities.Roots(listChanged = true)
             ),
             koinModules = listOf(createTestModule())
         )
@@ -66,7 +65,7 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
             buildScript("Thread.sleep(100)\n".repeat(20))
         }
         super.setup()
-        server.setServerRoots(Root(_project.path().toUri().toString(), "root"))
+        server.setClientRoots(Root(_project.path().toUri().toString(), "root"))
     }
 
     @AfterEach

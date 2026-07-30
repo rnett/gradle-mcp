@@ -37,7 +37,7 @@ class GradleExecutionToolTest : BaseMcpServerTest() {
 
     @BeforeEach
     fun setupTest() = runTest {
-        server.setServerRoots(Root(tempDir.toUri().toString(), "root"))
+        server.setClientRoots(Root(tempDir.toUri().toString(), "root"))
     }
 
     @ParameterizedTest(name = "gradle {0} is passed through without hidden defaults")
@@ -93,7 +93,7 @@ class GradleExecutionToolRealBuildTest : BaseMcpServerTest() {
     override fun setup() = runTest {
         project = testKotlinProject()
         super.setup()
-        server.setServerRoots(Root(project.path().toUri().toString(), "root"))
+        server.setClientRoots(Root(project.path().toUri().toString(), "root"))
     }
 
     @AfterEach
@@ -155,7 +155,7 @@ class GradleExecutionToolRealBuildTest : BaseMcpServerTest() {
                 """.trimIndent()
             )
         }
-        server.setServerRoots(Root(project.path().toUri().toString(), "root"))
+        server.setClientRoots(Root(project.path().toUri().toString(), "root"))
 
         server.client.callTool(
             ToolNames.GRADLE,

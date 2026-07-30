@@ -3,7 +3,6 @@ package dev.rnett.gradle.mcp.tools
 import dev.rnett.gradle.mcp.expandPath
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.mcp.McpContext
-import dev.rnett.gradle.mcp.mcp.McpServer
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import io.modelcontextprotocol.kotlin.sdk.types.Root
 import kotlinx.serialization.Serializable
@@ -13,7 +12,6 @@ import java.nio.file.Path
 import kotlin.io.path.absolute
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.toPath
-
 
 @JvmInline
 @Serializable
@@ -29,20 +27,29 @@ val Root.fileOrNull: Path?
         return try {
             URI.create(uri).toPath().absolute()
         } catch (e: IllegalArgumentException) {
-            return null
+            null
         }
     }
 
 val Root.nameOrUrl get() = name ?: uri
 
 context(ctx: McpContext)
-fun GradleProjectRootInput.resolve(): GradleProjectRoot = with(ctx.server) { resolveRoot() }
+suspend fun GradleProjectRootInput.resolve(): GradleProjectRoot {
+    val session = ctx.session
+    val roots = if (session?.clientCapabilities?.roots == null) {
+        null
+    } else {
+        session.listRoots().roots.toSet()
+    }
+    return resolveRoot(roots)
+}
 
 private val logger = LoggerFactory.getLogger("dev.rnett.gradle.mcp.tools.GradleInputs")
 
-context(server: McpServer)
-fun GradleProjectRootInput.resolveRoot(): GradleProjectRoot {
-    val roots = server.roots.value
+fun GradleProjectRootInput.resolveRoot(roots: Set<Root>?): GradleProjectRoot =
+    resolveRoot(roots, System.getenv("GRADLE_MCP_PROJECT_ROOT"))
+
+internal fun GradleProjectRootInput.resolveRoot(roots: Set<Root>?, envRoot: String?): GradleProjectRoot {
     logger.info("Resolving project root. Input: $projectRoot, MCP roots: ${roots?.map { it.nameOrUrl }}")
     if (projectRoot == null) {
         if (roots?.size == 1) {
@@ -51,7 +58,6 @@ fun GradleProjectRootInput.resolveRoot(): GradleProjectRoot {
             return GradleProjectRoot(file.absolutePathString())
         }
 
-        val envRoot = System.getenv("GRADLE_MCP_PROJECT_ROOT")
         if (envRoot != null) {
             return GradleProjectRoot(envRoot.expandPath())
         }
@@ -67,14 +73,14 @@ fun GradleProjectRootInput.resolveRoot(): GradleProjectRoot {
 
     return if (roots != null) {
         val named = roots.firstOrNull { it.name == projectRoot }
-        if (named != null)
+        if (named != null) {
             return GradleProjectRoot(
                 named.fileOrNull?.absolutePathString()
                     ?: throw IllegalArgumentException("Configured root ${named.nameOrUrl} could not be converted to a file")
             )
+        }
 
         val rootFile = kotlin.io.path.Path(expandedProjectRoot).absolute()
-
         val isInRoot = roots.any {
             val file = it.fileOrNull ?: return@any false
             rootFile.startsWith(file)

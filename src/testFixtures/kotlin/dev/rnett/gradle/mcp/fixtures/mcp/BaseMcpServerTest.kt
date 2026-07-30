@@ -22,7 +22,6 @@ import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.maven.DepsDevService
 import dev.rnett.gradle.mcp.maven.MavenCentralService
 import dev.rnett.gradle.mcp.maven.MavenRepoService
-import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.repl.DefaultReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.DefaultReplManager
 import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
@@ -114,11 +113,6 @@ abstract class BaseMcpServerTest {
                 indexService,
                 searchProviders
             )
-        }
-
-        single {
-            val components: List<McpServerComponent> = get()
-            DI.createServer(get(), components)
         }
     }
 

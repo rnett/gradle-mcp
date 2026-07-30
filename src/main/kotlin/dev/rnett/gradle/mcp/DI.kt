@@ -51,7 +51,6 @@ import dev.rnett.gradle.mcp.maven.DefaultMavenRepoService
 import dev.rnett.gradle.mcp.maven.DepsDevService
 import dev.rnett.gradle.mcp.maven.MavenCentralService
 import dev.rnett.gradle.mcp.maven.MavenRepoService
-import dev.rnett.gradle.mcp.mcp.McpServer
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.mcp.add
 import dev.rnett.gradle.mcp.repl.DefaultReplEnvironmentService
@@ -78,6 +77,7 @@ import io.ktor.server.config.getAs
 import io.modelcontextprotocol.kotlin.sdk.types.EmptyJsonObject
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
+import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -197,20 +197,7 @@ object DI {
 
         single {
             val components: List<McpServerComponent> = get()
-            McpServer(
-                Implementation("gradle-mcp", BuildConfig.APP_VERSION),
-                ServerOptions(
-                    ServerCapabilities(
-                        logging = EmptyJsonObject,
-                        tools = ServerCapabilities.Tools(false)
-                    ),
-                    enforceStrictCapabilities = false
-                ),
-                get(),
-                components
-            ).apply {
-                components.forEach { add(it) }
-            }
+            createServer(get(), components)
         }
     }
 
@@ -242,8 +229,8 @@ object DI {
         SkillTools()
     )
 
-    fun createServer(json: Json, components: List<McpServerComponent>): McpServer {
-        return McpServer(
+    fun createServer(json: Json, components: List<McpServerComponent>): Server {
+        return Server(
             Implementation("gradle-mcp", BuildConfig.APP_VERSION),
             ServerOptions(
                 ServerCapabilities(
@@ -251,11 +238,9 @@ object DI {
                     tools = ServerCapabilities.Tools(false)
                 ),
                 enforceStrictCapabilities = false
-            ),
-            json,
-            components
+            )
         ).apply {
-            components.forEach { add(it) }
+            components.forEach { add(it, json) }
         }
     }
 }

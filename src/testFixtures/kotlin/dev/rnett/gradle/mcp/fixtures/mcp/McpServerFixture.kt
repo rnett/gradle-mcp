@@ -1,38 +1,85 @@
 package dev.rnett.gradle.mcp.fixtures.mcp
 
-import dev.rnett.gradle.mcp.mcp.McpServer
-import dev.rnett.gradle.mcp.repl.ReplManager
-import io.modelcontextprotocol.kotlin.sdk.types.ClientCapabilities
-import io.modelcontextprotocol.kotlin.sdk.types.Implementation
-import io.modelcontextprotocol.kotlin.sdk.types.Root
+import dev.rnett.gradle.mcp.DI
+import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import dev.rnett.gradle.mcp.mcp.closeServer
+import dev.rnett.gradle.mcp.runCatchingExceptCancellation
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.ClientOptions
+import io.modelcontextprotocol.kotlin.sdk.shared.RequestOptions
 import io.modelcontextprotocol.kotlin.sdk.testing.ChannelTransport
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.ClientCapabilities
+import io.modelcontextprotocol.kotlin.sdk.types.Implementation
+import io.modelcontextprotocol.kotlin.sdk.types.ListToolsRequest
+import io.modelcontextprotocol.kotlin.sdk.types.ListToolsResult
+import io.modelcontextprotocol.kotlin.sdk.types.Method
+import io.modelcontextprotocol.kotlin.sdk.types.Notification
+import io.modelcontextprotocol.kotlin.sdk.types.Request
+import io.modelcontextprotocol.kotlin.sdk.types.RequestResult
+import io.modelcontextprotocol.kotlin.sdk.types.Root
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import org.koin.core.module.Module
 import org.koin.dsl.koinApplication
 import org.slf4j.LoggerFactory
 
 /**
- * Test fixture that starts a real MCP server and a real MCP client connected over in-memory STDIO streams.
+ * Keeps SDK request timeouts on real time when fixture calls originate from [kotlinx.coroutines.test.runTest].
+ * Caller cancellation still propagates through [withContext] to the SDK request and its peer notification.
+ */
+class McpFixtureClient internal constructor(private val delegate: Client) {
+    suspend fun callTool(
+        name: String,
+        arguments: Map<String, Any?>,
+        meta: Map<String, Any?> = emptyMap(),
+        options: RequestOptions? = null,
+    ): CallToolResult = withContext(Dispatchers.Default) {
+        delegate.callTool(name, arguments, meta, options)
+    }
+
+    suspend fun callTool(request: CallToolRequest, options: RequestOptions? = null): CallToolResult =
+        withContext(Dispatchers.Default) {
+            delegate.callTool(request, options)
+        }
+
+    suspend fun listTools(
+        request: ListToolsRequest = ListToolsRequest(),
+        options: RequestOptions? = null,
+    ): ListToolsResult = withContext(Dispatchers.Default) {
+        delegate.listTools(request, options)
+    }
+
+    suspend fun <T : RequestResult> request(request: Request, options: RequestOptions? = null): T =
+        withContext(Dispatchers.Default) {
+            delegate.request(request, options)
+        }
+
+    fun <T : Notification> setNotificationHandler(method: Method, handler: (T) -> Deferred<Unit>) {
+        delegate.setNotificationHandler(method, handler)
+    }
+}
+
+/**
+ * Test fixture that connects a real SDK server and client through a [ChannelTransport] pair.
  */
 class McpServerFixture(
-    private val clientSupportsElicitation: Boolean = true,
     private val clientCapabilities: ClientCapabilities = ClientCapabilities(
-        elicitation = ClientCapabilities.Elicitation().takeIf { clientSupportsElicitation }
+        roots = ClientCapabilities.Roots(listChanged = false)
     ),
     private val koinModules: List<Module> = emptyList()
 ) {
     private val logger = LoggerFactory.getLogger(McpServerFixture::class.java)
 
-    val scope = CoroutineScope(Dispatchers.Default + SupervisorJob() + CoroutineExceptionHandler { _, it ->
-        logger.error("Exception in fixture scope", it)
+    val scope = CoroutineScope(Dispatchers.Default + SupervisorJob() + CoroutineExceptionHandler { _, throwable ->
+        logger.error("Exception in fixture scope", throwable)
     })
 
     private val transports = ChannelTransport.createLinkedPair()
@@ -43,40 +90,36 @@ class McpServerFixture(
     }
 
     val koin = koinApp.koin
-
-    val server = koin.get<McpServer>()
-
-    val client = Client(
+    val components = koin.get<List<McpServerComponent>>()
+    val server = DI.createServer(koin.get(), components)
+    private val sdkClient = Client(
         Implementation("gradle-mcp-test-client", "test"),
         ClientOptions(clientCapabilities)
     )
+    val client = McpFixtureClient(sdkClient)
 
-    suspend fun start() {
-        server.connect(transports.serverTransport)
-        client.connect(transports.clientTransport)
+    private val configuredRootUris = mutableSetOf<String>()
+
+    suspend fun start() = withContext(Dispatchers.Default) {
+        server.createSession(transports.serverTransport)
+        sdkClient.connect(transports.clientTransport)
     }
 
-    /**
-     * Force the server to believe the client has configured roots.
-     */
-    fun setServerRoots(vararg roots: Root) {
-        server.setRootsForTesting(roots.toSet())
+    fun setClientRoots(vararg roots: Root) {
+        if (configuredRootUris.isNotEmpty()) {
+            sdkClient.removeRoots(configuredRootUris.toList())
+        }
+        sdkClient.addRoots(roots.toList())
+        configuredRootUris.clear()
+        configuredRootUris.addAll(roots.map { it.uri })
     }
 
     suspend fun close() {
-        runCatching { client.close() }
-        // Deterministic shutdown: closes the SDK sessions, the components, and cancels AND joins the server's
-        // tool-execution scope so no orphaned tool work survives the test.
-        runCatching { server.shutdown() }
-        // Explicitly close transports to ensure proper cleanup (joins their event-loop scopes).
-        runCatching { transports.clientTransport.close() }
-        runCatching { transports.serverTransport.close() }
-        // Allow onClose hooks and OS handles to settle, especially on Windows
-        delay(50)
-        // Idempotent; also closed via the server components above.
-        runCatching { koin.get<ReplManager>().close() }
+        runCatchingExceptCancellation { sdkClient.close() }
+        runCatchingExceptCancellation { closeServer(server, components) }
+        runCatchingExceptCancellation { transports.clientTransport.close() }
+        runCatchingExceptCancellation { transports.serverTransport.close() }
         koinApp.close()
-        // Cancel AND join so no orphaned connection work bleeds into the next test's runTest block.
         scope.cancel("Test cleanup")
         scope.coroutineContext[Job]?.join()
     }

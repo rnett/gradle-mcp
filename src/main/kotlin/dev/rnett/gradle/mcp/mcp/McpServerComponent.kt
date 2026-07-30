@@ -2,33 +2,34 @@ package dev.rnett.gradle.mcp.mcp
 
 import dev.rnett.gradle.mcp.runCatchingExceptCancellation
 import io.modelcontextprotocol.kotlin.sdk.server.ClientConnection
-import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
+import io.modelcontextprotocol.kotlin.sdk.server.Server
+import io.modelcontextprotocol.kotlin.sdk.server.ServerSession
+import io.modelcontextprotocol.kotlin.sdk.shared.RequestHandlerExtra
+import io.modelcontextprotocol.kotlin.sdk.shared.currentRequestHandlerExtra
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
-import io.modelcontextprotocol.kotlin.sdk.types.ContentBlock
+import io.modelcontextprotocol.kotlin.sdk.types.RequestId
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import io.modelcontextprotocol.kotlin.sdk.types.Tool
 import io.modelcontextprotocol.kotlin.sdk.types.ToolAnnotations
-import kotlinx.coroutines.async
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
-import kotlin.coroutines.cancellation.CancellationException
-import kotlin.coroutines.coroutineContext
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
-fun McpServer.add(component: McpServerComponent) {
-    component.register(this)
+fun Server.add(component: McpServerComponent, json: Json) {
+    component.register(this, json)
 }
 
 abstract class McpServerComponent(val name: String, val description: String) {
-    open fun register(server: McpServer) {
-        _parts.forEach { it.register(server) }
+    open fun register(server: Server, json: Json) {
+        _parts.forEach { it.register(server, json) }
     }
 
     open suspend fun close() {}
 
     fun interface Registerer<T> {
-        fun register(server: McpServer): T
+        fun register(server: Server, json: Json): T
     }
 
     private val _parts = mutableListOf<Registerer<*>>()
@@ -45,37 +46,32 @@ abstract class McpServerComponent(val name: String, val description: String) {
         }
     }
 
-    class McpToolContext(server: McpServer, clientConnection: ClientConnection, request: CallToolRequest) : McpContext(server, clientConnection, request) {
-        private val additionalResults = mutableListOf<ContentBlock>()
-
-        fun addAdditionalContent(content: ContentBlock) {
-            additionalResults.add(content)
-        }
-
+    class McpToolContext(
+        json: Json,
+        session: ServerSession?,
+        clientConnection: ClientConnection,
+        progressToken: RequestId?,
+        extra: RequestHandlerExtra?,
+    ) : McpContext(json, session, clientConnection, progressToken, extra) {
         var isError: Boolean = false
-
-        @PublishedApi
-        internal fun auxiliaryResults(): AuxiliaryResults = AuxiliaryResults(additionalResults.toList(), isError)
-
-        data class AuxiliaryResults(val additionalResults: List<ContentBlock>, val isError: Boolean)
     }
 
-    // avoid using structured output when possible, just return strings
+    // Avoid structured output when possible; plain strings are easier for clients to consume.
     inline fun <reified I, reified O> tool(
         name: String,
         description: String,
         title: String? = null,
         toolAnnotations: ToolAnnotations? = null,
         crossinline handler: suspend McpToolContext.(I) -> O
-    ) = register { server ->
-        val inputSerializer = server.json.serializersModule.serializer<I>()
+    ) = register { server, json ->
+        val inputSerializer = json.serializersModule.serializer<I>()
 
-        val inputSchema = JsonSchemaFactory.generateSchema(inputSerializer, server.json.serializersModule)
+        val inputSchema = JsonSchemaFactory.generateSchema(inputSerializer, json.serializersModule)
         val outputSchema = if (O::class == String::class || O::class == Unit::class || O::class == CallToolResult::class) {
             null
         } else {
-            val outputSerializer = server.json.serializersModule.serializer<O>()
-            JsonSchemaFactory.generateSchema(outputSerializer, server.json.serializersModule).toOutput()
+            val outputSerializer = json.serializersModule.serializer<O>()
+            JsonSchemaFactory.generateSchema(outputSerializer, json.serializersModule).toOutput()
         }
         val tool = Tool(
             name = name,
@@ -86,73 +82,60 @@ abstract class McpServerComponent(val name: String, val description: String) {
             outputSchema = outputSchema
         )
 
-        server.addTool(
-            tool
-        ) { request ->
+        server.addTool(tool) { request ->
             McpToolHelper.logger.info("Executing tool call {} (request={})", tool.name, request)
-            val input = server.json.decodeFromJsonElement(inputSerializer, request.arguments ?: kotlinx.serialization.json.JsonObject(emptyMap()))
-
-            // The request ID was injected into the coroutine context by McpServer's transport
-            // interceptor — the only point where the raw JSONRPCRequest.id is accessible.
-            val requestId = coroutineContext[ToolCallRequestId]?.value
-
-            // Launch the handler in server.scope so it can be cancelled independently of the
-            // SDK's message-processing coroutine. This allows notifications/cancelled to unblock
-            // the message loop by cancelling this deferred, even when the tool is waiting on a
-            // long-running operation (e.g., awaitFinished() on a hung build).
-            val clientConnection = this
-            val deferred = server.scope.async {
-                McpToolContext(server, clientConnection, request).use {
-                    runCatchingExceptCancellation { handler(it, input) } to it.auxiliaryResults()
-                }
-            }
-            server.registerToolCallJob(requestId, deferred)
-
-            val (output, aux) = try {
-                deferred.await()
-            } catch (e: CancellationException) {
-                // Re-throw so Protocol.onRequest's catch(Throwable) sends an error response
-                // and the message processing loop can resume for the next request.
-                throw e
-            } finally {
-                server.unregisterToolCallJob(requestId)
-                McpToolHelper.logger.info("Finished tool call {} (request={})", tool.name, request)
-            }
-            output.fold(
-                {
-
-                    if (it is String) {
-                        return@fold CallToolResult(
-                            listOf(TextContent(it)) + aux.additionalResults,
-                            isError = aux.isError
-                        )
-                    }
-
-                    if (it is Unit) {
-                        return@fold CallToolResult(
-                            listOf(TextContent("Done")) + aux.additionalResults,
-                            isError = aux.isError
-                        )
-                    }
-
-                    if (it is CallToolResult) {
-                        return@fold it
-                    }
-
-                    val outputSerializer = server.json.serializersModule.serializer<O>()
-                    val structured = server.json.encodeToJsonElement(outputSerializer, it)
-                    val text = server.json.encodeToString(structured)
-                    CallToolResult(
-                        listOf(TextContent(text)) + aux.additionalResults,
-                        structuredContent = structured as? kotlinx.serialization.json.JsonObject,
-                        isError = aux.isError
-                    )
-                },
-                {
-                    McpToolHelper.logger.error("Error while executing tool call $request", it)
-                    CallToolResult(listOf(TextContent("Error executing tool ${tool.name}: ${it.message ?: "Unknown error"}")), isError = true)
-                }
+            val input = json.decodeFromJsonElement(
+                inputSerializer,
+                request.arguments ?: kotlinx.serialization.json.JsonObject(emptyMap())
             )
+            val session = server.sessions[this.sessionId]
+            val extra = currentRequestHandlerExtra()
+            val progressToken = request.meta?.progressToken
+
+            McpToolContext(json, session, this, progressToken, extra).use { context ->
+                val output = try {
+                    runCatchingExceptCancellation { handler(context, input) }
+                } finally {
+                    McpToolHelper.logger.info("Finished tool call {} (request={})", tool.name, request)
+                }
+                output.fold(
+                    {
+                        if (it is String) {
+                            return@fold CallToolResult(
+                                listOf(TextContent(it)),
+                                isError = context.isError
+                            )
+                        }
+
+                        if (it is Unit) {
+                            return@fold CallToolResult(
+                                listOf(TextContent("Done")),
+                                isError = context.isError
+                            )
+                        }
+
+                        if (it is CallToolResult) {
+                            return@fold it
+                        }
+
+                        val outputSerializer = json.serializersModule.serializer<O>()
+                        val structured = json.encodeToJsonElement(outputSerializer, it)
+                        val text = json.encodeToString(structured)
+                        CallToolResult(
+                            listOf(TextContent(text)),
+                            structuredContent = structured as? kotlinx.serialization.json.JsonObject,
+                            isError = context.isError
+                        )
+                    },
+                    {
+                        McpToolHelper.logger.error("Error while executing tool call $request", it)
+                        CallToolResult(
+                            listOf(TextContent("Error executing tool ${tool.name}: ${it.message ?: "Unknown error"}")),
+                            isError = true
+                        )
+                    }
+                )
+            }
         }
 
         tool

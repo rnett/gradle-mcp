@@ -50,7 +50,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery { with(any<ProgressReporter>()) { sourcesService.resolveAndProcessProjectSources(any(), any(), any(), any(), any(), any()) } } returns mockSources
 
-        server.setServerRoots(Root(tempDir.toUri().toString(), "root"))
+        server.setClientRoots(Root(tempDir.toUri().toString(), "root"))
     }
 
     private fun resultText(result: CallToolResult): String =

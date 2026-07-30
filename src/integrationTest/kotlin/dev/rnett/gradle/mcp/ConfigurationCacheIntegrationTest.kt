@@ -69,8 +69,8 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
     override fun createFixture(): McpServerFixture {
         return McpServerFixture(
             clientCapabilities = ClientCapabilities(
-                roots = ClientCapabilities.Roots(listChanged = true),
-                elicitation = ClientCapabilities.Elicitation()),
+                roots = ClientCapabilities.Roots(listChanged = true)
+            ),
             koinModules = listOf(super.createTestModule(), createTestModule())
         )
     }
@@ -82,7 +82,7 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
         }
         resetProjectDefaults()
         super.setup()
-        server.setServerRoots(Root(_project.path().toUri().toString(), "root"))
+        server.setClientRoots(Root(_project.path().toUri().toString(), "root"))
     }
 
     @AfterEach
@@ -174,7 +174,7 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
                 """.trimIndent()
             )
         }
-        server.setServerRoots(Root(project.path().toUri().toString(), "root"))
+        server.setClientRoots(Root(project.path().toUri().toString(), "root"))
 
         val result = server.client.callTool(
             ToolNames.INSPECT_DEPENDENCIES,
@@ -211,7 +211,7 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
         server.close()
         server = createFixture()
         server.start()
-        server.setServerRoots(Root(_project.path().toUri().toString(), "root"))
+        server.setClientRoots(Root(_project.path().toUri().toString(), "root"))
         val result2 = callReadDependencySources(
             dependency = "^org\\.slf4j:slf4j-api(:.*)?$",
             sourceSetPath = ":main"
@@ -242,7 +242,7 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
                 """.trimIndent()
             )
         }
-        server.setServerRoots(Root(project.path().toUri().toString(), "root"))
+        server.setClientRoots(Root(project.path().toUri().toString(), "root"))
 
         val result = server.client.callTool(
             ToolNames.INSPECT_DEPENDENCIES,

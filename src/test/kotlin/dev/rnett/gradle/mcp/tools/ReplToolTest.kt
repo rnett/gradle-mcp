@@ -22,7 +22,7 @@ class ReplToolTest : BaseMcpServerTest() {
 
     @BeforeEach
     fun setupTest() = runTest {
-        server.setServerRoots(Root(tempDir.toUri().toString(), "root"))
+        server.setClientRoots(Root(tempDir.toUri().toString(), "root"))
     }
 
     @Test
@@ -34,7 +34,7 @@ class ReplToolTest : BaseMcpServerTest() {
         java.io.File(customRoot.toUri()).mkdirs()
         java.io.File(customRoot.resolve("gradlew").toUri()).createNewFile()
 
-        server.setServerRoots(Root(tempDir.toUri().toString(), "root"))
+        server.setClientRoots(Root(tempDir.toUri().toString(), "root"))
 
         val consoleOutput = """
             [gradle-mcp] [repl-env] classpath=cp1;cp2

@@ -39,7 +39,7 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
         )
 
         // Set as MCP root
-        server.setServerRoots(Root(projectRoot.toUri().toString(), "test-project"))
+        server.setClientRoots(Root(projectRoot.toUri().toString(), "test-project"))
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
@@ -88,7 +88,7 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
         )
 
         // Set as MCP root so it's valid
-        server.setServerRoots(Root(projectRoot.toUri().toString(), "explicit-project"))
+        server.setClientRoots(Root(projectRoot.toUri().toString(), "explicit-project"))
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {

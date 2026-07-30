@@ -56,7 +56,6 @@ import dev.rnett.gradle.mcp.maven.DefaultMavenRepoService
 import dev.rnett.gradle.mcp.maven.DepsDevService
 import dev.rnett.gradle.mcp.maven.MavenCentralService
 import dev.rnett.gradle.mcp.maven.MavenRepoService
-import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.tools.ToolNames
 import dev.rnett.gradle.mcp.utils.DefaultEnvProvider
 import dev.rnett.gradle.mcp.utils.EnvProvider
@@ -122,7 +121,7 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
 
     protected fun initProject(fixture: GradleProjectFixture) {
         project = fixture
-        server.setServerRoots(Root(fixture.path().toUri().toString(), "root"))
+        server.setClientRoots(Root(fixture.path().toUri().toString(), "root"))
     }
 
     protected suspend fun startRepl(projectPath: String = ":", sourceSet: String = "main") {
@@ -217,10 +216,6 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
                 indexService,
                 searchProviders
             )
-        }
-        single {
-            val components: List<McpServerComponent> = get()
-            DI.createServer(get(), components)
         }
     }
 

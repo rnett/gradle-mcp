@@ -210,7 +210,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
         } returns runningBuild
 
         // set single root with no name required
-        server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
+        server.setClientRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         val args = mapOf(
             "commandLine" to JsonArray(listOf(JsonPrimitive("help"))),
@@ -264,7 +264,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
 
         val buildManager = server.koin.get<BuildManager>()
         buildManager.registerBuild(runningBuild)
-        server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
+        server.setClientRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         // test gradle_execute background
         val runCall = server.client.callTool(
@@ -314,7 +314,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
             )
         } returns runningBuild
 
-        server.setServerRoots(Root(name = null, uri = tempDir.toUri().toString()))
+        server.setClientRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         val args = mapOf(
             "commandLine" to JsonArray(listOf(JsonPrimitive(":help"), JsonPrimitive("--info"), JsonPrimitive("--stacktrace")))

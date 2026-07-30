@@ -94,7 +94,7 @@ class GradleDocsTools(
         }
     }
 
-    private fun McpToolContext.resolveVersion(version: String?, projectRoot: GradleProjectRootInput?): String? {
+    private suspend fun McpToolContext.resolveVersion(version: String?, projectRoot: GradleProjectRootInput?): String? {
         if (version != null) return version
 
         val root = try {

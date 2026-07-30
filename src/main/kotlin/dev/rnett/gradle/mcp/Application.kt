@@ -1,11 +1,13 @@
 package dev.rnett.gradle.mcp
 
 import dev.rnett.gradle.mcp.Application.Companion.LOGGER
-import dev.rnett.gradle.mcp.mcp.McpServer
+import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import dev.rnett.gradle.mcp.mcp.closeServer
 import io.ktor.server.engine.CommandLineConfig
 import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.netty.EngineMain
 import io.ktor.server.netty.NettyApplicationEngine
+import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
 import io.modelcontextprotocol.kotlin.sdk.server.mcp
 import io.modelcontextprotocol.kotlin.sdk.server.mcpStreamableHttp
@@ -45,9 +47,9 @@ sealed class Transport(val name: String) {
             ) {
                 // Defaults are intentional; identical to the deprecated 2-arg constructor's behavior.
             }
-            val mcpServer = Application.resolveMcpServer(application)
+            val mcpServer = Application.resolveServer(application)
             val job = application.scope.launch {
-                val session = mcpServer.connect(transport)
+                val session = mcpServer.createSession(transport)
                 suspendCoroutine {
                     session.onClose { it.resume(Unit) }
                 }
@@ -58,7 +60,7 @@ sealed class Transport(val name: String) {
 
         override suspend fun stop(application: Application) {
             if (started) {
-                runCatching { application.koinContext.get<McpServer>().shutdown() }
+                Application.closeResolvedServer(application)
             }
         }
     }
@@ -72,7 +74,7 @@ sealed class Transport(val name: String) {
             this.server = server
             server.application.apply {
                 mcp {
-                    Application.resolveMcpServer(application)
+                    Application.resolveServer(application)
                 }
             }
 
@@ -81,7 +83,7 @@ sealed class Transport(val name: String) {
 
         override suspend fun stop(application: Application) {
             server?.stopSuspend()
-            runCatching { application.koinContext.get<McpServer>().shutdown() }
+            Application.closeResolvedServer(application)
         }
     }
 
@@ -94,7 +96,7 @@ sealed class Transport(val name: String) {
             this.server = server
             server.application.apply {
                 mcpStreamableHttp {
-                    Application.resolveMcpServer(application)
+                    Application.resolveServer(application)
                 }
             }
             server.startSuspend(wait = wait)
@@ -102,7 +104,7 @@ sealed class Transport(val name: String) {
 
         override suspend fun stop(application: Application) {
             server?.stopSuspend()
-            runCatching { application.koinContext.get<McpServer>().shutdown() }
+            Application.closeResolvedServer(application)
         }
     }
 }
@@ -158,14 +160,20 @@ class Application(val args: Array<String>, val transport: Transport) {
         private val LOGGER = LoggerFactory.getLogger(Application::class.java)
 
         /**
-         * Resolves the MCP server from the Koin context, with consistent error handling across all transports.
+         * Resolves the SDK server from the Koin context, with consistent error handling across all transports.
          */
         @JvmStatic
-        fun resolveMcpServer(application: Application): McpServer = try {
-            application.koinContext.get<McpServer>()
+        fun resolveServer(application: Application): Server = try {
+            application.koinContext.get<Server>()
         } catch (t: Throwable) {
             LOGGER.error("Failed to initialize MCP Server", t)
             throw t
+        }
+
+        suspend fun closeResolvedServer(application: Application) {
+            val server = application.koinContext.get<Server>()
+            val components = application.koinContext.get<List<McpServerComponent>>()
+            closeServer(server, components)
         }
 
         @JvmStatic
@@ -191,7 +199,7 @@ class Application(val args: Array<String>, val transport: Transport) {
                 println("gradle-mcp version ${BuildConfig.APP_VERSION}")
                 if (System.getenv("JBANG_CDS_DUMP") == "true") {
                     val app = Application(args, Transport.Sse())
-                    app.koinContext.get<McpServer>()
+                    app.koinContext.get<Server>()
                 }
                 return
             }

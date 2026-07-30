@@ -33,7 +33,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
     fun setupTest() = runTest {
         dependencyService = server.koin.get()
         tools = GradleDependencyTools(dependencyService)
-        server.setServerRoots(Root(tempDir.toUri().toString(), "root"))
+        server.setClientRoots(Root(tempDir.toUri().toString(), "root"))
     }
 
     @Test

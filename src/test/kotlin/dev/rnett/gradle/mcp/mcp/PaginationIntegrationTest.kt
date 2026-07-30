@@ -39,7 +39,7 @@ class PaginationIntegrationTest : BaseMcpServerTest() {
     }
 
     private suspend fun setupTools() {
-        server.server.add(createTestComponent())
+        server.server.add(createTestComponent(), server.koin.get())
     }
 
     @Test

@@ -137,7 +137,7 @@ object UpdateTools {
     }
 
     fun executeForComponent(component: McpServerComponent, path: Path?, isVerify: Boolean) {
-        val server = DI.createServer(DI.json, listOf(component))
+        val server = DI.createServer(json, listOf(component))
 
         val text = buildString {
             appendLine("[//]: # (@formatter:off)")

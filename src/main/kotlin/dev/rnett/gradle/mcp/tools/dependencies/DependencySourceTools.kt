@@ -20,7 +20,7 @@ import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.tools.ToolNames
 import dev.rnett.gradle.mcp.tools.paginate
 import dev.rnett.gradle.mcp.tools.paginateText
-import dev.rnett.gradle.mcp.tools.resolveRoot
+import dev.rnett.gradle.mcp.tools.resolve
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
 import java.nio.file.Path
@@ -97,7 +97,7 @@ class DependencySourceTools(
             |- Gradle Build Tool source: `{ gradleOwnSource: true }`
         """.trimMargin()
     ) { args ->
-        val root = with(server) { args.projectRoot.resolveRoot() }
+        val root = args.projectRoot.resolve()
         val dependencyFilter = normalizeDependencyFilter(args.dependency)
         val sources = with(progressReporter) {
             resolveSources(
@@ -216,7 +216,7 @@ class DependencySourceTools(
         val provider = searchProviders.find { providerClass.isInstance(it) }
             ?: error("Search provider '${args.searchType}' (${providerClass.simpleName}) not registered. This usually indicates a dependency injection configuration error.")
 
-        val root = with(server) { args.projectRoot.resolveRoot() }
+        val root = args.projectRoot.resolve()
         val dependencyFilter = normalizeDependencyFilter(args.dependency)
         val sources = with(progressReporter) {
             resolveSources(

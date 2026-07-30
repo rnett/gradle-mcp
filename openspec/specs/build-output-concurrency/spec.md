@@ -47,10 +47,10 @@ Output access patterns SHALL avoid expensive materialization of large log buffer
 
 ### Requirement: Parallel MCP Message Processing
 
-The MCP server SHALL launch incoming tool handlers in independent coroutines.
+The application SHALL execute tool handlers inline in the Kotlin MCP SDK request-handler coroutine and rely on SDK 0.15.0 bounded concurrent dispatch.
 
-- It MUST NOT process tool calls sequentially on the transport thread.
-- **Rationale**: Long-running builds (e.g., `gradle()` awaiting completion) must not block concurrent status checks (e.g., `query_build()`).
+- It MUST NOT create a project-owned transport wrapper, detached tool scope, or active-handler registry.
+- SDK dispatch MUST allow a long-running build request (for example, `gradle()` awaiting completion) to coexist with status requests such as `query_build()` on the same session.
 
 ## Design & Rationale
 

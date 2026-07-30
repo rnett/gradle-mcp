@@ -12,7 +12,7 @@ import dev.rnett.gradle.mcp.tools.GradleProjectRootInput
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.tools.ToolNames
 import dev.rnett.gradle.mcp.tools.paginate
-import dev.rnett.gradle.mcp.tools.resolveRoot
+import dev.rnett.gradle.mcp.tools.resolve
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
 
@@ -58,7 +58,7 @@ class GradleDependencyTools(
             |- Use `${ToolNames.LOOKUP_MAVEN_VERSIONS}` to find released versions; `${ToolNames.GRADLE}` for `dependencyInsight`.
         """.trimMargin()
     ) {
-        val root = with(server) { it.projectRoot.resolveRoot() }
+        val root = it.projectRoot.resolve()
         // updatesOnly forces checkUpdates regardless of the explicit checkUpdates value.
         val checkUpdatesEnabled = it.checkUpdates || it.updatesOnly
         val dependencyFilter = normalizeDependencyFilter(it.dependency)

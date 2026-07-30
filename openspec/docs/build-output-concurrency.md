@@ -3,25 +3,19 @@
 thread for stderr |
 | **Progress callbacks** | Gradle Tooling API callback thread(s) — **may be multi-threaded with `--parallel`** | `BuildProgressTracker`, `TestCollector`, `ProblemsAccumulator`, `RunningBuild.addTaskResult`             | Gradle does not
 guarantee single-threaded callback delivery; parallel tasks may dispatch events concurrently |
-| **MCP readers**        | Coroutine dispatcher threads | Nothing (read-only)                                                                                      | MCP tool handlers (e.g. `query_build`) read build state concurrently with
-ongoing writes |
-| **MCP readers**        | Coroutine dispatcher threads | Nothing (read-only)                                                                                      | MCP tool handlers (e.g. `query_build`) read build state concurrently with
-ongoing writes |
+| **MCP readers**        | Kotlin MCP SDK handler coroutine(s) | Nothing (read-only)                                                                              | MCP tool handlers (for example, `query_build`) read build state concurrently with ongoing writes |
 
 ### Why this matters
 
 Written from:
 
 - Progress callback thread(s) via `addTaskResult()` (when `TaskFinishEvent` fires)
-- Could overlap with MCP reads via `query_build`
-- Could overlap with MCP reads via `query_build`
+- MCP reads via `query_build`, which may overlap those callbacks
 
 `ConcurrentHashMap` provides thread-safe `put` and iteration. `computeIfAbsent` is used where lazy initialization is needed (never `getOrPut`, which is not atomic).
 
-The `McpServer` overrides `connect()` to launch each incoming JSON-RPC message handler in `server.scope` rather than processing messages sequentially on the transport thread.
+Kotlin MCP SDK 0.15.0 dispatches post-initialization request handlers concurrently with per-connection bounds. Project tool handlers execute inline in those SDK-owned request coroutines; the project does not wrap transports, launch detached tool jobs, or maintain a parallel active-handler registry.
 
-**Why:** The `StdioServerTransport` processes messages one at a time. A long-running tool call (e.g. `gradle()` waiting on `awaitFinished()`) would block all subsequent messages — `query_build()` could not be processed until the build
-**Why:** The `StdioServerTransport` processes messages one at a time. A long-running tool call (e.g. `gradle()` waiting on `awaitFinished()`) would block all subsequent messages — `query_build()` could not be processed until the build
-finishes, defeating the purpose of background builds.
+**Why:** A long-running tool call such as `gradle()` waiting on `awaitFinished()` must not block later requests such as `query_build()` on the same session.
 
-**How:** Each `tools/call` message is launched as a separate coroutine in `scope`. The JSON-RPC request ID is injected into the coroutine context via `ToolCallRequestId` for cancellation support.
+**How:** The SDK owns request identity, bounded dispatch, `notifications/cancelled` matching, cooperative handler cancellation, and response suppression. The project preserves cancellation by allowing `CancellationException` to escape tool handlers.
