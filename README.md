@@ -25,7 +25,7 @@ A Model Context Protocol (MCP) server for Gradle. It gives AI agents the tools t
 
 ### Configuration
 
-The `GRADLE_MCP_PROJECT_ROOT` environment variable can be set to provide a default Gradle project root. This is used if no project root is specified in a tool call and there isn't exactly one MCP root configured.
+The `GRADLE_MCP_PROJECT_ROOT` environment variable can provide the default Gradle project root when a tool call omits `projectRoot`.
 
 ## Getting started
 

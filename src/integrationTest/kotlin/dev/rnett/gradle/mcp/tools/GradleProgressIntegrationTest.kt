@@ -10,11 +10,9 @@ import dev.rnett.gradle.mcp.gradle.GradleProvider
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequestParams
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
-import io.modelcontextprotocol.kotlin.sdk.types.ClientCapabilities
 import io.modelcontextprotocol.kotlin.sdk.types.Method
 import io.modelcontextprotocol.kotlin.sdk.types.ProgressNotificationParams
 import io.modelcontextprotocol.kotlin.sdk.types.RequestMeta
-import io.modelcontextprotocol.kotlin.sdk.types.Root
 import io.modelcontextprotocol.kotlin.sdk.types.ProgressNotification
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
@@ -42,21 +40,15 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
 
     override fun Scope.createProvider(): GradleProvider {
         return DefaultGradleProvider(
-            config = get(),
             buildManager = get()
         ).withTestGradleDefaults(
             additionalSystemProps = mapOf("org.gradle.configuration-cache" to "false")
         )
     }
 
-    override fun createFixture(): McpServerFixture {
-        return McpServerFixture(
-            clientCapabilities = ClientCapabilities(
-                roots = ClientCapabilities.Roots(listChanged = true)
-            ),
-            koinModules = listOf(createTestModule())
-        )
-    }
+    override fun createFixture(): McpServerFixture = McpServerFixture(
+        koinModules = listOf(createTestModule())
+    )
 
     @BeforeEach
     override fun setup() = runTest {
@@ -65,7 +57,6 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
             buildScript("Thread.sleep(100)\n".repeat(20))
         }
         super.setup()
-        server.setClientRoots(Root(_project.path().toUri().toString(), "root"))
     }
 
     @AfterEach

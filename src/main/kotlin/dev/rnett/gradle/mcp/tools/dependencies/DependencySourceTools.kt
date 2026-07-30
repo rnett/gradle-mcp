@@ -15,6 +15,7 @@ import dev.rnett.gradle.mcp.dependencies.search.SearchResponse
 import dev.rnett.gradle.mcp.dependencies.search.SearchResult
 import dev.rnett.gradle.mcp.dependencies.search.SearchResult.Companion.DEFAULT_SNIPPET_RANGE
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import dev.rnett.gradle.mcp.mcp.ToolCallResult
 import dev.rnett.gradle.mcp.tools.GradleProjectRootInput
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.tools.ToolNames
@@ -74,7 +75,8 @@ class DependencySourceTools(
         val pagination: PaginationInput = PaginationInput.DEFAULT_LINES
     )
 
-    val readDependencySources by tool<ReadDependencySourcesArgs, String>(
+    init {
+        tool<ReadDependencySourcesArgs, String>(
         ToolNames.READ_DEPENDENCY_SOURCES,
         """
             |Reads dependency, plugin, Gradle, or JDK source trees; use instead of shell tools, which cannot locate remote dependency sources.
@@ -96,7 +98,7 @@ class DependencySourceTools(
             |- Plugins: `{ sourceSetPath: ":buildscript" }`
             |- Gradle Build Tool source: `{ gradleOwnSource: true }`
         """.trimMargin()
-    ) { args ->
+    ) { args, progressReporter ->
         val root = args.projectRoot.resolve()
         val dependencyFilter = normalizeDependencyFilter(args.dependency)
         val sources = with(progressReporter) {
@@ -120,35 +122,36 @@ class DependencySourceTools(
             val targetPath = baseDir.resolve(args.path).normalize()
 
             if (!targetPath.startsWith(baseDir)) {
-                return@tool "$sourcesHeader\n\nInvalid path: ${args.path}"
+                return@tool ToolCallResult("$sourcesHeader\n\nInvalid path: ${args.path}")
             }
 
             if (!targetPath.exists()) {
                 val packageContents = try {
                     indexService.listPackageContents(sources, args.path)
                 } catch (e: Exception) {
-                    return@tool "$sourcesHeader\n\nPath not found: ${args.path} (Error exploring package: ${e.message})"
+                    return@tool ToolCallResult("$sourcesHeader\n\nPath not found: ${args.path} (Error exploring package: ${e.message})")
                 }
 
                 if (packageContents != null) {
                     val nested = indexService.listNestedPackageContents(sources, args.path)
                     val formatted = if (nested != null) formatNestedPackageContents(nested) else formatPackageContents(packageContents)
-                    return@tool "$sourcesHeader\n\nPackage: ${args.path}\n\n" + paginateText(formatted, args.pagination)
+                    return@tool ToolCallResult("$sourcesHeader\n\nPackage: ${args.path}\n\n" + paginateText(formatted, args.pagination))
                 }
-                return@tool "$sourcesHeader\n\nPath not found: ${args.path}"
+                return@tool ToolCallResult("$sourcesHeader\n\nPath not found: ${args.path}")
             }
 
             if (targetPath.isRegularFile()) {
-                return@tool "$sourcesHeader\n\nFile: ${args.path}\n```\n${targetPath.readText()}\n```"
+                return@tool ToolCallResult("$sourcesHeader\n\nFile: ${args.path}\n```\n${targetPath.readText()}\n```")
             } else if (targetPath.isDirectory()) {
-                return@tool "$sourcesHeader\n\n" + paginateText(walkDirectory(targetPath, 2), args.pagination)
+                return@tool ToolCallResult("$sourcesHeader\n\n" + paginateText(walkDirectory(targetPath, 2), args.pagination))
             } else {
-                return@tool "$sourcesHeader\n\nPath is neither a file nor a directory: ${args.path}"
+                return@tool ToolCallResult("$sourcesHeader\n\nPath is neither a file nor a directory: ${args.path}")
             }
         } else {
-            "$sourcesHeader\n\n" + paginateText(walkDirectory(baseDir, 2), args.pagination)
+            ToolCallResult("$sourcesHeader\n\n" + paginateText(walkDirectory(baseDir, 2), args.pagination))
         }
 
+    }
     }
 
     @Serializable
@@ -175,7 +178,8 @@ class DependencySourceTools(
         val pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS
     )
 
-    val searchDependencySources by tool<SearchDependencySourcesArgs, String>(
+    init {
+        tool<SearchDependencySourcesArgs, String>(
         ToolNames.SEARCH_DEPENDENCY_SOURCES,
         """
             |Searches symbols or text across dependency, plugin, Gradle, or JDK source trees; use instead of shell grep, which cannot locate remote dependency sources.
@@ -211,7 +215,7 @@ class DependencySourceTools(
             |
             |Once found, read content with `${ToolNames.READ_DEPENDENCY_SOURCES}`.
         """.trimMargin()
-    ) { args ->
+    ) { args, progressReporter ->
         val providerClass = args.searchType.providerClass
         val provider = searchProviders.find { providerClass.isInstance(it) }
             ?: error("Search provider '${args.searchType}' (${providerClass.simpleName}) not registered. This usually indicates a dependency injection configuration error.")
@@ -235,11 +239,11 @@ class DependencySourceTools(
         val response = indexService.search(sources, provider, args.query, args.pagination)
         val sourcesHeader = formatSourcesHeader(sources, dependencyFilter)
         if (response.error != null) {
-            isError = true
-            return@tool "$sourcesHeader\n\n${response.error}"
+            return@tool ToolCallResult("$sourcesHeader\n\n${response.error}", isError = true)
         }
 
-        "$sourcesHeader\n\n${formatSearchResults(response, args.query, args.pagination)}"
+        ToolCallResult("$sourcesHeader\n\n${formatSearchResults(response, args.query, args.pagination)}")
+    }
     }
 
     private fun formatSearchResults(response: SearchResponse<SearchResult>, query: String, pagination: PaginationInput): String {

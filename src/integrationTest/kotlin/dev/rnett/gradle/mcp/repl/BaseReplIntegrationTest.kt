@@ -43,7 +43,6 @@ import dev.rnett.gradle.mcp.gradle.DefaultBundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultGradleConnectionService
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
-import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleConnectionService
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
@@ -61,7 +60,6 @@ import dev.rnett.gradle.mcp.utils.DefaultEnvProvider
 import dev.rnett.gradle.mcp.utils.EnvProvider
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.types.ImageContent
-import io.modelcontextprotocol.kotlin.sdk.types.Root
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -121,13 +119,13 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
 
     protected fun initProject(fixture: GradleProjectFixture) {
         project = fixture
-        server.setClientRoots(Root(fixture.path().toUri().toString(), "root"))
     }
 
     protected suspend fun startRepl(projectPath: String = ":", sourceSet: String = "main") {
         val startResponse = server.client.callTool(
             ToolNames.REPL, mapOf(
                 "command" to "start",
+                "projectRoot" to project.path().toString(),
                 "projectPath" to projectPath,
                 "sourceSet" to sourceSet
             )
@@ -140,7 +138,6 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
 
     override fun Scope.createProvider(): GradleProvider {
         return DefaultGradleProvider(
-            config = get<GradleConfiguration>(),
             connectionService = get<GradleConnectionService>(),
             executionService = get<BuildExecutionService>(),
             buildManager = get<BuildManager>()
@@ -151,7 +148,6 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         single { DI.json }
         single { DI.xml }
         single { DI.createHttpClient(get(), get()) }
-        single { GradleConfiguration() }
         single { DefaultInitScriptProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("init-scripts")) } bind InitScriptProvider::class
         single { DefaultBundledJarProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("jars")) } bind BundledJarProvider::class
         single { BuildManager() }

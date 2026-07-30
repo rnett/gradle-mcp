@@ -1,10 +1,11 @@
 package dev.rnett.gradle.mcp.tools
 
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
-import dev.rnett.gradle.mcp.mcp.McpToolHelper
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
+import org.slf4j.LoggerFactory
 
+private val PAGINATION_LOGGER = LoggerFactory.getLogger("dev.rnett.gradle.mcp.tools.Pagination")
 /**
  * Standardized pagination input for MCP tools.
  *
@@ -75,7 +76,7 @@ fun <T> McpServerComponent.paginate(
     val offset = pagination.offset
     val limit = pagination.limit
 
-    McpToolHelper.logger.debug("Paginating {}: offset={}, limit={}, total={}, hasMore={}, isTail={}", itemName, offset, limit, total, hasMore, isTail)
+    PAGINATION_LOGGER.debug("Paginating {}: offset={}, limit={}, total={}, hasMore={}, isTail={}", itemName, offset, limit, total, hasMore, isTail)
 
     val calculatedTotal = total ?: if (isAlreadyPaged) null else items.size
     val paged = if (isAlreadyPaged) items else items.let {
@@ -116,7 +117,7 @@ ${if (actualHasMore || (isTail && offset + paged.size < (calculatedTotal ?: 0)))
 
     "$content$metadata"
 } catch (e: Throwable) {
-    McpToolHelper.logger.error("Error in paginate: ${e.message}", e)
+    PAGINATION_LOGGER.error("Error in paginate: ${e.message}", e)
     throw e
 }
 
@@ -138,7 +139,7 @@ fun McpServerComponent.paginateText(
     val offset = pagination.offset
     val limit = pagination.limit
 
-    McpToolHelper.logger.debug("Paginating text by {}: offset={}, limit={}, length={}, isTail={}", unit, offset, limit, text.length, isTail)
+    PAGINATION_LOGGER.debug("Paginating text by {}: offset={}, limit={}, length={}, isTail={}", unit, offset, limit, text.length, isTail)
 
     when (unit) {
         PaginationUnit.LINES -> {
@@ -191,7 +192,7 @@ ${if (hasMore) "To see more results, use: `offset=${if (isTail) total - start el
         else -> throw IllegalArgumentException("Unsupported pagination unit: $unit")
     }
 } catch (e: Throwable) {
-    McpToolHelper.logger.error("Error in paginateText: ${e.message}", e)
+    PAGINATION_LOGGER.error("Error in paginateText: ${e.message}", e)
     throw e
 }
 

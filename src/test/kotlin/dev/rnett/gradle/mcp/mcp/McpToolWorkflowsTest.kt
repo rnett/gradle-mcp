@@ -23,7 +23,6 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
-import io.modelcontextprotocol.kotlin.sdk.types.Root
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonArray
@@ -190,7 +189,7 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
     }
 
     @Test
-    fun `gradle_execute works with single MCP root and no projectRoot`() = runTest {
+    fun `gradle_execute works with explicit projectRoot`() = runTest {
         val result = syntheticBuildResult()
         val runningBuild = mockk<RunningBuild>(relaxed = true) {
             coEvery { awaitFinished() } returns result
@@ -209,12 +208,9 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
             )
         } returns runningBuild
 
-        // set single root with no name required
-        server.setClientRoots(Root(name = null, uri = tempDir.toUri().toString()))
-
         val args = mapOf(
-            "commandLine" to JsonArray(listOf(JsonPrimitive("help"))),
-            // projectRoot omitted
+            "projectRoot" to JsonPrimitive(tempDir.absolutePathString()),
+            "commandLine" to JsonArray(listOf(JsonPrimitive("help")))
         )
         val call = server.client.callTool(ToolNames.GRADLE, args)
         assert(call != null)
@@ -264,11 +260,11 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
 
         val buildManager = server.koin.get<BuildManager>()
         buildManager.registerBuild(runningBuild)
-        server.setClientRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         // test gradle_execute background
         val runCall = server.client.callTool(
             ToolNames.GRADLE, mapOf(
+                "projectRoot" to JsonPrimitive(tempDir.absolutePathString()),
                 "commandLine" to JsonArray(listOf(JsonPrimitive("help"))),
                 "background" to JsonPrimitive(true)
             )
@@ -314,9 +310,9 @@ class McpToolWorkflowsTest : BaseMcpServerTest() {
             )
         } returns runningBuild
 
-        server.setClientRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         val args = mapOf(
+            "projectRoot" to JsonPrimitive(tempDir.absolutePathString()),
             "commandLine" to JsonArray(listOf(JsonPrimitive(":help"), JsonPrimitive("--info"), JsonPrimitive("--stacktrace")))
         )
         server.client.callTool(ToolNames.GRADLE, args)

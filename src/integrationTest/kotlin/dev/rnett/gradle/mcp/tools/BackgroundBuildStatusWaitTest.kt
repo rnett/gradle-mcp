@@ -19,7 +19,6 @@ import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.types.Method
 import io.modelcontextprotocol.kotlin.sdk.types.ProgressNotificationParams
 import io.modelcontextprotocol.kotlin.sdk.types.RequestMeta
-import io.modelcontextprotocol.kotlin.sdk.types.Root
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import io.modelcontextprotocol.kotlin.sdk.types.ProgressNotification
 import kotlinx.coroutines.CompletableDeferred
@@ -115,7 +114,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         }
 
         buildManager.registerBuild(runningBuild)
-        server.setClientRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         launch {
             delay(500.milliseconds)
@@ -155,7 +153,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         )
 
         buildManager.storeResult(mockFinishedBuild)
-        server.setClientRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
@@ -188,7 +185,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         )
 
         buildManager.storeResult(mockFinishedBuild)
-        server.setClientRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
@@ -223,7 +219,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         )
 
         buildManager.registerBuild(runningBuild)
-        server.setClientRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         val mockFinishedBuild = FinishedBuild(
             id = buildId,
@@ -268,7 +263,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         coEvery { runningBuild.awaitFinished() } coAnswers { suspendCancellableCoroutine { } }
 
         buildManager.registerBuild(runningBuild)
-        server.setClientRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         launch {
             delay(500.milliseconds)
@@ -306,7 +300,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         coEvery { runningBuild.awaitFinished() } coAnswers { suspendCancellableCoroutine { } }
 
         buildManager.registerBuild(runningBuild)
-        server.setClientRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
@@ -340,7 +333,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         coEvery { runningBuild.awaitFinished() } coAnswers { suspendCancellableCoroutine { } }
 
         buildManager.registerBuild(runningBuild)
-        server.setClientRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         val statusCall = async {
             server.client.callTool(
@@ -373,7 +365,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         coEvery { runningBuild.awaitFinished() } coAnswers { suspendCancellableCoroutine { } }
 
         buildManager.registerBuild(runningBuild)
-        server.setClientRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         val startTime = testScheduler.currentTime
         val statusCall = server.client.callTool(
@@ -402,7 +393,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         coEvery { runningBuild.awaitFinished() } coAnswers { suspendCancellableCoroutine { } }
 
         buildManager.registerBuild(runningBuild)
-        server.setClientRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         launch {
             delay(500.milliseconds)
@@ -455,7 +445,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         }
 
         buildManager.registerBuild(runningBuild)
-        server.setClientRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         server.scope.launch {
             delay(1000) // Real time 1s
@@ -485,7 +474,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         coEvery { runningBuild.awaitFinished() } coAnswers { suspendCancellableCoroutine { } }
 
         every { provider.runBuild(any(), any(), any(), any(), any(), any()) } returns runningBuild
-        server.setClientRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         val result = server.client.callTool(
             ToolNames.GRADLE, buildJsonObject {
@@ -511,7 +499,6 @@ class BackgroundBuildStatusWaitTest : BaseMcpServerTest() {
         coEvery { runningBuild.awaitFinished() } coAnswers { suspendCancellableCoroutine { } }
 
         buildManager.registerBuild(runningBuild)
-        server.setClientRoots(Root(name = null, uri = tempDir.toUri().toString()))
 
         val progressNotifications = ConcurrentLinkedQueue<ProgressNotificationParams>()
         val firstProgressReceived = CompletableDeferred<Unit>()

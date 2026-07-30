@@ -28,18 +28,20 @@ class PaginationIntegrationTest : BaseMcpServerTest() {
     )
 
     private fun createTestComponent() = object : McpServerComponent("test", "test") {
-        val listTool by tool<ListToolArgs, String>("list_tool", "A tool that returns a paginated list") { args ->
-            val items = (1..100).map { "item $it" }
-            paginate(items, args.pagination, "items")
-        }
+        init {
+            tool<ListToolArgs, String>("list_tool", "A tool that returns a paginated list") { args, _ ->
+                val items = (1..100).map { "item $it" }
+                ToolCallResult(paginate(items, args.pagination, "items"))
+            }
 
-        val textTool by tool<TextToolArgs, String>("text_tool", "A tool that returns paginated text") { args ->
-            paginateText(args.text, args.pagination, args.unit)
+            tool<TextToolArgs, String>("text_tool", "A tool that returns paginated text") { args, _ ->
+                ToolCallResult(paginateText(args.text, args.pagination, args.unit))
+            }
         }
     }
 
     private suspend fun setupTools() {
-        server.server.add(createTestComponent(), server.koin.get())
+        createTestComponent().register(server.server, server.koin.get())
     }
 
     @Test

@@ -22,8 +22,7 @@ class ConcurrentSameProjectTest {
     @BeforeAll
     fun setupAll() {
         buildManager = BuildManager()
-        val config = GradleConfiguration()
-        provider = DefaultGradleProvider(config, buildManager = buildManager)
+        provider = DefaultGradleProvider(buildManager = buildManager)
     }
 
     @AfterAll

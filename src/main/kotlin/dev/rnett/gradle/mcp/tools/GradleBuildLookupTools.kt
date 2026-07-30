@@ -8,6 +8,7 @@ import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.FinishedBuild
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import dev.rnett.gradle.mcp.mcp.ToolCallResult
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -508,8 +509,9 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         return null
     }
 
-    @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class, ExperimentalCoroutinesApi::class)
-    val queryBuild by tool<QueryBuildArgs, String>(
+    init {
+        @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class, ExperimentalCoroutinesApi::class)
+    tool<QueryBuildArgs, String>(
         ToolNames.QUERY_BUILD,
         """|
             |Queries build information.
@@ -527,7 +529,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             |If a query for TASKS, TESTS, FAILURES, or PROBLEMS matches exactly one item, it auto-expands to full details. Otherwise, it returns a summary list with a hint to refine the query.
             |See query_build(kind='CONSOLE', buildId='...') for full logs.
         """.trimMargin()
-    ) { inputArgs ->
+    ) { inputArgs, _ ->
         val args = if (inputArgs.outputFile != null) {
             inputArgs.copy(pagination = PaginationInput(offset = 0, limit = Int.MAX_VALUE))
         } else {
@@ -574,24 +576,26 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             }
         }
 
-        if (args.outputFile != null) {
-            try {
-                val path = Path(args.outputFile)
-                path.writeText(output)
-                val absolutePath = path.absolutePathString()
-                val charCount = output.length
-                val lineCount = output.lineSequence().count()
-                "Output written to $absolutePath ($charCount characters, $lineCount lines)"
-            } catch (e: Exception) {
-                "Error writing to file ${args.outputFile}: ${e.message}"
+        ToolCallResult(
+            if (args.outputFile != null) {
+                try {
+                    val path = Path(args.outputFile)
+                    path.writeText(output)
+                    val absolutePath = path.absolutePathString()
+                    val charCount = output.length
+                    val lineCount = output.lineSequence().count()
+                    "Output written to $absolutePath ($charCount characters, $lineCount lines)"
+                } catch (e: Exception) {
+                    "Error writing to file ${args.outputFile}: ${e.message}"
+                }
+            } else {
+                output
             }
-        } else {
-            output
-        }
+        )
     }
 
     @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class, ExperimentalCoroutinesApi::class)
-    val waitBuild by tool<WaitBuildArgs, String>(
+    tool<WaitBuildArgs, String>(
         ToolNames.WAIT_BUILD,
         """|
             |Waits for a background build to reach a specific condition and returns the final console tail.
@@ -602,7 +606,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             |Set `afterCall=true` to only match events emitted after this call.
             |See query_build(kind='CONSOLE', buildId='...') for full logs.
         """.trimMargin()
-    ) { args ->
+    ) { args, progressReporter ->
         var build = buildResults.getBuild(args.buildId)
             ?: throw IllegalArgumentException("Unknown or expired build ID: ${args.buildId}")
 
@@ -669,7 +673,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                 }
             }
             if (waitResult == null) {
-                return@tool "Wait timed out after ${args.timeout}s. Current console tail:\n\n" + getConsoleTail(build) + "\n\nSee query_build(kind='CONSOLE', buildId='${args.buildId}') for full logs."
+                return@tool ToolCallResult("Wait timed out after ${args.timeout}s. Current console tail:\n\n" + getConsoleTail(build) + "\n\nSee query_build(kind='CONSOLE', buildId='${args.buildId}') for full logs.")
             }
             build = buildResults.getBuild(args.buildId)!!
         } else {
@@ -683,7 +687,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             }
         }
 
-        buildString {
+        ToolCallResult(buildString {
             if (build is RunningBuild) {
                 appendLine("Wait condition met. Build is still running.")
             } else {
@@ -692,6 +696,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             appendLine("Console Tail:")
             appendLine(getConsoleTail(build))
             appendLine("\nSee query_build(kind='CONSOLE', buildId='${args.buildId}') for full logs.")
-        }
+        })
+    }
     }
 }

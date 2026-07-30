@@ -3,8 +3,8 @@ package dev.rnett.gradle.mcp.tools
 import dev.rnett.gradle.mcp.GradleVersionService
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsPageContent
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
-import dev.rnett.gradle.mcp.mcp.McpContext
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import dev.rnett.gradle.mcp.mcp.ToolCallResult
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.types.ImageContent
@@ -29,7 +29,8 @@ class GradleDocsTools(
         val pagination: PaginationInput = PaginationInput.DEFAULT_ITEMS
     )
 
-    val gradleDocs by tool<QueryGradleDocsArgs, CallToolResult>(
+    init {
+        tool<QueryGradleDocsArgs, CallToolResult>(
         ToolNames.GRADLE_DOCS,
         """
             |Searches and reads official Gradle documentation (User Guide, DSL Reference, Release Notes) for the project's exact Gradle version; use instead of generic web searches.
@@ -44,10 +45,10 @@ class GradleDocsTools(
             |
             |Call with no arguments to browse available sections. Use `tag:<tag> <term>` to scope searches. Use `path="."` to explore the file tree.
         """.trimMargin()
-    ) { args ->
+    ) { args, progressReporter ->
         val inputVersion = resolveVersion(args.version, args.projectRoot)
         val resolvedVersion = versionService.resolveVersion(inputVersion)
-        with(progressReporter) {
+        val result = with(progressReporter) {
             when {
                 args.path != null -> {
                     val content = gradleDocsService.getDocsPageContent(args.path, resolvedVersion)
@@ -92,17 +93,16 @@ class GradleDocsTools(
                 }
             }
         }
+        ToolCallResult(result)
+    }
     }
 
-    private suspend fun McpToolContext.resolveVersion(version: String?, projectRoot: GradleProjectRootInput?): String? {
+    private fun resolveVersion(version: String?, projectRoot: GradleProjectRootInput?): String? {
         if (version != null) return version
 
         val root = try {
-            val ctx: McpContext = this
-            with(ctx) {
-                (projectRoot ?: GradleProjectRootInput.DEFAULT).resolve()
-            }
-        } catch (_: Exception) {
+            (projectRoot ?: GradleProjectRootInput.DEFAULT).resolve()
+        } catch (_: IllegalArgumentException) {
             null
         }
 

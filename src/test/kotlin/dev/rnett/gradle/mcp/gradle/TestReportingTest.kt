@@ -16,7 +16,6 @@ class TestReportingTest {
 
     private fun createTestProvider(): DefaultGradleProvider {
         return DefaultGradleProvider(
-            GradleConfiguration(),
             buildManager = BuildManager()
         )
     }

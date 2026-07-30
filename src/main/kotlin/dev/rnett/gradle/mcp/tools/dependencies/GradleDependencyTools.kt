@@ -8,6 +8,7 @@ import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
 import dev.rnett.gradle.mcp.dependencies.model.GradleProjectDependencies
 import dev.rnett.gradle.mcp.gradle.GradleProjectPath
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import dev.rnett.gradle.mcp.mcp.ToolCallResult
 import dev.rnett.gradle.mcp.tools.GradleProjectRootInput
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.tools.ToolNames
@@ -46,7 +47,8 @@ class GradleDependencyTools(
         val excludeBuildscript: Boolean = false
     )
 
-    val inspectDependencies by tool<InspectDependenciesArgs, String>(
+    init {
+        tool<InspectDependenciesArgs, String>(
         ToolNames.INSPECT_DEPENDENCIES,
         """
             |Inspects the project's resolved dependency graph, checks for updates, and audits plugins; use instead of manually parsing build files which misses transitive deps and dynamic versions.
@@ -57,7 +59,7 @@ class GradleDependencyTools(
             |- **Targeted**: Use `dependency` as a full-string Kotlin regex to narrow report output and update-check candidates. Resolved modules match `group:name:version[:variant]`; unresolved deps match `group:name`; project deps match `project::path`; blank strings are ignored.
             |- Use `${ToolNames.LOOKUP_MAVEN_VERSIONS}` to find released versions; `${ToolNames.GRADLE}` for `dependencyInsight`.
         """.trimMargin()
-    ) {
+    ) { it, progressReporter ->
         val root = it.projectRoot.resolve()
         // updatesOnly forces checkUpdates regardless of the explicit checkUpdates value.
         val checkUpdatesEnabled = it.checkUpdates || it.updatesOnly
@@ -79,11 +81,14 @@ class GradleDependencyTools(
             )
         }
 
-        if (it.updatesOnly) {
-            formatUpdatesSummary(report, it.pagination)
-        } else {
-            formatDependencyReport(report, it.pagination, checkUpdatesEnabled)
-        }
+        ToolCallResult(
+            if (it.updatesOnly) {
+                formatUpdatesSummary(report, it.pagination)
+            } else {
+                formatDependencyReport(report, it.pagination, checkUpdatesEnabled)
+            }
+        )
+    }
     }
 
     internal fun formatDependencyReport(

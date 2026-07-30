@@ -38,7 +38,6 @@ import dev.rnett.gradle.mcp.gradle.DefaultBundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultGradleConnectionService
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
-import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleConnectionService
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
@@ -52,7 +51,6 @@ import dev.rnett.gradle.mcp.maven.DepsDevService
 import dev.rnett.gradle.mcp.maven.MavenCentralService
 import dev.rnett.gradle.mcp.maven.MavenRepoService
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
-import dev.rnett.gradle.mcp.mcp.add
 import dev.rnett.gradle.mcp.repl.DefaultReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.DefaultReplManager
 import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
@@ -119,7 +117,6 @@ object DI {
         single { config }
         single { xml }
         single { json }
-        single { config.property("gradle").getAs<GradleConfiguration>() }
         single { DefaultInitScriptProvider() } bind InitScriptProvider::class
         single { DefaultBundledJarProvider() } bind BundledJarProvider::class
         single { createHttpClient(get(), get()) }
@@ -159,7 +156,6 @@ object DI {
         single<BuildExecutionService> { DefaultBuildExecutionService(envProvider = get()) }
         single<GradleProvider> {
             DefaultGradleProvider(
-                get(),
                 connectionService = get(),
                 executionService = get(),
                 buildManager = get()
@@ -240,7 +236,7 @@ object DI {
                 enforceStrictCapabilities = false
             )
         ).apply {
-            components.forEach { add(it, json) }
+            components.forEach { it.register(this, json) }
         }
     }
 }

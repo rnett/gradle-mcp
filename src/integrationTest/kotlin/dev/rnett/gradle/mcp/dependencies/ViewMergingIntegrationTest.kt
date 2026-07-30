@@ -13,7 +13,6 @@ import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
 import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
-import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
@@ -42,7 +41,6 @@ class ViewMergingIntegrationTest {
         val mcpDir = tempDir.resolve("mcp")
         val environment = GradleMcpEnvironment(mcpDir)
         val provider = DefaultGradleProvider(
-            config = GradleConfiguration(),
             buildManager = BuildManager()
         ).withTestGradleDefaults()
         val depService = DefaultGradleDependencyService(provider)
@@ -110,7 +108,6 @@ class ViewMergingIntegrationTest {
         val mcpDir = tempDir.resolve("mcp-kmp-dedup")
         val environment = GradleMcpEnvironment(mcpDir)
         val provider = DefaultGradleProvider(
-            config = GradleConfiguration(),
             buildManager = BuildManager()
         ).withTestGradleDefaults()
         val depService = DefaultGradleDependencyService(provider)

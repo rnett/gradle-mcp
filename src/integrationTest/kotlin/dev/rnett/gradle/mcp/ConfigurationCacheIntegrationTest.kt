@@ -21,8 +21,6 @@ import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.tools.ToolNames
 import dev.rnett.gradle.mcp.tools.dependencies.GradleDependencyTools
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
-import io.modelcontextprotocol.kotlin.sdk.types.ClientCapabilities
-import io.modelcontextprotocol.kotlin.sdk.types.Root
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -50,7 +48,6 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
 
     override fun Scope.createProvider(): GradleProvider {
         return DefaultGradleProvider(
-            config = get(),
             buildManager = get(),
             initScriptProvider = get<InitScriptProvider>() as DefaultInitScriptProvider
         ).withTestGradleDefaults(
@@ -66,14 +63,9 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
         single { GradleDependencyTools(get()) }
     }
 
-    override fun createFixture(): McpServerFixture {
-        return McpServerFixture(
-            clientCapabilities = ClientCapabilities(
-                roots = ClientCapabilities.Roots(listChanged = true)
-            ),
-            koinModules = listOf(super.createTestModule(), createTestModule())
-        )
-    }
+    override fun createFixture(): McpServerFixture = McpServerFixture(
+        koinModules = listOf(super.createTestModule(), createTestModule())
+    )
 
     @BeforeEach
     override fun setup() = runTest {
@@ -82,7 +74,6 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
         }
         resetProjectDefaults()
         super.setup()
-        server.setClientRoots(Root(_project.path().toUri().toString(), "root"))
     }
 
     @AfterEach
@@ -174,7 +165,6 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
                 """.trimIndent()
             )
         }
-        server.setClientRoots(Root(project.path().toUri().toString(), "root"))
 
         val result = server.client.callTool(
             ToolNames.INSPECT_DEPENDENCIES,
@@ -211,7 +201,6 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
         server.close()
         server = createFixture()
         server.start()
-        server.setClientRoots(Root(_project.path().toUri().toString(), "root"))
         val result2 = callReadDependencySources(
             dependency = "^org\\.slf4j:slf4j-api(:.*)?$",
             sourceSetPath = ":main"
@@ -242,7 +231,6 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
                 """.trimIndent()
             )
         }
-        server.setClientRoots(Root(project.path().toUri().toString(), "root"))
 
         val result = server.client.callTool(
             ToolNames.INSPECT_DEPENDENCIES,

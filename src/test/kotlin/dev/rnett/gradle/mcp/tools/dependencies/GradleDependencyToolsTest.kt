@@ -14,7 +14,6 @@ import dev.rnett.gradle.mcp.tools.ToolNames
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
-import io.modelcontextprotocol.kotlin.sdk.types.Root
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.buildJsonObject
@@ -33,7 +32,6 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
     fun setupTest() = runTest {
         dependencyService = server.koin.get()
         tools = GradleDependencyTools(dependencyService)
-        server.setClientRoots(Root(tempDir.toUri().toString(), "root"))
     }
 
     @Test
@@ -95,6 +93,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
 
         val response = server.client.callTool(
             ToolNames.INSPECT_DEPENDENCIES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("projectPath", ":")
                 put("onlyDirect", true)
                 put("updatesOnly", true)
@@ -133,6 +132,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
 
         server.client.callTool(
             ToolNames.INSPECT_DEPENDENCIES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("updatesOnly", true)
                 put("checkUpdates", false) // explicitly false — must be overridden by updatesOnly
             }
@@ -187,7 +187,10 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
             }
         } returns report
 
-        val response = server.client.callTool(ToolNames.INSPECT_DEPENDENCIES, emptyMap()) as CallToolResult
+        val response = server.client.callTool(
+            ToolNames.INSPECT_DEPENDENCIES,
+            mapOf("projectRoot" to tempDir.toString())
+        ) as CallToolResult
         val result = (response.content.first() as TextContent).text!!
 
         assertTrue(result.contains("Dependency Report"), "Should contain report header")
@@ -367,6 +370,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
 
         val response = server.client.callTool(
             ToolNames.INSPECT_DEPENDENCIES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("checkUpdates", true)
             }
         ) as CallToolResult
@@ -391,6 +395,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
 
         server.client.callTool(
             ToolNames.INSPECT_DEPENDENCIES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("dependency", "org.example:artifact")
             }
         ) as CallToolResult
@@ -427,6 +432,7 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
 
         val response = server.client.callTool(
             ToolNames.INSPECT_DEPENDENCIES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("pagination", buildJsonObject {
                     put("offset", 1)
                     put("limit", 2)

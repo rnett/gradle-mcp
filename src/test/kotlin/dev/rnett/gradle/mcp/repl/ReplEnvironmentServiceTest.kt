@@ -7,7 +7,6 @@ import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
 import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
-import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.GradleProvider
@@ -47,7 +46,6 @@ class ReplEnvironmentServiceTest {
     fun setupAll() {
         buildManager = BuildManager()
         provider = DefaultGradleProvider(
-            GradleConfiguration(),
             buildManager = buildManager
         ).withTestGradleDefaults()
         replEnvService = DefaultReplEnvironmentService(provider)

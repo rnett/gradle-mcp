@@ -15,7 +15,6 @@ import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import io.modelcontextprotocol.kotlin.sdk.types.Root
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonArray
@@ -35,10 +34,6 @@ import kotlin.time.Duration.Companion.minutes
 
 class GradleExecutionToolTest : BaseMcpServerTest() {
 
-    @BeforeEach
-    fun setupTest() = runTest {
-        server.setClientRoots(Root(tempDir.toUri().toString(), "root"))
-    }
 
     @ParameterizedTest(name = "gradle {0} is passed through without hidden defaults")
     @CsvSource(
@@ -66,7 +61,10 @@ class GradleExecutionToolTest : BaseMcpServerTest() {
 
         val response = server.client.callTool(
             ToolNames.GRADLE,
-            mapOf("commandLine" to JsonArray(listOf(JsonPrimitive(flag))))
+            mapOf(
+                "projectRoot" to tempDir.toString(),
+                "commandLine" to JsonArray(listOf(JsonPrimitive(flag)))
+            )
         )
 
         val text = response!!.content.filterIsInstance<TextContent>().joinToString { it.text ?: "" }
@@ -84,7 +82,6 @@ class GradleExecutionToolRealBuildTest : BaseMcpServerTest() {
 
     override fun Scope.createProvider(): GradleProvider {
         return DefaultGradleProvider(
-            config = get(),
             buildManager = get()
         ).withTestGradleDefaults()
     }
@@ -93,7 +90,6 @@ class GradleExecutionToolRealBuildTest : BaseMcpServerTest() {
     override fun setup() = runTest {
         project = testKotlinProject()
         super.setup()
-        server.setClientRoots(Root(project.path().toUri().toString(), "root"))
     }
 
     @AfterEach
@@ -106,7 +102,10 @@ class GradleExecutionToolRealBuildTest : BaseMcpServerTest() {
     fun `query_build shows provenance for binary plugin task from real build`() = runTest(timeout = 5.minutes) {
         server.client.callTool(
             ToolNames.GRADLE,
-            mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("compileKotlin"), JsonPrimitive("--rerun"))))
+            mapOf(
+                "projectRoot" to project.path().toString(),
+                "commandLine" to JsonArray(listOf(JsonPrimitive("compileKotlin"), JsonPrimitive("--rerun")))
+            )
         )
 
         val buildId = server.koin.get<BuildManager>().latestFinished(1).single().id.id
@@ -155,11 +154,13 @@ class GradleExecutionToolRealBuildTest : BaseMcpServerTest() {
                 """.trimIndent()
             )
         }
-        server.setClientRoots(Root(project.path().toUri().toString(), "root"))
 
         server.client.callTool(
             ToolNames.GRADLE,
-            mapOf("commandLine" to JsonArray(listOf(JsonPrimitive("scriptProvenance"), JsonPrimitive("--rerun"))))
+            mapOf(
+                "projectRoot" to project.path().toString(),
+                "commandLine" to JsonArray(listOf(JsonPrimitive("scriptProvenance"), JsonPrimitive("--rerun")))
+            )
         )
 
         val buildId = server.koin.get<BuildManager>().latestFinished(1).single().id.id

@@ -18,7 +18,6 @@ import io.modelcontextprotocol.kotlin.sdk.types.Method
 import io.modelcontextprotocol.kotlin.sdk.types.Notification
 import io.modelcontextprotocol.kotlin.sdk.types.Request
 import io.modelcontextprotocol.kotlin.sdk.types.RequestResult
-import io.modelcontextprotocol.kotlin.sdk.types.Root
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -71,9 +70,7 @@ class McpFixtureClient internal constructor(private val delegate: Client) {
  * Test fixture that connects a real SDK server and client through a [ChannelTransport] pair.
  */
 class McpServerFixture(
-    private val clientCapabilities: ClientCapabilities = ClientCapabilities(
-        roots = ClientCapabilities.Roots(listChanged = false)
-    ),
+    private val clientCapabilities: ClientCapabilities = ClientCapabilities(),
     private val koinModules: List<Module> = emptyList()
 ) {
     private val logger = LoggerFactory.getLogger(McpServerFixture::class.java)
@@ -98,20 +95,9 @@ class McpServerFixture(
     )
     val client = McpFixtureClient(sdkClient)
 
-    private val configuredRootUris = mutableSetOf<String>()
-
     suspend fun start() = withContext(Dispatchers.Default) {
         server.createSession(transports.serverTransport)
         sdkClient.connect(transports.clientTransport)
-    }
-
-    fun setClientRoots(vararg roots: Root) {
-        if (configuredRootUris.isNotEmpty()) {
-            sdkClient.removeRoots(configuredRootUris.toList())
-        }
-        sdkClient.addRoots(roots.toList())
-        configuredRootUris.clear()
-        configuredRootUris.addAll(roots.map { it.uri })
     }
 
     suspend fun close() {

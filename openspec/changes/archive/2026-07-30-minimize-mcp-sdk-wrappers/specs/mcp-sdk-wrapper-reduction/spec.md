@@ -1,8 +1,7 @@
-# mcp-sdk-wrapper-reduction Specification
+# Capability: mcp-sdk-wrapper-reduction
 
-## Purpose
-Defines the typed MCP tool bridge, roots-free project-root resolution, and the project boundaries retained after wrapper reduction.
-## Requirements
+## MODIFIED Requirements
+
 ### Requirement: Captured SDK Request Context
 The SDK adapter SHALL capture `RequestHandlerExtra?` exactly once, decode `CallToolRequest` arguments into typed input, invoke a typed handler with `ProgressReporter`, and convert `ToolCallResult<O>` using a serializer captured at registration time. `McpContext` SHALL retain only schema conversion and the shared tool logger helpers; it SHALL NOT carry aggregate SDK request, session, roots, or per-call JSON state.
 

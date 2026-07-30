@@ -566,27 +566,4 @@ class GradleResultTest {
         assert(result.value.exceptionOrNull() == exception)
     }
 
-    @Test
-    fun `throwFailure returns build id and value on success`() {
-        val finishedBuild = FinishedBuild(
-            id = BuildId("test-id"),
-            startTime = Clock.System.now(),
-            args = args,
-            consoleOutput = "",
-            publishedScans = emptyList(),
-            testResults = TestResults(emptySet(), emptySet(), emptySet()),
-            problemAggregations = emptyMap(),
-            outcome = BuildOutcome.Success,
-            finishTime = Clock.System.now()
-        )
-
-        val result = GradleResult<String>(
-            build = finishedBuild,
-            value = Result.success("test-value")
-        )
-
-        val (id, value) = result.throwFailure()
-        assert(id == finishedBuild.id)
-        assert(value == "test-value")
-    }
 }

@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.tools.skills
 
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import dev.rnett.gradle.mcp.mcp.ToolCallResult
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
@@ -27,7 +28,8 @@ class SkillTools : McpServerComponent(
         val replaceOld: Boolean = true
     )
 
-    val installSkills by tool<InstallSkillsArgs, String>(
+    init {
+        tool<InstallSkillsArgs, String>(
         ToolNames.INSTALL_GRADLE_SKILLS,
         """
             |Installs or updates the official Gradle MCP skills into the agent's skill directory; provides expert-level workflows for Gradle builds, tests, and dependency management.
@@ -35,7 +37,7 @@ class SkillTools : McpServerComponent(
             |Provide the absolute path to your agent's skill directory (e.g., `~/.agents/skills`). Skills are extracted as `SKILL.md` files into named subdirectories.
             |Set `replaceOld=true` (default) to replace existing skills from this server and ensure the latest guidance is active.
         """.trimMargin()
-    ) { args ->
+    ) { args, _ ->
         val targetDir = File(args.directory)
         if (!targetDir.exists()) {
             if (!targetDir.mkdirs()) {
@@ -94,7 +96,7 @@ class SkillTools : McpServerComponent(
             }
         } ?: error("skills.zip resource not found")
 
-        buildString {
+        ToolCallResult(buildString {
             if (installedSkills.isNotEmpty()) {
                 appendLine("Successfully installed ${installedSkills.size} skills to ${targetDir.absolutePath}:")
                 installedSkills.sorted().forEach {
@@ -108,6 +110,7 @@ class SkillTools : McpServerComponent(
                     appendLine("- $it")
                 }
             }
-        }
+        })
+    }
     }
 }

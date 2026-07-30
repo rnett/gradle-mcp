@@ -18,7 +18,6 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
-import io.modelcontextprotocol.kotlin.sdk.types.Root
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.buildJsonObject
@@ -50,7 +49,6 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         coEvery { with(any<ProgressReporter>()) { sourcesService.resolveAndProcessProjectSources(any(), any(), any(), any(), any(), any()) } } returns mockSources
 
-        server.setClientRoots(Root(tempDir.toUri().toString(), "root"))
     }
 
     private fun resultText(result: CallToolResult): String =
@@ -62,6 +60,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
     fun `read_dependency_sources success path includes Sources root header`() = runTest {
         val result = server.client.callTool(
             ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("projectPath", ":")
             }
         ) as CallToolResult
@@ -74,6 +73,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
     fun `read_dependency_sources invalid path error includes Sources root header`() = runTest {
         val result = server.client.callTool(
             ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("path", "../../etc/passwd")
                 put("projectPath", ":")
             }
@@ -90,6 +90,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         val result = server.client.callTool(
             ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("path", "nonexistent/path/file.kt")
                 put("projectPath", ":")
             }
@@ -109,6 +110,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         val result = server.client.callTool(
             ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("projectPath", ":")
                 put("dependency", "^org\\.example:missing(:.*)?$")
             }
@@ -126,6 +128,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         val result = server.client.callTool(
             ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("projectPath", ":")
                 put("dependency", "^org\\.example:broken(:.*)?$")
             }
@@ -142,6 +145,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         val result = server.client.callTool(
             ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("projectPath", ":")
                 put("dependency", "^org\\.example:no-sources(:.*)?$")
             }
@@ -162,6 +166,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         val result = server.client.callTool(
             ToolNames.SEARCH_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("query", "SomeClass")
                 put("projectPath", ":")
             }
@@ -179,6 +184,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         val result = server.client.callTool(
             ToolNames.SEARCH_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("query", "SomeClass")
                 put("projectPath", ":")
             }
@@ -198,6 +204,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         val result = server.client.callTool(
             ToolNames.SEARCH_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("query", "SomeClass")
                 put("projectPath", ":")
             }
@@ -220,6 +227,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         val result = server.client.callTool(
             ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("projectPath", ":")
             }
         ) as CallToolResult
@@ -237,6 +245,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         val result = server.client.callTool(
             ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("projectPath", ":")
             }
         ) as CallToolResult
@@ -253,6 +262,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         val result = server.client.callTool(
             ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("projectPath", ":")
             }
         ) as CallToolResult
@@ -278,6 +288,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         val result = server.client.callTool(
             ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("path", "kotlin.stdlib")
                 put("projectPath", ":")
             }
@@ -303,6 +314,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         val result = server.client.callTool(
             ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("path", "kotlin.stdlib")
                 put("projectPath", ":")
             }
@@ -326,6 +338,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         val result = server.client.callTool(
             ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("path", "kotlin.stdlib")
                 put("projectPath", ":")
             }
@@ -344,6 +357,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         val result = server.client.callTool(
             ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("path", "jdk/sources/java.base/java/lang/String.java")
                 put("projectPath", ":")
             }
@@ -378,6 +392,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
 
         val result = server.client.callTool(
             ToolNames.SEARCH_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("query", "List")
                 put("projectPath", ":")
             }
@@ -392,6 +407,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
     fun `gradle own source skips dependency source resolution`() = runTest {
         val result = server.client.callTool(
             ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("gradleOwnSource", true)
             }
         ) as CallToolResult
@@ -407,6 +423,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
     fun `JDK sources missing gracefully skips`() = runTest {
         val result = server.client.callTool(
             ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
                 put("projectPath", ":")
             }
         ) as CallToolResult

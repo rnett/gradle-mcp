@@ -2,96 +2,26 @@ package dev.rnett.gradle.mcp.tools
 
 import dev.rnett.gradle.mcp.expandPath
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
-import dev.rnett.gradle.mcp.mcp.McpContext
 import io.github.smiley4.schemakenerator.core.annotations.Description
-import io.modelcontextprotocol.kotlin.sdk.types.Root
 import kotlinx.serialization.Serializable
-import org.slf4j.LoggerFactory
-import java.net.URI
-import java.nio.file.Path
-import kotlin.io.path.absolute
-import kotlin.io.path.absolutePathString
-import kotlin.io.path.toPath
 
 @JvmInline
 @Serializable
-@Description("Absolute path to Gradle project root (parent of gradlew and settings.gradle). Auto-detected from MCP roots when available; specify explicitly for multi-root workspaces or when auto-detection fails.")
+@Description("Absolute path to Gradle project root (parent of gradlew and settings.gradle). Defaults to GRADLE_MCP_PROJECT_ROOT when omitted.")
 value class GradleProjectRootInput(val projectRoot: String? = null) {
     companion object {
         val DEFAULT = GradleProjectRootInput(null)
     }
 }
 
-val Root.fileOrNull: Path?
-    get() {
-        return try {
-            URI.create(uri).toPath().absolute()
-        } catch (e: IllegalArgumentException) {
-            null
-        }
-    }
+fun GradleProjectRootInput.resolve(): GradleProjectRoot =
+    resolve(System.getenv("GRADLE_MCP_PROJECT_ROOT"))
 
-val Root.nameOrUrl get() = name ?: uri
-
-context(ctx: McpContext)
-suspend fun GradleProjectRootInput.resolve(): GradleProjectRoot {
-    val session = ctx.session
-    val roots = if (session?.clientCapabilities?.roots == null) {
-        null
-    } else {
-        session.listRoots().roots.toSet()
-    }
-    return resolveRoot(roots)
-}
-
-private val logger = LoggerFactory.getLogger("dev.rnett.gradle.mcp.tools.GradleInputs")
-
-fun GradleProjectRootInput.resolveRoot(roots: Set<Root>?): GradleProjectRoot =
-    resolveRoot(roots, System.getenv("GRADLE_MCP_PROJECT_ROOT"))
-
-internal fun GradleProjectRootInput.resolveRoot(roots: Set<Root>?, envRoot: String?): GradleProjectRoot {
-    logger.info("Resolving project root. Input: $projectRoot, MCP roots: ${roots?.map { it.nameOrUrl }}")
-    if (projectRoot == null) {
-        if (roots?.size == 1) {
-            val file = roots.single().fileOrNull
-                ?: throw IllegalArgumentException("Configured root ${roots.single().nameOrUrl} could not be converted to a file")
-            return GradleProjectRoot(file.absolutePathString())
-        }
-
-        if (envRoot != null) {
-            return GradleProjectRoot(envRoot.expandPath())
-        }
-
-        if (roots == null || roots.isEmpty()) {
-            throw IllegalArgumentException("No MCP roots configured - you must specify a Gradle project root")
-        } else {
-            throw IllegalArgumentException("Multiple MCP roots configured - you must specify a Gradle project root")
-        }
-    }
-
-    val expandedProjectRoot = projectRoot.expandPath()
-
-    return if (roots != null) {
-        val named = roots.firstOrNull { it.name == projectRoot }
-        if (named != null) {
-            return GradleProjectRoot(
-                named.fileOrNull?.absolutePathString()
-                    ?: throw IllegalArgumentException("Configured root ${named.nameOrUrl} could not be converted to a file")
-            )
-        }
-
-        val rootFile = kotlin.io.path.Path(expandedProjectRoot).absolute()
-        val isInRoot = roots.any {
-            val file = it.fileOrNull ?: return@any false
-            rootFile.startsWith(file)
-        }
-
-        if (!isInRoot) {
-            throw IllegalArgumentException("Gradle project root $expandedProjectRoot is not in any of the configured MCP roots")
-        }
-
-        GradleProjectRoot(expandedProjectRoot)
-    } else {
-        GradleProjectRoot(expandedProjectRoot)
-    }
+internal fun GradleProjectRootInput.resolve(envRoot: String?): GradleProjectRoot {
+    val selectedRoot = projectRoot?.takeIf { it.isNotBlank() }
+        ?: envRoot?.takeIf { it.isNotBlank() }
+        ?: throw IllegalArgumentException(
+            "No Gradle project root configured. Provide projectRoot or set GRADLE_MCP_PROJECT_ROOT."
+        )
+    return GradleProjectRoot(selectedRoot.expandPath())
 }

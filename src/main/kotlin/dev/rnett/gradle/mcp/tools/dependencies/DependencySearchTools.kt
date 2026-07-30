@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.tools.dependencies
 
 import dev.rnett.gradle.mcp.maven.DepsDevService
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import dev.rnett.gradle.mcp.mcp.ToolCallResult
 import dev.rnett.gradle.mcp.tools.PaginationInput
 import dev.rnett.gradle.mcp.tools.ToolNames
 import dev.rnett.gradle.mcp.tools.paginate
@@ -20,18 +21,21 @@ class DependencySearchTools(
         val pagination: PaginationInput = PaginationInput(limit = 5)
     )
 
-    val lookupMavenVersions by tool<LookupMavenVersionsArgs, String>(
+    init {
+        tool<LookupMavenVersionsArgs, String>(
         ToolNames.LOOKUP_MAVEN_VERSIONS,
         """
             |Retrieves all released versions for a Maven `group:artifact` from deps.dev, sorted most-recent first with `yyyy-MM-dd` publish dates.
             |Use to verify exact release history instead of hallucinated version numbers; then use `${ToolNames.INSPECT_DEPENDENCIES}` to check if the project already uses the library.
             |Covers the full Maven package index including packages published via the new Central Portal (central.sonatype.com).
         """.trimMargin()
-    ) { args ->
+    ) { args, _ ->
         val parts = args.coordinates.split(":")
         if (parts.size < 2) {
-            isError = true
-            return@tool "coordinates must be in 'group:artifact' format (e.g. 'org.jetbrains.kotlinx:kotlinx-serialization-json')"
+            return@tool ToolCallResult(
+                "coordinates must be in 'group:artifact' format (e.g. 'org.jetbrains.kotlinx:kotlinx-serialization-json')",
+                isError = true
+            )
         }
         val group = parts[0]
         val artifact = parts[1]
@@ -43,14 +47,17 @@ class DependencySearchTools(
         }
 
         if (allVersions.isEmpty()) {
-            return@tool "No versions found for $group:$artifact"
+            return@tool ToolCallResult("No versions found for $group:$artifact")
         }
 
-        "Versions for $group:$artifact:\n" + paginate(
-            items = allVersions,
-            pagination = args.pagination,
-            itemName = "versions",
-            total = allVersions.size
-        ) { v -> "- ${v.version} (${v.publishedAt})" }
+        ToolCallResult(
+            "Versions for $group:$artifact:\n" + paginate(
+                items = allVersions,
+                pagination = args.pagination,
+                itemName = "versions",
+                total = allVersions.size
+            ) { v -> "- ${v.version} (${v.publishedAt})" }
+        )
+    }
     }
 }

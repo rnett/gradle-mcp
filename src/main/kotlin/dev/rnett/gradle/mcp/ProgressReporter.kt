@@ -16,9 +16,3 @@ fun ProgressReporter.withPhase(phase: String): ProgressReporter = ProgressReport
 fun ProgressReporter.withMessage(messageMapper: (String?) -> String?): ProgressReporter = ProgressReporter { progress, total, message ->
     this.report(progress, total, messageMapper(message))
 }
-
-fun ProgressReporter.subReporter(startFraction: Double, endFraction: Double, total: Double): ProgressReporter = ProgressReporter { progress, subTotal, message ->
-    val subProgressFraction = if (subTotal != null && subTotal > 0.0) progress / subTotal else 0.0
-    val overallProgress = startFraction + (subProgressFraction * (endFraction - startFraction))
-    this.report(overallProgress, total, message)
-}

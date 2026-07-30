@@ -1,8 +1,10 @@
 package dev.rnett.gradle.mcp.tools
 
+import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.gradle.EnvSource
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import dev.rnett.gradle.mcp.mcp.ToolCallResult
 import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
 import dev.rnett.gradle.mcp.repl.ReplManager
 import dev.rnett.gradle.mcp.repl.ReplRequest
@@ -62,8 +64,9 @@ class ReplTools(
 
     private var currentReplSessionId: String? = null
 
-    @OptIn(ExperimentalTime::class)
-    val repl by tool<ReplArgs, CallToolResult>(
+    init {
+        @OptIn(ExperimentalTime::class)
+    tool<ReplArgs, CallToolResult>(
         ToolNames.REPL,
         """
             |Executes Kotlin code interactively within the project's full JVM classpath — use when you need to **run** code, not just read it.
@@ -79,29 +82,31 @@ class ReplTools(
             |- **`run`**: Execute a snippet. Session state (variables, imports) persists between calls.
             |- **`stop`**: Terminate the session and release JVM resources.
         """.trimMargin()
-    ) {
-        when (it.command) {
-            ReplCommand.start -> startRepl(it, this)
+    ) { args, progressReporter ->
+        val result = when (args.command) {
+            ReplCommand.start -> startRepl(args, progressReporter)
             ReplCommand.stop -> stopRepl()
-            ReplCommand.run -> runRepl(it)
+            ReplCommand.run -> runRepl(args)
         }
+        ToolCallResult(result)
+    }
     }
 
     override suspend fun close() {
         replManager.closeAll()
     }
 
-    private suspend fun startRepl(args: ReplArgs, context: McpToolContext): CallToolResult {
+    private suspend fun startRepl(args: ReplArgs, progressReporter: ProgressReporter): CallToolResult {
         val projectPath = args.projectPath
         val sourceSet = args.sourceSet
         if (projectPath == null || sourceSet == null) {
             return CallToolResult(listOf(TextContent("projectPath and sourceSet are required for 'start' command")), isError = true)
         }
 
-        val projectRoot = context.run { args.projectRoot.resolve() }
+        val projectRoot = args.projectRoot.resolve()
 
         val envResult = try {
-            with(context.progressReporter) {
+            with(progressReporter) {
                 replEnvironmentService.resolveReplEnvironment(
                     projectRoot,
                     projectPath,

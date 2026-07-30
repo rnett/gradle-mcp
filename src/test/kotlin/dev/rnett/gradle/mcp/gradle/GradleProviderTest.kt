@@ -108,7 +108,6 @@ class GradleProviderTest {
         }
 
         val testProvider = DefaultGradleProvider(
-            GradleConfiguration(),
             buildManager = BuildManager(),
             envProvider = mockEnv
         )
@@ -143,7 +142,6 @@ class GradleProviderTest {
         }
 
         val testProvider = DefaultGradleProvider(
-            GradleConfiguration(),
             buildManager = BuildManager(),
             envProvider = mockEnv
         )
@@ -176,7 +174,6 @@ class GradleProviderTest {
         }
 
         val testProvider = DefaultGradleProvider(
-            GradleConfiguration(),
             buildManager = BuildManager(),
             envProvider = mockEnv
         )
@@ -200,7 +197,6 @@ class GradleProviderTest {
 
     private fun createTestProvider(): DefaultGradleProvider {
         return DefaultGradleProvider(
-            GradleConfiguration(),
             buildManager = BuildManager()
         )
     }
@@ -401,7 +397,6 @@ class GradleProviderTest {
         testJavaProject(hasTests = false).use { project ->
             val tempDir = Files.createTempDirectory("gradle-mcp-test-init-scans-")
             DefaultGradleProvider(
-                GradleConfiguration(),
                 buildManager = BuildManager()
             ).use { provider ->
                 val projectRoot = GradleProjectRoot(project.pathString())

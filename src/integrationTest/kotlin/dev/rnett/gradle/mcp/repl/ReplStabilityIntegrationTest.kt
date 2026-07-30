@@ -67,6 +67,7 @@ class ReplStabilityIntegrationTest : BaseReplIntegrationTest() {
         val startResponse = server.client.callTool(
             ToolNames.REPL, buildJsonObject {
                 put("command", "start")
+                put("projectRoot", project.path().toString())
                 put("projectPath", ":")
                 put("sourceSet", "main")
                 putJsonArray("optIn") {

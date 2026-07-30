@@ -5,7 +5,6 @@ import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsSectionSummary
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import io.mockk.coEvery
-import io.modelcontextprotocol.kotlin.sdk.types.Root
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
@@ -38,9 +37,6 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
             "distributionUrl=https\\://services.gradle.org/distributions/gradle-8.5-bin.zip"
         )
 
-        // Set as MCP root
-        server.setClientRoots(Root(projectRoot.toUri().toString(), "test-project"))
-
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {
                 mockDocsService.summarizeSections("8.5")
@@ -49,8 +45,7 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
             DocsSectionSummary("userguide", "User Guide", 42)
         )
 
-        // Call tool without version
-        val args = emptyMap<String, kotlinx.serialization.json.JsonElement>()
+        val args = mapOf("projectRoot" to kotlinx.serialization.json.JsonPrimitive(projectRoot.toString()))
         val call = server.client.callTool(ToolNames.GRADLE_DOCS, args)
 
         val text = (call!!.content[0] as TextContent).text ?: ""
@@ -86,9 +81,6 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
         wrapperDir.resolve("gradle-wrapper.properties").writeText(
             "distributionUrl=https\\://services.gradle.org/distributions/gradle-7.6.3-bin.zip"
         )
-
-        // Set as MCP root so it's valid
-        server.setClientRoots(Root(projectRoot.toUri().toString(), "explicit-project"))
 
         coEvery {
             with(any<dev.rnett.gradle.mcp.ProgressReporter>()) {

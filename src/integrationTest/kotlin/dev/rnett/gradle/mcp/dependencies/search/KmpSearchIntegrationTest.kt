@@ -14,7 +14,6 @@ import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
 import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
 import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
-import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import io.ktor.client.HttpClient
@@ -64,7 +63,6 @@ class KmpSearchIntegrationTest : KoinTest {
         }
 
         provider = DefaultGradleProvider(
-            config = GradleConfiguration(),
             buildManager = BuildManager()
         ).withTestGradleDefaults()
         val depService = DefaultGradleDependencyService(provider)

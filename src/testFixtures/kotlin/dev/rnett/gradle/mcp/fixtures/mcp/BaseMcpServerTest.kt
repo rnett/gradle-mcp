@@ -16,7 +16,6 @@ import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.BundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultBundledJarProvider
 import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
-import dev.rnett.gradle.mcp.gradle.GradleConfiguration
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.maven.DepsDevService
@@ -58,9 +57,6 @@ abstract class BaseMcpServerTest {
         single { DI.xml }
         single<EnvProvider> { DefaultEnvProvider }
         single { DI.createHttpClient(get(), get()) }
-        single<GradleConfiguration> {
-            GradleConfiguration()
-        }
         single<InitScriptProvider> { DefaultInitScriptProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("init-scripts")) }
         single<BundledJarProvider> { DefaultBundledJarProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("jars")) }
         single { buildManager }

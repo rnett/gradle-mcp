@@ -2,7 +2,7 @@ package dev.rnett.gradle.mcp.e2e
 
 import dev.rnett.gradle.mcp.DI
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
-import dev.rnett.gradle.mcp.mcp.add
+import dev.rnett.gradle.mcp.mcp.ToolCallResult
 import dev.rnett.gradle.mcp.mcp.closeServer
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
@@ -44,7 +44,8 @@ class SseCancellationE2ETest {
         val handlerCancelled = CompletableDeferred<Unit>()
         val normalResponse = CompletableDeferred<Unit>()
         val component = object : McpServerComponent("sse-test", "sse-test") {
-            val slow by tool<EmptyArgs, String>("sse-slow", "waits for cancellation") {
+            init {
+                tool<EmptyArgs, String>("sse-slow", "waits for cancellation") { _, _ ->
                 handlerStarted.complete(Unit)
                 try {
                     awaitCancellation()
@@ -52,7 +53,8 @@ class SseCancellationE2ETest {
                     handlerCancelled.complete(Unit)
                 }
             }
-            val quick by tool<EmptyArgs, String>("sse-quick", "returns immediately") { "quick" }
+                tool<EmptyArgs, String>("sse-quick", "returns immediately") { _, _ -> ToolCallResult("quick") }
+            }
         }
         val server = Server(
             Implementation("sse-test-server", "1.0"),
@@ -60,7 +62,7 @@ class SseCancellationE2ETest {
                 capabilities = ServerCapabilities(tools = ServerCapabilities.Tools(listChanged = false)),
                 enforceStrictCapabilities = false
             )
-        ).apply { add(component, DI.json) }
+        ).also { component.register(it, DI.json) }
         val port = Random.nextInt(6601, 6900)
         val ktorServer = embeddedServer(Netty, port = port) {
             mcp { server }

@@ -11,7 +11,6 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
-import io.modelcontextprotocol.kotlin.sdk.types.Root
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
@@ -20,10 +19,6 @@ import kotlin.time.Clock
 
 class ReplToolTest : BaseMcpServerTest() {
 
-    @BeforeEach
-    fun setupTest() = runTest {
-        server.setClientRoots(Root(tempDir.toUri().toString(), "root"))
-    }
 
     @Test
     fun `start command with projectRoot works`() = runTest {
@@ -33,8 +28,6 @@ class ReplToolTest : BaseMcpServerTest() {
         val customRoot = tempDir.resolve("custom")
         java.io.File(customRoot.toUri()).mkdirs()
         java.io.File(customRoot.resolve("gradlew").toUri()).createNewFile()
-
-        server.setClientRoots(Root(tempDir.toUri().toString(), "root"))
 
         val consoleOutput = """
             [gradle-mcp] [repl-env] classpath=cp1;cp2
@@ -93,6 +86,7 @@ class ReplToolTest : BaseMcpServerTest() {
         val response = server.client.callTool(
             ToolNames.REPL, mapOf(
                 "command" to "start",
+                "projectRoot" to tempDir.toString(),
                 "projectPath" to projectPath,
                 "sourceSet" to sourceSet
             )
@@ -120,6 +114,7 @@ class ReplToolTest : BaseMcpServerTest() {
         server.client.callTool(
             ToolNames.REPL, mapOf(
                 "command" to "start",
+                "projectRoot" to tempDir.toString(),
                 "projectPath" to ":app",
                 "sourceSet" to "main"
             )
@@ -165,6 +160,7 @@ class ReplToolTest : BaseMcpServerTest() {
         val response = server.client.callTool(
             ToolNames.REPL, mapOf(
                 "command" to "start",
+                "projectRoot" to tempDir.toString(),
                 "projectPath" to projectPath,
                 "sourceSet" to sourceSet
             )
@@ -200,6 +196,7 @@ class ReplToolTest : BaseMcpServerTest() {
         val response = server.client.callTool(
             ToolNames.REPL, mapOf(
                 "command" to "start",
+                "projectRoot" to tempDir.toString(),
                 "projectPath" to projectPath,
                 "sourceSet" to sourceSet
             )

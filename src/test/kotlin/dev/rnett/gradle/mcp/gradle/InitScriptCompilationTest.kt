@@ -23,7 +23,7 @@ class InitScriptCompilationTest {
     @BeforeAll
     fun setupAll() {
         buildManager = BuildManager()
-        provider = DefaultGradleProvider(GradleConfiguration(), buildManager = buildManager)
+        provider = DefaultGradleProvider(buildManager = buildManager)
         project = testGradleProject {
             buildScript("")
         }

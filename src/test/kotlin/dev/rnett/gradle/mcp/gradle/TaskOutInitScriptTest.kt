@@ -23,7 +23,6 @@ class TaskOutInitScriptTest {
     fun setupAll() {
         buildManager = BuildManager()
         provider = DefaultGradleProvider(
-            GradleConfiguration(),
             buildManager = buildManager
         )
     }

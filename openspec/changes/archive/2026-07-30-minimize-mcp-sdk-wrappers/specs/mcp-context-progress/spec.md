@@ -1,8 +1,7 @@
 # Capability: mcp-context-progress
 
-## Purpose
-Defines the improved MCP progress reporting API with simplified sub-task propagation and conditional emission based on progress token presence.
-## Requirements
+## MODIFIED Requirements
+
 ### Requirement: Improved progress reporting API
 Each tool call SHALL own a `ProgressNotificationPipeline` with a lazy `ProgressReporter` send surface. Nested services SHALL receive only `ProgressReporter`, and the pipeline SHALL close from the handler adapter's `finally` block on every exit path.
 

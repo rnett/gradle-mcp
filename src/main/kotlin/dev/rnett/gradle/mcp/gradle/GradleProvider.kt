@@ -71,19 +71,16 @@ interface GradleProvider : AutoCloseable {
 class InterceptedSpecialCommandException(message: String) : IllegalStateException(message)
 
 class DefaultGradleProvider(
-    val config: GradleConfiguration,
     private val connectionService: GradleConnectionService,
     private val executionService: BuildExecutionService,
     override val buildManager: BuildManager
 ) : GradleProvider {
 
     constructor(
-        config: GradleConfiguration,
         buildManager: BuildManager,
         envProvider: EnvProvider = DefaultEnvProvider,
         initScriptProvider: DefaultInitScriptProvider = DefaultInitScriptProvider()
     ) : this(
-        config,
         DefaultGradleConnectionService(),
         DefaultBuildExecutionService(envProvider, initScriptProvider),
         buildManager

@@ -6,10 +6,9 @@ import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import dev.rnett.gradle.mcp.mcp.ToolCallResult
 import io.github.smiley4.schemakenerator.core.annotations.Description
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
-import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
 class GradleExecutionTools(
@@ -38,8 +37,9 @@ class GradleExecutionTools(
         val invocationArguments: GradleInvocationArguments = GradleInvocationArguments.DEFAULT
     )
 
-    @OptIn(ExperimentalTime::class)
-    val gradle by tool<GradleExecuteArgs, String>(
+    init {
+        @OptIn(ExperimentalTime::class)
+    tool<GradleExecuteArgs, String>(
         ToolNames.GRADLE,
         """
             |`./gradlew` replacement for Gradle task execution. Executes Gradle builds and tasks with background orchestration, task output capturing, and progressive feedback.
@@ -55,12 +55,12 @@ class GradleExecutionTools(
             |Not for reading Gradle source code; use `gradleOwnSource`-based source tools instead.
             |Note: Prefer `--rerun` (single task) over `--rerun-tasks` (all tasks, even included builds). Use `invocationArguments: { envSource: \"SHELL\" }` if env vars (e.g., JDKs) aren't found.
         """.trimMargin()
-    ) {
+    ) { it, progressReporter ->
         if (it.stopBuildId != null) {
             val build = gradleProvider.buildManager.getBuild(it.stopBuildId) as? RunningBuild
                 ?: throw IllegalArgumentException("Build ${it.stopBuildId} is not running or not found")
             build.stop()
-            return@tool "Build ${it.stopBuildId} stopped"
+            return@tool ToolCallResult("Build ${it.stopBuildId} stopped")
         }
 
         val commandLine = it.commandLine
@@ -77,39 +77,24 @@ class GradleExecutionTools(
                 root,
                 invocationArgs.withInitScript(InitScriptNames.TASK_OUT)
             )
-            return@tool running.id.toString()
+            return@tool ToolCallResult(running.id.toString())
         } else {
-            val result = gradleProvider.doBuild(
-                it.projectRoot,
-                invocationArgs
-            )
-
-            val finished = if (it.captureTaskOutput != null) {
-                withTimeoutOrNull(10.seconds) {
-                    result.build.awaitFinished()
-                } ?: run {
-                    progressReporter.report(
-                        0.0,
-                        1.0,
-                        "Build is taking a while to complete. Note that `captureTaskOutput` will only return results AFTER the build finishes. For long-running tasks like `run`, consider using `background=true` instead."
-                    )
-                    result.build.awaitFinished()
-                }
-            } else {
-                result.build.awaitFinished()
+            val finished = with(progressReporter) {
+                gradleProvider.doBuild(
+                    it.projectRoot,
+                    invocationArgs
+                )
             }
 
             val isSpecial = finished.args.isHelp || finished.args.isVersion
-            if (finished.outcome !is BuildOutcome.Success && !isSpecial) {
-                isError = true
-            }
+            val isError = finished.outcome !is BuildOutcome.Success && !isSpecial
 
             if (isSpecial) {
-                return@tool finished.toOutputString()
+                return@tool ToolCallResult(finished.toOutputString(), isError)
             }
 
             if (it.captureTaskOutput != null) {
-                return@tool buildString {
+                return@tool ToolCallResult(buildString {
                     if (finished.taskOutputCapturingFailed) {
                         appendLine("Task output capturing failed. Task output may be incomplete or interleaved with other tasks.\n")
                     }
@@ -139,10 +124,11 @@ class GradleExecutionTools(
                         appendLine("Build result summary:")
                         append(finished.toOutputString())
                     }
-                }
+                }, isError)
             }
 
-            return@tool finished.toOutputString()
+            return@tool ToolCallResult(finished.toOutputString(), isError)
         }
+    }
     }
 }
