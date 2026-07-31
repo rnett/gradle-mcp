@@ -45,11 +45,11 @@ Once that is available, we will use it to distribute our skills.
 
 The following skills are included in the `skills/` directory of the repository:
 
-* **[gradle](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/gradle/SKILL.md)**: Manages the full Gradle build lifecycle authoritatively — builds, tests, project introspection, module creation, and failure diagnostics.
-* **[exploring_dependency_sources](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/exploring_dependency_sources/SKILL.md)**: Explores and navigates the internal implementation of any library, plugin, or Gradle itself
-  authoritatively.
-* **[managing_gradle_dependencies](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/managing_gradle_dependencies/SKILL.md)**: Manages and audits project dependency graphs authoritatively, performing high-resolution update
-  checks and dependency addition.
-* **[interacting_with_project_runtime](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/interacting_with_project_runtime/SKILL.md)**: Prototypes logic and executes Kotlin code interactively within your project's full runtime
-  context authoritatively.
-* **[verifying_compose_ui](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/verifying_compose_ui/SKILL.md)**: Visually verifies Compose UI components and previews authoritatively by instantly rendering them to images.
+[//]: # (<<SKILLS_LIST_START>>)
+
+* **[using-gradle](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/using-gradle/SKILL.md)**: Inspects, executes, diagnoses, and research existing Gradle builds — project mapping, build execution, test diagnostics, dependency auditing, and source research.
+* **[authoring-gradle-builds](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/authoring-gradle-builds/SKILL.md)**: Designs and implements modifications to Gradle build definitions, wiring, and project structure — dependency declaration, module creation, toolchain configuration, and best practices.
+* **[interacting-with-project-runtime](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/interacting-with-project-runtime/SKILL.md)**: Provides a persistent JVM/Kotlin REPL for executing and probing project logic within the full classpath context.
+* **[verifying-compose-ui](https://github.com/rnett/gradle-mcp/blob/main/src/main/skills/verifying-compose-ui/SKILL.md)**: Visually verifies Compose UI components and previews by rendering them to images from the JVM runtime.
+
+[//]: # (<<SKILLS_LIST_END>>)

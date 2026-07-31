@@ -71,17 +71,67 @@ val generateBestPracticesDoc = tasks.register<JavaExec>("generateBestPracticesDo
     dependsOn(generatorProject.tasks.named("classes"))
     mainClass.set("dev.rnett.gradle.mcp.bestpractices.GenerateBestPracticesDoc")
     args(
-        project.rootDir.resolve("src/main/skills/gradle-build-authoring/references").absolutePath,
+        project.rootDir.resolve("src/main/skills/authoring-gradle-builds/references").absolutePath,
         gradleDocsVersion.get(),
     )
     inputs.property("gradleDocsVersion", gradleDocsVersion)
     inputs.dir(generatorProject.layout.projectDirectory.dir("src/main/kotlin"))
         .withPathSensitivity(PathSensitivity.RELATIVE)
-    outputs.dir(project.rootDir.resolve("src/main/skills/gradle-build-authoring/references/best-practices"))
+    outputs.dir(project.rootDir.resolve("src/main/skills/authoring-gradle-builds/references/best-practices"))
+}
+
+val materializeSkills = tasks.register<JavaExec>("materializeSkills") {
+    inputs.files(sourceSets.main.get().output.classesDirs).withPathSensitivity(PathSensitivity.NONE)
+    inputs.dir(project.rootDir.resolve("src/main/skill-sources")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.dir(project.rootDir.resolve("src/main/skills")).withPathSensitivity(PathSensitivity.RELATIVE)
+    classpath = sourceSets.main.get().output.classesDirs + files(configurations.named("compileClasspath"))
+    mainClass.set("dev.rnett.gradle.mcp.skills.SkillMaterialization")
+    args = listOf("materialize", project.rootDir.absolutePath)
+    dependsOn(generateBestPracticesDoc)
+}
+
+val verifySkillsMaterialized = tasks.register<JavaExec>("verifySkillsMaterialized") {
+    val gradleDocsVersion = providers.gradleProperty("gradleDocsVersion").orElse(gradle.gradleVersion)
+    inputs.files(sourceSets.main.get().output.classesDirs).withPathSensitivity(PathSensitivity.NONE)
+    inputs.dir(project.rootDir.resolve("src/main/skill-sources")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.dir(project.rootDir.resolve("src/main/skills")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.property("gradleDocsVersion", gradleDocsVersion)
+    classpath = sourceSets.main.get().output.classesDirs + files(configurations.named("compileClasspath"))
+    mainClass.set("dev.rnett.gradle.mcp.skills.SkillMaterialization")
+    args = listOf("verify", project.rootDir.absolutePath, gradleDocsVersion.get())
+    dependsOn(generateBestPracticesDoc)
+}
+
+val updateSkillsList = tasks.register<JavaExec>("updateSkillsList") {
+    inputs.files(sourceSets.main.get().output.classesDirs).withPathSensitivity(PathSensitivity.NONE)
+    inputs.dir(project.rootDir.resolve("src/main/skills")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(project.rootDir.resolve("docs/skills.md")).withPathSensitivity(PathSensitivity.NONE)
+    classpath = sourceSets.main.get().output.classesDirs + files(configurations.named("compileClasspath"))
+    mainClass.set("dev.rnett.gradle.mcp.UpdateSkills")
+    args = listOf(project.rootDir.absolutePath)
+}
+
+val verifySkillsList = tasks.register<JavaExec>("verifySkillsList") {
+    inputs.files(sourceSets.main.get().output.classesDirs).withPathSensitivity(PathSensitivity.NONE)
+    inputs.dir(project.rootDir.resolve("src/main/skills")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(project.rootDir.resolve("docs/skills.md")).withPathSensitivity(PathSensitivity.NONE)
+    classpath = sourceSets.main.get().output.classesDirs + files(configurations.named("compileClasspath"))
+    mainClass.set("dev.rnett.gradle.mcp.UpdateSkills")
+    args = listOf(project.rootDir.absolutePath, "--verify")
+    dependsOn(generateBestPracticesDoc)
+}
+
+materializeSkills.configure {
+    mustRunAfter(verifySkillsMaterialized)
+}
+
+tasks.check {
+    dependsOn(verifySkillsMaterialized)
+    dependsOn(verifySkillsList)
 }
 
 zipSkills.configure {
-    dependsOn(generateBestPracticesDoc)
+    dependsOn(materializeSkills)
 }
 
 sourceSets {

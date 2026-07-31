@@ -1,0 +1,118 @@
+package dev.rnett.gradle.mcp
+
+import java.nio.file.Path
+import kotlin.io.path.ExperimentalPathApi
+import kotlin.io.path.Path
+import kotlin.io.path.exists
+import kotlin.io.path.isDirectory
+import kotlin.io.path.listDirectoryEntries
+import kotlin.io.path.name
+import kotlin.io.path.readText
+import kotlin.io.path.writeText
+
+/**
+ * Marker-based splicing for `docs/skills.md`.
+ *
+ * Regenerates the included-skills list from the skill source inventory and splices it between the
+ * `SKILLS_LIST_START` / `SKILLS_LIST_END` markers, preserving all surrounding hand-authored content.
+ * The curated human-facing descriptions live here; the authoritative agent-facing descriptions remain
+ * in the `SKILL.md` frontmatter.
+ *
+ * Usage: `UpdateSkills <rootDir> [--verify]`.
+ */
+@OptIn(ExperimentalPathApi::class)
+object UpdateSkills {
+
+    private const val START = "[//]: # (<<SKILLS_LIST_START>>)\n"
+    private const val END = "[//]: # (<<SKILLS_LIST_END>>)\n"
+    private const val BLOB_BASE = "https://github.com/rnett/gradle-mcp/blob/main/src/main/skills"
+
+    /** Curated human-facing descriptions in canonical portfolio order. */
+    private val DESCRIPTIONS = linkedMapOf(
+        "using-gradle" to "Inspects, executes, diagnoses, and research existing Gradle builds — project mapping, build execution, test diagnostics, dependency auditing, and source research.",
+        "authoring-gradle-builds" to "Designs and implements modifications to Gradle build definitions, wiring, and project structure — dependency declaration, module creation, toolchain configuration, and best practices.",
+        "interacting-with-project-runtime" to "Provides a persistent JVM/Kotlin REPL for executing and probing project logic within the full classpath context.",
+        "verifying-compose-ui" to "Visually verifies Compose UI components and previews by rendering them to images from the JVM runtime.",
+    )
+
+    private val namePattern = Regex("(?m)^name:\\s*(\\S+)\\s*$")
+
+    /** Discovers skill directories and validates that frontmatter names match directory names. */
+    fun discoverSkills(skillsDir: Path): List<String> =
+        skillsDir.listDirectoryEntries().filter { it.isDirectory() }.map { dir ->
+            val skillFile = dir.resolve("SKILL.md")
+            check(skillFile.exists()) { "Skill directory ${dir.name} is missing SKILL.md" }
+            val name = namePattern.find(skillFile.readText())?.groupValues?.get(1)
+                ?: error("Skill ${dir.name} has no 'name:' frontmatter entry")
+            check(name == dir.name) { "Skill frontmatter name '$name' does not match directory '${dir.name}'" }
+            name
+        }.sorted()
+
+    fun renderList(): String =
+        DESCRIPTIONS.entries.joinToString("\n") { (name, description) ->
+            "* **[$name]($BLOB_BASE/$name/SKILL.md)**: $description"
+        }
+
+    fun splice(docsContent: String, list: String): String {
+        val startCount = Regex.fromLiteral(START).findAll(docsContent).count()
+        val endCount = Regex.fromLiteral(END).findAll(docsContent).count()
+        require(startCount == 1 && endCount == 1) {
+            "docs/skills.md must contain exactly one SKILLS_LIST_START and one SKILLS_LIST_END marker (found $startCount start, $endCount end)"
+        }
+        val before = docsContent.substringBefore(START) + START
+        val after = END + docsContent.substringAfter(END)
+        return before + "\n" + list + "\n\n" + after
+    }
+
+    /** Returns all violations: inventory drift or docs out of sync. */
+    fun verify(root: Path): List<String> = buildList {
+        val skillsDir = root.resolve("src/main/skills")
+        val discovered = discoverSkills(skillsDir).toSet()
+        val expected = DESCRIPTIONS.keys
+        if (discovered != expected) {
+            add("Skill inventory mismatch with docs manifest: extra=${discovered - expected}, missing=${expected - discovered}")
+        }
+
+        val docsFile = root.resolve("docs/skills.md")
+        if (!docsFile.exists()) {
+            add("docs/skills.md not found")
+            return@buildList
+        }
+        val expectedContent = splice(docsFile.readText(), renderList())
+        val actual = docsFile.readText()
+        if (actual != expectedContent) {
+            add("docs/skills.md skill list is out of sync; run 'updateSkillsList'")
+        }
+    }
+
+    fun update(root: Path) {
+        val skillsDir = root.resolve("src/main/skills")
+        val discovered = discoverSkills(skillsDir).toSet()
+        require(discovered == DESCRIPTIONS.keys) {
+            "Skill inventory mismatch with docs manifest: extra=${discovered - DESCRIPTIONS.keys}, missing=${DESCRIPTIONS.keys - discovered}"
+        }
+
+        val docsFile = root.resolve("docs/skills.md")
+        require(docsFile.exists()) { "docs/skills.md not found" }
+        docsFile.writeText(splice(docsFile.readText(), renderList()))
+        println("Updated skill list in $docsFile")
+    }
+
+    @JvmStatic
+    fun main(args: Array<String>) {
+        val root = args.firstOrNull()?.let { Path(it) }?.toAbsolutePath() ?: Path("").toAbsolutePath()
+        val verify = args.contains("--verify")
+
+        if (verify) {
+            val violations = verify(root)
+            if (violations.isEmpty()) {
+                println("docs/skills.md skill list is in sync with the skill inventory.")
+            } else {
+                violations.forEach { println("  - $it") }
+                error("Skill documentation verification failed with ${violations.size} violation(s).")
+            }
+        } else {
+            update(root)
+        }
+    }
+}

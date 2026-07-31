@@ -261,10 +261,19 @@ class GenerateBestPracticesDocTest {
             assertTrue(Files.exists(generatedDirectory.resolve("third-topic.md")))
             assertTrue(Files.exists(generatedDirectory.resolve("fourth-topic.md")))
             assertTrue(Files.exists(generatedDirectory.resolve("best-practices-for-security.md")))
-            assertTrue(firstTopic.startsWith("# First Topic"))
-            assertContains(firstTopic, "## References")
-            assertFalse(firstTopic.contains("## Tags"))
-            assertContains(firstTopic, "gradle_docs` with `tag:best-practices`")
+
+            // Generated provenance headers with self-verifying content hashes
+            assertContains(firstTopic, "class: generated")
+            assertContains(firstTopic, "generator: best-practices")
+            assertContains(firstTopic, "gradle-version: 9.6.1")
+            assertContains(firstTopic, "hash: ${sha256Hex(firstTopic.substringAfter("-->\n"))}")
+            assertContains(index, "hash: ${sha256Hex(index.substringAfter("-->\n"))}")
+
+            val firstTopicBody = firstTopic.substringAfter("-->\n")
+            assertTrue(firstTopicBody.startsWith("# First Topic"))
+            assertContains(firstTopicBody, "## References")
+            assertFalse(firstTopicBody.contains("## Tags"))
+            assertContains(firstTopicBody, "gradle_docs` with `tag:best-practices`")
             assertContains(index, "## Multi-section Best Practices")
             assertContains(index, "- [First Topic](first-topic.md) `#first` `#shared`")
             assertContains(index, "## Best Practices for Security")
