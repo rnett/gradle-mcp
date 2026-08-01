@@ -170,6 +170,7 @@ class DefaultGradleDocsService(
         }
 
         var bestPracticesCount = 0
+        var upgradingCount = 0
 
         // Section directories
         convertedDir.listDirectoryEntries().filter { it.isDirectory() }.forEach { dir ->
@@ -178,6 +179,10 @@ class DefaultGradleDocsService(
             val count = files.size
 
             bestPracticesCount += files.count { it.toString().replace("\\", "/").contains("best_practices") }
+            upgradingCount += files.count {
+                val name = it.fileName.toString()
+                name.contains("upgrading_version_") || name.contains("upgrading_major_version_")
+            }
 
             val existing = summaries.find { it.tag == tag }
             if (existing != null) {
@@ -197,6 +202,10 @@ class DefaultGradleDocsService(
 
         if (bestPracticesCount > 0) {
             summaries.add(DocsSectionSummary("best-practices", "Best Practices", bestPracticesCount))
+        }
+
+        if (upgradingCount > 0) {
+            summaries.add(DocsSectionSummary("upgrading", "Upgrading Gradle", upgradingCount))
         }
 
         return summaries.sortedBy { it.displayName }

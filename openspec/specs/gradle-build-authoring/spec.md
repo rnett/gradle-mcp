@@ -41,6 +41,7 @@ The `gradle-build-authoring` skill SHALL reference the following resources:
 
 - `../gradle/references/common_build_patterns.md` for multi-project builds and convention plugin patterns
 - `references/best-practices/_index.md` for categorized best-practices (co-located in the same skill directory)
+- `references/upgrading-and-release-notes.md` for Gradle version migration guides and release notes pointers
 - 10 gap-filling reference documents under `references/` covering version catalogs, testing, CI/CD, dependency locking, Worker API, JDK toolchains, build scans, continuous builds, Kotlin compiler options, and artifact publishing
 
 #### Scenario: Agent references common build patterns
@@ -52,6 +53,12 @@ The `gradle-build-authoring` skill SHALL reference the following resources:
 
 - **WHEN** an agent in `gradle-build-authoring` needs CI/CD configuration guidance
 - **THEN** it opens `references/ci-cd-builds.md` for best practices
+
+#### Scenario: Agent consults upgrading and release notes for version-sensitive changes
+
+- **WHEN** an agent in `gradle-build-authoring` makes a version-sensitive change (wrapper upgrade, API migration, deprecation fix)
+- **THEN** it consults the upgrading page for the wrapper's major version via `gradle_docs(path="userguide/upgrading_version_<N>.md")` and checks `gradle_docs(query="tag:release-notes")` for breaking changes
+- **AND** the SKILL.md "Before You Modify" checklist and Decision Routing table SHALL route to `references/upgrading-and-release-notes.md`
 
 ## ADDED Requirements
 

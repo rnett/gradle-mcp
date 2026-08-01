@@ -186,6 +186,10 @@ class DefaultGradleDocsIndexService(
             tags.add("best-practices")
         }
 
+        if (relativePath.contains("upgrading_version_") || relativePath.contains("upgrading_major_version_")) {
+            tags.add("upgrading")
+        }
+
         return tags
     }
 

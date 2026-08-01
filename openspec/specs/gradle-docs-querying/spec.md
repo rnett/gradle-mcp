@@ -34,11 +34,21 @@ The documentation search tool SHALL allow users to filter for specifically tagge
 - **WHEN** user provides `query="tag:best-practices performance"` to the documentation search tool
 - **THEN** only documentation tagged with `best-practices` and containing "performance" SHOULD be returned.
 
+### Requirement: Search by Upgrading Tag
+
+The documentation search tool SHALL allow users to filter for specifically tagged "upgrading" documentation covering version migration and breaking changes.
+
+#### Scenario: Searching for upgrading guides
+
+- **WHEN** user provides `query="tag:upgrading map notation"` to the documentation search tool
+- **THEN** only documentation tagged with `upgrading` and containing "map notation" SHOULD be returned.
+
 ### Requirement: Section Summary Integration
 
-The documentation section summary SHALL explicitly list the `best-practices` tag to aid in discoverability.
+The documentation section summary SHALL explicitly list the `best-practices` and `upgrading` tags to aid in discoverability.
 
 #### Scenario: Summarizing documentation sections
 
 - **WHEN** the documentation tool is called with no arguments
-- **THEN** the returned summary MUST include a "Best Practices" section with its corresponding count.
+- **THEN** the returned summary MUST include a "Best Practices" section with its corresponding count
+- **AND** MUST include an "Upgrading Gradle" section with its corresponding count when upgrading pages are present.

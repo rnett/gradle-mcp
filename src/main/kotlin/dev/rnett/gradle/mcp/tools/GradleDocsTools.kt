@@ -40,6 +40,7 @@ class GradleDocsTools(
             |- `tag:dsl` — property/method syntax
             |- `tag:release-notes` — breaking changes and new features
             |- `tag:best-practices` — performance and design recommendations
+            |- `tag:upgrading` — version migration guides and breaking changes
             |- `tag:javadoc` — API docs
             |- `tag:samples` — code examples
             |

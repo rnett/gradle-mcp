@@ -94,6 +94,7 @@ object SkillMaterialization {
             IndexRow("Configure Java builds", "java-builds.md", "Authoring source sets, annotation processing, or mixed-language compilation"),
             IndexRow("Model configurations and variants", "configurations-and-variants.md", "Defining configuration roles, feature variants, capabilities, or variant-aware sharing"),
             IndexRow("Apply best practices", "best-practices/_index.md", "Before changing any build logic"),
+            IndexRow("Upgrade Gradle or check breaking changes", "upgrading-and-release-notes.md", "Version bumps, deprecation fixes, or API migration"),
         ),
         "interacting-with-project-runtime" to listOf(
             IndexRow(

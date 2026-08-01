@@ -2,7 +2,7 @@
 class: generated
 skill: authoring-gradle-builds
 generator: skill-index
-hash: 0f446a74f2ab76243950a44777e2326b826f9255d5e6a6a10d2f88b073c46a03
+hash: 17d9780054e13b2f9f62497e1954bcbb062f2e7a2e6aece3f76518601ce19824
 -->
 # Reference Index: authoring-gradle-builds
 
@@ -34,3 +34,4 @@ Maps procedures to their reference files. Load the referenced file when the trig
 | Configure Java builds | [java-builds.md](java-builds.md) | Authoring source sets, annotation processing, or mixed-language compilation |
 | Model configurations and variants | [configurations-and-variants.md](configurations-and-variants.md) | Defining configuration roles, feature variants, capabilities, or variant-aware sharing |
 | Apply best practices | [best-practices/_index.md](best-practices/_index.md) | Before changing any build logic |
+| Upgrade Gradle or check breaking changes | [upgrading-and-release-notes.md](upgrading-and-release-notes.md) | Version bumps, deprecation fixes, or API migration |

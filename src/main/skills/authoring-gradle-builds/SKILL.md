@@ -35,9 +35,10 @@ Author or modify Gradle build definitions, build logic, project structure, and d
 
 1. Read `gradle/wrapper/gradle-wrapper.properties`; identify the wrapper version.
 2. Consult the compatibility quick-reference below; verify version-sensitive claims with `gradle_docs`.
-3. Read `settings.gradle.kts`, `gradle/libs.versions.toml`, applied plugins, and convention plugins. Check for existing conventions before proposing changes.
-4. Use the Decision Routing table to load the narrowest authored reference, which is the single authoritative procedural load for the authoring action.
-5. Treat `references/best-practices/_index.md` and its generated corpus detail as optional rationale, consulted on demand rather than as a mandatory pre-load.
+3. When the change is version-sensitive (wrapper upgrade, API migration, deprecation fix), consult the upgrading page for the wrapper's major version via `gradle_docs(path="userguide/upgrading_version_<N>.md")` and check `gradle_docs(query="tag:release-notes")` for breaking changes. See [Upgrading and Release Notes](references/upgrading-and-release-notes.md).
+4. Read `settings.gradle.kts`, `gradle/libs.versions.toml`, applied plugins, and convention plugins. Check for existing conventions before proposing changes.
+5. Use the Decision Routing table to load the narrowest authored reference, which is the single authoritative procedural load for the authoring action.
+6. Treat `references/best-practices/_index.md` and its generated corpus detail as optional rationale, consulted on demand rather than as a mandatory pre-load.
 
 ## Compatibility Quick-Reference
 
@@ -88,6 +89,7 @@ Author or modify Gradle build definitions, build logic, project structure, and d
 | Develop a binary plugin, test with TestKit, or publish a plugin | [Plugin Development](references/plugin-development.md) |
 | Configure Java source sets, annotation processing, or mixed languages | [Java Builds](references/java-builds.md) |
 | Model configurations, feature variants, capabilities, or variant sharing | [Configurations and Variants](references/configurations-and-variants.md) |
+| Upgrade Gradle version, fix deprecations, or check breaking changes | [Upgrading and Release Notes](references/upgrading-and-release-notes.md) |
 
 ## Cross-Skill Handoffs
 
