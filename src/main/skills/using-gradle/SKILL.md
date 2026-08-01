@@ -11,17 +11,16 @@ description: |
   - Researching official Gradle documentation, release notes, or internal APIs.
   - Auditing the dependency graph, resolving version conflicts, or discovering library updates.
   - Searching and reading source code for dependencies, plugins, or Gradle itself.
+  - Performing trivial everyday dependency edits (adding a version-catalog entry + library, bumping a version).
 
   ## Negative Triggers (when NOT to activate)
-  - Modifying build scripts, settings, or module definitions (use `authoring-gradle-builds`).
-  - Adding plugins, repositories, or dependency declarations (use `authoring-gradle-builds`).
-  - Configuring toolchains, compiler options, or testing frameworks (use `authoring-gradle-builds`).
+  - Structural build authoring: adding/changing plugins, repositories, modules/subprojects, toolchains, publishing, CI wiring, compiler options, or testing frameworks (use `authoring-gradle-builds`).
   - Executing arbitrary Kotlin/Java code via the REPL (use `interacting-with-project-runtime`).
   - Rendering Compose UI components (use `verifying-compose-ui`).
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 <!--
 class: authored-local
@@ -30,79 +29,84 @@ skill: using-gradle
 
 # Authoritative Gradle Build Execution, Testing & Inspection
 
-Inspects, executes, diagnoses, and research existing Gradle builds using managed orchestration and structured diagnostics.
+Inspects, executes, diagnoses, and researches existing Gradle builds using managed orchestration and structured diagnostics.
+
+**More info**: Official Gradle guidance: `gradle_docs` with `tag:userguide` and the topic path; read `gradle/wrapper/gradle-wrapper.properties` before version-sensitive research. Published MCP tools: https://gradle-mcp.rnett.dev/latest/tools/.
 
 ## Constitution
 
 - **ALWAYS** use the `gradle` tool instead of `./gradlew` via shell.
-- **ALWAYS** provide absolute paths for `projectRoot`.
-- **ALWAYS** prefer foreground execution unless the task is persistent (servers) or extremely long-running (>2 minutes).
-- **STRONGLY PREFERRED**: Use `query_build` for all diagnostics — more token-efficient than raw console logs.
-- **ALWAYS** use `query_build(kind="TESTS", query="FullTestName")` for test output and stack traces.
-- **NEVER** use `taskPath` or `captureTaskOutput` to investigate specific test failures.
-- **NEVER** use `--rerun-tasks` unless investigating project-wide cache corruption; prefer `--rerun` for individual tasks.
+- **ALWAYS** prefer foreground execution; use background only for persistent (servers) or parallel work.
+- **STRONGLY PREFERRED**: Use `query_build` for all diagnostics; avoid raw console parsing.
+- **ALWAYS** use `query_build(kind="TESTS")` for test output; **NEVER** use `captureTaskOutput` for tests.
+- **NEVER** use `--rerun-tasks` unless investigating project-wide cache corruption; prefer `--rerun` for targeted task forcing.
+- **ALWAYS** read the task outcome (`UP-TO-DATE`, `FROM-CACHE`, `SKIPPED`, etc.); a green result with zero execution is unproven.
+- **ALWAYS** read the wrapper version (`gradle/wrapper/gradle-wrapper.properties`) before applying version-specific advice.
 - **NEVER** guess task names; use `help --task <name>` for authoritative documentation.
-- **NEVER** leave background builds running; use `stopBuildId` to release resources.
-- **ALWAYS** use `gradle_docs` for authoritative documentation instead of generic web searches.
+- **Handoff**: Route structural build edits, compiler-option configuration, and testing-framework configuration to `authoring-gradle-builds`.
+
+## First Contact with a Build
+
+1. **Version Check**: Read `gradle/wrapper/gradle-wrapper.properties` then consult the Compatibility Reference below.
+2. **Build Orientation**: Recognize wrapper, settings, build-script, source, properties, and catalog markers; read `settings.gradle(.kts)` and relevant build files before interpreting hierarchy or task paths. Load [Build Orientation](references/build-orientation.md) for the filesystem and project model.
+3. **Environment Baseline**: Record wrapper version, `GRADLE_USER_HOME`, relevant property sources, JVM owners, and safe environment metadata before comparing runs. Load [Build Environment](references/build-environment.md) for precedence, properties, environment variables, proxies, and init-script detection.
+4. **Hierarchy Map**: Run `:projects` to discover all modules.
+5. **Task Discovery**: Run `:tasks` for the root, or `:<project>:tasks` using a real project path from `:projects`; omit `--all` initially.
+6. **Property Inspection**: Use `:properties` for the root or `:<project>:properties` for a discovered project. Use `--property <name>` where supported; otherwise run the properties task and filter the output.
+7. **Entry Points**:
+   - `build`: Assembles and verifies the project (assemble + check).
+   - `check`: Primary verification task.
+   - `:<project>:test --tests <X>`: Targeted test execution using a project path discovered from `:projects`.
+   - `run` / `installDist`: Runtime execution.
+
+## Compatibility Quick-Reference
+
+| Feature | Gradle 9 | Gradle 8.x | Gradle 7.x | Fallback / Rule |
+| :--- | :--- | :--- | :--- | :--- |
+| `--rerun` | Yes | Yes | 7.6+ | 7.0-7.5: Use `cleanTest test` or `--rerun-tasks`. |
+| Catalogs | Yes | Yes | 7.4+ | < 7.4: Use existing `buildSrc`, scripts, or `ext`. |
+| Config Cache | Stable, opt-in | Stable from 8.1; 8.0 pre-stable | Incubating/experimental, opt-in | < 8.1: Use for explicit investigation only; inspect `PROBLEMS` and the HTML report. |
+| Run JVM | 17+ | 8+ | 8+ | For compile/test compatibility, use a toolchain and consult `gradle_docs` or the exact Gradle compatibility matrix; do not infer it from this minimum. |
+| Build Scan | Yes | Yes | Yes | `--scan` may prompt for terms of service. |
+| `properties --property <name>` | Yes | Current 8.x docs | Exact 7.x availability unverified | If unsupported, run the properties task and filter the captured output. |
+
+## Everyday Dependency Edits
+
+1. **Add Entry**: Add version and library to `gradle/libs.versions.toml`.
+2. **Declare**: Add dependency to `build.gradle.kts` (e.g., `implementation(libs.library.name)`).
+3. **Verify**: Run `inspect_dependencies` to confirm resolution.
+*Anything structural (plugins, repositories, modules, toolchains, publishing, CI, compiler options, or testing frameworks) $\rightarrow$ hand off to `authoring-gradle-builds`.*
 
 ## Decision Routing
 
 | Need | Reference | Load When |
-|------|-----------|-----------|
-| Map project hierarchy, discover tasks, inspect properties | [Project Structure](references/project-structure.md) | Introspecting a new or unfamiliar project |
-| Execute builds, manage background jobs | [Running Builds](references/running-builds.md) | Starting any build execution |
-| Diagnose failures, use diagnostic tasks | [Build Diagnostics](references/build-diagnostics.md) | Build fails or produces problems |
-| Run and investigate tests | [Test Diagnostics](references/test-diagnostics.md) | Running tests or investigating failures |
-| Research Gradle docs, internals, release notes | [Gradle Internals](references/gradle-internals.md) | Looking up official docs or internal APIs |
-| Audit dependency graph, resolve conflicts | [Dependency Inspection](references/dependency-inspection.md) | Checking dependencies or version conflicts |
-| Discover library updates | [Dependency Updates](references/dependency-updates.md) | Checking for newer dependency versions |
-| Search and read dependency/plugin sources | [Dependency Sources](references/dependency-sources.md) | Reading source code of dependencies |
+| :--- | :--- | :--- |
+| Recognize project/filesystem markers; read settings before interpreting paths | [Build Orientation](references/build-orientation.md) | First contact with an unfamiliar checkout |
+| Resolve properties, environment, JVM ownership, proxies, or hidden init inputs | [Build Environment](references/build-environment.md) | Comparing runs or diagnosing configuration and process behavior |
+| Execution lifecycle, task paths, `captureTaskOutput`, and CLI controls | [Running Builds](references/running-builds.md) | Executing any task or selecting diagnostics |
+| Test selection, run patterns, failure isolation | [Testing](references/testing.md) | Running or triaging tests |
+| Failure triage, daemon, config-cache, build scans | [Troubleshooting](references/troubleshooting.md) | Build fails or behaves oddly |
+| Graph audit, conflicts, updates, `dependencyInsight` | [Dependencies](references/dependencies.md) | Auditing or updating libs |
+| `gradle_docs`, Gradle/JDK source research | [Research](references/research.md) | Searching official/internal source
 
 ## Cross-Skill Handoffs
 
-- **Build definition changes** (scripts, settings, modules, dependencies, toolchains) → Load `authoring-gradle-builds`.
-- **Runtime code probing** (JVM/Kotlin REPL) → Load `interacting-with-project-runtime`.
-- **Visual verification** (Compose UI) → Load `verifying-compose-ui`.
+- **Structural Build Changes** (plugins, repositories, modules, toolchains, publishing, CI, compiler options, testing frameworks) $\rightarrow$ `authoring-gradle-builds`.
+- **Runtime Logic Probing** (JVM/Kotlin REPL) $\rightarrow$ `interacting-with-project-runtime`.
+- **UI Verification** (Compose) $\rightarrow$ `verifying-compose-ui`.
 
 ## Workflows
 
 ### Investigative Loop
+1. Execute build/test via [Running Builds](references/running-builds.md).
+2. Diagnose failures via [Troubleshooting](references/troubleshooting.md) or [Testing](references/testing.md).
+3. Inspect conflicts via [Dependencies](references/dependencies.md).
+4. Read source via [Research](references/research.md).
 
-1. Execute the build or test using [Running Builds](references/running-builds.md).
-2. If failures occur, diagnose with [Build Diagnostics](references/build-diagnostics.md) or [Test Diagnostics](references/test-diagnostics.md).
-3. If the root cause involves a dependency conflict, inspect with [Dependency Inspection](references/dependency-inspection.md).
-4. If you need to read the source of a conflicting library, use [Dependency Sources](references/dependency-sources.md).
+1. Identify missing/incorrect config using inspection tools.
+2. If the change is a trivial dependency edit, update the version-catalog entry and library declaration in this skill, then verify resolution with `inspect_dependencies`.
+3. If the change is structural (plugins, repositories, modules/subprojects, toolchains, publishing, CI, compiler options, or testing frameworks), hand off to `authoring-gradle-builds`.
+4. Verify the fix with a fresh build.
 
-### Modification Loop
-
-1. Identify the missing or incorrect dependency/configuration using this skill's inspection tools.
-2. Hand off to `authoring-gradle-builds` to make the build definition change.
-3. Return here to verify the fix with a fresh build.
-
-## Task Path Syntax
-
-Gradle uses two ways to identify tasks:
-
-- **Task Selectors** (no colon): `gradle(commandLine=["test"])` → runs `test` in **all** projects.
-- **Absolute Task Paths** (with colon): `gradle(commandLine=[":app:test"])` → runs only in `:app`.
-
-## Test Selection (`--tests`)
-
-- **Exact Class**: `--tests com.example.MyTest`
-- **Exact Method**: `--tests com.example.MyTest.myTestMethod`
-- **Wildcard**: `--tests com.example.MyTest.test*`
-- **Package**: `--tests com.example.service.*`
-- **Suffix**: `--tests *IntegrationTest`
-
-## `captureTaskOutput` Usage
-
-Use for clean, isolated output from introspection tasks:
-- `":projects"` — Clean project list
-- `":app:tasks"` — Task list for a specific project
-- `":help"` — Documentation for a specific task
-- `":properties"` — Property extraction
-
-## Resource Management
-
-- Use `query_build()` without arguments to view the build dashboard and check for orphaned background builds.
-- Set `invocationArguments: { envSource: "SHELL" }` if Gradle cannot find expected env vars (e.g., `JAVA_HOME`).
+### Everyday Dependency Edit
+1. Update `libs.versions.toml` $\rightarrow$ 2. Update `build.gradle.kts` $\rightarrow$ 3. Verify via `inspect_dependencies`.
