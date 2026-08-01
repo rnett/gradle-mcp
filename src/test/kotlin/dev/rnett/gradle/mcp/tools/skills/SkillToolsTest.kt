@@ -52,8 +52,8 @@ class SkillToolsTest : BaseMcpServerTest() {
 
         // Verify some references
         assertTrue(File(targetDir, "using-gradle/references/running-builds.md").exists())
-        assertTrue(File(targetDir, "using-gradle/references/build-diagnostics.md").exists())
-        assertTrue(File(targetDir, "authoring-gradle-builds/references/dependency-declaration.md").exists())
+        assertTrue(File(targetDir, "using-gradle/references/troubleshooting.md").exists())
+        assertTrue(File(targetDir, "authoring-gradle-builds/references/dependencies-and-catalogs.md").exists())
     }
 
     @Test

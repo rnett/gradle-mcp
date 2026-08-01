@@ -1,0 +1,176 @@
+<!--
+class: authored-local
+skill: authoring-gradle-builds
+-->
+# Managed Types and Providers
+
+Model build properties lazily using the Property and Provider APIs. Wire values through providers to defer realization until the execution boundary; this ensures configuration avoidance and compatibility with the configuration cache.
+
+## Property vs Provider
+
+Use `Property<T>` for values that can be configured (mutable) and `Provider<T>` for values that are read-only. Wire them using `set()`, `map`, `flatMap`, `zip`, and `orElse`.
+
+```kotlin
+abstract class MyTask : DefaultTask() {
+    @get:Input
+    abstract val message: Property<String>
+
+    @get:Input
+    abstract val suffix: Property<String>
+
+    // Computed property wired lazily
+    val fullMessage: Provider<String> = message.flatMap { msg ->
+        suffix.map { s -> "$msg$s" }
+    }
+}
+
+tasks.register<MyTask>("myTask") {
+    message.set("Hello")
+    suffix.convention(" World")
+}
+```
+
+**Default:** Use `Property` for task and extension inputs. Wire multiple providers using `zip` for synchronous combinations or `flatMap` for dependent transformations.
+
+**Anti-pattern:** Call `.get()` or `.getOrElse()` during the configuration phase to compute another property; use `map` or `flatMap` instead.
+
+See [Do not call `get()` on a Provider outside a Task action](best-practices/do-not-call-get-on-a-provider-outside-a-task-action.md) for the rationale on avoiding premature realization.
+
+## set vs convention vs finalizeValue
+
+Use `convention()` to define a default that can be overridden. Use `set()` to either provide a fixed value or wire a provider. Use `finalizeValue()` to lock a property so subsequent attempts to change it are ignored.
+
+```kotlin
+abstract class MyExtension {
+    abstract val outputDir: DirectoryProperty
+}
+
+// In plugin apply logic:
+extension.outputDir.convention(layout.buildDirectory.dir("outputs"))
+extension.outputDir.set(layout.projectDirectory.dir("custom-out")) // Overrides convention
+extension.outputDir.finalizeValue() // Locks the value
+```
+
+**Default:** Apply conventions in plugin code so users have a sensible default. Use `finalizeValue()` for properties that must not be changed after a certain point in the configuration lifecycle.
+
+**Anti-pattern:** Use `set()` for defaults, which prevents users from providing their own values without knowing the original default.
+
+## Scalar, File, and Collection Properties
+
+Use specialized managed types for files and collections to enable precise input/output tracking and lazy resolution.
+
+```kotlin
+abstract class FileProcessorTask : DefaultTask() {
+    @get:InputFile
+    abstract val inputFile: RegularFileProperty
+
+    @get:InputDirectory
+    abstract val inputDir: DirectoryProperty
+
+    @get:Input
+    abstract val flags: MapProperty<String, Boolean>
+
+    @get:Input
+    abstract val tags: SetProperty<String>
+
+    @get:Input
+    abstract val orderedItems: ListProperty<String>
+}
+```
+
+**Default:** Always use `RegularFileProperty` and `DirectoryProperty` instead of `File` or `String` for paths. Use `ListProperty`, `SetProperty`, and `MapProperty` for managed collections.
+
+**Anti-pattern:** Declare file inputs as `Property<File>` or `Property<String>`, which bypasses Gradle's optimized file-system tracking and prevents correct cache key computation.
+
+## Managed and Named Managed Types
+
+Prefer Gradle-created managed objects over manual instantiation. Use `ObjectFactory` to create nested managed types or named objects.
+
+```kotlin
+abstract class MyExtension {
+    abstract val settings: MySettings // Nested managed type
+}
+
+abstract class MySettings {
+    abstract val timeout: Property<Int>
+}
+
+// For named objects
+abstract class MyNamedDomainObject {
+    abstract val name: String
+    abstract val value: Property<Int>
+}
+```
+
+**Default:** Declare managed properties as `abstract` in classes inheriting from `DefaultTask` or other managed types. Use `NamedDomainObjectContainer` to manage a collection of uniquely named objects.
+
+**Anti-pattern:** Use `new MySettings()` or `MySettings()` inside a task or extension; this breaks the managed lifecycle and configuration cache compatibility.
+
+## Collections and Containers
+
+Use `NamedDomainObjectContainer` for polymorphic collections of named objects. Use `register` and `configureEach` to keep the container lazy.
+
+```kotlin
+interface MyExtension {
+    val items: NamedDomainObjectContainer<MyItem>
+}
+
+// Usage in build script:
+extensions.configure<MyExtension> {
+    items.register("first") {
+        value.set(10)
+    }
+    items.configureEach {
+        // Configures all items lazily
+    }
+}
+```
+
+**Default:** Use `register` over `create` to avoid eager realization of every object in the container. Use `configureEach` instead of `allItems` or `all` to maintain configuration avoidance.
+
+**Anti-pattern:** Iterate over a container using `forEach` or `toList()` during configuration, which forces eager realization of every managed object.
+
+## Lazy Files
+
+Use `ProjectLayout` to resolve project-relative paths lazily. Avoid `new File()` as it resolves against the current working directory (CWD), which varies by execution environment.
+
+```kotlin
+val buildDir = layout.buildDirectory // Provider<Directory>
+val projectDir = layout.projectDirectory // Directory
+
+// Safe relative path
+val inputFile = layout.projectDirectory.file("config/settings.json")
+
+// Provider-backed copy wiring
+tasks.register<Copy>("copyConfig") {
+    from(inputFile)
+    into(layout.buildDirectory.dir("config"))
+}
+```
+
+**Default:** Use `layout.projectDirectory` and `layout.buildDirectory` for all file paths. Use `FileCollection` and `FileTree` for grouping files without resolving them to a list.
+
+**Anti-pattern:** Use `new File("path/to/file")` or `Project.file("...")` inside a task action; these are not lazy and can cause issues in isolated projects or remote cache restores.
+
+See [Avoid using eager APIs on File Collections](best-practices/avoid-using-eager-apis-on-file-collections.md) for the rationale on lazy file collections.
+
+## Incubating: Dataflow Actions
+
+**Warning:** Dataflow Actions are **incubating** and not a stable default. Use them only for non-task logic that requires annotated managed inputs. For implementation details, refer to the [official Dataflow Actions guide](https://docs.gradle.org/current/userguide/dataflow_actions.html).
+
+**Default:** Prefer standard tasks for any work that produces file outputs. Dataflow actions are intended for internal Gradle data-flow within the configuration or execution graph.
+
+**Anti-pattern:** Using `FlowAction` for general-purpose build logic or as a replacement for custom tasks.
+
+### Version notes
+
+- **Gradle 9.x:** Property and Provider APIs are the stable standard. Config cache is stable; all managed types are required for compatibility. Dataflow actions remain incubating.
+- **Gradle 8.x:** The same APIs apply; config cache is stable from 8.1.
+- **Gradle 7.x:** Managed properties are available but some plugins may still use eager `create` patterns. Prefer `register` and `Property` where supported.
+
+**More info:**
+- Lazy configuration: `gradle_docs` `tag:userguide`, path `userguide/lazy_configuration.md`; published guide: https://docs.gradle.org/current/userguide/lazy_configuration.html
+- Properties and Providers: `gradle_docs` `tag:userguide`, path `userguide/properties_providers.md`; published guide: https://docs.gradle.org/current/userguide/properties_providers.html
+- Collections: `gradle_docs` `tag:userguide`, path `userguide/collections.md`; published guide: https://docs.gradle.org/current/userguide/collections.html
+- Working with files: `gradle_docs` `tag:userguide`, path `userguide/working_with_files.md`; published guide: https://docs.gradle.org/current/userguide/working_with_files.html
+- Dataflow actions: `gradle_docs` `tag:userguide`, path `userguide/dataflow_actions.md`; published guide: https://docs.gradle.org/current/userguide/dataflow_actions.html

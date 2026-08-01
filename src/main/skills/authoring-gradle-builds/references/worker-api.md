@@ -4,104 +4,137 @@ skill: authoring-gradle-builds
 -->
 # Worker API
 
-The Gradle Worker API allows you to offload units of work to separate processes or threads. This is essential for tasks that need to run in parallel, tasks that require a different JVM version, or tasks that would otherwise cause memory leaks in the main Gradle process.
+Use the Worker API to fan out independent, bounded units of task work. A worker action must be self-contained: pass declared, serializable parameters and do not retain `Project`, `Task`, mutable extensions, or other live Gradle model state. Use the Worker API only when parallel work or isolation solves a measured problem; do not replace a normal task action with workers for a small sequential operation.
 
-## Basic Usage with `WorkerExecutor`
+## Non-negotiable defaults
 
-To use the Worker API, inject the `WorkerExecutor` into your custom task.
+- Inject `WorkerExecutor`; never construct it or obtain it from an internal Gradle service.
+- Prefer `noIsolation()` for stateless, thread-safe work that can safely share the task's process and classpath.
+- Select `classLoaderIsolation { ... }` only when the action needs a separated classpath or must avoid dependency/classloader conflicts.
+- Select `processIsolation { ... }` only when the action needs JVM-level memory or JVM-argument isolation. Pay the process and heap cost deliberately.
+- Define a `WorkAction<WorkParameters>` with managed parameter properties. Pass values through `parameters`, not through captured variables or global state.
+- Submit all work from the task action. Gradle waits for submitted work before the task completes, so do not add an ad hoc join, executor, or background thread.
 
-### Simple Work Submission
+For constructor and service-injection rules, see [Advanced Configuration](advanced-configuration.md). The Worker API is not a replacement for a build service: use a build service for build-scoped shared resources, and use `maxParallelUsages` to bound them.
+
+## Minimal worker task
+
 ```kotlin
-abstract class MyParallelTask : DefaultTask() {
-    @get:Inject
-    abstract val workerExecutor: WorkerExecutor
+import javax.inject.Inject
+import org.gradle.api.DefaultTask
+import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.TaskAction
+import org.gradle.workers.WorkAction
+import org.gradle.workers.WorkParameters
+import org.gradle.workers.WorkerExecutor
 
-    @TaskAction
-    fun run() {
-        val workQueue = workerExecutor.noIsolation()
-        
-        (1..5).forEach { id ->
-            workQueue.submit(MyWorkAction::class.java) {
-                this.id = id
-            }
-        }
-    }
-}
-
-interface MyWorkParameters : WorkParameters {
-    var id: Int
-}
-
-abstract class MyWorkAction : WorkAction<MyWorkParameters> {
-    override fun execute() {
-        println("Processing work item ${parameters.id}")
-    }
-}
-```
-
-## Isolation Modes
-
-The Worker API provides three isolation levels to protect the build process and manage resources.
-
-### 1. No Isolation (`noIsolation`)
-- **Behavior**: Work runs in the same process as the Gradle daemon.
-- **Use Case**: Lightweight tasks that don't need a separate classpath or JVM.
-- **Performance**: Fastest, as there is no process overhead.
-
-### 2. ClassLoader Isolation (`classLoaderIsolation`)
-- **Behavior**: Each worker gets its own classloader.
-- **Use Case**: Use this when the work requires a set of dependencies that might conflict with the Gradle daemon's classpath.
-- **Configuration**: Provide a classpath via the `classLoaderIsolation` configuration block.
-
-### 3. Process Isolation (`processIsolation`)
-- **Behavior**: Work runs in a completely separate JVM process.
-- **Use Case**: Use this for memory-intensive tasks (to avoid OOM in the daemon) or tasks that need specific JVM arguments (e.g., `-Xmx4g`).
-- **Configuration**: Allows specifying JVM arguments and a separate heap size.
-
-## Parallel Work Patterns
-
-The Worker API allows for "fan-out" parallelism. Instead of a single `@TaskAction` doing a loop, you submit many `WorkAction` items to the queue.
-
-### Example: Parallel File Processing
-```kotlin
-abstract class FileProcessorTask : DefaultTask() {
+abstract class ProcessFilesTask @Inject constructor(
+    private val workers: WorkerExecutor,
+) : DefaultTask() {
     @get:InputFiles
     abstract val inputFiles: ConfigurableFileCollection
 
-    @get:Inject
-    abstract val workerExecutor: WorkerExecutor
-
     @TaskAction
     fun process() {
-        val workQueue = workerExecutor.processIsolation {
-            // Configure separate JVM for isolation
-            forkOptions {
-                maxHeapSize = "512m"
-            }
-        }
-
-        inputFiles.forEach { file ->
-            workQueue.submit(FileWorkAction::class.java) {
-                this.targetFile = file
+        val queue = workers.noIsolation()
+        inputFiles.files.forEach { file ->
+            queue.submit(ProcessFileWork::class.java) {
+                inputFile.set(file)
             }
         }
     }
 }
 
-interface FileWorkParameters : WorkParameters {
-    var targetFile: File
+interface ProcessFileParameters : WorkParameters {
+    val inputFile: Property<java.io.File>
 }
 
-abstract class FileWorkAction : WorkAction<FileWorkParameters> {
+abstract class ProcessFileWork : WorkAction<ProcessFileParameters> {
     override fun execute() {
-        val file = parameters.targetFile
-        // Heavy processing logic here...
-        println("Finished processing ${file.name}")
+        val file = parameters.inputFile.get()
+        // Perform independent, thread-safe work for this file.
+        println("Processing ${file.name}")
     }
 }
 ```
 
-## Key Considerations
-- **State**: `WorkAction`s are short-lived and independent. Do not share mutable state between them.
-- **Output**: Use the `WorkQueue` to submit work, and remember that the main task will wait for all submitted work to complete before continuing.
-- **Memory**: Process isolation is the safest way to prevent a single problematic task from crashing the entire Gradle build.
+Keep each parameter complete and immutable after submission. If work writes files, give every action a unique output path and declare the aggregate outputs on the task. Do not have workers write the same file, append to one shared stream, or mutate shared collections without an explicit thread-safe design.
+
+## Isolation modes and cost
+
+| Mode | Execution boundary | Use when | Memory and cost |
+| --- | --- | --- | --- |
+| `noIsolation()` | Same Gradle process and shared classloader context | Work is trusted, lightweight, stateless, and classpath-compatible | Lowest overhead and memory use; a leak or unsafe global can damage the daemon or race with other workers |
+| `classLoaderIsolation { classpath.from(...) }` | Separate classloader for the work action | Dependencies must be isolated from Gradle or from another worker classpath | More class metadata and classloader memory; still shares the Gradle JVM and its process limits |
+| `processIsolation { forkOptions { ... } }` | Separate JVM process | Work needs JVM arguments, a separate heap, or stronger failure/memory containment | Highest startup and memory cost; each active process has its own JVM overhead and heap |
+
+Example process isolation is appropriate for genuinely memory-heavy work, not for every item in a small loop:
+
+```kotlin
+abstract class AnalyzeFilesTask @Inject constructor(
+    private val workers: WorkerExecutor,
+) : DefaultTask() {
+    @get:InputFiles
+    abstract val inputFiles: ConfigurableFileCollection
+
+    @TaskAction
+    fun analyze() {
+        val queue = workers.processIsolation {
+            forkOptions {
+                maxHeapSize = "512m"
+                jvmArgs("-Danalysis.mode=ci")
+            }
+        }
+        inputFiles.files.forEach { file ->
+            queue.submit(AnalyzeFileWork::class.java) {
+                inputFile.set(file)
+            }
+        }
+    }
+}
+
+interface AnalyzeFileParameters : WorkParameters {
+    val inputFile: Property<java.io.File>
+}
+
+abstract class AnalyzeFileWork : WorkAction<AnalyzeFileParameters> {
+    override fun execute() {
+        analyze(parameters.inputFile.get())
+    }
+
+    private fun analyze(file: java.io.File) {
+        println("Analyzing ${file.name}")
+    }
+}
+```
+
+For classloader isolation, provide only the action's required runtime classpath and keep the action implementation compatible with that classpath. Do not assume project-scoped services are available inside an isolated action. In particular, classloader- and process-isolated workers cannot directly consume a build service; pass serializable parameters or use `noIsolation()` when safe.
+
+## When not to use the Worker API
+
+Do not use workers when the operation is sequential, tiny, already parallelized by a library, or dominated by one shared lock or one output file. Do not use process isolation to conceal undeclared inputs, fix a race, or compensate for an unbounded workload. Fix task input/output modeling and synchronization at the root.
+
+**Anti-patterns**:
+
+- Capturing `project`, `layout`, an extension, or a mutable collection in a `WorkAction`.
+- Passing a non-serializable service, open stream, socket, or mutable model object as a worker parameter.
+- Calling `System.getenv`, reading undeclared files, or resolving configurations from worker code without modeling the value as task/work input.
+- Starting a second executor and returning before submitted work finishes.
+- Submitting one process-isolated worker per trivial operation and exhausting memory.
+- Assuming worker submission order is execution order.
+
+## Version notes
+
+- **Gradle 9.x:** Bias to the latest 9.x API and current worker diagnostics. Use process isolation only with an explicit memory budget; configuration-cache compatibility still depends on the surrounding task and plugin.
+- **Gradle 8.x:** `WorkerExecutor`, `WorkAction`, `WorkParameters`, and the three isolation modes are supported. Test the exact worker classpath and plugin combination when adopting configuration cache.
+- **Gradle 7.x:** The Worker API is available. Prefer public API signatures documented by the target 7.x wrapper, use managed parameter types, and fall back to `noIsolation()` when newer classpath or fork-option details are unavailable. Do not assume Gradle 7.x configuration-cache compatibility.
+
+**More info**:
+
+- Worker API: `gradle_docs` `tag:userguide`, path `userguide/worker_api.md`, terms `noIsolation`, `classLoaderIsolation`, `processIsolation`; official docs: https://docs.gradle.org/current/userguide/worker_api.html.
+- Service injection: `gradle_docs` `tag:userguide`, path `userguide/service_injection.md`, terms `@Inject`, `WorkerExecutor`; official docs: https://docs.gradle.org/current/userguide/service_injection.html.
+- Shared build services: `gradle_docs` `tag:userguide`, path `userguide/build_services.md`, terms `usesService`, `maxParallelUsages`; official docs: https://docs.gradle.org/current/userguide/build_services.html.
+- Version-matched research: `gradle_docs` https://gradle-mcp.rnett.dev/latest/tools/GRADLE_DOCS_TOOLS/.

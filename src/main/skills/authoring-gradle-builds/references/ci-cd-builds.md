@@ -4,91 +4,92 @@ skill: authoring-gradle-builds
 -->
 # CI/CD Builds
 
-Optimizing Gradle for CI/CD environments requires balancing build speed, reproducibility, and observability. CI environments differ from local development primarily by the lack of a persistent daemon and the need for clean-slate isolation.
+Author CI builds as reproducible, diagnosable invocations of the checked-in Gradle wrapper. CI is not a separate build definition: it is another environment that must consume declared inputs, the same dependency graph, and the same task outputs.
 
-## Daemon Management
+## Non-negotiable defaults
 
-The Gradle Daemon is designed for local development to speed up consecutive builds. In CI, a daemon can consume memory across pipeline stages or fail to shut down, leading to "zombie" processes.
+- Run `gradlew`/`gradlew.bat`, never a globally installed `gradle`. Keep `gradle/wrapper/gradle-wrapper.properties` and the wrapper JAR under version control, and pin the distribution URL to the intended version.
+- Set `GRADLE_USER_HOME` to a job-owned, cacheable directory. Cache dependency artifacts, the wrapper distribution, and (when policy permits) the local build cache; do not share a writable Gradle User Home concurrently between unrelated jobs.
+- Enable the build cache with `--build-cache` or `org.gradle.caching=true`. Prefer a remote cache for ephemeral runners and a local cache for persistent runners; make remote cache writes trusted and avoid publishing outputs from untrusted pull requests.
+- Enable the configuration cache with `--configuration-cache` or `org.gradle.configuration-cache=true` after the build and its plugins pass compatibility checks. Treat the cache as a separate optimization from the build cache.
+- Keep the daemon enabled unless the CI provider already scopes and cleans the process. Use `--no-daemon` for genuinely ephemeral jobs where process lifetime and cleanup matter more than warm-build performance.
+- Add `--stacktrace` to the normal CI command. Add `--continue` when the objective is a failure inventory across independent tasks, not when the first failure should stop the job.
 
-### Disabling the Daemon
-Use the `--no-daemon` flag in your CI pipeline scripts.
+The generated best-practices corpus owns the rationale for cache and shared-property defaults. See [Use the Build Cache](best-practices/use-the-build-cache.md), [Use the Configuration Cache](best-practices/use-the-configuration-cache.md), and [Set Build Flags in `gradle.properties`](best-practices/set-build-flags-in-gradle-properties.md). Do not duplicate those entries; use this reference for CI-specific authoring constraints.
 
-```yaml
-# GitHub Actions example
-- name: Run Tests
-  run: ./gradlew test --no-daemon
-```
+## Wrapper and Gradle User Home
 
-Alternatively, set it globally in `gradle.properties`:
-```properties
-org.gradle.daemon=false
-```
+The wrapper makes the Gradle runtime reproducible, but it does not make the environment reproducible by itself. Pin the JDK, use Gradle toolchains for compilation, and make repository declarations, dependency locking, and credentials explicit. A CI cache key should include at least the wrapper distribution, OS/architecture, JDK/toolchain identity, dependency lockfiles, and relevant build scripts.
 
-## Build Scans (`--scan`)
+Use a job-local `GRADLE_USER_HOME` such as `.gradle-user-home` under the runner workspace or a provider-managed cache directory. Preserve it between jobs only through the CI provider's cache mechanism. Never place credentials in the cached directory or print its contents.
 
-Build scans provide a deep, shareable record of a build's execution, including performance bottlenecks, dependency resolution, and failure analysis.
+**Anti-patterns**:
 
-```bash
-./gradlew build --scan
-```
+- Running `gradle` from the runner image and allowing the image to choose the Gradle version.
+- Sharing one writable `GRADLE_USER_HOME` among parallel jobs.
+- Caching only `build/`, which is task output local to one checkout and is not a substitute for the Gradle User Home or build cache.
+- Using `--refresh-dependencies` on every build. Use it only for intentional freshness diagnosis.
 
-In CI, you can automate the acceptance of the Terms of Service:
-```properties
-# gradle.properties
-system.prop.gradle.scan.terms.accepted=yes
-```
+## Build cache in CI
 
-## Parallel Execution and Resource Control
+The build cache reuses task outputs when Gradle computes the same task inputs. It cannot repair tasks with undeclared inputs, unstable outputs, machine-specific paths, timestamps, network reads, or mutable global state. Make custom tasks cacheable and model every output-affecting value before expecting cache hits.
 
-To maximize throughput in CI agents, enable parallel execution and constrain worker counts to avoid OOM (Out of Memory) errors.
+Enable the local cache in `settings.gradle.kts` when the build needs an explicit settings-level policy:
 
-### Parallelism
-- `--parallel`: Allows Gradle to execute decoupled projects in parallel.
-- `--max-workers`: Sets the maximum number of worker processes. Match this to the number of CPU cores available on your CI runner.
-
-```bash
-./gradlew build --parallel --max-workers=4
-```
-
-## Build Cache Configuration
-
-The build cache allows CI to reuse outputs from previous builds, drastically reducing execution time.
-
-### Local vs Remote Cache
-- **Local Cache**: Stored on the runner. Useful if you use persistent runners (e.g., self-hosted GitHub Runners).
-- **Remote Cache**: A shared server (e.g., Gradle Enterprise). Essential for ephemeral runners.
-
-Enable the build cache in `settings.gradle.kts`:
 ```kotlin
 buildCache {
     local {
         isEnabled = true
     }
-    // remote<HttpApiCache> {
-        // url = uri("https://cache.example.com")
-        // credentials { ... }
-    // }
 }
 ```
 
-## GitHub Actions Patterns
+Use `--build-cache` for a CI invocation when the policy should be selected by the pipeline. Use a remote cache only with an authenticated, trusted endpoint and a documented read/write policy. Do not add a made-up remote cache type or endpoint to a build definition: configure the provider-supported cache backend in settings and verify its credentials separately.
 
-A standard high-performance Gradle setup in GitHub Actions usually involves the `gradle-build-action` for automated caching of the Gradle User Home.
+**Anti-patterns**:
 
-```yaml
-- uses: gradle/actions/setup-gradle@v3
-  with:
-    cache-read-only: false # Enable write access to cache on main branch
+- Treating a cache hit as proof that a task action ran.
+- Enabling remote writes for untrusted code.
+- Adding absolute workspace paths, hostnames, current time, or undeclared environment values to cacheable task outputs.
+- Disabling cacheability instead of declaring missing inputs and outputs.
 
-- name: Build with Gradle
-  run: ./gradlew build --no-daemon --parallel
-```
+## Configuration cache in CI
 
-### CI-specific `settings.gradle.kts`
-You can use environment variables to conditionally change project behavior in CI.
+The configuration cache stores the configured task graph, while the build cache stores task outputs. Enable both when the build is compatible. Test the exact CI task set, because one incompatible plugin or task can prevent configuration-cache reuse even when ordinary local builds succeed.
 
-```kotlin
-if (providers.environmentVariable("CI").isPresent) {
-    // Disable heavy tasks or change logging levels for CI
-}
-```
+Keep CI conditionals configuration-cache-safe. Read `CI`, branch names, feature flags, and other environment-backed values through declared providers or a `ValueSource`; do not call `System.getenv`, `System.getProperty`, arbitrary file APIs, or external commands during configuration without modeling the input. If the value affects a task, wire a `Property` or `Provider` into that task rather than branching on an eagerly realized value.
+
+See [Advanced Configuration](advanced-configuration.md) for service injection, providers, and the verified `ValueSource` pattern. Configuration-cache reuse is invalidated when relevant declared inputs change; hidden environment reads can instead reuse stale configuration.
+
+**Anti-patterns**:
+
+- Assuming `if (providers.environmentVariable("CI").isPresent) { ... }` alone makes all work inside the branch cache-safe.
+- Calling `.get()` on a provider while configuring unrelated tasks.
+- Retaining `Project`, `Task`, or live model objects for execution-time callbacks.
+- Treating a successful first CI build as evidence that subsequent builds will reuse the configuration cache.
+
+## Diagnostics and failure policy
+
+Use `--stacktrace` on every CI verification command. Use `--info` for cache, configuration-cache, or task-input diagnosis; reserve `--debug` for a deliberately captured diagnostic job because it is noisy. Use `--continue` to collect independent failures, then rerun the root failure without it so dependency failures are not obscured.
+
+Keep diagnostics inside the CI log and artifact policy. Do not add `--scan` automatically: a build scan publishes build metadata and may require Terms of Service acceptance. Use it only when publication is authorized; otherwise use local logs, test reports, and the Gradle MCP execution tools.
+
+## Daemon and resource policy
+
+A daemon is useful on persistent runners and for several Gradle invocations in one job. `--no-daemon` is reasonable for a single invocation on a disposable runner, but it does not turn Gradle into a low-memory process: compilation, workers, and test forks still consume resources. Set `--max-workers` from the runner's actual capacity rather than assuming the host CPU count.
+
+Do not encode `org.gradle.daemon=false` globally merely because one CI provider is ephemeral. Keep the default in the pipeline command or provider configuration unless every environment should use the same policy.
+
+## Version notes
+
+- **Gradle 9.x:** Bias to the latest supported 9.x minor. Configuration cache is stable and remains opt-in; validate third-party plugins and use the current wrapper's diagnostics. Prefer the current cache and provider APIs.
+- **Gradle 8.x:** Configuration cache is stable from 8.1 onward. Gradle 8.0 and older plugin combinations require explicit compatibility testing. Build-cache and wrapper practices are the same.
+- **Gradle 7.x:** Use the wrapper and explicit cache testing, but treat configuration cache as experimental or migration work rather than a universal CI default. On 7.x, fall back to ordinary providers and explicit task inputs when newer configuration-cache APIs or plugin support are unavailable.
+
+**More info**:
+
+- Wrapper and CI environment: `gradle_docs` `tag:userguide`, path `userguide/gradle_wrapper.md`; official docs: https://docs.gradle.org/current/userguide/gradle_wrapper.html.
+- Build cache: `gradle_docs` `tag:userguide`, path `userguide/build_cache.md`; official docs: https://docs.gradle.org/current/userguide/build_cache.html.
+- Configuration cache requirements: `gradle_docs` `tag:userguide`, path `userguide/configuration_cache_requirements.md`; official docs: https://docs.gradle.org/current/userguide/configuration_cache_requirements.html.
+- Gradle properties and build environment: `gradle_docs` `tag:userguide`, path `userguide/build_environment.md`; official docs: https://docs.gradle.org/current/userguide/build_environment.html.
+- CI execution and diagnostics: `gradle` https://gradle-mcp.rnett.dev/latest/tools/EXECUTION_TOOLS/ and build lookup via `query_build`/`wait_build` https://gradle-mcp.rnett.dev/latest/tools/LOOKUP_TOOLS/.
