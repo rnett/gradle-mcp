@@ -2,12 +2,12 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: 72e2cd764c89a12de20efb50ee342a2f3b90fdd32a47c4baa1c5ada866ab6110
+hash: b301bcc7b7a3b51f35565d40090a687038743ad3eda1c45abc252d66a029fd62
 -->
 # Best Practices for Testing
 
 ## Test your custom Task and Plugins with TestKit
-You should test any custom tasks or plugins you create using [`Gradle TestKit`](https://docs.gradle.org/current/userguide/test_kit.html#test_kit) (Use `gradle_docs(path="userguide/test_kit.html#test_kit")`.).  
+You should test any custom tasks or plugins you create using [`Gradle TestKit` (Use `gradle_docs(path="userguide/test_kit.md")`.).  
 
 ### Explanation
 Gradle's flexibility supports a natural evolution of custom types as they mature.  
@@ -164,7 +164,7 @@ In this case, there are several problems:
 | **4** | **The wrong variable is assigned during task configuration** : The `greeter` variable from the buildscript is mistakenly assigned instead of the task's `greeting` property.        |
 
 #### Do This Instead
-In this updated version of the build, the custom types are defined in an included `build-logic` [composite build](https://docs.gradle.org/current/userguide/best_practices_structuring_builds.html#favor_composite_builds) (Use `gradle_docs(path="userguide/best_practices_structuring_builds.html#favor_composite_builds")`.), which now includes a basic set of functional tests using Gradle TestKit.  
+In this updated version of the build, the custom types are defined in an included `build-logic` [composite build (Use `gradle_docs(path="userguide/best_practices_structuring_builds.md")`.), which now includes a basic set of functional tests using Gradle TestKit.  
 While these custom types are written in Java for demonstration purposes, they could just as easily be implemented in Groovy or Kotlin. Because they reside in a separate, complete Gradle build, they can be thoroughly tested using TestKit.  
 
 ```kotlin
@@ -349,7 +349,7 @@ gradlePlugin {
 ```
 
 |-------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **1** | **Define the new test suite** : Creates a `functionalTest` [JVM Test Suite](https://docs.gradle.org/current/userguide/jvm_test_suite_plugin.html#jvm_test_suite_plugin) (Use `gradle_docs(path="userguide/jvm_test_suite_plugin.html#jvm_test_suite_plugin")`.).                                        |
+| **1** | **Define the new test suite** : Creates a `functionalTest` [JVM Test Suite (Use `gradle_docs(path="userguide/jvm_test_suite_plugin.md")`.).                                        |
 | **2** | **Add TestKit dependency** : This contains the `GradleRunner` class we'll use to write tests.                                                                         |
 | **3** | **Make the `java-gradle-plugin` aware of the new test suite**: Now the usable plugin source from the project's main production code will be available to these tests. |
 
@@ -535,16 +535,16 @@ Looking at the example tests here, you can see various techniques used to verify
 | **3** | **testTaskDeterminism**: This test runs the build twice - forcing tasks to rerun the second time - to ensure the output is identical, which is necessary for caching. |
 | **4** | **testTaskCacheability**: This test checks that when the task is run twice in a row, the second run is loaded from cache.                                             |
 
-These examples only scratch the surface of what you can achieve with TestKit. For instance, a comprehensive test for cacheability should verify that changes to inputs correctly trigger re-execution and include tests for [relocatability](https://docs.gradle.org/current/userguide/build_cache_debugging.html#caching_relocation_test) (Use `gradle_docs(path="userguide/build_cache_debugging.html#caching_relocation_test")`.).  
-You can find more information in the [Gradle TestKit documentation](https://docs.gradle.org/current/userguide/test_kit.html#test_kit) (Use `gradle_docs(path="userguide/test_kit.html#test_kit")`.).  
+These examples only scratch the surface of what you can achieve with TestKit. For instance, a comprehensive test for cacheability should verify that changes to inputs correctly trigger re-execution and include tests for [relocatability (Use `gradle_docs(path="userguide/build_cache_debugging.md")`.).  
+You can find more information in the [Gradle TestKit documentation (Use `gradle_docs(path="userguide/test_kit.md")`.).  
 
 ### References
-* [`Gradle TestKit`](https://docs.gradle.org/current/userguide/test_kit.html#test_kit) (Use `gradle_docs(path="userguide/test_kit.html#test_kit")`.)
+* [`Gradle TestKit` (Use `gradle_docs(path="userguide/test_kit.md")`.)
 
-* [`Testing Binary Plugins`](https://docs.gradle.org/current/userguide/testing_binary_plugin_advanced.html#test_binary_plugins_advanced) (Use `gradle_docs(path="userguide/testing_binary_plugin_advanced.html#test_binary_plugins_advanced")`.)
+* [`Testing Binary Plugins` (Use `gradle_docs(path="userguide/testing_binary_plugin_advanced.md")`.)
 
 ### Tags
-[`#plugins`](https://docs.gradle.org/current/userguide/tags_reference.html#tag:plugins) (Use `gradle_docs(path="userguide/tags_reference.html#tag:plugins")`.), [`#testing`](https://docs.gradle.org/current/userguide/tags_reference.html#tag:testing) (Use `gradle_docs(path="userguide/tags_reference.html#tag:testing")`.)
+[`#plugins` (Use `gradle_docs(path="userguide/tags_reference.md")`.), [`#testing` (Use `gradle_docs(path="userguide/tags_reference.md")`.)
 
 ---
 

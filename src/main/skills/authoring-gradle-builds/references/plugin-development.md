@@ -155,9 +155,9 @@ See [Advanced Configuration](advanced-configuration.md) and [Modules and Setting
 
 **More info:**
 
-- Implementing plugins: `gradle_docs` `tag:userguide`, path `userguide/implementing_gradle_plugins.md`; published guide: https://docs.gradle.org/current/userguide/implementing_gradle_plugins.html
-- Java Gradle Plugin: `gradle_docs` `tag:userguide`, path `userguide/java_gradle_plugin.md`; published guide: https://docs.gradle.org/current/userguide/java_gradle_plugin.html
-- Testing plugins: `gradle_docs` `tag:userguide`, path `userguide/testing_gradle_plugins.md`; published guide: https://docs.gradle.org/current/userguide/testing_gradle_plugins.html
-- Publishing plugins: `gradle_docs` `tag:userguide`, path `userguide/publishing_gradle_plugins.md`; published guide: https://docs.gradle.org/current/userguide/publishing_gradle_plugins.html
-- Advanced plugin concepts: `gradle_docs` `tag:userguide`, path `userguide/plugin_introduction_advanced.md`; published guide: https://docs.gradle.org/current/userguide/plugin_introduction_advanced.html
-- Gradle documentation lookup: https://gradle-mcp.rnett.dev/latest/tools/GRADLE_DOCS_TOOLS/
+- Implementing plugins: `gradle_docs` `tag:userguide`, path `userguide/implementing_gradle_plugins.md`
+- Java Gradle Plugin: `gradle_docs` `tag:userguide`, path `userguide/java_gradle_plugin.md`
+- Testing plugins: `gradle_docs` `tag:userguide`, path `userguide/testing_gradle_plugins.md`
+- Publishing plugins: `gradle_docs` `tag:userguide`, path `userguide/publishing_gradle_plugins.md`
+- Advanced plugin concepts: `gradle_docs` `tag:userguide`, path `userguide/plugin_introduction_advanced.md`
+- Gradle documentation lookup: `gradle_docs`

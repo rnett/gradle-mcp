@@ -2,10 +2,10 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: 32f0181adf42bf6e8f8a07429cb7c79ed361d362b28e5ee89c3f0cb594b3cb35
+hash: 4db6c4c5706cabb3751a7866e29adf4fee6950492dc1d6211fe6832aaa39f36e
 -->
 # Avoid Expensive Computations in Configuration Phase
-Avoid expensive computations in the [configuration phase](https://docs.gradle.org/current/userguide/build_lifecycle.html#build_phases) (Use `gradle_docs(path="userguide/build_lifecycle.html#build_phases")`.), instead, move them to task actions.  
+Avoid expensive computations in the [configuration phase (Use `gradle_docs(path="userguide/build_lifecycle.md")`.), instead, move them to task actions.  
 
 ## Explanation
 In order for Gradle to execute tasks it first needs to build the project task graph. As part of discovering what tasks to include in the task graph, Gradle will configure all the tasks that are directly requested, any task dependencies of the requested tasks, and also any tasks that are not lazily registered. This work is done in the configuration phase.  
@@ -108,9 +108,9 @@ tasks.register("myTask", MyTask)
 | **1** | Performing heavy computation during execution phase in a task action. |
 
 ## References
-* [lazy configuration](https://docs.gradle.org/current/userguide/lazy_configuration.html#lazy_configuration) (Use `gradle_docs(path="userguide/lazy_configuration.html#lazy_configuration")`.)
+* [lazy configuration (Use `gradle_docs(path="userguide/lazy_configuration.md")`.)
 
-* [Build Lifecycle](https://docs.gradle.org/current/userguide/build_lifecycle.html#build_lifecycle_reference) (Use `gradle_docs(path="userguide/build_lifecycle.html#build_lifecycle_reference")`.)
+* [Build Lifecycle (Use `gradle_docs(path="userguide/build_lifecycle.md")`.)
 
 ---
 

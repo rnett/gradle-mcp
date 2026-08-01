@@ -54,6 +54,8 @@ interface GradleDocsService : AutoCloseable {
     suspend fun summarizeSections(version: String? = null): List<DocsSectionSummary>
 }
 
+private const val MAX_LISTED_FRAGMENTS = 50
+
 class DefaultGradleDocsService(
     private val httpClient: HttpClient,
     private val indexer: GradleDocsIndexService,
@@ -88,10 +90,14 @@ class DefaultGradleDocsService(
     override suspend fun getDocsPageContent(path: String, version: String?): DocsPageContent {
         val resolvedVersion = ensurePrepared(version ?: "current")
         val convertedDir = environment.cacheDir.resolve("reading_gradle_docs").resolve(resolvedVersion).resolve("converted")
+        val parsedPath = parsePagePath(path)
 
-        // Normalize path: if it was provided with .html, change to .md (for HTML-converted files)
-        // But for images, we keep the extension
-        val normalizedPath = if (isHtmlPath(path)) path.replace(".html", ".md") else path
+        // Normalize the page path after removing URI-only query and fragment components.
+        val normalizedPath = if (isHtmlPath(parsedPath.basePath)) {
+            parsedPath.basePath.replace(".html", ".md")
+        } else {
+            parsedPath.basePath
+        }
         val targetPath = convertedDir.resolve(normalizedPath)
 
         if (!targetPath.exists()) {
@@ -101,7 +107,7 @@ class DefaultGradleDocsService(
         if (targetPath.isDirectory()) {
             val entries = targetPath.listDirectoryEntries().sortedBy { it.name }
             val content = buildString {
-                appendLine("# Directory: ${if (path == "." || path == "") "/" else path}")
+                appendLine("# Directory: ${if (parsedPath.basePath == "." || parsedPath.basePath == "") "/" else parsedPath.basePath}")
                 appendLine()
                 entries.forEach { entry ->
                     val name = entry.name
@@ -110,21 +116,115 @@ class DefaultGradleDocsService(
                     appendLine("- $displayName")
                 }
             }
-            return DocsPageContent.Markdown(content)
+            return DocsPageContent.Markdown(content + parsedPath.queryNote())
         }
 
-        return if (isImage(targetPath)) {
+        if (isImage(targetPath)) {
             val bytes = targetPath.readBytes()
             val base64 = Base64.getEncoder().encodeToString(bytes)
-            DocsPageContent.Image(base64, getMimeType(targetPath))
-        } else {
-            DocsPageContent.Markdown(targetPath.readText())
+            return DocsPageContent.Image(base64, getMimeType(targetPath))
+        }
+
+        val page = targetPath.readText()
+        val content = parsedPath.fragment?.let { fragment ->
+            extractSection(page, fragment, path)
+        } ?: page
+        return DocsPageContent.Markdown(content + parsedPath.queryNote())
+    }
+
+    private data class ParsedPagePath(
+        val basePath: String,
+        val fragment: String?,
+        val query: String?,
+    ) {
+        fun queryNote(): String = query?.let {
+            "\n\n(query string \"$it\"; ignored for documentation page reads)\n"
+        }.orEmpty()
+    }
+
+    private fun parsePagePath(path: String): ParsedPagePath {
+        val fragmentIndex = path.indexOf('#')
+        val queryIndex = path.indexOf('?')
+        val baseEnd = listOf(fragmentIndex, queryIndex).filter { it >= 0 }.minOrNull() ?: path.length
+        val fragment = if (fragmentIndex >= 0) {
+            val end = if (queryIndex > fragmentIndex) queryIndex else path.length
+            path.substring(fragmentIndex + 1, end)
+        } else null
+        val query = if (queryIndex >= 0) path.substring(queryIndex + 1) else null
+        return ParsedPagePath(path.substring(0, baseEnd), fragment, query)
+    }
+
+    private fun extractSection(page: String, fragment: String, requestedPath: String): String {
+        val headings = Regex("(?m)^(#{1,6})\\s+(.+?)(?:\\s+\\{#([^}\\r\\n]+)})?\\s*$")
+            .findAll(page)
+            .toList()
+        val requestedSlug = slugify(fragment)
+        val match = headings.firstOrNull { it.groupValues[3] == fragment }
+            ?: headings.firstOrNull { slugify(it.groupValues[2]) == requestedSlug }
+            ?: throw RuntimeException(buildFragmentListing(headings, fragment, requestedPath))
+        val level = match.groupValues[1].length
+        val end = headings.firstOrNull {
+            it.range.first > match.range.first && it.groupValues[1].length <= level
+        }?.range?.first ?: page.length
+        val title = match.groupValues[2].trim()
+        val section = page.substring(match.range.first, end).trim()
+        return buildString {
+            appendLine("# Section: $fragment ($title)")
+            appendLine()
+            appendLine(section)
         }
     }
+
+    private fun buildFragmentListing(headings: List<MatchResult>, fragment: String, requestedPath: String): String {
+        if (headings.isEmpty()) {
+            return """
+                Fragment "#$fragment" could not be resolved in page "$requestedPath".
+
+                This page has no recognized heading fragments — only Markdown ATX headings ('#' through '######', optionally with an explicit '{#id}') are resolvable as fragments.
+
+                Read the entire page with path="$requestedPath" (no fragment).
+            """.trimIndent()
+        }
+
+        data class FragmentEntry(val level: Int, val fragment: String, val title: String)
+
+        val entries = headings.map { heading ->
+            val level = heading.groupValues[1].length
+            val title = heading.groupValues[2].trim()
+            val fragment = heading.groupValues[3].ifEmpty { slugify(title) }
+            FragmentEntry(level, fragment, title)
+        }.distinctBy { it.fragment }
+        val minLevel = entries.minOf { it.level }
+        val listed = entries.take(MAX_LISTED_FRAGMENTS)
+        val lines = listed.joinToString("\n") { entry ->
+            "${"  ".repeat(entry.level - minLevel)}- `#${entry.fragment}` — ${entry.title}"
+        }
+        val truncation = if (headings.size > MAX_LISTED_FRAGMENTS) {
+            "\n... and ${headings.size - MAX_LISTED_FRAGMENTS} more fragments not shown (${headings.size} total on this page)."
+        } else {
+            ""
+        }
+
+        return buildString {
+            appendLine("Fragment \"#$fragment\" could not be resolved in page \"$requestedPath\".")
+            appendLine()
+            appendLine("Available fragments on this page:")
+            appendLine(lines)
+            if (truncation.isNotEmpty()) appendLine(truncation.trimStart())
+            appendLine()
+            append("Retry with a fragment from the list above (e.g. path=\"$requestedPath#<fragment>\"), or read the entire page with path=\"$requestedPath\" (no fragment).")
+        }
+    }
+
+    private fun slugify(value: String): String = value
+        .lowercase()
+        .replace(Regex("[^a-z0-9]+"), "-")
+        .trim('-')
 
     private fun isHtmlPath(path: String): Boolean {
         return path.endsWith(".html") || path.endsWith(".md")
     }
+
 
     private fun isImage(path: Path): Boolean {
         val ext = path.extension.lowercase()

@@ -75,16 +75,16 @@ Plugin categories are stable across Gradle 7/8/9, but portal and resolution beha
 ## Version Notes
 
 - **Gradle 7.x**: Version catalogs experimental in 7.0; stable from 7.4.
-- **Configuration cache**: It is opt-in, not enabled by default. Since Gradle 9.0 it is the preferred execution mode, but plugin and feature compatibility limitations remain; verify the build and treat incompatibilities as expected compatibility work, not necessarily project defects. See https://docs.gradle.org/current/userguide/configuration_cache.html and https://docs.gradle.org/current/userguide/configuration_cache_status.html.
+- **Configuration cache**: It is opt-in, not enabled by default. Since Gradle 9.0 it is the preferred execution mode, but plugin and feature compatibility limitations remain; verify the build and treat incompatibilities as expected compatibility work, not necessarily project defects.
 - **Wrapper version**: Read `gradle/wrapper/gradle-wrapper.properties` before compatibility advice.
 
 ## More info
 
-- Plugin basics: `gradle_docs` `tag:userguide`, path `userguide/plugin_basics.md`; https://docs.gradle.org/current/userguide/plugin_basics.html
-- `gradle_docs`: published tool docs https://gradle-mcp.rnett.dev/latest/tools/GRADLE_DOCS_TOOLS/; use `gradleOwnSource: true` for Gradle source.
-- Gradle source tools: `search_dependency_sources` and `read_dependency_sources` https://gradle-mcp.rnett.dev/latest/tools/PROJECT_DEPENDENCY_SOURCE_TOOLS/.
-- Core topics: `tag:userguide`, path `userguide/command_line_interface_basics.md`; `tag:userguide`, path `userguide/gradle_optimizations.md`; `tag:userguide`, path `userguide/java_testing.md`.
-- Execution and troubleshooting: `tag:userguide`, path `userguide/command_line_interface.md`; `tag:userguide`, path `userguide/controlling_task_execution.md`; `tag:userguide`, path `userguide/configuration_cache_debugging.md`.
+- Plugin basics: `gradle_docs` `tag:userguide`, path `userguide/plugin_basics.md`
+- `gradle_docs`: use `gradleOwnSource: true` for Gradle source.
+- Gradle source tools: `search_dependency_sources` and `read_dependency_sources`
+- Core topics: `tag:userguide`, path `userguide/command_line_interface_basics.md`; `tag:userguide`, path `userguide/gradle_optimizations.md`; `tag:userguide`, path `userguide/java_testing.md`
+- Execution and troubleshooting: `tag:userguide`, path `userguide/command_line_interface.md`; `tag:userguide`, path `userguide/controlling_task_execution.md`; `tag:userguide`, path `userguide/configuration_cache_debugging.md`
 - Dependencies: `tag:userguide`, path `userguide/dependency_constraints_conflicts.md`; `tag:userguide`, path `userguide/dependency_caching.md`; `tag:userguide`, path `userguide/viewing_debugging_dependencies.md`. 
 
 ## References

@@ -195,8 +195,8 @@ See [Managed Types and Providers](managed-types-and-providers.md) for wiring inp
 
 **More info:**
 
-- Task registration: `gradle_docs` `tag:userguide`, path `userguide/task_configuration_avoidance.md`; published guide: https://docs.gradle.org/current/userguide/task_configuration_avoidance.html
-- Task inputs and outputs: `gradle_docs` `tag:best-practices`, path `userguide/best_practices_tasks.md`, terms `inputs outputs cacheable task`; published guide: https://docs.gradle.org/current/userguide/best_practices_tasks.html
-- Configuration-cache requirements: `gradle_docs` `tag:userguide`, path `userguide/configuration_cache_requirements.md`; published guide: https://docs.gradle.org/current/userguide/configuration_cache_requirements.html
-- Task execution and inspection through MCP: https://gradle-mcp.rnett.dev/latest/tools/EXECUTION_TOOLS/
-- Gradle documentation lookup: https://gradle-mcp.rnett.dev/latest/tools/GRADLE_DOCS_TOOLS/
+- Task registration: `gradle_docs` `tag:userguide`, path `userguide/task_configuration_avoidance.md`
+- Task inputs and outputs: `gradle_docs` `tag:best-practices`, path `userguide/best_practices_tasks.md`, terms `inputs outputs cacheable task`
+- Configuration-cache requirements: `gradle_docs` `tag:userguide`, path `userguide/configuration_cache_requirements.md`
+- Task execution and inspection through MCP
+- Gradle documentation lookup: `gradle_docs`

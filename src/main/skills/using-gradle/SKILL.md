@@ -31,7 +31,7 @@ skill: using-gradle
 
 Inspects, executes, diagnoses, and researches existing Gradle builds using managed orchestration and structured diagnostics.
 
-**More info**: Official Gradle guidance: `gradle_docs` with `tag:userguide` and the topic path; read `gradle/wrapper/gradle-wrapper.properties` before version-sensitive research. Published MCP tools: https://gradle-mcp.rnett.dev/latest/tools/.
+**More info**: Official Gradle guidance: `gradle_docs` with `tag:userguide` and the topic path; read `gradle/wrapper/gradle-wrapper.properties` before version-sensitive research.
 
 ## Constitution
 

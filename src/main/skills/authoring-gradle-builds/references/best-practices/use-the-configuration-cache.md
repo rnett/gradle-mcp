@@ -2,7 +2,7 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: 182e720fa71e2e53de081dbe878058c33d217d9e5897794d22e0b12a383ed250
+hash: 1a078a060521d87a472a57590d054d8107257f3f4e70da4025bcc3893ad678c4
 -->
 # Use the Configuration Cache
 Use the Configuration Cache to significantly improve build performance by caching the result of the configuration phase and reusing it in subsequent builds.  
@@ -82,7 +82,7 @@ BUILD SUCCESSFUL in 0s
 ```
 
 ## References
-* [Enabling The Configuration Cache](https://docs.gradle.org/current/userguide/configuration_cache_enabling.html#config_cache:usage:enable) (Use `gradle_docs(path="userguide/configuration_cache_enabling.html#config_cache:usage:enable")`.)
+* [Enabling The Configuration Cache (Use `gradle_docs(path="userguide/configuration_cache_enabling.md")`.)
 
 ---
 

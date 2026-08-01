@@ -1,4 +1,4 @@
-# Building Java Applications Sample
+# Building Java Applications Sample {#header}
 
 version 9.4.0  
 Contents
@@ -22,11 +22,11 @@ Contents
 
 This guide demonstrates how to create a Java application with Gradle using `gradle init`. You can follow the guide step-by-step to create a new project from scratch or download the complete sample project using the links above.  
 
-## [What you'll build](#what_youll_build)
+## [What you'll build](#what_youll_build) {#what_youll_build}
 
 You'll generate a Java application that follows Gradle's conventions.  
 
-## [What you'll need](#what_youll_need)
+## [What you'll need](#what_youll_need) {#what_youll_need}
 
 * A text editor or IDE - for example [IntelliJ IDEA](https://www.jetbrains.com/idea/download/)
 
@@ -34,7 +34,7 @@ You'll generate a Java application that follows Gradle's conventions.
 
 * The latest [Gradle distribution](https://gradle.org/install)
 
-## [Create a project folder](#create_a_project_folder)
+## [Create a project folder](#create_a_project_folder) {#create_a_project_folder}
 
 Gradle comes with a built-in task, called `init`, that initializes a new Gradle project in an empty folder. The `init` task uses the (also built-in) `wrapper` task to create a Gradle wrapper script, `gradlew`.  
 The first step is to create a folder for the new project and change directory into it.  
@@ -44,7 +44,7 @@ $ mkdir demo
 $ cd demo
 ```
 
-## [Run the init task](#run_the_init_task)
+## [Run the init task](#run_the_init_task) {#run_the_init_task}
 
 From inside the new project directory, run the `init` task using the following command in a terminal: `gradle init`. When prompted, select the `1: application` project type and `1: Java` as the implementation language. Next you can choose the DSL for writing buildscripts - `1 : Kotlin` or `2: Groovy`. For the other questions, press enter to use the default values.  
 The output will look like this:  
@@ -148,7 +148,7 @@ The `init` task generates the new project with the following structure:
 
 You now have the project setup to build a Java application.  
 
-## [Review the project files](#review_the_project_files)
+## [Review the project files](#review_the_project_files) {#review_the_project_files}
 
 The `settings.gradle(.kts)` file has two interesting lines:  
 settings.gradle.kts  
@@ -264,7 +264,7 @@ Generated src/test/java/demo/AppTest.java
 
 The generated test class has a single *JUnit Jupiter* test. The test instantiates the `App` class, invokes a method on it, and checks that it returns the expected value.  
 
-## [Run the application](#run_the_application)
+## [Run the application](#run_the_application) {#run_the_application}
 
 Thanks to the `application` plugin, you can run the application directly from the command line. The `run` task tells Gradle to execute the `main` method in the class assigned to the `mainClass` property.  
 
@@ -281,7 +281,7 @@ BUILD SUCCESSFUL
 |---|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |   | The first time you run the wrapper script, `gradlew`, there may be a delay while that version of `gradle` is downloaded and stored locally in your `~/.gradle/wrapper/dists` folder. |
 
-## [Bundle the application](#bundle_the_application)
+## [Bundle the application](#bundle_the_application) {#bundle_the_application}
 
 The `application` plugin also bundles the application, with all its dependencies, for you. The archive will also contain a script to start the application with a single command.  
 
@@ -294,7 +294,7 @@ BUILD SUCCESSFUL in 0s
 
 If you run a full build as shown above, Gradle will have produced the archive in two formats for you: `app/build/distributions/app.tar` and `app/build/distributions/app.zip`.  
 
-## [Publish a Build Scan](#publish_a_build_scan)
+## [Publish a Build Scan](#publish_a_build_scan) {#publish_a_build_scan}
 
 The best way to learn more about what your build is doing behind the scenes, is to publish a [Build Scan](https://scans.gradle.com). To do so, just run Gradle with the `--scan` flag.  
 
@@ -315,7 +315,7 @@ https://gradle.com/s/5u4w3gxeurtd2
 
 Click the link and explore which tasks where executed, which dependencies where downloaded and many more details!  
 
-## [Summary](#summary)
+## [Summary](#summary) {#summary}
 
 That's it! You've now successfully configured and built a Java application project with Gradle. You've learned how to:  
 * Initialize a project that produces a Java application
@@ -326,7 +326,7 @@ That's it! You've now successfully configured and built a Java application proje
 
 * Bundle the application in an archive
 
-## [Next steps](#next_steps)
+## [Next steps](#next_steps) {#next_steps}
 
 To learn more about how you can further customize Java application projects, check out the following user manual chapters:  
 * [Building Java \& JVM projects](../userguide/building_java_projects.html)

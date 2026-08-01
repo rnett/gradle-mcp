@@ -2,7 +2,7 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: 61519df6f4596e266b37481ef7a63001b78ea1341c7ac030da70e4cc6413b48c
+hash: d59b9e2863087b2f353d6eb2dadec1676544f0d9abad907d9f43982e44306406
 -->
 # Modularize Your Builds
 Modularize your builds by splitting your code into multiple projects.  
@@ -311,12 +311,12 @@ dependencies {
 | **2** | The `application` plugin is only applied to the `app` project, which is the only project that needs it.                                                                                                                                                                                                     |
 | **3** | Each project only adds the dependencies it needs. This means that the classpath for each subproject is much smaller, which can lead to faster build times and less confusion.                                                                                                                               |
 | **4** | Each project only adds the specific plugins it needs.                                                                                                                                                                                                                                                       |
-| **5** | Each project only adds the dependencies it needs. Projects can effectively use [API vs. Implementation separation](https://docs.gradle.org/current/userguide/java_library_plugin.html#sec:java_library_separation) (Use `gradle_docs(path="userguide/java_library_plugin.html#sec:java_library_separation")`.).                                                                                                                                   |
+| **5** | Each project only adds the dependencies it needs. Projects can effectively use [API vs. Implementation separation (Use `gradle_docs(path="userguide/java_library_plugin.md")`.).                                                                                                                                   |
 
 ## References
-* [Structuring Projects with Gradle](https://docs.gradle.org/current/userguide/multi_project_builds.html#multi_project_builds) (Use `gradle_docs(path="userguide/multi_project_builds.html#multi_project_builds")`.)
+* [Structuring Projects with Gradle (Use `gradle_docs(path="userguide/multi_project_builds.md")`.)
 
-* [Organizing Gradle Projects](https://docs.gradle.org/current/userguide/organizing_gradle_projects.html#sec:settings_file) (Use `gradle_docs(path="userguide/organizing_gradle_projects.html#sec:settings_file")`.)
+* [Organizing Gradle Projects (Use `gradle_docs(path="userguide/organizing_gradle_projects.md")`.)
 
 ---
 

@@ -2,14 +2,14 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: da6e4046677d175827d854317e4610464d61fbd45798bdde4415e456f4c04dd9
+hash: f7da3908e40f1750bf7cef2a6a180da7576264abac48ba66527f0d81bbc58f37
 -->
 # Use Version Catalogs to Centralize Dependency Versions
 Version Catalogs provide a centralized, declarative way to manage dependency versions throughout a build.  
 
 ## Explanation
 When you define your dependency versions in a single, shared version catalog, you reduce duplication and make upgrades easier. Instead of changing dozens of `build.gradle(.kts)` files, you update the version in one place. This simplifies maintenance, improves consistency, and reduces the risk of accidental version drift between modules. Consistent version declarations across projects also make it easier to reason about behavior during testing---especially in modular builds where transitive upgrades can silently change runtime behavior in later stages of the build.  
-However, version catalogs only influence declared versions, not resolved versions. Use them in combination with [dependency locking](https://docs.gradle.org/current/userguide/dependency_locking.html#sec:dependency-locking) (Use `gradle_docs(path="userguide/dependency_locking.html#sec:dependency-locking")`.) and [version alignment](https://docs.gradle.org/current/userguide/resolution_rules.html#using-resolution-rules) (Use `gradle_docs(path="userguide/resolution_rules.html#using-resolution-rules")`.) to enforce consistency across builds. To influence resolved versions, check out [platforms](https://docs.gradle.org/current/userguide/platforms.html#platforms) (Use `gradle_docs(path="userguide/platforms.html#platforms")`.).  
+However, version catalogs only influence declared versions, not resolved versions. Use them in combination with [dependency locking (Use `gradle_docs(path="userguide/dependency_locking.md")`.) and [version alignment (Use `gradle_docs(path="userguide/resolution_rules.md")`.) to enforce consistency across builds. To influence resolved versions, check out [platforms (Use `gradle_docs(path="userguide/platforms.md")`.).  
 
 ## Example
 ### Don't Do This
@@ -121,7 +121,7 @@ dependencies {
 ```
 
 ## References
-* [Version Catalogs](https://docs.gradle.org/current/userguide/version_catalogs.html#version-catalog) (Use `gradle_docs(path="userguide/version_catalogs.html#version-catalog")`.)
+* [Version Catalogs (Use `gradle_docs(path="userguide/version_catalogs.md")`.)
 
 ---
 

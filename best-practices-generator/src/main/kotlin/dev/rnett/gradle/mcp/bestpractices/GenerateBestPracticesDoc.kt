@@ -69,13 +69,21 @@ internal fun normalizeInternalLinks(markdown: String, sourcePath: String): Strin
 
     return linkPattern.replace(markdown) { match ->
         val rawTarget = match.groupValues[1]
-        val target = normalizeDocTarget(rawTarget, sourceDocPath) ?: return@replace match.value
-        val suffix = match.groupValues[2]
-        "](${target.absoluteUrl})$suffix (Use `gradle_docs(path=\"${target.docPath}\")`.)"
+        val linkText = match.value.substringBefore("](").removePrefix("[")
+        val target = normalizeDocTarget(rawTarget, sourceDocPath)
+        if (target == null) {
+            if (isBlockedDocumentationUrl(rawTarget)) linkText else match.value
+        } else {
+            "$linkText (Use `gradle_docs(path=\"${target.docPath}\")`.)"
+        }
     }
 }
 
-private data class NormalizedDocTarget(val absoluteUrl: String, val docPath: String)
+private data class NormalizedDocTarget(val docPath: String)
+
+private fun isBlockedDocumentationUrl(rawTarget: String): Boolean = runCatching {
+    URI(rawTarget).host in setOf("docs.gradle.org", "gradle-mcp.rnett.dev")
+}.getOrDefault(false)
 
 private fun normalizeDocTarget(rawTarget: String, sourceDocPath: String): NormalizedDocTarget? {
     if (rawTarget.startsWith("#") || rawTarget.startsWith("mailto:") || rawTarget.startsWith("data:")) return null
@@ -90,13 +98,13 @@ private fun normalizeDocTarget(rawTarget: String, sourceDocPath: String): Normal
 
     val path = resolved.path.removePrefix("/").removePrefix("current/")
     if (!path.endsWith(".html") && !path.contains("userguide/")) return null
+    val normalizedPath = if (!path.contains("/") && sourceDocPath.startsWith("userguide/")) {
+        "userguide/$path"
+    } else {
+        path
+    }
 
-    val query = resolved.rawQuery?.let { "?$it" }.orEmpty()
-    val fragment = resolved.rawFragment?.let { "#$it" }.orEmpty()
-    return NormalizedDocTarget(
-        absoluteUrl = "https://docs.gradle.org/current/$path$query$fragment",
-        docPath = "$path$query$fragment",
-    )
+    return NormalizedDocTarget(docPath = normalizedPath.removeSuffix(".html") + ".md")
 }
 
 private val setextHeadingPattern = Regex("(?m)^([^\r\n]+?)\\s*(?:\\{#[^}\\r\\n]+})?\\s*\\r?\\n(={4,}|-{4,})\\s*$")

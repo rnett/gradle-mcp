@@ -2,18 +2,18 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: 2482ce4b8b297f8a425522d336f0bc5e8b812ea8f47d88a9d4f1f452b661520d
+hash: cc9a7c89533b786d37c4cb9c419cba8392ab75aa1e96b12e85b62c9b2927af52
 -->
 # Avoid Unintentionally Creating Empty Projects
 When using a hierarchical directory structure to organize your Gradle projects, make sure to avoid unintentionally creating empty projects in your build.  
 
 ## Explanation
-When you use the [Settings.include()](https://docs.gradle.org/current/kotlin-dsl/gradle/org.gradle.api.initialization/-settings/include.html) (Use `gradle_docs(path="kotlin-dsl/gradle/org.gradle.api.initialization/-settings/include.html")`.) method to include a project in your Grade settings file, you typically include projects by supplying the directory name like `include("featureA")`. This usage assumes that `featureA` is located at the root of your build.  
+When you use the [Settings.include() (Use `gradle_docs(path="kotlin-dsl/gradle/org.gradle.api.initialization/-settings/include.md")`.) method to include a project in your Grade settings file, you typically include projects by supplying the directory name like `include("featureA")`. This usage assumes that `featureA` is located at the root of your build.  
 You can include projects located in nested subdirectories by specifying their full project path using `:` as a separator between path segments. For instance, if project `search` was located in a subdirectory named `features`, itself located in a subdirectory named `subs`, you could call `include(":subs:features:search")` to include it.  
 Nesting projects in a sensible hierarchical directory structure is common practice in larger Gradle builds. This approach helps organize large builds and improves comprehensibility, compared to placing all projects directly under the build's root.  
 However, without further configuration, Gradle will create empty projects for each element in every hierarchical path, even if some of those directories do not contain actual Gradle projects. In the example above, Gradle will create a project named `:subs`, a project named `:subs:features`, and a project named `:subs:features:search`. This behavior is usually not intended, as you likely only want to include the `search` project.  
 Unused projects - even if empty - can surprise maintainers, clutter reports, and make your build harder to understand. They also introduce unintended side effects. If you use `allprojects { ...​ }` or `subprojects { ...​ }`, plugins and configuration blocks will apply to every project, including the empty ones. This can degrade build performance. Additionally, invoking tasks on deeply nested projects requires using the full project path, such as `gradle :subs:features:search:build`, instead of the shorter `gradle :search:build`.  
-To avoid these downsides when using a hierarchical project structure, you can provide a flat name when including the project and explicitly set the [Project.projectDir](https://docs.gradle.org/current/kotlin-dsl/gradle/org.gradle.api/-project/get-project-dir.html) (Use `gradle_docs(path="kotlin-dsl/gradle/org.gradle.api/-project/get-project-dir.html")`.) property for any projects located in nested directories:  
+To avoid these downsides when using a hierarchical project structure, you can provide a flat name when including the project and explicitly set the [Project.projectDir (Use `gradle_docs(path="kotlin-dsl/gradle/org.gradle.api/-project/get-project-dir.md")`.) property for any projects located in nested directories:  
 
 ```kotlin
 include(':my-web-module')
@@ -25,7 +25,7 @@ This will prevent Gradle from creating empty projects for each element of the pr
 |---|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |   | Always use an identical *logical* project **name** and *physical* project **location** to avoid confusion. Don't include a project named `:search` and locate it at `features/ui/default-search-toolbar`, as this will lead to confusion about the location of the project. Instead, locate this project at `features/ui/search`. |
 
-You should avoid unnecessarily deep directory structures. For builds containing only a few projects, it's usually better to keep the structure flat by placing all projects at the root of the build. This eliminates the need to explicitly set `projectDir`. Within the context of a particular build, the *pathless* project name should clearly indicate where the project is located. You can also run the [projects report](https://docs.gradle.org/current/userguide/project_report_plugin.html#project_report_plugin) (Use `gradle_docs(path="userguide/project_report_plugin.html#project_report_plugin")`.) for more information about the projects in your build and their locations.  
+You should avoid unnecessarily deep directory structures. For builds containing only a few projects, it's usually better to keep the structure flat by placing all projects at the root of the build. This eliminates the need to explicitly set `projectDir`. Within the context of a particular build, the *pathless* project name should clearly indicate where the project is located. You can also run the [projects report (Use `gradle_docs(path="userguide/project_report_plugin.md")`.) for more information about the projects in your build and their locations.  
 If you find yourself facing ambiguity about project locations, consider simplifying the directory layout by flattening the structure, or using longer, more descriptive project names.  
 
 ## Example
@@ -164,7 +164,7 @@ The output of running the `projects` report on the above build shows that now Gr
 You can also now invoke tasks on the `my-web-module` project using the shorter name `:my-web-module` like `gradle :my-web-module:build`, instead of `gradle :subs:web:my-web-module:build`.  
 
 ## References
-* [Multi-Project Builds](https://docs.gradle.org/current/userguide/multi_project_builds.html#multi_project_builds) (Use `gradle_docs(path="userguide/multi_project_builds.html#multi_project_builds")`.)
+* [Multi-Project Builds (Use `gradle_docs(path="userguide/multi_project_builds.md")`.)
 
 ---
 

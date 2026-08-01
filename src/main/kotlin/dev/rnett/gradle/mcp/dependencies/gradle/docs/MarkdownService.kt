@@ -38,7 +38,7 @@ class DefaultMarkdownService(private val client: HttpClient = HttpClient()) : Ma
 
     override fun convertHtml(html: String): String {
         val options = MutableDataSet()
-        options.set(FlexmarkHtmlConverter.OUTPUT_ATTRIBUTES_ID, false)
+        options.set(FlexmarkHtmlConverter.OUTPUT_ATTRIBUTES_ID, true)
         options.set(FlexmarkHtmlConverter.SETEXT_HEADINGS, false)
 
         val converter = FlexmarkHtmlConverter.builder(options).build()

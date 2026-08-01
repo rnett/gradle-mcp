@@ -2,10 +2,10 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: 6ff6bf14274041db4bdadae61af9df7063fdfe99bed1ac49b98cca965f3e2e13
+hash: 7e5b9d4327c4343551d5c9958f793ef45a073a9b09142e63076e2bc200823786
 -->
 # Favor `build-logic` Composite Builds for Build Logic
-You should set up a [Composite Build](https://docs.gradle.org/current/userguide/composite_builds.html#defining_composite_builds) (Use `gradle_docs(path="userguide/composite_builds.html#defining_composite_builds")`.) (often called an "included build") to hold your build logic---including any custom plugins, convention plugins, and other build-specific customizations.  
+You should set up a [Composite Build (Use `gradle_docs(path="userguide/composite_builds.md")`.) (often called an "included build") to hold your build logic---including any custom plugins, convention plugins, and other build-specific customizations.  
 
 ## Explanation
 The preferred location for build logic is an included build (typically named `build-logic`), **not** in `buildSrc`.  
@@ -19,7 +19,7 @@ The automatically available `buildSrc` is great for rapid prototyping, but it co
 * The `buildSrc` project automatically applies the `java` plugin, which may be unnecessary.
 
 One important caveat to this recommendation is when creating `Settings` plugins. Defining these in a `build-logic` project requires it to be included in the `pluginManagement` block of the main build's `settings.gradle(.kts)` file, in order to make these plugins available to the build early enough to be applied to the `Settings` instance. This is possible, but reduces Build Caching capability, potentially impacting performance. A better solution is to use a separate, minimal, included build (e.g. `build-logic-settings`) to hold only `Settings` plugins.  
-Another potential reason to use `buildSrc` is if you have a very large number of subprojects within your included `build-logic`. Applying a different set of `build-logic` plugins to the subprojects in your *including* build will result in a different classpath being used for each. This may have performance implications and make your build harder to understand. Using different plugin combinations can cause features like [Build Services](https://docs.gradle.org/current/userguide/build_services.html#build_services) (Use `gradle_docs(path="userguide/build_services.html#build_services")`.) to break in difficult to diagnose ways.  
+Another potential reason to use `buildSrc` is if you have a very large number of subprojects within your included `build-logic`. Applying a different set of `build-logic` plugins to the subprojects in your *including* build will result in a different classpath being used for each. This may have performance implications and make your build harder to understand. Using different plugin combinations can cause features like [Build Services (Use `gradle_docs(path="userguide/build_services.md")`.) to break in difficult to diagnose ways.  
 Ideally, there would be no difference between using `buildSrc` and an included build, as `buildSrc` is intended to behave like an implicitly available included build. However, due to historical reasons, these subtle differences still exist. As this changes, this recommendation may be revised in the future. For now, these differences can introduce confusion.  
 Since setting up a composite build requires only minimal additional configuration, we recommend using it over `buildSrc` in most cases, especially for creating convention plugins.  
 
@@ -224,9 +224,9 @@ include("plugin") (2)
 | **2** | **Structure your included build into subprojects**: This allows the main build to only depend on the necessary parts of the included build.  |
 
 ## References
-* [Composite Builds in the Multi-Project Builds Tutorial](https://docs.gradle.org/current/userguide/part3_multi_project_builds.html#step_3_understand_composite_builds) (Use `gradle_docs(path="userguide/part3_multi_project_builds.html#step_3_understand_composite_builds")`.)
+* [Composite Builds in the Multi-Project Builds Tutorial (Use `gradle_docs(path="userguide/part3_multi_project_builds.md")`.)
 
-* [Composite Builds reference documentation](https://docs.gradle.org/current/userguide/composite_builds.html#composite_builds) (Use `gradle_docs(path="userguide/composite_builds.html#composite_builds")`.)
+* [Composite Builds reference documentation (Use `gradle_docs(path="userguide/composite_builds.md")`.)
 
 * [Gradle Issue #6045: buildSrc vs. included builds](https://github.com/gradle/gradle/issues/6045)
 

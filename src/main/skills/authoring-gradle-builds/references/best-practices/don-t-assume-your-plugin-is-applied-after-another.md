@@ -2,7 +2,7 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: cdb379549b9ce829e243c0bedbf4e7cb460362152e73cee517bfae11c1108f00
+hash: 88d2213d61a46798cd2f3903b3f12ce84cb0980d202dc1a113b144a858f0fc59
 -->
 # Don't Assume your Plugin is Applied after Another
 Gradle's plugin application is deterministic but opaque. It is difficult to reason about, especially across multiple build scripts, projects, convention plugins, or included builds.  
@@ -28,7 +28,7 @@ plugins {
 }
 ```
 
-However, in [multi-project builds](https://docs.gradle.org/current/userguide/multi_project_builds.html#multi_project_builds) (Use `gradle_docs(path="userguide/multi_project_builds.html#multi_project_builds")`.), with multiple `build.gradle(.kts)` files or a [convention plugin](https://docs.gradle.org/current/userguide/plugins.html#sec:convention_plugins) (Use `gradle_docs(path="userguide/plugins.html#sec:convention_plugins")`.), plugin application can be hard to determine:  
+However, in [multi-project builds (Use `gradle_docs(path="userguide/multi_project_builds.md")`.), with multiple `build.gradle(.kts)` files or a [convention plugin (Use `gradle_docs(path="userguide/plugins.md")`.), plugin application can be hard to determine:  
 app/build.gradle.kts  
 
 ```kotlin
@@ -127,7 +127,7 @@ MyPlugin.groovy
 project.pluginManager.apply('com.example.required-plugin')
 ```
 
-If your plugin only needs to integrate with another plugin when it's present, react to its application using [`pluginManager.withPlugin()`](https://docs.gradle.org/current/javadoc/org/gradle/api/plugins/PluginManager.html#withPlugin(java.lang.String,org.gradle.api.Action) (Use `gradle_docs(path="javadoc/org/gradle/api/plugins/PluginManager.html#withPlugin(java.lang.String,org.gradle.api.Action")`.)) or [`plugins.configureEach {}`](https://docs.gradle.org/current/javadoc/org/gradle/api/DomainObjectCollection.html#configureEach(org.gradle.api.Action) (Use `gradle_docs(path="javadoc/org/gradle/api/DomainObjectCollection.html#configureEach(org.gradle.api.Action")`.)):  
+If your plugin only needs to integrate with another plugin when it's present, react to its application using [`pluginManager.withPlugin()` (Use `gradle_docs(path="javadoc/org/gradle/api/plugins/PluginManager.md")`.)) or [`plugins.configureEach {}` (Use `gradle_docs(path="javadoc/org/gradle/api/DomainObjectCollection.md")`.)):  
 MyPlugin.kt  
 
 ```kotlin
@@ -322,7 +322,7 @@ class MyPlugin implements Plugin<Project> {
 ```
 
 ## References
-* [Using Plugins](https://docs.gradle.org/current/userguide/plugins_intermediate.html#sec:using_plugins) (Use `gradle_docs(path="userguide/plugins_intermediate.html#sec:using_plugins")`.)
+* [Using Plugins (Use `gradle_docs(path="userguide/plugins_intermediate.md")`.)
 
 ---
 

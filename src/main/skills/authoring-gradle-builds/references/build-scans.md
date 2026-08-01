@@ -113,6 +113,6 @@ The option controls the Gradle invocation's scan publication behavior; it does n
 - **Gradle 7.x:** Build scans and command-line publication are supported. Older builds may use historical Gradle Enterprise terminology or plugin coordinates; use the plugin's versioned documentation rather than copying a current DSL blindly. If the plugin cannot be used, retain ad-hoc `--scan` only as an explicitly authorized fallback.
 
 **More info:**
-- Build scans, publication, capture, and Terms of Service: query `gradle_docs` with `tag:userguide`, path `userguide/build_scans.md`, term `Terms of Service`; published reference: https://docs.gradle.org/current/userguide/build_scans.html.
-- Gradle MCP invocation and `publishScan`: `gradle` MCP documentation, https://gradle-mcp.rnett.dev/latest/tools/EXECUTION_TOOLS/.
-- Gradle MCP documentation lookup for version-matched verification: `gradle_docs` MCP documentation, https://gradle-mcp.rnett.dev/latest/tools/GRADLE_DOCS_TOOLS/.
+- Build scans, publication, capture, and Terms of Service: query `gradle_docs` with `tag:userguide`, path `userguide/build_scans.md`, term `Terms of Service`
+- Gradle MCP invocation and `publishScan`: `gradle`
+- Gradle MCP documentation lookup for version-matched verification: `gradle_docs`

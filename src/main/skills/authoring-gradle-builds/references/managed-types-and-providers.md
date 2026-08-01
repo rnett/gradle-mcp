@@ -156,7 +156,7 @@ See [Avoid using eager APIs on File Collections](best-practices/avoid-using-eage
 
 ## Incubating: Dataflow Actions
 
-**Warning:** Dataflow Actions are **incubating** and not a stable default. Use them only for non-task logic that requires annotated managed inputs. For implementation details, refer to the [official Dataflow Actions guide](https://docs.gradle.org/current/userguide/dataflow_actions.html).
+**Warning:** Dataflow Actions are **incubating** and not a stable default. Use them only for non-task logic that requires annotated managed inputs. For implementation details, use `gradle_docs` with `tag:userguide` and path `userguide/dataflow_actions.md`.
 
 **Default:** Prefer standard tasks for any work that produces file outputs. Dataflow actions are intended for internal Gradle data-flow within the configuration or execution graph.
 
@@ -169,8 +169,8 @@ See [Avoid using eager APIs on File Collections](best-practices/avoid-using-eage
 - **Gradle 7.x:** Managed properties are available but some plugins may still use eager `create` patterns. Prefer `register` and `Property` where supported.
 
 **More info:**
-- Lazy configuration: `gradle_docs` `tag:userguide`, path `userguide/lazy_configuration.md`; published guide: https://docs.gradle.org/current/userguide/lazy_configuration.html
-- Properties and Providers: `gradle_docs` `tag:userguide`, path `userguide/properties_providers.md`; published guide: https://docs.gradle.org/current/userguide/properties_providers.html
-- Collections: `gradle_docs` `tag:userguide`, path `userguide/collections.md`; published guide: https://docs.gradle.org/current/userguide/collections.html
-- Working with files: `gradle_docs` `tag:userguide`, path `userguide/working_with_files.md`; published guide: https://docs.gradle.org/current/userguide/working_with_files.html
-- Dataflow actions: `gradle_docs` `tag:userguide`, path `userguide/dataflow_actions.md`; published guide: https://docs.gradle.org/current/userguide/dataflow_actions.html
+- Lazy configuration: `gradle_docs` `tag:userguide`, path `userguide/lazy_configuration.md`
+- Properties and Providers: `gradle_docs` `tag:userguide`, path `userguide/properties_providers.md`
+- Collections: `gradle_docs` `tag:userguide`, path `userguide/collections.md`
+- Working with files: `gradle_docs` `tag:userguide`, path `userguide/working_with_files.md`
+- Dataflow actions: `gradle_docs` `tag:userguide`, path `userguide/dataflow_actions.md`

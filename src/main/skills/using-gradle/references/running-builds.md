@@ -142,10 +142,10 @@ The Gradle daemon is the default and should remain enabled for normal local and 
 **Version notes:** These CLI controls are stable across Gradle 7, 8, and 9, but task-option availability is plugin-specific and console behavior is version-sensitive. For Gradle 7.x, use full task paths and the same narrow controls, then verify the exact wrapper documentation.
 
 **More info**:
-- CLI basics/options: `gradle_docs` `tag:userguide`, path `userguide/command_line_interface_basics.md`; https://docs.gradle.org/current/userguide/command_line_interface_basics.html
-- Task basics and graph inspection: `gradle_docs` `tag:userguide`, path `userguide/task_basics.md`; https://docs.gradle.org/current/userguide/task_basics.html
-- Incremental outcomes and build cache: `gradle_docs` `tag:userguide`, path `userguide/gradle_optimizations.md`; https://docs.gradle.org/current/userguide/gradle_optimizations.html
-- MCP execution and monitoring: `gradle` / `captureTaskOutput` https://gradle-mcp.rnett.dev/latest/tools/EXECUTION_TOOLS/; `query_build` / `wait_build` https://gradle-mcp.rnett.dev/latest/tools/LOOKUP_TOOLS/.
+- CLI basics/options: `gradle_docs` `tag:userguide`, path `userguide/command_line_interface_basics.md`
+- Task basics and graph inspection: `gradle_docs` `tag:userguide`, path `userguide/task_basics.md`
+- Incremental outcomes and build cache: `gradle_docs` `tag:userguide`, path `userguide/gradle_optimizations.md`
+- MCP execution and monitoring: `gradle` / `captureTaskOutput`; `query_build` / `wait_build`
 
 Cross-references:
 - Test selection and failure isolation $\\rightarrow$ [Testing](testing.md)

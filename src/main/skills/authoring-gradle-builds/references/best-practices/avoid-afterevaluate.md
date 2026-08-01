@@ -2,10 +2,10 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: ff9aa0cac6086ba49ae57c5ed4bbf717c825fb638360c15ee10f39a8a792cd7e
+hash: f59bcf757ba20bdd23a22d96822fc668956531a436b12d8b75cd775b1b0d0f1b
 -->
 # Avoid `afterEvaluate`
-Do not use [`project.afterEvaluate {}`](https://docs.gradle.org/current/javadoc/org/gradle/api/Project.html#afterEvaluate(org.gradle.api.Action) (Use `gradle_docs(path="javadoc/org/gradle/api/Project.html#afterEvaluate(org.gradle.api.Action")`.)) to configure tasks, wire properties, or react to plugin application. Use [lazy properties](https://docs.gradle.org/current/userguide/properties_providers.html#properties_and_providers) (Use `gradle_docs(path="userguide/properties_providers.html#properties_and_providers")`.) and [`pluginManager.withPlugin()`](https://docs.gradle.org/current/javadoc/org/gradle/api/plugins/PluginManager.html#withPlugin(java.lang.String,org.gradle.api.Action) (Use `gradle_docs(path="javadoc/org/gradle/api/plugins/PluginManager.html#withPlugin(java.lang.String,org.gradle.api.Action")`.)) instead.  
+Do not use [`project.afterEvaluate {}` (Use `gradle_docs(path="javadoc/org/gradle/api/Project.md")`.)) to configure tasks, wire properties, or react to plugin application. Use [lazy properties (Use `gradle_docs(path="userguide/properties_providers.md")`.) and [`pluginManager.withPlugin()` (Use `gradle_docs(path="javadoc/org/gradle/api/plugins/PluginManager.md")`.)) instead.  
 
 ## Explanation
 `afterEvaluate` registers a callback that runs after Gradle finishes evaluating and configuring a project. It was historically used to "delay" reading a value until configuration was complete --- for example, reading an extension property that users set at the bottom of their build script, or checking whether another plugin was applied.  
@@ -14,7 +14,7 @@ This pattern is outdated, and problematic for several reasons:
 
 * **It defeats task configuration avoidance.** Tasks registered or configured inside `afterEvaluate` are touched eagerly during configuration, even if they will never execute. This may cause unnecessary work and slow down the configuration phase of the build.
 
-* **It is incompatible with the [Configuration Cache](https://docs.gradle.org/current/userguide/configuration_cache.html#config_cache) (Use `gradle_docs(path="userguide/configuration_cache.html#config_cache")`.).** `afterEvaluate` callbacks capture mutable project state that cannot be serialized reliably.
+* **It is incompatible with the [Configuration Cache (Use `gradle_docs(path="userguide/configuration_cache.md")`.).** `afterEvaluate` callbacks capture mutable project state that cannot be serialized reliably.
 
 Gradle's lazy `Property` and `Provider` types solve the same underlying problem --- deferring value resolution --- without any of these drawbacks. A `Property<T>` can be wired at configuration time but its value is resolved only when needed, typically during task execution. This makes configuration order-independent and fully compatible with the configuration cache.  
 Similarly, `pluginManager.withPlugin()` reacts to plugin application safely and immediately, regardless of when the plugin is actually applied --- no callback ordering to worry about.  
@@ -126,7 +126,7 @@ class AppInfoPlugin implements Plugin<Project> {
 |-------|---------------------------------------------------------------------------------------------------------------------------------------------------|
 | **1** | The plugin's `afterEvaluate` runs before any `afterEvaluate` registered later in the build script --- ordering depends on registration order.     |
 | **2** | `getOrElse` reads the property's current value immediately. If the value is set in a later `afterEvaluate`, this will never see it.               |
-| **3** | Registering a task inside `afterEvaluate` defeats [task configuration avoidance](https://docs.gradle.org/current/userguide/task_configuration_avoidance.html#task_configuration_avoidance) (Use `gradle_docs(path="userguide/task_configuration_avoidance.html#task_configuration_avoidance")`.). |
+| **3** | Registering a task inside `afterEvaluate` defeats [task configuration avoidance (Use `gradle_docs(path="userguide/task_configuration_avoidance.md")`.). |
 | **4** | Checking plugin presence inside `afterEvaluate` assumes all plugins have been applied before this callback runs.                                  |
 
 The build script applies the plugin and sets the extension value in its own `afterEvaluate`:  
@@ -292,11 +292,11 @@ BUILD SUCCESSFUL in 0s
 ```
 
 ## References
-* [Properties and Providers](https://docs.gradle.org/current/userguide/properties_providers.html#properties_and_providers) (Use `gradle_docs(path="userguide/properties_providers.html#properties_and_providers")`.)
+* [Properties and Providers (Use `gradle_docs(path="userguide/properties_providers.md")`.)
 
-* [Lazy Configuration](https://docs.gradle.org/current/userguide/lazy_configuration.html#lazy_configuration) (Use `gradle_docs(path="userguide/lazy_configuration.html#lazy_configuration")`.)
+* [Lazy Configuration (Use `gradle_docs(path="userguide/lazy_configuration.md")`.)
 
-* [Task Configuration Avoidance](https://docs.gradle.org/current/userguide/task_configuration_avoidance.html#task_configuration_avoidance) (Use `gradle_docs(path="userguide/task_configuration_avoidance.html#task_configuration_avoidance")`.)
+* [Task Configuration Avoidance (Use `gradle_docs(path="userguide/task_configuration_avoidance.md")`.)
 
 * Don't Assume your Plugin is Applied after Another
 

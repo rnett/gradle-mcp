@@ -88,8 +88,8 @@ Do not encode `org.gradle.daemon=false` globally merely because one CI provider 
 
 **More info**:
 
-- Wrapper and CI environment: `gradle_docs` `tag:userguide`, path `userguide/gradle_wrapper.md`; official docs: https://docs.gradle.org/current/userguide/gradle_wrapper.html.
-- Build cache: `gradle_docs` `tag:userguide`, path `userguide/build_cache.md`; official docs: https://docs.gradle.org/current/userguide/build_cache.html.
-- Configuration cache requirements: `gradle_docs` `tag:userguide`, path `userguide/configuration_cache_requirements.md`; official docs: https://docs.gradle.org/current/userguide/configuration_cache_requirements.html.
-- Gradle properties and build environment: `gradle_docs` `tag:userguide`, path `userguide/build_environment.md`; official docs: https://docs.gradle.org/current/userguide/build_environment.html.
-- CI execution and diagnostics: `gradle` https://gradle-mcp.rnett.dev/latest/tools/EXECUTION_TOOLS/ and build lookup via `query_build`/`wait_build` https://gradle-mcp.rnett.dev/latest/tools/LOOKUP_TOOLS/.
+- Wrapper and CI environment: `gradle_docs` `tag:userguide`, path `userguide/gradle_wrapper.md`
+- Build cache: `gradle_docs` `tag:userguide`, path `userguide/build_cache.md`
+- Configuration cache requirements: `gradle_docs` `tag:userguide`, path `userguide/configuration_cache_requirements.md`
+- Gradle properties and build environment: `gradle_docs` `tag:userguide`, path `userguide/build_environment.md`
+- CI execution and diagnostics: `gradle` and build lookup via `query_build`/`wait_build`

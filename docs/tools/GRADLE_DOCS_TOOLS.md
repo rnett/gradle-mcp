@@ -46,7 +46,7 @@ Call with no arguments to browse available sections. Use `tag:<tag> <term>` to s
         "string",
         "null"
       ],
-      "description": "Targeting a specific Gradle version (e.g., '8.6'). Defaults to the detected project version."
+      "description": "Explicit version override. Resolution order: explicit version -> wrapper auto-detection via projectRoot -> latest stable fallback."
     },
     "projectRoot": {
       "type": [

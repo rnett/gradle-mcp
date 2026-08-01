@@ -2,7 +2,7 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: 26bb120b7c29ab3069a56c4554b6a90d36f5922092d34b3615b7f5763196db37
+hash: 08811a6512acdc14aeff9a63b7be888b71a21e104650ba9f09f0bd083df865c1
 -->
 # Do Not Use Internal APIs
 Do not use APIs from a package where any segment of the package is `internal`, or types that have `Internal` or `Impl` as a suffix in the name.  
@@ -93,7 +93,7 @@ configurations.create("good") {
 | **1** | Implementing your own version of `toMap()` that only uses public APIs is a lot more robust. |
 
 ## References
-* [Gradle API](https://docs.gradle.org/current/javadoc/)
+* [Gradle API
 
 ---
 

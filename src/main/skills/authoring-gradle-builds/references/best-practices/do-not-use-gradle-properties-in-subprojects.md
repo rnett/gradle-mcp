@@ -2,7 +2,7 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: e260325a74a00feebc62a408583d3ab671eaf2f6a434129b9573b29be9ac1120
+hash: 3bf3fd8b2b4ee41c44dde7a9007d653585bb1181c5aba4a17b4ed55c14441a94
 -->
 # Do not use `gradle.properties` in subprojects
 Do not place a `gradle.properties` file inside subprojects to configure your build.  
@@ -10,7 +10,7 @@ Do not place a `gradle.properties` file inside subprojects to configure your bui
 ## Explanation
 Gradle allows `gradle.properties` files in both the root project and subprojects, but support for subproject properties is inconsistent. Gradle itself and many popular plugins (such as the Android Gradle Plugin and Kotlin Gradle Plugin) do not reliably handle this pattern.  
 Using subproject `gradle.properties` files also makes it harder to understand and debug your build. Property values may be scattered across multiple locations, overridden in unexpected ways, or difficult to trace back to their source.  
-If you need to set properties for a **single subproject** , define them directly in that subproject's `build.gradle(.kts)`. If you need to apply properties across **multiple subprojects** , extract the configuration into a [convention plugin](https://docs.gradle.org/current/userguide/plugins.html#sec:convention_plugins) (Use `gradle_docs(path="userguide/plugins.html#sec:convention_plugins")`.).  
+If you need to set properties for a **single subproject** , define them directly in that subproject's `build.gradle(.kts)`. If you need to apply properties across **multiple subprojects** , extract the configuration into a [convention plugin (Use `gradle_docs(path="userguide/plugins.md")`.).  
 
 ## Example
 ### Don't Do This
@@ -278,7 +278,7 @@ myProperties {
 This structure uses an extension type to hold values, allowing properties to be strongly typed, and for property values and operations on properties to be defined in a single location. Overriding values per subproject remains straightforward.  
 
 ## References
-* [Gradle properties](https://docs.gradle.org/current/userguide/build_environment.html#sec:gradle_configuration_properties) (Use `gradle_docs(path="userguide/build_environment.html#sec:gradle_configuration_properties")`.)
+* [Gradle properties (Use `gradle_docs(path="userguide/build_environment.md")`.)
 
 ---
 

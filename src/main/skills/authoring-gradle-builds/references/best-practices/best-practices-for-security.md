@@ -2,7 +2,7 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: af76df9859f061c86f10a8a7f9839b1014654521710435bc69becfbc5c522795
+hash: 7487da86a3106f759f8fef2fa9432fef3ad1a2c729fe530aec0177e1583855f5
 -->
 # Best Practices for Security
 
@@ -23,10 +23,10 @@ The official SHA-256 checksums can be found on the [Gradle releases page](https:
 ### References
 * [Gradle Releases with Checksums](https://gradle.org/releases/)
 
-* [Gradle Wrapper Reference](https://docs.gradle.org/current/userguide/gradle_wrapper.html#gradle_wrapper) (Use `gradle_docs(path="userguide/gradle_wrapper.html#gradle_wrapper")`.)
+* [Gradle Wrapper Reference (Use `gradle_docs(path="userguide/gradle_wrapper.md")`.)
 
 ### Tags
-[`#properties`](https://docs.gradle.org/current/userguide/tags_reference.html#tag:properties) (Use `gradle_docs(path="userguide/tags_reference.html#tag:properties")`.), [`#wrapper`](https://docs.gradle.org/current/userguide/tags_reference.html#tag:wrapper) (Use `gradle_docs(path="userguide/tags_reference.html#tag:wrapper")`.)  
+[`#properties` (Use `gradle_docs(path="userguide/tags_reference.md")`.), [`#wrapper` (Use `gradle_docs(path="userguide/tags_reference.md")`.)  
 
 ## Validate the Gradle Wrapper on every Upgrade
 The Gradle Wrapper runs before your build logic and can deeply affect your build. You should treat any change to the Wrapper as security-sensitive.  
@@ -54,12 +54,12 @@ If you use the [`setup-gradle` action](https://github.com/marketplace/actions/bu
 If you use a different GitHub Actions setup, you can use the dedicated [Gradle Wrapper validation action](https://github.com/marketplace/actions/build-with-gradle#the-wrapper-validation-action) instead.  
 
 ### References
-* [Gradle Wrapper checksum verification](https://docs.gradle.org/current/gradle_wrapper.html#configuring_checksum_verification) (Use `gradle_docs(path="gradle_wrapper.html#configuring_checksum_verification")`.)
+* [Gradle Wrapper checksum verification (Use `gradle_docs(path="userguide/gradle_wrapper.md")`.)
 
 * [Gradle release checksums](https://gradle.org/release-checksums)
 
 ### Tags
-[`#wrapper`](https://docs.gradle.org/current/userguide/tags_reference.html#tag:wrapper) (Use `gradle_docs(path="userguide/tags_reference.html#tag:wrapper")`.)
+[`#wrapper` (Use `gradle_docs(path="userguide/tags_reference.md")`.)
 
 ---
 

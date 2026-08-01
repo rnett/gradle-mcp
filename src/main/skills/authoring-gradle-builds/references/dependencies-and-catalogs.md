@@ -31,10 +31,10 @@ Do not invent a coordinate from a package name. Do not treat a catalog version a
 **Version notes:** This workflow applies to Gradle 7, 8, and 9. Prefer the latest compatible stable release; use an exact version on 7.x rather than depending on modern resolution features. Version catalogs are stable from 7.4, but coordinate verification remains independent of catalog support.
 
 **More info:**
-- Gradle docs: `gradle_docs` `tag:userguide` with `viewing debugging dependencies`, path `userguide/viewing_debugging_dependencies.md`; https://docs.gradle.org/current/userguide/viewing_debugging_dependencies.html.
-- Dependency conflicts: `gradle_docs` `tag:userguide` with `dependency constraints conflict resolution`, path `userguide/dependency_constraints_conflicts.md`; https://docs.gradle.org/current/userguide/dependency_constraints_conflicts.html.
-- MCP coordinate lookup: `lookup_maven_versions`; https://gradle-mcp.rnett.dev/latest/tools/DEPENDENCY_SEARCH_TOOLS/.
-- MCP graph inspection: `inspect_dependencies`; https://gradle-mcp.rnett.dev/latest/tools/PROJECT_DEPENDENCY_TOOLS/.
+- Gradle docs: `gradle_docs` `tag:userguide` with `viewing debugging dependencies`, path `userguide/viewing_debugging_dependencies.md`
+- Dependency conflicts: `gradle_docs` `tag:userguide` with `dependency constraints conflict resolution`, path `userguide/dependency_constraints_conflicts.md`
+- MCP coordinate lookup: `lookup_maven_versions`
+- MCP graph inspection: `inspect_dependencies`
 
 ## Version Catalog TOML
 
@@ -76,7 +76,7 @@ Use the four tables as follows:
 **Version notes:** Catalogs became experimental in Gradle 7.0 and stable in 7.4. Gradle 8 and 9 support the same core TOML sections and accessors. For Gradle 7.0 through 7.3, preserve an existing catalog cautiously; for new catalog work, use the 7.x fallback of `buildSrc`, applied scripts, or `ext` when the build cannot upgrade to 7.4.
 
 **More info:**
-- Gradle docs: `gradle_docs` `tag:userguide`, path `userguide/version_catalogs.md`; https://docs.gradle.org/current/userguide/version_catalogs.html.
+- Gradle docs: `gradle_docs` `tag:userguide`, path `userguide/version_catalogs.md`
 - Catalog rationale: [Use Version Catalogs to Centralize Dependency Versions](best-practices/use-version-catalogs-to-centralize-dependency-versions.md).
 
 ## Type-Safe Accessors and Plugin Aliases
@@ -104,7 +104,7 @@ Use the catalog accessor in a consuming project only after the catalog is availa
 
 **Version notes:** Generated accessors are supported with stable catalogs in Gradle 7.4, 8, and 9. On Gradle 7.0 through 7.3, use the existing catalog only if the build already relies on the experimental feature; otherwise use the `buildSrc` or `ext` fallback.
 
-**More info:** `gradle_docs` `tag:userguide`, path `userguide/version_catalogs.md`; https://docs.gradle.org/current/userguide/version_catalogs.html.
+**More info:** `gradle_docs` `tag:userguide`, path `userguide/version_catalogs.md`.
 
 ## Declare Dependencies
 
@@ -136,8 +136,8 @@ Use the configuration that matches exposure and lifecycle: `api` for dependencie
 134:**Version notes:** Configuration names and single-string notation work in Gradle 7, 8, and 9. Prefer the current Kotlin DSL and exact versions; on older 7.x builds, follow the existing declaration style if a plugin exposes a legacy configuration.
 135:
 136:**More info:**
-137:- Gradle docs: `gradle_docs` `tag:userguide`, path `userguide/declaring_dependencies.md`; https://docs.gradle.org/current/userguide/declaring_dependencies.html.
-138:- Catalogs: `gradle_docs` `tag:userguide`, path `userguide/version_catalogs.md`; https://docs.gradle.org/current/userguide/version_catalogs.html.
+- Gradle docs: `gradle_docs` `tag:userguide`, path `userguide/declaring_dependencies.md`
+- Catalogs: `gradle_docs` `tag:userguide`, path `userguide/version_catalogs.md`
 139:- Approved declaration rationale: [Declare Dependencies using a single GAV String](best-practices/declare-dependencies-using-a-single-gav-group-artifact-version-string.md).
 
 ## Repositories, Content Filters, and Order
@@ -179,8 +179,8 @@ repositories {
 **Version notes:** Repository declarations and content filtering exist across Gradle 7, 8, and 9. Current best-practice guidance is emphasized in 9.x; on 7.x and 8.x, retain settings-level declaration and use filters where multiple repositories make provenance ambiguous. If there is one trusted repository, a filter may be unnecessary.
 
 **More info:**
-- Gradle docs: `gradle_docs` `tag:best-practices`, path `userguide/best_practices_dependencies.md`, terms `repositories` and `content filtering`; https://docs.gradle.org/current/userguide/best_practices_dependencies.html.
-- Repository declaration: `gradle_docs` `tag:userguide`, path `userguide/declaring_repositories.md`; https://docs.gradle.org/current/userguide/declaring_repositories.html.
+- Gradle docs: `gradle_docs` `tag:best-practices`, path `userguide/best_practices_dependencies.md`, terms `repositories` and `content filtering`
+- Repository declaration: `gradle_docs` `tag:userguide`, path `userguide/declaring_repositories.md`
 - Approved patterns: [Set up your Dependency Repositories in the Settings file](best-practices/set-up-your-dependency-repositories-in-the-settings-file.md) and [Use Content Filtering with multiple Repositories](best-practices/use-content-filtering-with-multiple-repositories.md).
 
 ## Constraints and Conflict Resolution
@@ -220,10 +220,10 @@ Normal conflict resolution generally selects the highest requested version, but 
 **Version notes:** Constraints and dependency version declarations are available in Gradle 7, 8, and 9. Resolution behavior is version-sensitive when platforms, capabilities, or rules are involved; verify the target wrapper and inspect the resolved graph. Gradle 7.x builds that lack a suitable catalog can use direct constraints in Kotlin DSL.
 
 **More info:**
-- Gradle docs: `gradle_docs` `tag:userguide`, path `userguide/dependency_constraints_conflicts.md`; https://docs.gradle.org/current/userguide/dependency_constraints_conflicts.html.
-- Platforms and alignment: `gradle_docs` `tag:userguide`, path `userguide/platforms.md`; https://docs.gradle.org/current/userguide/platforms.html.
-- Resolution rules: `gradle_docs` `tag:userguide`, path `userguide/resolution_rules.md`; https://docs.gradle.org/current/userguide/resolution_rules.html.
-- Graph verification: `inspect_dependencies`; https://gradle-mcp.rnett.dev/latest/tools/PROJECT_DEPENDENCY_TOOLS/.
+- Gradle docs: `gradle_docs` `tag:userguide`, path `userguide/dependency_constraints_conflicts.md`
+- Platforms and alignment: `gradle_docs` `tag:userguide`, path `userguide/platforms.md`
+- Resolution rules: `gradle_docs` `tag:userguide`, path `userguide/resolution_rules.md`
+- Graph verification: `inspect_dependencies`
 
 ## Exclusions and BOMs
 
@@ -255,8 +255,8 @@ Use `enforcedPlatform()` only when all versions imported by the platform must be
 **Version notes:** `platform()` and dependency exclusions are available across Gradle 7, 8, and 9. Verify the published BOM's supported Gradle and library versions. On older 7.x builds, keep the same declarations but avoid assuming modern platform metadata or plugin behavior without checking the wrapper.
 
 **More info:**
-- Platforms: `gradle_docs` `tag:userguide`, path `userguide/platforms.md`; https://docs.gradle.org/current/userguide/platforms.html.
-- Exclusions: `gradle_docs` `tag:userguide`, path `userguide/dependency_constraints_conflicts.md`, term `exclude transitive dependencies`; https://docs.gradle.org/current/userguide/dependency_constraints_conflicts.html.
+- Platforms: `gradle_docs` `tag:userguide`, path `userguide/platforms.md`
+- Exclusions: `gradle_docs` `tag:userguide`, path `userguide/dependency_constraints_conflicts.md`, term `exclude transitive dependencies`
 - Approved exclusion rationale: [Apply Exclusions Narrowly](best-practices/apply-exclusions-narrowly.md).
 
 ## Multiple Catalogs
@@ -290,7 +290,7 @@ dependencies {
 
 **Version notes:** Multiple catalogs are supported with version catalogs in Gradle 7.4, 8, and 9. For Gradle 7.0 through 7.3, use the existing experimental support cautiously or fall back to `buildSrc`, applied scripts, or `ext`.
 
-**More info:** `gradle_docs` `tag:userguide`, path `userguide/version_catalogs.md`; https://docs.gradle.org/current/userguide/version_catalogs.html.
+**More info:** `gradle_docs` `tag:userguide`, path `userguide/version_catalogs.md`.
 
 ## Import a Catalog into `build-logic`
 
@@ -320,7 +320,7 @@ dependencies {
 
 **Version notes:** Catalog import with `from(files(...))` is supported for stable catalogs in Gradle 7.4, 8, and 9. On 7.0 through 7.3, use the existing experimental mechanism cautiously or use build-logic `buildSrc`/`ext` fallback patterns.
 
-**More info:** `gradle_docs` `tag:userguide`, path `userguide/version_catalogs.md`, term `sharing catalogs`; https://docs.gradle.org/current/userguide/version_catalogs.html. For build-logic structure, read [Favor `build-logic` Composite Builds for Build Logic](best-practices/favor-build-logic-composite-builds-for-build-logic.md).
+**More info:** `gradle_docs` `tag:userguide`, path `userguide/version_catalogs.md`, term `sharing catalogs`. For build-logic structure, read [Favor `build-logic` Composite Builds for Build Logic](best-practices/favor-build-logic-composite-builds-for-build-logic.md).
 
 ## Dynamic Versions and SNAPSHOT Cache Freshness
 
@@ -334,7 +334,7 @@ Gradle's documented default cache TTL for dynamic versions and changing modules 
 
 **Version notes:** Dynamic and changing-module caching behavior applies to Gradle 7, 8, and 9; exact cache defaults and resolution rules are version-sensitive. Prefer the latest Gradle minor and verify the wrapper's documentation before changing TTL settings.
 
-**More info:** `gradle_docs` `tag:userguide`, path `userguide/dependency_caching.md`; https://docs.gradle.org/current/userguide/dependency_caching.html. For refresh and graph evidence, hand off to `using-gradle`; `inspect_dependencies` is documented at https://gradle-mcp.rnett.dev/latest/tools/PROJECT_DEPENDENCY_TOOLS/.
+**More info:** `gradle_docs` `tag:userguide`, path `userguide/dependency_caching.md`. For refresh and graph evidence, hand off to `using-gradle`; `inspect_dependencies` is the relevant graph tool.
 
 ## Remove a Dependency Safely
 
@@ -352,7 +352,7 @@ Gradle's documented default cache TTL for dynamic versions and changing modules 
 
 **Version notes:** The removal workflow is valid for Gradle 7, 8, and 9. Catalog cleanup differs only in the availability of stable catalog accessors: use the 7.4+ catalog workflow or the 7.x `buildSrc`/`ext` fallback.
 
-**More info:** `gradle_docs` `tag:userguide`, path `userguide/viewing_debugging_dependencies.md`; https://docs.gradle.org/current/userguide/viewing_debugging_dependencies.html. Graph inspection: `inspect_dependencies`; https://gradle-mcp.rnett.dev/latest/tools/PROJECT_DEPENDENCY_TOOLS/.
+**More info:** `gradle_docs` `tag:userguide`, path `userguide/viewing_debugging_dependencies.md`. Graph inspection: `inspect_dependencies`
 
 ## Version Summary
 

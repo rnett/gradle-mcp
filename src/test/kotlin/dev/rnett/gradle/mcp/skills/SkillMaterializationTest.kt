@@ -178,6 +178,19 @@ class SkillMaterializationTest {
         assertEquals(body, parsed.body)
     }
 
+    @Test
+    fun `blocks documentation hosts but permits other urls`(@TempDir tempDir: Path) {
+        val skillsDir = tempDir.resolve("skills")
+        skillsDir.createDirectories()
+        skillsDir.resolve("clean.md").writeText("https://central.sonatype.org/ and author: https://github.com/rnett/gradle-mcp")
+        assertEquals(emptyList(), SkillMaterialization.checkNoBlockedDocUrls(skillsDir))
+
+        skillsDir.resolve("gradle.md").writeText("https://docs.gradle.org/current/userguide/gradle_basics.html")
+        assertEquals(1, SkillMaterialization.checkNoBlockedDocUrls(skillsDir).size)
+        skillsDir.resolve("mcp.md").writeText("https://gradle-mcp.rnett.dev/latest/tools/GRADLE_DOCS_TOOLS/")
+        assertEquals(2, SkillMaterialization.checkNoBlockedDocUrls(skillsDir).size)
+    }
+
     private fun copySkillSources(tempRoot: Path): Path {
         listOf("src/main/skills", "src/main/skill-sources").forEach { relative ->
             val source = projectRoot.resolve(relative)

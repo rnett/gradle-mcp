@@ -22,7 +22,7 @@ class GradleDocsTools(
         val query: String? = null,
         @Description("Read a specific doc page path (e.g., 'userguide/command_line_interface.md'). Overrides query.")
         val path: String? = null,
-        @Description("Targeting a specific Gradle version (e.g., '8.6'). Defaults to the detected project version.")
+        @Description("Explicit version override. Resolution order: explicit version -> wrapper auto-detection via projectRoot -> latest stable fallback.")
         val version: String? = null,
         @Description("Detecting the project's Gradle version automatically by providing the project root.")
         val projectRoot: GradleProjectRootInput? = null,

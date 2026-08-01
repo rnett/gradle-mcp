@@ -170,5 +170,5 @@ The exact target DSL can vary by Kotlin Multiplatform plugin version. Inspect th
 - Kotlin compiler options, typed `JvmTarget`, and `-opt-in`: https://kotlinlang.org/docs/gradle-compiler-options.html.
 - Legacy `kotlinOptions` deprecation: https://kotlinlang.org/api/kotlin-gradle-plugin/kotlin-gradle-plugin-api/org.jetbrains.kotlin.gradle.dsl/-kotlin-compile/kotlin-options.html.
 - Kotlin 1.8.0 compiler-task input evidence and Kotlin 1.9.0 project-level DSL evidence: https://kotlinlang.org/docs/whatsnew18.html and https://kotlinlang.org/docs/whatsnew19.html.
-- Gradle toolchains: `gradle_docs` `tag:userguide`, path `userguide/toolchains.md`; published docs: https://docs.gradle.org/current/userguide/toolchains.html.
-- Gradle compiler/task configuration lookup: https://gradle-mcp.rnett.dev/latest/tools/GRADLE_DOCS_TOOLS/.
+- Gradle toolchains: `gradle_docs` `tag:userguide`, path `userguide/toolchains.md`
+- Gradle compiler/task configuration lookup: `gradle_docs`

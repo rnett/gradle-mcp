@@ -2,7 +2,7 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: 96b0f93dba12e6c2a3487a0ac1818f8abd2c09b7dd45a413791c5bca080a6deb
+hash: 70e73c0aeef842f4b59f6b3889f391ebe7ecb598b7b0daefab12764efd18f68b
 -->
 # Use the Latest Minor Version of Gradle
 Stay on the latest minor version of the major Gradle release you're using, and regularly update your plugins to the latest compatible versions.  
@@ -40,7 +40,7 @@ Always use the latest compatible version of each plugin:
 Subscribe to the Gradle [newsletter](https://newsletter.gradle.org/) to stay informed about new Gradle releases, features, and plugins.  
 
 ## References
-* [Upgrade Guide](https://docs.gradle.org/current/userguide/upgrading_version_9.html#upgrading_version_9) (Use `gradle_docs(path="userguide/upgrading_version_9.html#upgrading_version_9")`.)
+* [Upgrade Guide (Use `gradle_docs(path="userguide/upgrading_version_9.md")`.)
 
 ---
 

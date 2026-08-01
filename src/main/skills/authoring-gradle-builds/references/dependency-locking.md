@@ -100,7 +100,7 @@ Dynamic declarations such as `1.+`, version ranges, and changing modules such as
 - **Gradle 7.x:** Dependency locking is supported, and Gradle 7 introduced the single per-project lockfile format. Older builds may require migration from legacy per-configuration lockfiles. For 7.0 through 7.3, preserve existing dependency-management conventions cautiously; do not assume newer build logic is available.
 
 **More info:**
-- Locking: query `gradle_docs` with `tag:userguide`, path `userguide/dependency_locking.md`, term `--write-locks`; published reference: https://docs.gradle.org/current/userguide/dependency_locking.html.
+- Locking: query `gradle_docs` with `tag:userguide`, path `userguide/dependency_locking.md`, term `--write-locks`
 - Dependency caching and refresh semantics: query `gradle_docs` with `tag:userguide`, path `userguide/dependency_caching.md`, terms `dynamic changing refresh offline`; this is the verified hint from the dependency reference.
-- Gradle task invocation and `--write-locks`: `gradle` MCP documentation, https://gradle-mcp.rnett.dev/latest/tools/EXECUTION_TOOLS/.
-- Dependency graph inspection and update evidence: `inspect_dependencies` MCP documentation, https://gradle-mcp.rnett.dev/latest/tools/PROJECT_DEPENDENCY_TOOLS/; Maven release lookup: https://gradle-mcp.rnett.dev/latest/tools/DEPENDENCY_SEARCH_TOOLS/.
+- Gradle task invocation and `--write-locks`: `gradle`
+- Dependency graph inspection and update evidence: `inspect_dependencies`; Maven release lookup

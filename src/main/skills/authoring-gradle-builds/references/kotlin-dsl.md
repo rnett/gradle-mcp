@@ -87,7 +87,7 @@ While Kotlin DSL is preferred, Groovy remains more dynamic in specific areas:
 - **Gradle 7.x:** Kotlin DSL was stable, but early versions had slower sync times. Accessor timing constraints were similar to current versions.
 
 **More info:**
-- Gradle Kotlin DSL Primer: `gradle_docs` `tag:userguide`, path `userguide/kotlin_dsl.md`; published guide: https://docs.gradle.org/current/userguide/kotlin_dsl.html
+- Gradle Kotlin DSL Primer: `gradle_docs` `tag:userguide`, path `userguide/kotlin_dsl.md`
 
 **Cross-references:**
 - For build logic sharing via scripts, see [Convention Plugins](convention-plugins.md).

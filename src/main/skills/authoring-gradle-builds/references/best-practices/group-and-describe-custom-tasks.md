@@ -2,7 +2,7 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: aa00c098a070bc8f613c5077a131ebcbf9d926740a49ec055e1eaec7e8232a6d
+hash: a9a244751d55273d327fd77ee72310ce37a2c23695c21a1cd81555689177222c
 -->
 # Group and Describe custom Tasks
 When defining custom task types or registering ad-hoc tasks, always set a clear `group` and `description`.  
@@ -10,7 +10,7 @@ When defining custom task types or registering ad-hoc tasks, always set a clear 
 ## Explanation
 A good group name is short, lowercase, and reflects the purpose or domain of the task. For example: `documentation`, `verification`, `release`, or `publishing`.  
 Before creating a new group, look for an existing group name that aligns with your task's intent. It's often better to reuse an established category to keep the task output organized and familiar to users.  
-This information is used in the [Tasks Report](https://docs.gradle.org/current/userguide/command_line_interface.html#sec:listing_tasks) (Use `gradle_docs(path="userguide/command_line_interface.html#sec:listing_tasks")`.) (shown via `./gradlew tasks`) to group and describe available tasks in a readable format.  
+This information is used in the [Tasks Report (Use `gradle_docs(path="userguide/command_line_interface.md")`.) (shown via `./gradlew tasks`) to group and describe available tasks in a readable format.  
 Providing a group and description ensures that your tasks are:  
 * Displayed clearly in the report
 
@@ -19,7 +19,7 @@ Providing a group and description ensures that your tasks are:
 * Understandable to other users (and to your future self)
 
 |---|------------------------------------------------------------------------------------------------------------------------------------|
-|   | Tasks with no group are hidden from the [Tasks Report](https://docs.gradle.org/current/userguide/command_line_interface.html#sec:listing_tasks) (Use `gradle_docs(path="userguide/command_line_interface.html#sec:listing_tasks")`.) unless `--all` is specified. |
+|   | Tasks with no group are hidden from the [Tasks Report (Use `gradle_docs(path="userguide/command_line_interface.md")`.) unless `--all` is specified. |
 
 ## Example
 ### Don't Do This
@@ -87,7 +87,7 @@ javadoc - Generates Javadoc API documentation for the 'main' feature.
 ```
 
 ## References
-* [Task Group and Description](https://docs.gradle.org/current/userguide/more_about_tasks.html#sec:task_groups) (Use `gradle_docs(path="userguide/more_about_tasks.html#sec:task_groups")`.)
+* [Task Group and Description (Use `gradle_docs(path="userguide/more_about_tasks.md")`.)
 
 ---
 

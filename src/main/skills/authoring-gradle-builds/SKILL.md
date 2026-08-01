@@ -29,7 +29,7 @@ skill: authoring-gradle-builds
 
 Author or modify Gradle build definitions, build logic, project structure, and delivery wiring. Optimize for lazy, decoupled, configuration-cache-compatible builds.
 
-**More info**: Query `gradle_docs` with `tag:userguide` or `tag:best-practices` plus the topic path. Read `gradle/wrapper/gradle-wrapper.properties` before any version-sensitive authoring. Published MCP tool docs use grouped uppercase source-file routes under https://gradle-mcp.rnett.dev/latest/tools/, not per-tool pages; use the docs-references brief or `using-gradle/references/research.md` for exact pages and `gradle_docs` mechanics.
+**More info**: Query `gradle_docs` with `tag:userguide` or `tag:best-practices` plus the topic path. Read `gradle/wrapper/gradle-wrapper.properties` before any version-sensitive authoring.
 
 ## Before You Modify
 

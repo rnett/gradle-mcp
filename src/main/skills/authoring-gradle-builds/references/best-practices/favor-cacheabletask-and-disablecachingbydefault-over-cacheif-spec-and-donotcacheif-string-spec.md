@@ -2,10 +2,10 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: f480b700ba3c8ecea076c38f44b91b9ea6198cc493adf4dc4a669020cd2640c9
+hash: f682eb2f23a60916f5edd62d0f9bd539ad074f889237d564da83679dac965ce4
 -->
 # Favor `@CacheableTask` and `@DisableCachingByDefault` over `cacheIf(Spec)` and `doNotCacheIf(String, Spec)`
-The [`cacheIf`](https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/TaskOutputs.html#cacheIf(org.gradle.api.specs.Spec) (Use `gradle_docs(path="javadoc/org/gradle/api/tasks/TaskOutputs.html#cacheIf(org.gradle.api.specs.Spec")`.)) and [`doNotCacheIf`](https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/TaskOutputs.html#doNotCacheIf(java.lang.String,org.gradle.api.specs.Spec) (Use `gradle_docs(path="javadoc/org/gradle/api/tasks/TaskOutputs.html#doNotCacheIf(java.lang.String,org.gradle.api.specs.Spec")`.)) methods should only be used in situations where the [cacheability](https://docs.gradle.org/current/userguide/build_cache.html#build_cache) (Use `gradle_docs(path="userguide/build_cache.html#build_cache")`.) of a task varies between different task instances or cannot be determined until the task is executed by Gradle. You should instead favor annotating the task class itself with [`@CacheableTask`](https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/CacheableTask.html) (Use `gradle_docs(path="javadoc/org/gradle/api/tasks/CacheableTask.html")`.) annotation for any task that is *always* cacheable. Likewise, the [`@DisableCachingByDefault`](https://docs.gradle.org/current/javadoc/org/gradle/work/DisableCachingByDefault.html) (Use `gradle_docs(path="javadoc/org/gradle/work/DisableCachingByDefault.html")`.) should be used to always disable caching for all instances of a task type.  
+The [`cacheIf` (Use `gradle_docs(path="javadoc/org/gradle/api/tasks/TaskOutputs.md")`.)) and [`doNotCacheIf` (Use `gradle_docs(path="javadoc/org/gradle/api/tasks/TaskOutputs.md")`.)) methods should only be used in situations where the [cacheability (Use `gradle_docs(path="userguide/build_cache.md")`.) of a task varies between different task instances or cannot be determined until the task is executed by Gradle. You should instead favor annotating the task class itself with [`@CacheableTask` (Use `gradle_docs(path="javadoc/org/gradle/api/tasks/CacheableTask.md")`.) annotation for any task that is *always* cacheable. Likewise, the [`@DisableCachingByDefault` (Use `gradle_docs(path="javadoc/org/gradle/work/DisableCachingByDefault.md")`.) should be used to always disable caching for all instances of a task type.  
 
 ## Explanation
 Annotating a task type will ensure that *each task instance* of that type is properly understood by Gradle to be cacheable (or not cacheable). This removes the need to remember to configure each of the task instances separately in build scripts.  
@@ -183,11 +183,11 @@ tasks.register("addGood2", GoodCalculatorTask) { (2)
 | **2** | **Nothing Else Needs To Be Done**: When we register task instances, nothing else needs to be done - Gradle knows to cache them.                 |
 
 ## References
-* [Caching Tasks](https://docs.gradle.org/current/userguide/more_about_tasks.html#sec:caching_tasks) (Use `gradle_docs(path="userguide/more_about_tasks.html#sec:caching_tasks")`.)
+* [Caching Tasks (Use `gradle_docs(path="userguide/more_about_tasks.md")`.)
 
-* [Cacheable Tasks](https://docs.gradle.org/current/userguide/build_cache.html#sec:task_output_caching_details) (Use `gradle_docs(path="userguide/build_cache.html#sec:task_output_caching_details")`.)
+* [Cacheable Tasks (Use `gradle_docs(path="userguide/build_cache.md")`.)
 
-* [Non-cacheable Tasks](https://docs.gradle.org/current/userguide/build_cache_concepts.html#non_cacheable_tasks) (Use `gradle_docs(path="userguide/build_cache_concepts.html#non_cacheable_tasks")`.)
+* [Non-cacheable Tasks (Use `gradle_docs(path="userguide/build_cache_concepts.md")`.)
 
 ---
 

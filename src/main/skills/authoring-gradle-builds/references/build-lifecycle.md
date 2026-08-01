@@ -86,7 +86,7 @@ See [Avoid `afterEvaluate`](best-practices/avoid-afterevaluate.md) for the prohi
 Advanced build logic uses `BuildService` and incubating `FlowAction` to handle cross-task state and non-task work.
 
 - **Build Services:** Registered during configuration, these provide a thread-safe way to share state across tasks without capturing `Project` instances.
-- **Flow Actions:** (Incubating) Allow for structured work that occurs outside the standard task graph. For implementation details, refer to the [official Dataflow Actions guide](https://docs.gradle.org/current/userguide/dataflow_actions.html).
+- **Flow Actions:** (Incubating) Allow for structured work that occurs outside the standard task graph. Use `gradle_docs` with `tag:userguide` and path `userguide/dataflow_actions.md` for implementation details.
 
 **Default:** Use `BuildService` for resources that must be shared across tasks (e.g., a database connection or a shared worker pool).
 
@@ -101,8 +101,8 @@ Advanced build logic uses `BuildService` and incubating `FlowAction` to handle c
 - **Gradle 7.x:** Configuration cache was experimental. `afterEvaluate` was more common but already discouraged in favor of lazy APIs.
 
 **More info:**
-- Build Lifecycle: `gradle_docs` `tag:userguide`, path `userguide/build_lifecycle.md`; published guide: https://docs.gradle.org/current/userguide/build_lifecycle.html
-- Intermediate Build Scripting: `gradle_docs` `tag:userguide`, path `userguide/writing_build_scripts_intermediate.md`; published guide: https://docs.gradle.org/current/userguide/writing_build_scripts_intermediate.html
+- Build Lifecycle: `gradle_docs` `tag:userguide`, path `userguide/build_lifecycle.md`
+- Intermediate Build Scripting: `gradle_docs` `tag:userguide`, path `userguide/writing_build_scripts_intermediate.md`
 
 **Handoff:**
 Observation of build lifecycle outcomes (e.g., reading logs to see which tasks ran) and running specific tasks belongs to `using-gradle`.

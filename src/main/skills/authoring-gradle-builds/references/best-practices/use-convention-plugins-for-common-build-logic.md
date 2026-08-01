@@ -2,10 +2,10 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: 4660eb5e3a81dcc43e051db7e6ccd102fbe5416dbfbcdb13b27e82566b79d79b
+hash: fe0321c5642df1621c1794c03b06d0715b0fe02070c31ae78259d4fc262ef302
 -->
 # Use Convention Plugins for Common Build Logic
-Use [convention plugins](https://docs.gradle.org/current/userguide/implementing_gradle_plugins_precompiled.html#implementing_precompiled_plugins) (Use `gradle_docs(path="userguide/implementing_gradle_plugins_precompiled.html#implementing_precompiled_plugins")`.) to encapsulate and reuse shared build logic across multiple projects in your build.  
+Use [convention plugins (Use `gradle_docs(path="userguide/implementing_gradle_plugins_precompiled.md")`.) to encapsulate and reuse shared build logic across multiple projects in your build.  
 
 ## Explanation
 Instead of duplicating configuration across multiple build scripts, you can easily move common logic into a reusable convention plugins.  
@@ -20,7 +20,7 @@ This approach offers several benefits:
 
 * **Improves IDE support**: IDEs can better understand and validate build logic when it is structured in plugins.
 
-Convention plugins are quicker to create than [typed binary plugins](https://docs.gradle.org/current/userguide/implementing_gradle_plugins_binary.html#implementing_binary_plugins) (Use `gradle_docs(path="userguide/implementing_gradle_plugins_binary.html#implementing_binary_plugins")`.) extending the `Plugin` class. They are often a better choice for build logic that does not need to be shared outside a build, and that is simple enough to not require additional type safeness and testability benefits. Unlike binary plugins, convention plugins allow accessing plugin extensions, tasks and configurations via static accessors in build scripts written in Kotlin.  
+Convention plugins are quicker to create than [typed binary plugins (Use `gradle_docs(path="userguide/implementing_gradle_plugins_binary.md")`.) extending the `Plugin` class. They are often a better choice for build logic that does not need to be shared outside a build, and that is simple enough to not require additional type safeness and testability benefits. Unlike binary plugins, convention plugins allow accessing plugin extensions, tasks and configurations via static accessors in build scripts written in Kotlin.  
 While setting up convention plugins takes some initial effort, it pays off by simplifying maintenance, improving comprehensibility, and making it easier to add new projects as your codebase grows.  
 As mentioned in Favor `build-logic` Composite Builds for Build Logic, we recommend placing your convention plugins in an included build (often named `build-logic`) instead of `buildSrc`.  
 
@@ -320,11 +320,11 @@ dependencies {
 ```
 
 ## References
-* [Developing Custom Gradle Plugins](https://docs.gradle.org/current/userguide/plugins/custom_plugins.html#custom_plugins) (Use `gradle_docs(path="userguide/plugins/custom_plugins.html#custom_plugins")`.)
+* [Developing Custom Gradle Plugins (Use `gradle_docs(path="userguide/plugins/custom_plugins.md")`.)
 
-* [Implementing Pre-compiled Script Plugins](https://docs.gradle.org/current/userguide/implementing_gradle_plugins_precompiled.html#implementing_precompiled_plugins) (Use `gradle_docs(path="userguide/implementing_gradle_plugins_precompiled.html#implementing_precompiled_plugins")`.)
+* [Implementing Pre-compiled Script Plugins (Use `gradle_docs(path="userguide/implementing_gradle_plugins_precompiled.md")`.)
 
-* [Types of Plugins](https://docs.gradle.org/current/userguide/plugin-development/plugins.html#types_of_plugins) (Use `gradle_docs(path="userguide/plugin-development/plugins.html#types_of_plugins")`.)
+* [Types of Plugins (Use `gradle_docs(path="userguide/plugin-development/plugins.md")`.)
 
 ---
 

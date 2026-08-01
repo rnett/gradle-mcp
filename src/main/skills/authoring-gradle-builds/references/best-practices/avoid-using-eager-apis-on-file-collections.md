@@ -2,15 +2,15 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: 7b6abbaeeda648722cda576f0dbb4b111989e7232033a6a85e6f61ac97cc154a
+hash: abeecfdee62418f4ddfa0cf91afabf14c6703fae6f71f25e336e400873d87cc5
 -->
 # Avoid using eager APIs on File Collections
 When working with Gradle's file collection types, be careful to avoid triggering dependency resolution during the configuration phase.  
 
 ## Explanation
-Gradle's [`Configuration`](https://docs.gradle.org/current/javadoc/org/gradle/api/artifacts/Configuration.html) (Use `gradle_docs(path="javadoc/org/gradle/api/artifacts/Configuration.html")`.) and [`FileCollection`](https://docs.gradle.org/current/javadoc/org/gradle/api/file/FileCollection.html) (Use `gradle_docs(path="javadoc/org/gradle/api/file/FileCollection.html")`.) types extend the JDK's `Collection<File>` interface.  
+Gradle's [`Configuration` (Use `gradle_docs(path="javadoc/org/gradle/api/artifacts/Configuration.md")`.) and [`FileCollection` (Use `gradle_docs(path="javadoc/org/gradle/api/file/FileCollection.md")`.) types extend the JDK's `Collection<File>` interface.  
 However, calling some available methods from this interface---such as `.size()`, `.isEmpty()`, `getFiles()`, `asPath()`, or `.toList()`---on these Gradle types will implicitly trigger resolution of their dependencies. The same is possible using Kotlin stdlib collection extension methods or Groovy GDK collection extensions. Converting a `Configuration` to a `Set<File>` also discards any implicit task dependencies it carries.  
-You should avoid using these methods when configuring your build. Instead, use the methods defined directly on the Gradle interfaces - this is a necessary *first step* towards preventing eager resolutions. Be sure to use [lazy types and APIs](https://docs.gradle.org/current/userguide/lazy_configuration.html#working_with_files_in_lazy_properties) (Use `gradle_docs(path="userguide/lazy_configuration.html#working_with_files_in_lazy_properties")`.) that defer resolution to wire task dependencies and inputs correctly. Some methods that cause resolution are not obvious. Be sure to check the actual behavior when using configurations in an atypical way.  
+You should avoid using these methods when configuring your build. Instead, use the methods defined directly on the Gradle interfaces - this is a necessary *first step* towards preventing eager resolutions. Be sure to use [lazy types and APIs (Use `gradle_docs(path="userguide/lazy_configuration.md")`.) that defer resolution to wire task dependencies and inputs correctly. Some methods that cause resolution are not obvious. Be sure to check the actual behavior when using configurations in an atypical way.  
 
 ## Example
 ### Don't Do This

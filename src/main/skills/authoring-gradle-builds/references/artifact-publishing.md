@@ -153,9 +153,9 @@ See [using-gradle research](../../using-gradle/references/research.md) for the s
 
 ## More info
 
-- Gradle publication model: query `gradle_docs` with `tag:userguide`, path `userguide/publishing_maven.md`; published guide: https://docs.gradle.org/current/userguide/publishing_maven.html.
-- Gradle MCP documentation lookup: `gradle_docs` https://gradle-mcp.rnett.dev/latest/tools/GRADLE_DOCS_TOOLS/.
-- Gradle MCP task execution handoff: `gradle` https://gradle-mcp.rnett.dev/latest/tools/EXECUTION_TOOLS/.
+- Gradle publication model: query `gradle_docs` with `tag:userguide`, path `userguide/publishing_maven.md`
+- Gradle MCP documentation lookup: `gradle_docs`
+- Gradle MCP task execution handoff: `gradle`
 - Central Portal sunset announcement: https://central.sonatype.org/news/20250326_ossrh_sunset.
 - Central Portal migration and current service: https://central.sonatype.org/pages/ossrh-eol.
 - Central Portal publishing guide: https://central.sonatype.org/publish/publish-portal-guide.

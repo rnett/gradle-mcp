@@ -2,10 +2,10 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: 36e2ebd1504f5fc0f899a3258a7c361bebb8ca27ebfdf68234b80372bf5790aa
+hash: 3d5ae49094ad025785246b6c97b24d2aa6aac20cae43ed7643b96107e01abdf6
 -->
 # Apply Plugins Using the `plugins` Block
-You should always use the `plugins` block to [apply plugins](https://docs.gradle.org/current/userguide/plugin_basics.html#applying_plugins) (Use `gradle_docs(path="userguide/plugin_basics.html#applying_plugins")`.) in your build scripts.  
+You should always use the `plugins` block to [apply plugins (Use `gradle_docs(path="userguide/plugin_basics.md")`.) in your build scripts.  
 
 ## Explanation
 The `plugins` block is the preferred way to apply plugins in Gradle. The plugins API allows Gradle to better manage the loading of plugins and it is both more concise and less error-prone than adding dependencies to the buildscript's classpath explicitly in order to use the `apply` method.  
@@ -77,7 +77,7 @@ plugins {
 | **2** | **Apply a Third-Party Plugin** : You specify the version using method chaining in the `plugins` block itself. |
 
 ## References
-* [Using Plugins](https://docs.gradle.org/current/userguide/plugins_intermediate.html#using_plugins) (Use `gradle_docs(path="userguide/plugins_intermediate.html#using_plugins")`.)
+* [Using Plugins (Use `gradle_docs(path="userguide/plugins_intermediate.md")`.)
 
 ---
 

@@ -2,7 +2,7 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: 0f48b00dbe2ecf814270ecd8e2d16e841ecc258274cf87e76566b30384e54dbe
+hash: cf25189cada55a75e4dad0258032874e976a4fac8944440142537b2b45aea7ab
 -->
 # Name Your Root Project
 Always name your root project in the `settings.gradle(.kts)` file.  
@@ -70,7 +70,7 @@ BUILD SUCCESSFUL in 0s
 ```
 
 ## References
-* [Naming recommendations](https://docs.gradle.org/current/userguide/multi_project_builds.html#sec:naming_recommendations) (Use `gradle_docs(path="userguide/multi_project_builds.html#sec:naming_recommendations")`.)
+* [Naming recommendations (Use `gradle_docs(path="userguide/multi_project_builds.md")`.)
 
 ---
 

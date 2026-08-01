@@ -126,8 +126,6 @@ val operations = DefaultExecOperations(/* internal services */)
 **More info**:
 
 - `gradle_docs`: `tag:userguide`, path `userguide/service_injection.md`, terms `@Inject`, `ExecOperations`, `ProjectLayout`.
-- Official docs: https://docs.gradle.org/current/userguide/service_injection.html
-- MCP documentation for version-matched research: https://gradle-mcp.rnett.dev/latest/tools/GRADLE_DOCS_TOOLS/
 
 ## Convention, Finalization, and Combination
 The model for conventions and finalization is detailed in [Managed Types and Providers](managed-types-and-providers.md). When authoring services or configuration-cache-safe logic, focus on ensuring that values are wired lazily via providers and that the resulting task state is serializable.
@@ -212,8 +210,6 @@ If the target Gradle version does not support the `@ServiceReference` form used 
 **More info**:
 
 - `gradle_docs`: `tag:userguide`, path `userguide/build_services.md`, terms `registerIfAbsent`, `usesService`, `maxParallelUsages`.
-- Official docs: https://docs.gradle.org/current/userguide/build_services.html
-- MCP documentation for version-matched research: https://gradle-mcp.rnett.dev/latest/tools/GRADLE_DOCS_TOOLS/
 
 ## Value sources
 
@@ -276,10 +272,7 @@ val settingsText = file("settings.json").readText()
 **More info**:
 
 - `gradle_docs`: `tag:javadoc`, paths `kotlin-dsl/gradle/org.gradle.api.provider/-value-source/index.md`, `kotlin-dsl/gradle/org.gradle.api.provider/-value-source-parameters/index.md`, `kotlin-dsl/gradle/org.gradle.api.provider/-provider-factory/of.md`, and `kotlin-dsl/gradle/org.gradle.api.provider/-value-source/obtain.md`.
-- Official Javadoc: https://docs.gradle.org/current/javadoc/org/gradle/api/provider/ValueSource.html, https://docs.gradle.org/current/javadoc/org/gradle/api/provider/ValueSourceParameters.html
 - Version-scoped handoff: verify the target wrapper with `gradle_docs` `tag:javadoc ValueSource` and `tag:userguide "value sources"` (or `ValueSource ValueSourceParameters providers.of obtain`) before relying on a user-guide path or cross-version behavior claim.
-- Configuration-cache constraints: https://docs.gradle.org/current/userguide/configuration_cache_requirements.html
-- MCP documentation for version-matched research: https://gradle-mcp.rnett.dev/latest/tools/GRADLE_DOCS_TOOLS/
 
 ## Configuration-Cache Requirements Matrix
 The configuration cache requires that the task graph be serializable. Any violation of these requirements is reported as a "problem" and causes the build to fail.
@@ -331,8 +324,8 @@ The configuration cache is validated during the "storing" phase (after configura
 - **Gradle 7.x:** Incubating; requires an explicit opt-in and manual validation. For Gradle 7.x builds, use ordinary providers and explicit task inputs as the fallback when the target wrapper does not expose the required `ValueSource` or `BuildService` APIs.
 
 **More info:**
-- `gradle_docs`: `tag:userguide`, path `userguide/configuration_cache_requirements.md` → https://docs.gradle.org/current/userguide/configuration_cache_requirements.html
-- `gradle_docs`: `tag:userguide`, path `userguide/configuration_cache_debugging.md` → https://docs.gradle.org/current/userguide/configuration_cache_debugging.html
-- `gradle_docs`: `tag:userguide`, path `userguide/configuration_cache_enabling.md` → https://docs.gradle.org/current/userguide/configuration_cache_enabling.html
+- `gradle_docs`: `tag:userguide`, path `userguide/configuration_cache_requirements.md`
+- `gradle_docs`: `tag:userguide`, path `userguide/configuration_cache_debugging.md`
+- `gradle_docs`: `tag:userguide`, path `userguide/configuration_cache_enabling.md`
 - Frozen rationale: [Use the Configuration Cache](best-practices/use-the-configuration-cache.md) (provides usage and enablement rationale; hand off actual enabling to `using-gradle`).
 - Handoff: Enabling the configuration cache in `gradle.properties` or via CLI, reading runtime outcomes, and general failure diagnosis belongs to `using-gradle`.

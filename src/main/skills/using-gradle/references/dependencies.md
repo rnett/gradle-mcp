@@ -124,10 +124,10 @@ Use `lookup_maven_versions` to check the full release history of a GAV on Maven 
 ```
 
 **More info**:
-- Dependencies and repositories: `gradle_docs` `tag:userguide`, path `userguide/dependency_management_basics.md`; https://docs.gradle.org/current/userguide/dependency_management_basics.html
+- Dependencies and repositories: `gradle_docs` `tag:userguide`, path `userguide/dependency_management_basics.md`
 - Configurations and graph debugging: `gradle_docs` `tag:userguide`, path `userguide/viewing_debugging_dependencies.md`.
 - Conflicts and highest-version selection: `gradle_docs` `tag:userguide`, path `userguide/dependency_constraints_conflicts.md`.
 - Caching, refresh, and offline behavior: `gradle_docs` `tag:userguide`, path `userguide/dependency_caching.md`.
-- MCP graph and update inspection: `inspect_dependencies` https://gradle-mcp.rnett.dev/latest/tools/PROJECT_DEPENDENCY_TOOLS/; Maven releases: `lookup_maven_versions` https://gradle-mcp.rnett.dev/latest/tools/DEPENDENCY_SEARCH_TOOLS/.
+- MCP graph and update inspection: `inspect_dependencies`; Maven releases: `lookup_maven_versions`
 
 Version notes: Version catalogs are stable from 7.4+. For builds < 7.4, prefer existing `buildSrc`, scripts, or `ext` properties.

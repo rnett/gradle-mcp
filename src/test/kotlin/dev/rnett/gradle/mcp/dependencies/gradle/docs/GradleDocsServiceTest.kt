@@ -203,4 +203,157 @@ class GradleDocsServiceTest {
 
         tempDir.toFile().deleteRecursively()
     }
+    @Test
+    fun `getDocsPageContent resolves fragments queries and html paths`() = runTest {
+        val tempDir = Files.createTempDirectory("gradle-mcp-test-docs-fragments")
+        val environment = GradleMcpEnvironment(tempDir)
+        val version = "9.4.0"
+        val convertedDir = tempDir.resolve("cache/reading_gradle_docs/$version/converted/userguide")
+        Files.createDirectories(convertedDir)
+        convertedDir.resolve("sections.md").writeText(
+            """
+            # Page
+
+            ## Excluding transitive dependencies {#sec:exclude-trans-deps}
+
+            Details.
+
+            ### Nested detail
+
+            Nested.
+
+            ## Other section
+
+            Other.
+            """.trimIndent(),
+        )
+        val indexer = mockk<GradleDocsIndexService>()
+        coEvery {
+            with(any<ProgressReporter>()) { indexer.ensureIndexed(version) }
+        } returns Unit
+        val service = DefaultGradleDocsService(mockk<HttpClient>(), indexer, environment, createVersionService())
+
+        val byAnchor = with(ProgressReporter.PRINTLN) {
+            service.getDocsPageContent("userguide/sections.html#sec:exclude-trans-deps?ignored=true", version)
+        } as DocsPageContent.Markdown
+        assertTrue(byAnchor.content.contains("# Section: sec:exclude-trans-deps"))
+        assertTrue(byAnchor.content.contains("Nested."))
+        assertTrue(byAnchor.content.contains("query string \"ignored=true\"; ignored"))
+        assertTrue(!byAnchor.content.contains("Other."))
+
+        val bySlug = with(ProgressReporter.PRINTLN) {
+            service.getDocsPageContent("userguide/sections.md#other-section", version)
+        } as DocsPageContent.Markdown
+        assertTrue(bySlug.content.contains("Other."))
+
+        val failure = runCatching {
+            with(ProgressReporter.PRINTLN) {
+                service.getDocsPageContent("userguide/sections.md#no-such-anchor", version)
+            }
+        }.exceptionOrNull()
+        assertTrue(failure?.message?.contains("userguide/sections.md") == true)
+        assertTrue(failure?.message?.contains("#no-such-anchor") == true)
+        assertTrue(failure?.message?.contains("Available fragments on this page:") == true)
+        assertTrue(failure?.message?.contains("#page") == true)
+        assertTrue(failure?.message?.contains("#sec:exclude-trans-deps") == true)
+        assertTrue(failure?.message?.contains("#nested-detail") == true)
+        assertTrue(failure?.message?.contains("#other-section") == true)
+        assertTrue(failure?.message?.contains("Excluding transitive dependencies") == true)
+        assertTrue(failure?.message?.contains("Nested detail") == true)
+        assertTrue(failure?.message?.contains("Other section") == true)
+        assertTrue(failure?.message?.contains("Retry with a fragment from the list above") == true)
+        tempDir.toFile().deleteRecursively()
+    }
+
+    @Test
+    fun `advertised fragments resolve on the same page`() = runTest {
+        val page = """
+            # Page {#page}
+            ## Explicit section {#sec:explicit}
+            ### Slug Only
+        """.trimIndent()
+        val (service, tempDir) = createFragmentService(page)
+        val failure = runCatching {
+            with(ProgressReporter.PRINTLN) {
+                service.getDocsPageContent("userguide/sections.md#missing", "9.4.0")
+            }
+        }.exceptionOrNull() ?: error("Expected unresolved fragment to fail")
+        val fragments = Regex("`#([^`]+)` —").findAll(failure.message.orEmpty()).map { it.groupValues[1] }.toList()
+        assertEquals(listOf("page", "sec:explicit", "slug-only"), fragments)
+        fragments.forEach { fragment ->
+            with(ProgressReporter.PRINTLN) {
+                service.getDocsPageContent("userguide/sections.md#$fragment", "9.4.0")
+            }
+        }
+        tempDir.toFile().deleteRecursively()
+    }
+
+    @Test
+    fun `fragment listing de-duplicates presented fragments`() = runTest {
+        val (service, tempDir) = createFragmentService("# Same title\n## Same-title")
+        val failure = runCatching {
+            with(ProgressReporter.PRINTLN) {
+                service.getDocsPageContent("userguide/sections.md#missing", "9.4.0")
+            }
+        }.exceptionOrNull() ?: error("Expected unresolved fragment to fail")
+        assertEquals(1, Regex("`#same-title` —").findAll(failure.message.orEmpty()).count())
+        tempDir.toFile().deleteRecursively()
+    }
+
+    @Test
+    fun `fragment listing reflects heading hierarchy`() = runTest {
+        val (service, tempDir) = createFragmentService("## Parent\n### Child")
+        val failure = runCatching {
+            with(ProgressReporter.PRINTLN) {
+                service.getDocsPageContent("userguide/sections.md#missing", "9.4.0")
+            }
+        }.exceptionOrNull() ?: error("Expected unresolved fragment to fail")
+        val message = failure.message.orEmpty()
+        assertTrue(message.contains("- `#parent`"))
+        assertTrue(message.contains("  - `#child`"))
+        tempDir.toFile().deleteRecursively()
+    }
+
+    @Test
+    fun `fragment listing truncates after fifty headings`() = runTest {
+        val page = (1..55).joinToString("\n") { "# Heading $it" }
+        val (service, tempDir) = createFragmentService(page)
+        val failure = runCatching {
+            with(ProgressReporter.PRINTLN) {
+                service.getDocsPageContent("userguide/sections.md#missing", "9.4.0")
+            }
+        }.exceptionOrNull() ?: error("Expected unresolved fragment to fail")
+        val message = failure.message.orEmpty()
+        assertTrue(Regex("(?m)^\\s*- `#").findAll(message).count() <= 50)
+        assertTrue(message.contains("... and 5 more fragments not shown (55 total on this page)."))
+        tempDir.toFile().deleteRecursively()
+    }
+
+    @Test
+    fun `fragment listing explains pages without headings`() = runTest {
+        val (service, tempDir) = createFragmentService("Paragraph only.")
+        val failure = runCatching {
+            with(ProgressReporter.PRINTLN) {
+                service.getDocsPageContent("userguide/sections.md#missing", "9.4.0")
+            }
+        }.exceptionOrNull() ?: error("Expected unresolved fragment to fail")
+        val message = failure.message.orEmpty()
+        assertTrue(message.contains("This page has no recognized heading fragments"))
+        assertTrue(!message.contains("Available fragments on this page:"))
+        tempDir.toFile().deleteRecursively()
+    }
+
+    private fun createFragmentService(page: String): Pair<DefaultGradleDocsService, java.nio.file.Path> {
+        val tempDir = Files.createTempDirectory("gradle-mcp-test-fragment-listing")
+        val environment = GradleMcpEnvironment(tempDir)
+        val version = "9.4.0"
+        val convertedDir = tempDir.resolve("cache/reading_gradle_docs/$version/converted/userguide")
+        Files.createDirectories(convertedDir)
+        convertedDir.resolve("sections.md").writeText(page)
+        val indexer = mockk<GradleDocsIndexService>()
+        coEvery {
+            with(any<ProgressReporter>()) { indexer.ensureIndexed(version) }
+        } returns Unit
+        return DefaultGradleDocsService(mockk<HttpClient>(), indexer, environment, createVersionService()) to tempDir
+    }
 }

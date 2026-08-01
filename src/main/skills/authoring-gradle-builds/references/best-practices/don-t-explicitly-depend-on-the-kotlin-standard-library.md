@@ -2,7 +2,7 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: 15973dd87f47a2f28e2fc96ef15ced38192a6559420c8be2fd2236e4df91a1e9
+hash: a7103d78c370f3677513bb52dd9dadd71f3000c803d6ba6e918cfc857868e272
 -->
 # Don't Explicitly Depend on the Kotlin Standard Library
 The Kotlin Gradle Plugin automatically adds a dependency on the Kotlin standard library (`stdlib`) to each source set, so there is no need to declare it explicitly.  
@@ -63,7 +63,7 @@ plugins {
 | **1** | **`stdlib` dependency is not included explicitly**: The standard library remains available for use, and source code requiring it can be compiled without any issues. |
 
 ## References
-* [the `kotlin()` function](https://docs.gradle.org/current/kotlin-dsl/gradle/org.gradle.kotlin.dsl/kotlin.html) (Use `gradle_docs(path="kotlin-dsl/gradle/org.gradle.kotlin.dsl/kotlin.html")`.)
+* [the `kotlin()` function (Use `gradle_docs(path="kotlin-dsl/gradle/org.gradle.kotlin.dsl/kotlin.md")`.)
 
 ---
 

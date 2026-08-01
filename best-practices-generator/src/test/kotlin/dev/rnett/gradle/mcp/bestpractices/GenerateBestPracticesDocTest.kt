@@ -30,7 +30,7 @@ class GenerateBestPracticesDocTest {
         )
 
         assertContains(markdown, "Use lazy task registration")
-        assertContains(markdown, "https://docs.gradle.org/current/performance.html")
+        assertContains(markdown, "Use `gradle_docs(path=\"userguide/performance.md\")`.")
         assertFalse(markdown.contains("Edit this page"))
         assertFalse(markdown.contains("Sidebar navigation"))
         assertFalse(markdown.contains("console.log"))

@@ -11,7 +11,7 @@ All Superinterfaces:
 public interface Project extends [Comparable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Comparable.html "class or interface in java.lang")\<[Project](Project.html "interface in org.gradle.api")\>, [ExtensionAware](plugins/ExtensionAware.html "interface in org.gradle.api.plugins"), [PluginAware](plugins/PluginAware.html "interface in org.gradle.api.plugins")  
 This interface is the main API you use to interact with Gradle from your build file. From a `Project`, you have programmatic access to all of Gradle's features.
 
-## Lifecycle
+## Lifecycle {#lifecycle-heading}
 
 There is a one-to-one relationship between a `Project` and a ["build.gradle"](#DEFAULT_BUILD_FILE) file. During build initialisation, Gradle assembles a `Project` object for each project which is to participate in the build, as follows:
 
@@ -20,23 +20,23 @@ There is a one-to-one relationship between a `Project` and a ["build.gradle"](#D
 * Use the configured [`Settings`](initialization/Settings.html "interface in org.gradle.api.initialization") object to create the hierarchy of `Project` instances.
 * Finally, evaluate each `Project` by executing its ["build.gradle"](#DEFAULT_BUILD_FILE) file, if present, against the project. The projects are evaluated in breadth-wise order, such that a project is evaluated before its child projects. This order can be overridden by calling [`evaluationDependsOnChildren()`](#evaluationDependsOnChildren()) or by adding an explicit evaluation dependency using [`evaluationDependsOn(String)`](#evaluationDependsOn(java.lang.String)).
 
-## Tasks
+## Tasks {#tasks-heading}
 
 A project is essentially a collection of [`Task`](Task.html "interface in org.gradle.api") objects. Each task performs some basic piece of work, such as compiling classes, or running unit tests, or zipping up a WAR file. You add tasks to a project using one of the `create()` methods on [`TaskContainer`](tasks/TaskContainer.html "interface in org.gradle.api.tasks"), such as [`TaskContainer.create(String)`](tasks/TaskContainer.html#create(java.lang.String)). You can locate existing tasks using one of the lookup methods on [`TaskContainer`](tasks/TaskContainer.html "interface in org.gradle.api.tasks"), such as [`TaskCollection.getByName(String)`](tasks/TaskCollection.html#getByName(java.lang.String)).
 
-## Dependencies
+## Dependencies {#dependencies-heading}
 
 A project generally has a number of dependencies it needs in order to do its work. Also, a project generally produces a number of artifacts, which other projects can use. Those dependencies are grouped in configurations, and can be retrieved and uploaded from repositories. You use the [`ConfigurationContainer`](artifacts/ConfigurationContainer.html "interface in org.gradle.api.artifacts") returned by [`getConfigurations()`](#getConfigurations()) method to manage the configurations. The [`DependencyHandler`](artifacts/dsl/DependencyHandler.html "interface in org.gradle.api.artifacts.dsl") returned by [`getDependencies()`](#getDependencies()) method to manage the dependencies. The [`ArtifactHandler`](artifacts/dsl/ArtifactHandler.html "interface in org.gradle.api.artifacts.dsl") returned by [`getArtifacts()`](#getArtifacts()) method to manage the artifacts. The [`RepositoryHandler`](artifacts/dsl/RepositoryHandler.html "interface in org.gradle.api.artifacts.dsl") returned by [`getRepositories()`](#getRepositories()) method to manage the repositories.
 
-## Multi-project Builds
+## Multi-project Builds {#multi-project-builds-heading}
 
 Projects are arranged into a hierarchy of projects. A project has a name, and a fully qualified path which uniquely identifies it in the hierarchy.
 
-## Plugins
+## Plugins {#plugins-heading}
 
 Plugins can be used to modularise and reuse project configuration. Plugins can be applied using the [`PluginAware.apply(java.util.Map)`](plugins/PluginAware.html#apply(java.util.Map)) method, or by using the [`PluginDependenciesSpec`](../plugin/use/PluginDependenciesSpec.html "interface in org.gradle.plugin.use") plugins script block.
 
-## Dynamic Project Properties
+## Dynamic Project Properties {#properties}
 
 Gradle executes the project's build file against the `Project` instance to configure the project. Any property or method which your script uses is delegated through to the associated `Project` object. This means, that you can use any of the methods and properties on the `Project` interface directly in your script.
 
@@ -62,7 +62,7 @@ When reading a property, the project searches the above scopes in order, and ret
 
 When writing a property, the project searches the above scopes in order, and sets the property in the first scope it finds the property in. If not found, an exception is thrown. See [`setProperty(String, Object)`](#setProperty(java.lang.String,java.lang.Object)) for more details.
 
-### Extra Properties
+### Extra Properties {#extraproperties}
 
 All extra properties must be defined through the "ext" namespace. Once an extra property has been defined, it is available directly on the owning object (in the below case the Project, Task, and sub-projects respectively) and can be read and updated. Only the initial declaration that needs to be done via the namespace.
 
@@ -85,7 +85,7 @@ Reading extra properties is done through the "ext" or through the owning object.
  
 ```
 
-### Dynamic Methods
+### Dynamic Methods {#dynamic-methods-heading}
 
 A project has 5 method 'scopes', which it searches for methods:
 
@@ -97,7 +97,7 @@ A project has 5 method 'scopes', which it searches for methods:
 * A property of the project whose value is a closure. The closure is treated as a method and called with the provided parameters. The property is located as described above.
 *
 
-  ## Field Summary
+  ## Field Summary {#field-summary}
 
   Fields  
   Modifier and Type  
@@ -122,7 +122,7 @@ A project has 5 method 'scopes', which it searches for methods:
   [SYSTEM_PROP_PREFIX](#SYSTEM_PROP_PREFIX)  
 *
 
-  ## Method Summary
+  ## Method Summary {#method-summary}
 
   All Methods Instance Methods Abstract Methods Deprecated Methods  
   Modifier and Type  
@@ -497,20 +497,20 @@ A project has 5 method 'scopes', which it searches for methods:
   [zipTree](#zipTree(java.lang.Object))` (`[Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")` zipPath)`  
   Creates a new `FileTree` which contains the contents of the given ZIP file.  
 
-  ### Methods inherited from interface java.lang.[Comparable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Comparable.html "class or interface in java.lang")
+  ### Methods inherited from interface java.lang.[Comparable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Comparable.html "class or interface in java.lang") {#methods-inherited-from-class-java.lang.Comparable}
 
   [compareTo](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Comparable.html#compareTo(T) "class or interface in java.lang")  
 
-  ### Methods inherited from interface org.gradle.api.plugins.[PluginAware](plugins/PluginAware.html "interface in org.gradle.api.plugins")
+  ### Methods inherited from interface org.gradle.api.plugins.[PluginAware](plugins/PluginAware.html "interface in org.gradle.api.plugins") {#methods-inherited-from-class-org.gradle.api.plugins.PluginAware}
 
   [apply](plugins/PluginAware.html#apply(groovy.lang.Closure))`, `[apply](plugins/PluginAware.html#apply(java.util.Map))`, `[apply](plugins/PluginAware.html#apply(org.gradle.api.Action))`, `[getPluginManager](plugins/PluginAware.html#getPluginManager())`, `[getPlugins](plugins/PluginAware.html#getPlugins())
 *
 
-  ## Field Details
+  ## Field Details {#field-detail}
 
   *
 
-    ### DEFAULT_BUILD_FILE
+    ### DEFAULT_BUILD_FILE {#DEFAULT_BUILD_FILE}
 
     static final [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") DEFAULT_BUILD_FILE  
     The default project build file name.
@@ -521,7 +521,7 @@ A project has 5 method 'scopes', which it searches for methods:
 
   *
 
-    ### PATH_SEPARATOR
+    ### PATH_SEPARATOR {#PATH_SEPARATOR}
 
     static final [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") PATH_SEPARATOR  
     The hierarchy separator for project and task path names.
@@ -532,7 +532,7 @@ A project has 5 method 'scopes', which it searches for methods:
 
   *
 
-    ### DEFAULT_BUILD_DIR_NAME
+    ### DEFAULT_BUILD_DIR_NAME {#DEFAULT_BUILD_DIR_NAME}
 
     static final [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") DEFAULT_BUILD_DIR_NAME  
     The default build directory name.
@@ -543,7 +543,7 @@ A project has 5 method 'scopes', which it searches for methods:
 
   *
 
-    ### GRADLE_PROPERTIES
+    ### GRADLE_PROPERTIES {#GRADLE_PROPERTIES}
 
     static final [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") GRADLE_PROPERTIES
 
@@ -553,7 +553,7 @@ A project has 5 method 'scopes', which it searches for methods:
 
   *
 
-    ### SYSTEM_PROP_PREFIX
+    ### SYSTEM_PROP_PREFIX {#SYSTEM_PROP_PREFIX}
 
     static final [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") SYSTEM_PROP_PREFIX
 
@@ -563,7 +563,7 @@ A project has 5 method 'scopes', which it searches for methods:
 
   *
 
-    ### DEFAULT_VERSION
+    ### DEFAULT_VERSION {#DEFAULT_VERSION}
 
     static final [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") DEFAULT_VERSION
 
@@ -573,7 +573,7 @@ A project has 5 method 'scopes', which it searches for methods:
 
   *
 
-    ### DEFAULT_STATUS
+    ### DEFAULT_STATUS {#DEFAULT_STATUS}
 
     static final [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") DEFAULT_STATUS
 
@@ -583,11 +583,11 @@ A project has 5 method 'scopes', which it searches for methods:
 
 *
 
-  ## Method Details
+  ## Method Details {#method-detail}
 
   *
 
-    ### getRootProject
+    ### getRootProject {#getRootProject()}
 
     [Project](Project.html "interface in org.gradle.api") getRootProject()  
     Returns the root project for the hierarchy that this project belongs to. In the case of a single-project build, this method returns this project.
@@ -596,7 +596,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The root project. Never returns null.
   *
 
-    ### getRootDir
+    ### getRootDir {#getRootDir()}
 
     [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io") getRootDir()  
     Returns the root directory of this project. The root directory is the project directory of the root project.
@@ -605,7 +605,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The root directory. Never returns null.
   *
 
-    ### getBuildDir
+    ### getBuildDir {#getBuildDir()}
 
     [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io") getBuildDir()  
     Deprecated.  
@@ -616,7 +616,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The build directory. Never returns null.
   *
 
-    ### setBuildDir
+    ### setBuildDir {#setBuildDir(java.io.File)}
 
     [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") void setBuildDir ([File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io") path)  
     Deprecated.  
@@ -631,7 +631,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   4.0
   *
 
-    ### setBuildDir
+    ### setBuildDir {#setBuildDir(java.lang.Object)}
 
     [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") void setBuildDir ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") path)  
     Deprecated.  
@@ -643,7 +643,7 @@ A project has 5 method 'scopes', which it searches for methods:
         `path` - The build directory. This is evaluated as per [`file(Object)`](#file(java.lang.Object))
   *
 
-    ### getBuildFile
+    ### getBuildFile {#getBuildFile()}
 
     [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io") getBuildFile()  
     The build script for this project.
@@ -654,7 +654,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   the build script for this project.
   *
 
-    ### getParent
+    ### getParent {#getParent()}
 
     @Nullable [Project](Project.html "interface in org.gradle.api") getParent()  
     Returns the parent project of this project, if any.
@@ -668,7 +668,7 @@ A project has 5 method 'scopes', which it searches for methods:
         The parent project, or `null` if this is the root project or a nested project without a parent.
   *
 
-    ### getName
+    ### getName {#getName()}
 
     [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") getName()  
     Returns the name of this project. The project's name is not necessarily unique within a project hierarchy. You should use the [`getPath()`](#getPath()) method for a unique identifier for the project. If the root project is unnamed and is located on a file system root it will have a randomly-generated name
@@ -677,13 +677,13 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The name of this project. Never return null.
   *
 
-    ### getDisplayName
+    ### getDisplayName {#getDisplayName()}
 
     [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") getDisplayName()  
     Returns a human-consumable display name for this project.
   *
 
-    ### getDescription
+    ### getDescription {#getDescription()}
 
     @Nullable [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") getDescription()  
     Returns the description of this project, if any.
@@ -692,7 +692,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   the description. May return null.
   *
 
-    ### setDescription
+    ### setDescription {#setDescription(java.lang.String)}
 
     void setDescription (@Nullable [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") description)  
     Sets a description for this project.
@@ -702,7 +702,7 @@ A project has 5 method 'scopes', which it searches for methods:
         `description` - The description of the project. Might be null.
   *
 
-    ### getGroup
+    ### getGroup {#getGroup()}
 
     [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") getGroup()  
     Returns the group of this project. Gradle always uses the `toString()` value of the group. The group defaults to the path with dots as separators.
@@ -711,7 +711,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The group of this project. Never returns null.
   *
 
-    ### setGroup
+    ### setGroup {#setGroup(java.lang.Object)}
 
     void setGroup ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") group)  
     Sets the group of this project.
@@ -721,7 +721,7 @@ A project has 5 method 'scopes', which it searches for methods:
         `group` - The group of this project. Must not be null.
   *
 
-    ### getVersion
+    ### getVersion {#getVersion()}
 
     [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") getVersion()  
     Returns the version of this project. Gradle always uses the `toString()` value of the version. The version defaults to ["unspecified"](#DEFAULT_VERSION).
@@ -730,7 +730,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The version of this project. Never returns null.
   *
 
-    ### setVersion
+    ### setVersion {#setVersion(java.lang.Object)}
 
     void setVersion ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") version)  
     Sets the version of this project.
@@ -740,7 +740,7 @@ A project has 5 method 'scopes', which it searches for methods:
         `version` - The version of this project. Must not be null.
   *
 
-    ### getStatus
+    ### getStatus {#getStatus()}
 
     [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") getStatus()  
     Returns the status of this project. Gradle always uses the `toString()` value of the status. The status defaults to ["release"](#DEFAULT_STATUS).
@@ -751,7 +751,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The status of this project. Never returns null.
   *
 
-    ### setStatus
+    ### setStatus {#setStatus(java.lang.Object)}
 
     void setStatus ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") status)  
     Sets the status of this project.
@@ -761,7 +761,7 @@ A project has 5 method 'scopes', which it searches for methods:
         `status` - The status. Must not be null.
   *
 
-    ### getChildProjects
+    ### getChildProjects {#getChildProjects()}
 
     [Map](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Map.html "class or interface in java.util")\<[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang"),[Project](Project.html "interface in org.gradle.api")\> getChildProjects()  
     Returns the direct children of this project.
@@ -770,7 +770,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   A map from child project name to child project. Returns an empty map if this project does not have any children.
   *
 
-    ### setProperty
+    ### setProperty {#setProperty(java.lang.String,java.lang.Object)}
 
     void setProperty ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") name, @Nullable [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") value) throws [MissingPropertyException](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/MissingPropertyException.html "class or interface in groovy.lang")  
     Sets a property of this project. This method searches for a property with the given name in the following locations, and sets the property on the first location where it finds the property.
@@ -790,7 +790,7 @@ A project has 5 method 'scopes', which it searches for methods:
         [MissingPropertyException](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/MissingPropertyException.html "class or interface in groovy.lang")
   *
 
-    ### getProject
+    ### getProject {#getProject()}
 
     [Project](Project.html "interface in org.gradle.api") getProject()  
     Returns this project. This method is useful in build files to explicitly access project properties and methods. For example, using `project.name` can express your intent better than using `name`. This method also allows you to access project properties from a scope where the property may be hidden, such as, for example, from a method or closure.
@@ -799,7 +799,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   This project. Never returns null.
   *
 
-    ### getIsolated
+    ### getIsolated {#getIsolated()}
 
     [@Incubating](Incubating.html "annotation in org.gradle.api") [IsolatedProject](project/IsolatedProject.html "interface in org.gradle.api.project") getIsolated()  
     Returns an immutable view of this project, safe for use with isolated projects.
@@ -812,7 +812,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   8.8
   *
 
-    ### getAllprojects
+    ### getAllprojects {#getAllprojects()}
 
     [Set](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Set.html "class or interface in java.util")\<[Project](Project.html "interface in org.gradle.api")\> getAllprojects()  
     Returns the set containing this project and its subprojects.
@@ -821,7 +821,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The set of projects.
   *
 
-    ### getSubprojects
+    ### getSubprojects {#getSubprojects()}
 
     [Set](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Set.html "class or interface in java.util")\<[Project](Project.html "interface in org.gradle.api")\> getSubprojects()  
     Returns the set containing the subprojects of this project.
@@ -830,7 +830,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The set of projects. Returns an empty set if this project has no subprojects.
   *
 
-    ### task
+    ### task {#task(java.lang.String)}
 
     [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") [Task](Task.html "interface in org.gradle.api") task ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") name) throws [InvalidUserDataException](InvalidUserDataException.html "class in org.gradle.api")  
     Deprecated.  
@@ -853,7 +853,7 @@ A project has 5 method 'scopes', which it searches for methods:
         [InvalidUserDataException](InvalidUserDataException.html "class in org.gradle.api") - If a task with the given name already exists in this project.
   *
 
-    ### task
+    ### task {#task(java.util.Map,java.lang.String)}
 
     [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") [Task](Task.html "interface in org.gradle.api") task ([Map](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Map.html "class or interface in java.util")\<[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang"),?\> args, [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") name) throws [InvalidUserDataException](InvalidUserDataException.html "class in org.gradle.api")  
     Deprecated.  
@@ -888,7 +888,7 @@ A project has 5 method 'scopes', which it searches for methods:
         [InvalidUserDataException](InvalidUserDataException.html "class in org.gradle.api") - If a task with the given name already exists in this project.
   *
 
-    ### task
+    ### task {#task(java.util.Map,java.lang.String,groovy.lang.Closure)}
 
     [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") [Task](Task.html "interface in org.gradle.api") task ([Map](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Map.html "class or interface in java.util")\<[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang"),?\> args, [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") name, [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
     Deprecated.  
@@ -915,7 +915,7 @@ A project has 5 method 'scopes', which it searches for methods:
         [InvalidUserDataException](InvalidUserDataException.html "class in org.gradle.api") - If a task with the given name already exists in this project.
   *
 
-    ### task
+    ### task {#task(java.lang.String,groovy.lang.Closure)}
 
     [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") [Task](Task.html "interface in org.gradle.api") task ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") name, [@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([Task.class](Task.html "interface in org.gradle.api")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
     Deprecated.  
@@ -938,7 +938,7 @@ A project has 5 method 'scopes', which it searches for methods:
         [InvalidUserDataException](InvalidUserDataException.html "class in org.gradle.api") - If a task with the given name already exists in this project.
   *
 
-    ### task
+    ### task {#task(java.lang.String,org.gradle.api.Action)}
 
     [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") [Task](Task.html "interface in org.gradle.api") task ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") name, [Action](Action.html "interface in org.gradle.api")\<? super [Task](Task.html "interface in org.gradle.api")\> configureAction)  
     Deprecated.  
@@ -969,7 +969,7 @@ A project has 5 method 'scopes', which it searches for methods:
 
   *
 
-    ### getPath
+    ### getPath {#getPath()}
 
     [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") getPath()  
     Returns the path of this project, starting with ':'. See [`Settings.include(String...)`](initialization/Settings.html#include(java.lang.String...)) for more information about project paths.
@@ -978,7 +978,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The path. Never returns null.
   *
 
-    ### getBuildTreePath
+    ### getBuildTreePath {#getBuildTreePath()}
 
     [@Incubating](Incubating.html "annotation in org.gradle.api") [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") getBuildTreePath()  
     Returns a path to the project for the full build tree.
@@ -990,7 +990,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   8.3
   *
 
-    ### getDefaultTasks
+    ### getDefaultTasks {#getDefaultTasks()}
 
     [List](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/List.html "class or interface in java.util")\<[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")\> getDefaultTasks()  
     Returns the names of the default tasks of this project. These are used when no tasks names are provided when starting the build.
@@ -999,7 +999,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The default task names. Returns an empty list if this project has no default tasks.
   *
 
-    ### setDefaultTasks
+    ### setDefaultTasks {#setDefaultTasks(java.util.List)}
 
     void setDefaultTasks ([List](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/List.html "class or interface in java.util")\<[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")\> defaultTasks)  
     Sets the names of the default tasks of this project. These are used when no tasks names are provided when starting the build.
@@ -1009,7 +1009,7 @@ A project has 5 method 'scopes', which it searches for methods:
         `defaultTasks` - The default task names.
   *
 
-    ### defaultTasks
+    ### defaultTasks {#defaultTasks(java.lang.String...)}
 
     void defaultTasks ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang")... defaultTasks)  
     Sets the names of the default tasks of this project. These are used when no tasks names are provided when starting the build.
@@ -1019,7 +1019,7 @@ A project has 5 method 'scopes', which it searches for methods:
         `defaultTasks` - The default task names.
   *
 
-    ### evaluationDependsOn
+    ### evaluationDependsOn {#evaluationDependsOn(java.lang.String)}
 
     [Project](Project.html "interface in org.gradle.api") evaluationDependsOn ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") path) throws [UnknownProjectException](UnknownProjectException.html "class in org.gradle.api")  
     Declares that this project has an evaluation dependency on the project with the given path.
@@ -1036,13 +1036,13 @@ A project has 5 method 'scopes', which it searches for methods:
         [UnknownProjectException](UnknownProjectException.html "class in org.gradle.api") - If no project with the given path exists.
   *
 
-    ### evaluationDependsOnChildren
+    ### evaluationDependsOnChildren {#evaluationDependsOnChildren()}
 
     void evaluationDependsOnChildren()  
     Declares that this project has an evaluation dependency on each of its child projects.
   *
 
-    ### findProject
+    ### findProject {#findProject(java.lang.String)}
 
     @Nullable [Project](Project.html "interface in org.gradle.api") findProject ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") path)  
     Locates a project by path. If the path is relative, it is interpreted relative to this project.
@@ -1055,7 +1055,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The project with the given path. Returns null if no such project exists.
   *
 
-    ### project
+    ### project {#project(java.lang.String)}
 
     [Project](Project.html "interface in org.gradle.api") project ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") path) throws [UnknownProjectException](UnknownProjectException.html "class in org.gradle.api")  
     Locates a project by path. If the path is relative, it is interpreted relative to this project.
@@ -1072,7 +1072,7 @@ A project has 5 method 'scopes', which it searches for methods:
         [UnknownProjectException](UnknownProjectException.html "class in org.gradle.api") - If no project with the given path exists.
   *
 
-    ### project
+    ### project {#project(java.lang.String,groovy.lang.Closure)}
 
     [Project](Project.html "interface in org.gradle.api") project ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") path, [@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([Project.class](Project.html "interface in org.gradle.api")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
     Locates a project by path and configures it using the given closure. If the path is relative, it is interpreted relative to this project. The target project is passed to the closure as the closure's delegate.
@@ -1091,7 +1091,7 @@ A project has 5 method 'scopes', which it searches for methods:
         [UnknownProjectException](UnknownProjectException.html "class in org.gradle.api") - If no project with the given path exists.
   *
 
-    ### project
+    ### project {#project(java.lang.String,org.gradle.api.Action)}
 
     [Project](Project.html "interface in org.gradle.api") project ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") path, [Action](Action.html "interface in org.gradle.api")\<? super [Project](Project.html "interface in org.gradle.api")\> configureAction)  
     Locates a project by path and configures it using the given action. If the path is relative, it is interpreted relative to this project.
@@ -1113,7 +1113,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   3.4
   *
 
-    ### getAllTasks
+    ### getAllTasks {#getAllTasks(boolean)}
 
     [Map](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Map.html "class or interface in java.util")\<[Project](Project.html "interface in org.gradle.api"),[Set](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Set.html "class or interface in java.util")\<[Task](Task.html "interface in org.gradle.api")\>\> getAllTasks (boolean recursive)  
     Returns a map of the tasks contained in this project, and optionally its subprojects.
@@ -1126,7 +1126,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   A map from project to a set of tasks.
   *
 
-    ### getTasksByName
+    ### getTasksByName {#getTasksByName(java.lang.String,boolean)}
 
     [Set](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Set.html "class or interface in java.util")\<[Task](Task.html "interface in org.gradle.api")\> getTasksByName ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") name, boolean recursive)  
     Returns the set of tasks with the given name contained in this project, and optionally its subprojects. **NOTE:** This is an expensive operation since it requires all projects to be configured.
@@ -1141,7 +1141,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The set of tasks. Returns an empty set if no such tasks exist in this project.
   *
 
-    ### getProjectDir
+    ### getProjectDir {#getProjectDir()}
 
     [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io") getProjectDir()  
     The directory containing the project build file.
@@ -1150,7 +1150,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The project directory. Never returns null.
   *
 
-    ### file
+    ### file {#file(java.lang.Object)}
 
     [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io") file ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") path)  
     Resolves a file path relative to the project directory of this project. This method converts the supplied path based on its type:
@@ -1172,7 +1172,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The resolved file. Never returns null.
   *
 
-    ### file
+    ### file {#file(java.lang.Object,org.gradle.api.PathValidation)}
 
     [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io") file ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") path, [PathValidation](PathValidation.html "enum in org.gradle.api") validation) throws [InvalidUserDataException](InvalidUserDataException.html "class in org.gradle.api")  
     Resolves a file path relative to the project directory of this project and validates it using the given scheme. See [`PathValidation`](PathValidation.html "enum in org.gradle.api") for the list of possible validations.
@@ -1191,7 +1191,7 @@ A project has 5 method 'scopes', which it searches for methods:
         [InvalidUserDataException](InvalidUserDataException.html "class in org.gradle.api") - When the file does not meet the given validation constraint.
   *
 
-    ### uri
+    ### uri {#uri(java.lang.Object)}
 
     [URI](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/net/URI.html "class or interface in java.net") uri ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") path)  
     Resolves a file path to a URI, relative to the project directory of this project. Evaluates the provided path object as described for [`file(Object)`](#file(java.lang.Object)), with the exception that any URI scheme is supported, not just 'file:' URIs.
@@ -1204,7 +1204,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The resolved URI. Never returns null.
   *
 
-    ### relativePath
+    ### relativePath {#relativePath(java.lang.Object)}
 
     [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") relativePath ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") path)  
     Returns the relative path from the project directory to the given path. The given path object is (logically) resolved as described for [`file(Object)`](#file(java.lang.Object)), from which a relative path is calculated.
@@ -1221,7 +1221,7 @@ A project has 5 method 'scopes', which it searches for methods:
         [IllegalArgumentException](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/IllegalArgumentException.html "class or interface in java.lang") - If the given path cannot be relativized against the project directory.
   *
 
-    ### files
+    ### files {#files(java.lang.Object...)}
 
     [ConfigurableFileCollection](file/ConfigurableFileCollection.html "interface in org.gradle.api.file") files (@Nullable [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")... paths)  
     Returns a [`ConfigurableFileCollection`](file/ConfigurableFileCollection.html "interface in org.gradle.api.file") containing the given files. You can pass any of the following types to this method:
@@ -1256,7 +1256,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The file collection. Never returns null.
   *
 
-    ### files
+    ### files {#files(java.lang.Object,groovy.lang.Closure)}
 
     [ConfigurableFileCollection](file/ConfigurableFileCollection.html "interface in org.gradle.api.file") files ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") paths, [@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([ConfigurableFileCollection.class](file/ConfigurableFileCollection.html "interface in org.gradle.api.file")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
     Creates a new `ConfigurableFileCollection` using the given paths. The paths are evaluated as per [`files(Object...)`](#files(java.lang.Object...)). The file collection is configured using the given closure. The file collection is passed to the closure as its delegate. Example:
@@ -1280,7 +1280,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   the configured file tree. Never returns null.
   *
 
-    ### files
+    ### files {#files(java.lang.Object,org.gradle.api.Action)}
 
     [ConfigurableFileCollection](file/ConfigurableFileCollection.html "interface in org.gradle.api.file") files ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") paths, [Action](Action.html "interface in org.gradle.api")\<? super [ConfigurableFileCollection](file/ConfigurableFileCollection.html "interface in org.gradle.api.file")\> configureAction)  
     Creates a new `ConfigurableFileCollection` using the given paths. The paths are evaluated as per [`files(Object...)`](#files(java.lang.Object...)). The file collection is configured using the given action. Example:
@@ -1307,7 +1307,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   3.5
   *
 
-    ### fileTree
+    ### fileTree {#fileTree(java.lang.Object)}
 
     [ConfigurableFileTree](file/ConfigurableFileTree.html "interface in org.gradle.api.file") fileTree ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") baseDir)  
     Creates a new `ConfigurableFileTree` using the given base directory. The given baseDir path is evaluated as per [`file(Object)`](#file(java.lang.Object)).
@@ -1335,7 +1335,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   the file tree. Never returns null.
   *
 
-    ### fileTree
+    ### fileTree {#fileTree(java.lang.Object,groovy.lang.Closure)}
 
     [ConfigurableFileTree](file/ConfigurableFileTree.html "interface in org.gradle.api.file") fileTree ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") baseDir, [@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([ConfigurableFileTree.class](file/ConfigurableFileTree.html "interface in org.gradle.api.file")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
     Creates a new `ConfigurableFileTree` using the given base directory. The given baseDir path is evaluated as per [`file(Object)`](#file(java.lang.Object)). The closure will be used to configure the new file tree. The file tree is passed to the closure as its delegate. Example:
@@ -1366,7 +1366,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   the configured file tree. Never returns null.
   *
 
-    ### fileTree
+    ### fileTree {#fileTree(java.lang.Object,org.gradle.api.Action)}
 
     [ConfigurableFileTree](file/ConfigurableFileTree.html "interface in org.gradle.api.file") fileTree ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") baseDir, [Action](Action.html "interface in org.gradle.api")\<? super [ConfigurableFileTree](file/ConfigurableFileTree.html "interface in org.gradle.api.file")\> configureAction)  
     Creates a new `ConfigurableFileTree` using the given base directory. The given baseDir path is evaluated as per [`file(Object)`](#file(java.lang.Object)). The action will be used to configure the new file tree. Example:
@@ -1400,7 +1400,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   3.5
   *
 
-    ### fileTree
+    ### fileTree {#fileTree(java.util.Map)}
 
     [ConfigurableFileTree](file/ConfigurableFileTree.html "interface in org.gradle.api.file") fileTree ([Map](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Map.html "class or interface in java.util")\<[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang"),?\> args)  
     Creates a new `ConfigurableFileTree` using the provided map of arguments. The map will be applied as properties on the new file tree. Example:
@@ -1426,7 +1426,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   the configured file tree. Never returns null.
   *
 
-    ### zipTree
+    ### zipTree {#zipTree(java.lang.Object)}
 
     [FileTree](file/FileTree.html "interface in org.gradle.api.file") zipTree ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") zipPath)  
     Creates a new `FileTree` which contains the contents of the given ZIP file. The given zipPath path is evaluated as per [`file(Object)`](#file(java.lang.Object)). You can combine this method with the [`copy(Action)`](#copy(org.gradle.api.Action)) method to unzip a ZIP file.
@@ -1441,7 +1441,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   the file tree. Never returns null.
   *
 
-    ### tarTree
+    ### tarTree {#tarTree(java.lang.Object)}
 
     [FileTree](file/FileTree.html "interface in org.gradle.api.file") tarTree ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") tarPath)  
     Creates a new `FileTree` which contains the contents of the given TAR file. The given tarPath path can be:
@@ -1479,14 +1479,14 @@ A project has 5 method 'scopes', which it searches for methods:
     :   the file tree. Never returns null.
   *
 
-    ### provider
+    ### provider {#provider(java.util.concurrent.Callable)}
 
     \<T\> [Provider](provider/Provider.html "interface in org.gradle.api.provider")\<T\> provider ([Callable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/concurrent/Callable.html "class or interface in java.util.concurrent")\<? extends @Nullable T\> value)  
     Creates a [`Provider`](provider/Provider.html "interface in org.gradle.api.provider") implementation based on the provided value.
 
     The provider is live and will call the [`Callable`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/concurrent/Callable.html "class or interface in java.util.concurrent") each time its value is queried. The [`Callable`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/concurrent/Callable.html "class or interface in java.util.concurrent") may return `null`, in which case the provider is considered to have no value.
 
-    #### Configuration Cache
+    #### Configuration Cache {#configuration-cache-heading}
 
     This provider is always [computed and its value is cached](provider/Provider.html#configuration-cache) by the Configuration Cache. If this provider is created at configuration time, the [`Callable`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/concurrent/Callable.html "class or interface in java.util.concurrent") may call configuration-time only APIs and capture objects of arbitrary types.
 
@@ -1519,7 +1519,7 @@ A project has 5 method 'scopes', which it searches for methods:
 
   *
 
-    ### getProviders
+    ### getProviders {#getProviders()}
 
     [ProviderFactory](provider/ProviderFactory.html "interface in org.gradle.api.provider") getProviders()  
     Provides access to methods to create various kinds of [`Provider`](provider/Provider.html "interface in org.gradle.api.provider") instances.
@@ -1528,7 +1528,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   4.0
   *
 
-    ### getObjects
+    ### getObjects {#getObjects()}
 
     [ObjectFactory](model/ObjectFactory.html "interface in org.gradle.api.model") getObjects()  
     Provides access to methods to create various kinds of model objects.
@@ -1537,7 +1537,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   4.0
   *
 
-    ### getLayout
+    ### getLayout {#getLayout()}
 
     [ProjectLayout](file/ProjectLayout.html "interface in org.gradle.api.file") getLayout()  
     Provides access to various important directories for this project.
@@ -1546,7 +1546,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   4.1
   *
 
-    ### mkdir
+    ### mkdir {#mkdir(java.lang.Object)}
 
     [File](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html "class or interface in java.io") mkdir ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") path)  
     Creates a directory and returns a file pointing to it.
@@ -1563,7 +1563,7 @@ A project has 5 method 'scopes', which it searches for methods:
         [InvalidUserDataException](InvalidUserDataException.html "class in org.gradle.api") - If the path points to an existing file.
   *
 
-    ### delete
+    ### delete {#delete(java.lang.Object...)}
 
     boolean delete (@Nullable [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")... paths)  
     Deletes files and directories.
@@ -1578,7 +1578,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   true if anything got deleted, false otherwise
   *
 
-    ### delete
+    ### delete {#delete(org.gradle.api.Action)}
 
     [WorkResult](tasks/WorkResult.html "interface in org.gradle.api.tasks") delete ([Action](Action.html "interface in org.gradle.api")\<? super [DeleteSpec](file/DeleteSpec.html "interface in org.gradle.api.file")\> action)  
     Deletes the specified files. The given action is used to configure a [`DeleteSpec`](file/DeleteSpec.html "interface in org.gradle.api.file"), which is then used to delete the files.
@@ -1602,7 +1602,7 @@ A project has 5 method 'scopes', which it searches for methods:
         [`WorkResult`](tasks/WorkResult.html "interface in org.gradle.api.tasks") that can be used to check if delete did any work.
   *
 
-    ### absoluteProjectPath
+    ### absoluteProjectPath {#absoluteProjectPath(java.lang.String)}
 
     [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") absoluteProjectPath ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") path)  
     Converts a name to an absolute project path, resolving names relative to this project.
@@ -1615,7 +1615,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The absolute path.
   *
 
-    ### relativeProjectPath
+    ### relativeProjectPath {#relativeProjectPath(java.lang.String)}
 
     [String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") relativeProjectPath ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") path)  
     Converts a name to a project path relative to this project.
@@ -1628,7 +1628,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The relative path.
   *
 
-    ### getAnt
+    ### getAnt {#getAnt()}
 
     [AntBuilder](AntBuilder.html "class in org.gradle.api") getAnt()  
     Returns the `AntBuilder` for this project. You can use this in your build file to execute ant tasks. See example below.
@@ -1688,7 +1688,7 @@ A project has 5 method 'scopes', which it searches for methods:
         The `AntBuilder` for this project. Never returns null.
   *
 
-    ### createAntBuilder
+    ### createAntBuilder {#createAntBuilder()}
 
     [AntBuilder](AntBuilder.html "class in org.gradle.api") createAntBuilder()  
     Creates an additional `AntBuilder` for this project. You can use this in your build file to execute ant tasks.
@@ -1703,7 +1703,7 @@ A project has 5 method 'scopes', which it searches for methods:
 
   *
 
-    ### ant
+    ### ant {#ant(groovy.lang.Closure)}
 
     [AntBuilder](AntBuilder.html "class in org.gradle.api") ant ([@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([AntBuilder.class](AntBuilder.html "class in org.gradle.api")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
     Executes the given closure against the `AntBuilder` for this project. You can use this in your build file to execute ant tasks. The `AntBuild` is passed to the closure as the closure's delegate. See example in javadoc for [`getAnt()`](#getAnt())
@@ -1717,7 +1717,7 @@ A project has 5 method 'scopes', which it searches for methods:
         The `AntBuilder`. Never returns null.
   *
 
-    ### ant
+    ### ant {#ant(org.gradle.api.Action)}
 
     [AntBuilder](AntBuilder.html "class in org.gradle.api") ant ([Action](Action.html "interface in org.gradle.api")\<? super [AntBuilder](AntBuilder.html "class in org.gradle.api")\> configureAction)  
     Executes the given action against the `AntBuilder` for this project. You can use this in your build file to execute ant tasks. See example in javadoc for [`getAnt()`](#getAnt())
@@ -1734,7 +1734,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   3.5
   *
 
-    ### getConfigurations
+    ### getConfigurations {#getConfigurations()}
 
     [ConfigurationContainer](artifacts/ConfigurationContainer.html "interface in org.gradle.api.artifacts") getConfigurations()  
     Returns the configurations of this project.
@@ -1745,7 +1745,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The configuration of this project.
   *
 
-    ### configurations
+    ### configurations {#configurations(groovy.lang.Closure)}
 
     void configurations ([Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
     Configures the dependency configurations for this project.
@@ -1759,7 +1759,7 @@ A project has 5 method 'scopes', which it searches for methods:
         `configureClosure` - the closure to use to configure the dependency configurations.
   *
 
-    ### getArtifacts
+    ### getArtifacts {#getArtifacts()}
 
     [ArtifactHandler](artifacts/dsl/ArtifactHandler.html "interface in org.gradle.api.artifacts.dsl") getArtifacts()  
     Returns a handler for assigning artifacts produced by the project to configurations.
@@ -1767,7 +1767,7 @@ A project has 5 method 'scopes', which it searches for methods:
     Examples: See docs for [`ArtifactHandler`](artifacts/dsl/ArtifactHandler.html "interface in org.gradle.api.artifacts.dsl")
   *
 
-    ### artifacts
+    ### artifacts {#artifacts(groovy.lang.Closure)}
 
     void artifacts ([@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([ArtifactHandler.class](artifacts/dsl/ArtifactHandler.html "interface in org.gradle.api.artifacts.dsl")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
     Configures the published artifacts for this project.
@@ -1799,7 +1799,7 @@ A project has 5 method 'scopes', which it searches for methods:
         `configureClosure` - the closure to use to configure the published artifacts.
   *
 
-    ### artifacts
+    ### artifacts {#artifacts(org.gradle.api.Action)}
 
     void artifacts ([Action](Action.html "interface in org.gradle.api")\<? super [ArtifactHandler](artifacts/dsl/ArtifactHandler.html "interface in org.gradle.api.artifacts.dsl")\> configureAction)  
     Configures the published artifacts for this project.
@@ -1834,7 +1834,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   3.5
   *
 
-    ### depthCompare
+    ### depthCompare {#depthCompare(org.gradle.api.Project)}
 
     int depthCompare ([Project](Project.html "interface in org.gradle.api") otherProject)  
     Compares the nesting level of this project with another project of the multi-project hierarchy.
@@ -1852,13 +1852,13 @@ A project has 5 method 'scopes', which it searches for methods:
 
   *
 
-    ### getDepth
+    ### getDepth {#getDepth()}
 
     int getDepth()  
     Returns the nesting level of a project in a multi-project hierarchy. For single project builds this is always 0. In a multi-project hierarchy 0 is returned for the root project.
   *
 
-    ### getTasks
+    ### getTasks {#getTasks()}
 
     [TaskContainer](tasks/TaskContainer.html "interface in org.gradle.api.tasks") getTasks()  
     Returns the tasks of this project.
@@ -1867,7 +1867,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   the tasks of this project.
   *
 
-    ### subprojects
+    ### subprojects {#subprojects(org.gradle.api.Action)}
 
     void subprojects ([Action](Action.html "interface in org.gradle.api")\<? super [Project](Project.html "interface in org.gradle.api")\> action)  
     Configures the sub-projects of this project
@@ -1879,7 +1879,7 @@ A project has 5 method 'scopes', which it searches for methods:
         `action` - The action to execute.
   *
 
-    ### subprojects
+    ### subprojects {#subprojects(groovy.lang.Closure)}
 
     void subprojects ([@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([Project.class](Project.html "interface in org.gradle.api")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
     Configures the sub-projects of this project.
@@ -1891,7 +1891,7 @@ A project has 5 method 'scopes', which it searches for methods:
         `configureClosure` - The closure to execute.
   *
 
-    ### allprojects
+    ### allprojects {#allprojects(org.gradle.api.Action)}
 
     void allprojects ([Action](Action.html "interface in org.gradle.api")\<? super [Project](Project.html "interface in org.gradle.api")\> action)  
     Configures this project and each of its sub-projects.
@@ -1903,7 +1903,7 @@ A project has 5 method 'scopes', which it searches for methods:
         `action` - The action to execute.
   *
 
-    ### allprojects
+    ### allprojects {#allprojects(groovy.lang.Closure)}
 
     void allprojects ([@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([Project.class](Project.html "interface in org.gradle.api")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
     Configures this project and each of its sub-projects.
@@ -1915,7 +1915,7 @@ A project has 5 method 'scopes', which it searches for methods:
         `configureClosure` - The closure to execute.
   *
 
-    ### beforeEvaluate
+    ### beforeEvaluate {#beforeEvaluate(org.gradle.api.Action)}
 
     void beforeEvaluate ([Action](Action.html "interface in org.gradle.api")\<? super [Project](Project.html "interface in org.gradle.api")\> action)  
     Adds an action to call immediately before this project is evaluated.
@@ -1931,7 +1931,7 @@ A project has 5 method 'scopes', which it searches for methods:
         `action` - the action to execute.
   *
 
-    ### afterEvaluate
+    ### afterEvaluate {#afterEvaluate(org.gradle.api.Action)}
 
     void afterEvaluate ([Action](Action.html "interface in org.gradle.api")\<? super [Project](Project.html "interface in org.gradle.api")\> action)  
     Adds an action to call immediately after this project is evaluated.
@@ -1947,7 +1947,7 @@ A project has 5 method 'scopes', which it searches for methods:
         `action` - the action to execute.
   *
 
-    ### beforeEvaluate
+    ### beforeEvaluate {#beforeEvaluate(groovy.lang.Closure)}
 
     void beforeEvaluate ([@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([Project.class](Project.html "interface in org.gradle.api")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") closure)  
     Adds a closure to call immediately before this project is evaluated.
@@ -1962,7 +1962,7 @@ A project has 5 method 'scopes', which it searches for methods:
 
   *
 
-    ### afterEvaluate
+    ### afterEvaluate {#afterEvaluate(groovy.lang.Closure)}
 
     void afterEvaluate ([@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([Project.class](Project.html "interface in org.gradle.api")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") closure)  
     Adds a closure to call immediately after this project is evaluated.
@@ -1977,7 +1977,7 @@ A project has 5 method 'scopes', which it searches for methods:
 
   *
 
-    ### hasProperty
+    ### hasProperty {#hasProperty(java.lang.String)}
 
     boolean hasProperty ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") propertyName)  
     Determines if this project has the given property. See [here](#properties) for details of the properties which are available for a project.
@@ -1990,7 +1990,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   True if this project has the given property, false otherwise.
   *
 
-    ### getProperties
+    ### getProperties {#getProperties()}
 
     [Map](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Map.html "class or interface in java.util")\<[String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang"),? extends @Nullable [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang")\> getProperties()  
     Returns the properties of this project. See [here](#properties) for details of the properties which are available for a project.
@@ -1999,7 +1999,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   A map from property name to value.
   *
 
-    ### property
+    ### property {#property(java.lang.String)}
 
     @Nullable [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") property ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") propertyName) throws [MissingPropertyException](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/MissingPropertyException.html "class or interface in groovy.lang")  
     Returns the value of the given property. This method locates a property as follows:
@@ -2028,7 +2028,7 @@ A project has 5 method 'scopes', which it searches for methods:
 
   *
 
-    ### findProperty
+    ### findProperty {#findProperty(java.lang.String)}
 
     @Nullable [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") findProperty ([String](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html "class or interface in java.lang") propertyName)  
     Returns the value of the given property or null if not found. This method locates a property as follows:
@@ -2056,7 +2056,7 @@ A project has 5 method 'scopes', which it searches for methods:
 
   *
 
-    ### getLogger
+    ### getLogger {#getLogger()}
 
     [Logger](logging/Logger.html "interface in org.gradle.api.logging") getLogger()  
     Returns the logger for this project. You can use this in your build file to write log messages.
@@ -2065,7 +2065,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The logger. Never returns null.
   *
 
-    ### getGradle
+    ### getGradle {#getGradle()}
 
     [Gradle](invocation/Gradle.html "interface in org.gradle.api.invocation") getGradle()  
     Returns the [`Gradle`](invocation/Gradle.html "interface in org.gradle.api.invocation") invocation which this project belongs to.
@@ -2074,7 +2074,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The Gradle object. Never returns null.
   *
 
-    ### getLogging
+    ### getLogging {#getLogging()}
 
     [LoggingManager](logging/LoggingManager.html "interface in org.gradle.api.logging") getLogging()  
     Returns the [`LoggingManager`](logging/LoggingManager.html "interface in org.gradle.api.logging") which can be used to receive logging and to control the standard output/error capture for this project's build script. By default, System.out is redirected to the Gradle logging system at the QUIET log level, and System.err is redirected at the ERROR log level.
@@ -2083,7 +2083,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   the LoggingManager. Never returns null.
   *
 
-    ### configure
+    ### configure {#configure(java.lang.Object,groovy.lang.Closure)}
 
     [Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") configure ([Object](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html "class or interface in java.lang") object, [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
     Configures an object via a closure, with the closure's delegate set to the supplied object. This way you don't have to specify the context of a configuration statement multiple times.
@@ -2124,7 +2124,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The configured object
   *
 
-    ### configure
+    ### configure {#configure(java.lang.Iterable,groovy.lang.Closure)}
 
     [Iterable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Iterable.html "class or interface in java.lang")\<?\> configure ([Iterable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Iterable.html "class or interface in java.lang")\<?\> objects, [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
     Configures a collection of objects via a closure. This is equivalent to calling [`configure(Object, groovy.lang.Closure)`](#configure(java.lang.Object,groovy.lang.Closure)) for each of the given objects.
@@ -2139,7 +2139,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The configured objects.
   *
 
-    ### configure
+    ### configure {#configure(java.lang.Iterable,org.gradle.api.Action)}
 
     \<T\> [Iterable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Iterable.html "class or interface in java.lang")\<T\> configure ([Iterable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Iterable.html "class or interface in java.lang")\<T\> objects, [Action](Action.html "interface in org.gradle.api")\<? super T\> configureAction)  
     Configures a collection of objects via an action.
@@ -2154,7 +2154,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The configured objects.
   *
 
-    ### getRepositories
+    ### getRepositories {#getRepositories()}
 
     [RepositoryHandler](artifacts/dsl/RepositoryHandler.html "interface in org.gradle.api.artifacts.dsl") getRepositories()  
     Returns a handler to create repositories which are used for retrieving dependencies and uploading artifacts produced by the project.
@@ -2163,7 +2163,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   the repository handler. Never returns null.
   *
 
-    ### repositories
+    ### repositories {#repositories(groovy.lang.Closure)}
 
     void repositories ([Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
     Configures the repositories for this project.
@@ -2175,7 +2175,7 @@ A project has 5 method 'scopes', which it searches for methods:
         `configureClosure` - the closure to use to configure the repositories.
   *
 
-    ### getDependencies
+    ### getDependencies {#getDependencies()}
 
     [DependencyHandler](artifacts/dsl/DependencyHandler.html "interface in org.gradle.api.artifacts.dsl") getDependencies()  
     Returns the dependency handler of this project. The returned dependency handler instance can be used for adding new dependencies. For accessing already declared dependencies, the configurations can be used.
@@ -2191,7 +2191,7 @@ A project has 5 method 'scopes', which it searches for methods:
 
   *
 
-    ### dependencies
+    ### dependencies {#dependencies(groovy.lang.Closure)}
 
     void dependencies ([Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
     Configures the dependencies for this project.
@@ -2205,7 +2205,7 @@ A project has 5 method 'scopes', which it searches for methods:
         `configureClosure` - the closure to use to configure the dependencies.
   *
 
-    ### getDependencyFactory
+    ### getDependencyFactory {#getDependencyFactory()}
 
     [DependencyFactory](artifacts/dsl/DependencyFactory.html "interface in org.gradle.api.artifacts.dsl") getDependencyFactory()  
     Provides access to methods to create various kinds of [`Dependency`](artifacts/Dependency.html "interface in org.gradle.api.artifacts") instances.
@@ -2217,7 +2217,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   7.6
   *
 
-    ### getBuildscript
+    ### getBuildscript {#getBuildscript()}
 
     [ScriptHandler](initialization/dsl/ScriptHandler.html "interface in org.gradle.api.initialization.dsl") getBuildscript()  
     Returns the build script handler for this project. You can use this handler to query details about the build script for this project, and manage the classpath used to compile and execute the project's build script.
@@ -2226,7 +2226,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   the classpath handler. Never returns null.
   *
 
-    ### buildscript
+    ### buildscript {#buildscript(groovy.lang.Closure)}
 
     void buildscript ([Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") configureClosure)  
     Configures the build script classpath for this project.
@@ -2238,7 +2238,7 @@ A project has 5 method 'scopes', which it searches for methods:
         `configureClosure` - the closure to use to configure the build script classpath.
   *
 
-    ### copy
+    ### copy {#copy(groovy.lang.Closure)}
 
     [WorkResult](tasks/WorkResult.html "interface in org.gradle.api.tasks") copy ([@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([CopySpec.class](file/CopySpec.html "interface in org.gradle.api.file")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") closure)  
     Copies the specified files. The given closure is used to configure a [`CopySpec`](file/CopySpec.html "interface in org.gradle.api.file"), which is then used to copy the files. Example:
@@ -2277,7 +2277,7 @@ A project has 5 method 'scopes', which it searches for methods:
         [`WorkResult`](tasks/WorkResult.html "interface in org.gradle.api.tasks") that can be used to check if the copy did any work.
   *
 
-    ### copy
+    ### copy {#copy(org.gradle.api.Action)}
 
     [WorkResult](tasks/WorkResult.html "interface in org.gradle.api.tasks") copy ([Action](Action.html "interface in org.gradle.api")\<? super [CopySpec](file/CopySpec.html "interface in org.gradle.api.file")\> action)  
     Copies the specified files. The given action is used to configure a [`CopySpec`](file/CopySpec.html "interface in org.gradle.api.file"), which is then used to copy the files.
@@ -2296,7 +2296,7 @@ A project has 5 method 'scopes', which it searches for methods:
 
   *
 
-    ### copySpec
+    ### copySpec {#copySpec(groovy.lang.Closure)}
 
     [CopySpec](file/CopySpec.html "interface in org.gradle.api.file") copySpec ([@DelegatesTo](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/DelegatesTo.html "class or interface in groovy.lang")([CopySpec.class](file/CopySpec.html "interface in org.gradle.api.file")) [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") closure)  
     Creates a [`CopySpec`](file/CopySpec.html "interface in org.gradle.api.file") which can later be used to copy files or create an archive. The given closure is used to configure the [`CopySpec`](file/CopySpec.html "interface in org.gradle.api.file") before it is returned by this method.
@@ -2322,7 +2322,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The CopySpec
   *
 
-    ### copySpec
+    ### copySpec {#copySpec(org.gradle.api.Action)}
 
     [CopySpec](file/CopySpec.html "interface in org.gradle.api.file") copySpec ([Action](Action.html "interface in org.gradle.api")\<? super [CopySpec](file/CopySpec.html "interface in org.gradle.api.file")\> action)  
     Creates a [`CopySpec`](file/CopySpec.html "interface in org.gradle.api.file") which can later be used to copy files or create an archive. The given action is used to configure the [`CopySpec`](file/CopySpec.html "interface in org.gradle.api.file") before it is returned by this method.
@@ -2340,7 +2340,7 @@ A project has 5 method 'scopes', which it searches for methods:
 
   *
 
-    ### copySpec
+    ### copySpec {#copySpec()}
 
     [CopySpec](file/CopySpec.html "interface in org.gradle.api.file") copySpec()  
     Creates a [`CopySpec`](file/CopySpec.html "interface in org.gradle.api.file") which can later be used to copy files or create an archive.
@@ -2349,7 +2349,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   a newly created copy spec
   *
 
-    ### sync
+    ### sync {#sync(org.gradle.api.Action)}
 
     [WorkResult](tasks/WorkResult.html "interface in org.gradle.api.tasks") sync ([Action](Action.html "interface in org.gradle.api")\<? super [SyncSpec](file/SyncSpec.html "interface in org.gradle.api.file")\> action)  
     Synchronizes the contents of a destination directory with some source directories and files. The given action is used to configure a [`SyncSpec`](file/SyncSpec.html "interface in org.gradle.api.file"), which is then used to synchronize the files.
@@ -2393,7 +2393,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   4.0
   *
 
-    ### getState
+    ### getState {#getState()}
 
     [ProjectState](ProjectState.html "interface in org.gradle.api") getState()  
     Returns the evaluation state of this project. You can use this to access information about the evaluation of this project, such as whether it has failed.
@@ -2402,7 +2402,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   the project state. Never returns null.
   *
 
-    ### container
+    ### container {#container(java.lang.Class)}
 
     [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") \<T\> [NamedDomainObjectContainer](NamedDomainObjectContainer.html "interface in org.gradle.api")\<T\> container ([Class](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Class.html "class or interface in java.lang")\<T\> type)  
     Deprecated.  
@@ -2423,7 +2423,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The container.
   *
 
-    ### container
+    ### container {#container(java.lang.Class,org.gradle.api.NamedDomainObjectFactory)}
 
     [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") \<T\> [NamedDomainObjectContainer](NamedDomainObjectContainer.html "interface in org.gradle.api")\<T\> container ([Class](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Class.html "class or interface in java.lang")\<T\> type, [NamedDomainObjectFactory](NamedDomainObjectFactory.html "interface in org.gradle.api")\<T\> factory)  
     Deprecated.  
@@ -2446,7 +2446,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The container.
   *
 
-    ### container
+    ### container {#container(java.lang.Class,groovy.lang.Closure)}
 
     [@Deprecated](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Deprecated.html "class or interface in java.lang") \<T\> [NamedDomainObjectContainer](NamedDomainObjectContainer.html "interface in org.gradle.api")\<T\> container ([Class](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Class.html "class or interface in java.lang")\<T\> type, [Closure](https://docs.groovy-lang.org/docs/groovy-4.0.29/html/gapi/groovy/lang/Closure.html "class or interface in groovy.lang") factoryClosure)  
     Deprecated.  
@@ -2469,7 +2469,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The container.
   *
 
-    ### getExtensions
+    ### getExtensions {#getExtensions()}
 
     [ExtensionContainer](plugins/ExtensionContainer.html "interface in org.gradle.api.plugins") getExtensions()  
     Allows adding DSL extensions to the project. Useful for plugin authors.
@@ -2482,7 +2482,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   Returned instance allows adding DSL extensions to the project
   *
 
-    ### getResources
+    ### getResources {#getResources()}
 
     [ResourceHandler](resources/ResourceHandler.html "interface in org.gradle.api.resources") getResources()  
     Provides access to resource-specific utility methods, for example factory methods that create various resources.
@@ -2491,7 +2491,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   Returned instance contains various resource-specific utility methods.
   *
 
-    ### getComponents
+    ### getComponents {#getComponents()}
 
     [SoftwareComponentContainer](component/SoftwareComponentContainer.html "interface in org.gradle.api.component") getComponents()  
     Returns the software components produced by this project.
@@ -2500,7 +2500,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   The components for this project.
   *
 
-    ### components
+    ### components {#components(org.gradle.api.Action)}
 
     [@Incubating](Incubating.html "annotation in org.gradle.api") void components ([Action](Action.html "interface in org.gradle.api")\<? super [SoftwareComponentContainer](component/SoftwareComponentContainer.html "interface in org.gradle.api.component")\> configuration)  
     Configures software components.
@@ -2513,7 +2513,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   8.1
   *
 
-    ### getNormalization
+    ### getNormalization {#getNormalization()}
 
     [InputNormalizationHandler](../normalization/InputNormalizationHandler.html "interface in org.gradle.normalization") getNormalization()  
     Provides access to configuring input normalization.
@@ -2522,7 +2522,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   4.0
   *
 
-    ### normalization
+    ### normalization {#normalization(org.gradle.api.Action)}
 
     void normalization ([Action](Action.html "interface in org.gradle.api")\<? super [InputNormalizationHandler](../normalization/InputNormalizationHandler.html "interface in org.gradle.normalization")\> configuration)  
     Configures input normalization.
@@ -2531,7 +2531,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   4.0
   *
 
-    ### dependencyLocking
+    ### dependencyLocking {#dependencyLocking(org.gradle.api.Action)}
 
     void dependencyLocking ([Action](Action.html "interface in org.gradle.api")\<? super [DependencyLockingHandler](artifacts/dsl/DependencyLockingHandler.html "interface in org.gradle.api.artifacts.dsl")\> configuration)  
     Configures dependency locking
@@ -2540,7 +2540,7 @@ A project has 5 method 'scopes', which it searches for methods:
     :   4.8
   *
 
-    ### getDependencyLocking
+    ### getDependencyLocking {#getDependencyLocking()}
 
     [DependencyLockingHandler](artifacts/dsl/DependencyLockingHandler.html "interface in org.gradle.api.artifacts.dsl") getDependencyLocking()  
     Provides access to configuring dependency locking

@@ -2,10 +2,10 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: d7a4208f2eea132235fcaaf730ff9e83d8cfa674357e4e1d413a77fcab25748b
+hash: e4755eba7cecf4273527c4d0f932b3135887eb899dba085dcc2c8023abf992bd
 -->
 # Avoid DependsOn
-The task [dependsOn](https://docs.gradle.org/current/javadoc/org/gradle/api/DefaultTask.html#setDependsOn(java.lang.Iterable) (Use `gradle_docs(path="javadoc/org/gradle/api/DefaultTask.html#setDependsOn(java.lang.Iterable")`.)) method should only be used for [lifecycle tasks](https://docs.gradle.org/current/userguide/organizing_tasks.html#sec:lifecycle_tasks) (Use `gradle_docs(path="userguide/organizing_tasks.html#sec:lifecycle_tasks")`.) (tasks without task actions).  
+The task [dependsOn (Use `gradle_docs(path="javadoc/org/gradle/api/DefaultTask.md")`.)) method should only be used for [lifecycle tasks (Use `gradle_docs(path="userguide/organizing_tasks.md")`.) (tasks without task actions).  
 
 ## Explanation
 Tasks with actions should declare their inputs and outputs so that Gradle's up-to-date checking can automatically determine when these tasks need to be run or rerun.  
@@ -197,7 +197,7 @@ tasks.register("translateGood", SimpleTranslationTask) {
 Gradle now understands that `translateGood` requires `helloWorld` to have run successfully first because it needs to create the `message.txt` file which is then used by the translation task. Gradle can use this information to optimize task scheduling. Using the `map` method avoids eagerly retrieving the `helloWorld` task until the output is needed to determine if `translateGood` should run.  
 
 ## References
-* [Task Inputs and Outputs](https://docs.gradle.org/current/userguide/incremental_build.html#sec:task_input_output_side_effects) (Use `gradle_docs(path="userguide/incremental_build.html#sec:task_input_output_side_effects")`.)
+* [Task Inputs and Outputs (Use `gradle_docs(path="userguide/incremental_build.md")`.)
 
 ---
 

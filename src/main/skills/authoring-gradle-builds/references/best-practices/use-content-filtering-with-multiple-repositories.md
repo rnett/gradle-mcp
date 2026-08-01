@@ -2,15 +2,15 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: 782d502474cbf09521930e6b0ac2f5e5f8701bf967878f812fd227423b77386f
+hash: 61b59abe7b0dad43fb225de46115104620884756006572beed4e44e0d56ea22d
 -->
 # Use Content Filtering with multiple Repositories
-When using multiple repositories in a build, use [repository content filtering](https://docs.gradle.org/current/userguide/filtering_repository_content.html#repository-content-filtering) (Use `gradle_docs(path="userguide/filtering_repository_content.html#repository-content-filtering")`.) to ensure that dependencies are resolved from an appropriate repository.  
+When using multiple repositories in a build, use [repository content filtering (Use `gradle_docs(path="userguide/filtering_repository_content.md")`.) to ensure that dependencies are resolved from an appropriate repository.  
 
 ## Explanation
 If your build declares more than one repository, you should declare content filters on these repositories to ensure you search for and obtain dependencies from the correct place.  
 Content filtering is necessary if you have a reason to restrict searching for a dependency to a particular repository, and can be a good idea even if acceptable dependency artifacts exist in multiple locations.  
-When possible, you should use the [exclusiveContent](https://docs.gradle.org/current/userguide/filtering_repository_content.html#sec:declaring-content-repositories) (Use `gradle_docs(path="userguide/filtering_repository_content.html#sec:declaring-content-repositories")`.) feature to restrict dependencies to a particular known repository.  
+When possible, you should use the [exclusiveContent (Use `gradle_docs(path="userguide/filtering_repository_content.md")`.) feature to restrict dependencies to a particular known repository.  
 Content filtering has three main benefits:  
 1. **Performance**, since you only query repositories for dependencies that should actually exist within them
 
@@ -130,7 +130,7 @@ dependencyResolutionManagement {
 ```
 
 ## References
-* [Filtering Repository Content](https://docs.gradle.org/current/userguide/filtering_repository_content.html#repository-content-filtering) (Use `gradle_docs(path="userguide/filtering_repository_content.html#repository-content-filtering")`.)
+* [Filtering Repository Content (Use `gradle_docs(path="userguide/filtering_repository_content.md")`.)
 
 ---
 

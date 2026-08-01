@@ -2,7 +2,7 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: 2c962fb1677ef5da9ebf5ecf13668188e53087b7e9271f9b0e841add746d30c4
+hash: 21a995bf9432dc5ce05ac1ddf978a45e650b80b20c899b9dc3e8349d28b62c60
 -->
 # Prefer the `-bin` Gradle Distribution
 Gradle publishes two distribution variants for each release: `-bin` (binaries only) and `-all` (binaries, sources, and documentation). For most builds, you should prefer the smaller `-bin` distribution.  
@@ -45,7 +45,7 @@ distributionUrl=https\://services.gradle.org/distributions/gradle-<version>-bin.
 ```
 
 ## References
-* [Gradle Wrapper checksum verification](https://docs.gradle.org/current/gradle_wrapper.html#configuring_checksum_verification) (Use `gradle_docs(path="gradle_wrapper.html#configuring_checksum_verification")`.)
+* [Gradle Wrapper checksum verification (Use `gradle_docs(path="userguide/gradle_wrapper.md")`.)
 
 ---
 

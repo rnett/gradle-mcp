@@ -2,7 +2,7 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: a0f925778ee0a33fc34e9e390d2eea71ba1e1ff5ba1c72a1b752c4704092924c
+hash: 859c49b5adb6f1c3f5d47cc6a1a75fffc21b0e1ef0711fae8c3a656a811b7e7b
 -->
 # Use UTF-8 File Encoding
 Set `UTF-8` as the default file encoding to ensure consistent behavior across platforms.  
@@ -20,7 +20,7 @@ org.gradle.jvmargs=-Dfile.encoding=UTF-8
 |   | Do not rely on the default encoding of the underlying JVM or operating system, as this may differ between environments and lead to inconsistent behavior. |
 
 ## References
-* [File encoding and Caching](https://docs.gradle.org/current/userguide/common_caching_problems.html#system_file_encoding) (Use `gradle_docs(path="userguide/common_caching_problems.html#system_file_encoding")`.).
+* [File encoding and Caching (Use `gradle_docs(path="userguide/common_caching_problems.md")`.).
 
 ---
 

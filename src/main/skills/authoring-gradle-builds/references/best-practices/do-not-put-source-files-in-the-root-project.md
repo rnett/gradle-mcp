@@ -2,14 +2,14 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: fa3ab882d89b4a0c1156dbb830643b40a89947ab3d3c2915116be43776e953de
+hash: 8f953ff5da05f087f88732409a10a4296aecba7c68b214dd7b15d14623be029f
 -->
 # Do Not Put Source Files in the Root Project
 Do not put source files in your root project; instead, put them in a separate project.  
 
 ## Explanation
-The root project is a special [Project](https://docs.gradle.org/current/kotlin-dsl/gradle/org.gradle.api/-project/index.html) (Use `gradle_docs(path="kotlin-dsl/gradle/org.gradle.api/-project/index.html")`.) in Gradle that serves as the entry point for your build.  
-It is the place to configure some settings and conventions that apply globally to the entire build, that are not configured via [Settings](https://docs.gradle.org/current/kotlin-dsl/gradle/org.gradle.api.initialization/-settings/index.html) (Use `gradle_docs(path="kotlin-dsl/gradle/org.gradle.api.initialization/-settings/index.html")`.). For example, you can *declare* (but not apply) plugins here to ensure the same plugin version is consistently available across all projects and define other configurations shared by all projects within the build.  
+The root project is a special [Project (Use `gradle_docs(path="kotlin-dsl/gradle/org.gradle.api/-project/index.md")`.) in Gradle that serves as the entry point for your build.  
+It is the place to configure some settings and conventions that apply globally to the entire build, that are not configured via [Settings (Use `gradle_docs(path="kotlin-dsl/gradle/org.gradle.api.initialization/-settings/index.md")`.). For example, you can *declare* (but not apply) plugins here to ensure the same plugin version is consistently available across all projects and define other configurations shared by all projects within the build.  
 
 |---|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |   | Be careful not to apply plugins unnecessarily in the root project - many plugins only affect source code and should only be applied to the projects that contain source code. |
@@ -130,9 +130,9 @@ plugins { (2)
 | **2** | The `java-library` plugin is only applied to the `core` project, which contains the Java source files. |
 
 ## References
-* [Structuring Projects with Gradle](https://docs.gradle.org/current/userguide/multi_project_builds.html#multi_project_builds) (Use `gradle_docs(path="userguide/multi_project_builds.html#multi_project_builds")`.)
+* [Structuring Projects with Gradle (Use `gradle_docs(path="userguide/multi_project_builds.md")`.)
 
-* [Organizing Gradle Projects](https://docs.gradle.org/current/userguide/organizing_gradle_projects.html#sec:settings_file) (Use `gradle_docs(path="userguide/organizing_gradle_projects.html#sec:settings_file")`.)
+* [Organizing Gradle Projects (Use `gradle_docs(path="userguide/organizing_gradle_projects.md")`.)
 
 ---
 

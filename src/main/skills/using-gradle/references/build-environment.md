@@ -25,8 +25,8 @@ Do not apply "nearest file wins" folklore. First classify the value, then identi
 **Version notes:** The mechanisms exist across Gradle 7, 8, and 9, but precedence and parsing details are wrapper-version concerns. Read the wrapper before applying current 9.x guidance; for Gradle 7.x, verify the exact user guide page for the wrapper minor.
 
 **More info:**
-- `gradle_docs`: `tag:userguide`, path `userguide/build_environment.md`, terms `Priority for configurations`, `Available mechanisms`; https://docs.gradle.org/current/userguide/build_environment.html
-- Effective project properties: `gradle` and `captureTaskOutput`; https://gradle-mcp.rnett.dev/latest/tools/EXECUTION_TOOLS/
+- `gradle_docs`: `tag:userguide`, path `userguide/build_environment.md`, terms `Priority for configurations`, `Available mechanisms`
+- Effective project properties: `gradle` and `captureTaskOutput`
 
 ## Property channels and locations
 
@@ -49,8 +49,8 @@ Choose locations deliberately:
 **Anti-pattern:** move a failing project's required property into a personal user file until the local build passes. That makes the failure non-reproducible.
 
 **More info:**
-- `gradle_docs`: `tag:userguide`, path `userguide/build_environment.md`, terms `The gradle.properties file`, `Project properties`, `System properties and environment variables`; https://docs.gradle.org/current/userguide/build_environment.html
-- Property inspection: `gradle` and `captureTaskOutput`; https://gradle-mcp.rnett.dev/latest/tools/EXECUTION_TOOLS/
+- `gradle_docs`: `tag:userguide`, path `userguide/build_environment.md`, terms `The gradle.properties file`, `Project properties`, `System properties and environment variables`
+- Property inspection: `gradle` and `captureTaskOutput`
 
 ## Environment variables
 
@@ -72,8 +72,8 @@ Capture names and safe metadata, not values that may contain credentials or toke
 **Version notes:** `NO_COLOR` and the current client/daemon distinctions are documented in current Gradle guidance. For Gradle 7.x, retain the established `GRADLE_USER_HOME`, `JAVA_HOME`, `GRADLE_OPTS`, and `JAVA_OPTS` semantics, then verify newer output controls against the wrapper version.
 
 **More info:**
-- `gradle_docs`: `tag:userguide`, path `userguide/build_environment.md`, terms `Environment variables`, `System properties and environment variables`; https://docs.gradle.org/current/userguide/build_environment.html
-- Safe build queries: `query_build`; https://gradle-mcp.rnett.dev/latest/tools/LOOKUP_TOOLS/
+- `gradle_docs`: `tag:userguide`, path `userguide/build_environment.md`, terms `Environment variables`, `System properties and environment variables`
+- Safe build queries: `query_build`
 
 ## JVM ownership boundary
 
@@ -95,9 +95,9 @@ Classify the failing JVM before changing memory, Java versions, or flags.
 **Version notes:** Gradle 9 documents daemon JVM criteria and auto-provisioning more explicitly. For Gradle 7.x, use the launcher `JAVA_HOME`, `org.gradle.java.home`, and project toolchain model; do not apply 9.x-only criteria without checking the wrapper docs.
 
 **More info:**
-- `gradle_docs`: `tag:userguide`, path `userguide/build_environment.md`, term `Gradle properties`; https://docs.gradle.org/current/userguide/build_environment.html
-- `gradle_docs`: `tag:userguide`, path `userguide/gradle_daemon.md`, term `The Gradle Client vs. the Gradle Daemon`; https://docs.gradle.org/current/userguide/gradle_daemon.html
-- `gradle_docs`: `tag:userguide`, path `userguide/config_gradle.md`, term `Changing JVM settings for the build VM`; https://docs.gradle.org/current/userguide/config_gradle.html
+- `gradle_docs`: `tag:userguide`, path `userguide/build_environment.md`, term `Gradle properties`
+- `gradle_docs`: `tag:userguide`, path `userguide/gradle_daemon.md`, term `The Gradle Client vs. the Gradle Daemon`
+- `gradle_docs`: `tag:userguide`, path `userguide/config_gradle.md`, term `Changing JVM settings for the build VM`
 
 ## Proxy and network configuration
 
@@ -120,7 +120,7 @@ Test wrapper/bootstrap, plugin resolution, and dependency resolution as separate
 **Version notes:** Standard `systemProp.http[s].proxy*` mechanisms are stable across Gradle 7, 8, and 9; wrapper/bootstrap and plugin-resolution behavior remains version- and configuration-specific. For Gradle 7.x, use the same property names and verify the exact path.
 
 **More info:**
-- `gradle_docs`: `tag:userguide`, path `userguide/networking.md`, term `Accessing the web through a proxy`; https://docs.gradle.org/current/userguide/networking.html
+- `gradle_docs`: `tag:userguide`, path `userguide/networking.md`, term `Accessing the web through a proxy`
 
 ## Hidden global inputs and secure diagnosis
 
@@ -133,5 +133,5 @@ Inspect `GRADLE_USER_HOME/init.d` and any `--init-script` supplied to the invoca
 **Version notes:** Init-script mechanics are stable across Gradle 7, 8, and 9, but APIs and configuration details are version-sensitive. For Gradle 7.x, inspect only and verify the wrapper-specific documentation.
 
 **More info:**
-- `gradle_docs`: `tag:userguide`, path `userguide/build_environment.md`, terms `Gradle initialization scripts`, `Available mechanisms`; https://docs.gradle.org/current/userguide/build_environment.html
-- Structured build diagnostics: `query_build`; https://gradle-mcp.rnett.dev/latest/tools/LOOKUP_TOOLS/
+- `gradle_docs`: `tag:userguide`, path `userguide/build_environment.md`, terms `Gradle initialization scripts`, `Available mechanisms`
+- Structured build diagnostics: `query_build`

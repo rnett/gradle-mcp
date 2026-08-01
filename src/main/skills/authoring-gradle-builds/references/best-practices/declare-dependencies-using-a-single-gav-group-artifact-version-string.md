@@ -2,10 +2,10 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: 542843f36a223143d4ecf44a030f872d997c4ef5346b88dd30f1d0b86fc4a55c
+hash: cc2c56ff3d86f48cbe2ffd9c32c56aa699ba607ef6474c1c50db0f21f8b4b565
 -->
 # Declare Dependencies using a single GAV (`group:artifact:version`) String
-When declaring dependencies without a [version catalog](https://docs.gradle.org/current/userguide/version_catalogs.html#version-catalog) (Use `gradle_docs(path="userguide/version_catalogs.html#version-catalog")`.), prefer using the single GAV string notation `implementation("org.example:library:1.0")`. Avoid using the named argument notation. The named argument notation has been deprecated and will no longer be supported starting in Gradle 10.  
+When declaring dependencies without a [version catalog (Use `gradle_docs(path="userguide/version_catalogs.md")`.), prefer using the single GAV string notation `implementation("org.example:library:1.0")`. Avoid using the named argument notation. The named argument notation has been deprecated and will no longer be supported starting in Gradle 10.  
 
 ## Explanation
 All of these declarations will be treated equivalently when Gradle resolves dependencies. However, the single-string form is more concise, easier to read, and is widely adopted in the broader JVM ecosystem.  
@@ -67,7 +67,7 @@ dependencies {
 | **2** | Other modifiers methods and constraints like `exclude` are not included in this recommendation and can use named argument notation as needed |
 
 ## References
-* [Declaring Dependencies Basics](https://docs.gradle.org/current/userguide/declaring_dependencies_basics.html#declaring-dependencies-basics) (Use `gradle_docs(path="userguide/declaring_dependencies_basics.html#declaring-dependencies-basics")`.)
+* [Declaring Dependencies Basics (Use `gradle_docs(path="userguide/declaring_dependencies_basics.md")`.)
 
 ---
 

@@ -8,6 +8,7 @@ Members
 
 ## Constructors
 
+{#1181980556%2FConstructors%2F-1793262594}  
 [BuildAdapter](-build-adapter.html)  
 Link copied to clipboard  
 API  
@@ -15,22 +16,27 @@ constructor()
 
 ## Functions
 
+{#-693122197%2FFunctions%2F-1793262594}  
 [beforeSettings](before-settings.html)  
 Link copied to clipboard  
 API  
-open fun [beforeSettings](before-settings.html)(settings: [Settings](../../org.gradle.api.initialization/-settings/index.html))  
+open fun [beforeSettings](before-settings.html)(settings: [Settings](../../org.gradle.api.initialization/-settings/index.html))
+{#-1233720833%2FFunctions%2F-1793262594}  
 [buildFinished](build-finished.html)  
 Link copied to clipboard  
 API  
-open fun [~~buildFinished~~](build-finished.html)(result: [BuildResult](../-build-result/index.html))  
+open fun [~~buildFinished~~](build-finished.html)(result: [BuildResult](../-build-result/index.html))
+{#1320433128%2FFunctions%2F-1793262594}  
 [projectsEvaluated](projects-evaluated.html)  
 Link copied to clipboard  
 API  
-open fun [projectsEvaluated](projects-evaluated.html)(gradle: [Gradle](../../org.gradle.api.invocation/-gradle/index.html))  
+open fun [projectsEvaluated](projects-evaluated.html)(gradle: [Gradle](../../org.gradle.api.invocation/-gradle/index.html))
+{#613586362%2FFunctions%2F-1793262594}  
 [projectsLoaded](projects-loaded.html)  
 Link copied to clipboard  
 API  
-open fun [projectsLoaded](projects-loaded.html)(gradle: [Gradle](../../org.gradle.api.invocation/-gradle/index.html))  
+open fun [projectsLoaded](projects-loaded.html)(gradle: [Gradle](../../org.gradle.api.invocation/-gradle/index.html))
+{#1670552517%2FFunctions%2F-1793262594}  
 [settingsEvaluated](settings-evaluated.html)  
 Link copied to clipboard  
 API  

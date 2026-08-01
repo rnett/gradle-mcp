@@ -2,7 +2,7 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: 7213d4512eec25ef314da98d048d70a8d3a2e5abc9ba988efade72dc65e62398
+hash: c4f95f5c81bc78b943f7e9b87b017a24411eca4d9c533be925c4b77f861b9073
 -->
 # Use the Build Cache
 Use the Build Cache to save time by reusing outputs produced by previous builds.  
@@ -55,7 +55,7 @@ BUILD SUCCESSFUL in 0s
 ```
 
 ## References
-* [Build Cache Overview](https://docs.gradle.org/current/userguide/build_cache.html#sec:build_cache_intro) (Use `gradle_docs(path="userguide/build_cache.html#sec:build_cache_intro")`.)
+* [Build Cache Overview (Use `gradle_docs(path="userguide/build_cache.md")`.)
 
 ---
 

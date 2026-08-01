@@ -2,10 +2,10 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: ecf4040d33faf63853212299f05e13f74a687d4fd566bc9c759f5c7bd4554ed5
+hash: 9210bc3c8cf898de6839b4695e74511d10d844ec550b1cf6badc6a28b46ce902
 -->
 # Use `@PathSensitivity.NONE` for file inputs and `@PathSensitivity.RELATIVE` for directories
-Use [`@PathSensitivity.NONE`](https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/PathSensitivity.html#NONE) (Use `gradle_docs(path="javadoc/org/gradle/api/tasks/PathSensitivity.html#NONE")`.) for file inputs and [`@PathSensitivity.RELATIVE`](https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/PathSensitivity.html#RELATIVE) (Use `gradle_docs(path="javadoc/org/gradle/api/tasks/PathSensitivity.html#RELATIVE")`.) for directory inputs.  
+Use [`@PathSensitivity.NONE` (Use `gradle_docs(path="javadoc/org/gradle/api/tasks/PathSensitivity.md")`.) for file inputs and [`@PathSensitivity.RELATIVE` (Use `gradle_docs(path="javadoc/org/gradle/api/tasks/PathSensitivity.md")`.) for directory inputs.  
 
 ## Explanation
 Tasks should generally care about the **contents** of their input files, not their location on disk.  
@@ -13,7 +13,7 @@ When annotating file-based input properties (for example, `@InputFile` or `@Inpu
 For directory-based inputs (for example, `@InputDirectory` or `@InputFiles` collections), use `@PathSensitivity.RELATIVE`. This tells Gradle to also consider only the name of the directory (ignoring its absolute location) and to relativize the paths of all files within that directory to it when doing up-to-date checks.  
 Using `PathSensitivity.NAME_ONLY` or `@PathSensitivity.ABSOLUTE` is generally incorrect.  
 `PathSensitivity.NAME_ONLY` tells Gradle to consider a file's name in addition to its contents, which is rarely useful.  
-`@PathSensitivity.ABSOLUTE` tells Gradle to consider a file's complete absolute path. This prevents [Build Cache](https://docs.gradle.org/current/userguide/build_cache.html#build_cache) (Use `gradle_docs(path="userguide/build_cache.html#build_cache")`.) and [Configuration Cache](https://docs.gradle.org/current/userguide/configuration_cache.html#config_cache) (Use `gradle_docs(path="userguide/configuration_cache.html#config_cache")`.) hits across different machines or checkout locations, making your build non-relocatable. It can also lead to confusing behavior where the same build produces different task outcomes when run from different directories. If no `@PathSensitive` annotation is provided, `PathSensitivity.ABSOLUTE` is the default.  
+`@PathSensitivity.ABSOLUTE` tells Gradle to consider a file's complete absolute path. This prevents [Build Cache (Use `gradle_docs(path="userguide/build_cache.md")`.) and [Configuration Cache (Use `gradle_docs(path="userguide/configuration_cache.md")`.) hits across different machines or checkout locations, making your build non-relocatable. It can also lead to confusing behavior where the same build produces different task outcomes when run from different directories. If no `@PathSensitive` annotation is provided, `PathSensitivity.ABSOLUTE` is the default.  
 
 ## Example
 ### Don't Do This
@@ -121,7 +121,7 @@ abstract RegularFileProperty getCandidatesFile()
 | **1** | Everything remains the same, except that the input property is now annotated with `@PathSensitivity.NONE`. Only the contents of this input file matter to this task. When the `search` task is rerun with `-PuseAlternateInput`, it remains `UP-TO-DATE`. |
 
 ## References
-* [Input Relocatability](https://docs.gradle.org/current/userguide/build_cache_concepts.html#relocatability) (Use `gradle_docs(path="userguide/build_cache_concepts.html#relocatability")`.)
+* [Input Relocatability (Use `gradle_docs(path="userguide/build_cache_concepts.md")`.)
 
 ---
 

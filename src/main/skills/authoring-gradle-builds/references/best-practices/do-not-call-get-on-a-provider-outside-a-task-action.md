@@ -2,10 +2,10 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: 07705911bd16f07f3edf091d63f3215bbbec767c655609c0ab80f7a9a3ec9f58
+hash: 5c9f0a86f5a74da3384d177c24f02ef370b0f7efe18d0088806d8717e9544c12
 -->
 # Do not call `get()` on a Provider outside a Task action
-When configuring tasks and extensions do not call [`get()`](https://docs.gradle.org/current/javadoc/org/gradle/api/provider/Provider.html#get() (Use `gradle_docs(path="javadoc/org/gradle/api/provider/Provider.html#get(")`.)) on a provider, use [`map()`](https://docs.gradle.org/current/javadoc/org/gradle/api/provider/Provider.html#map(org.gradle.api.Transformer) (Use `gradle_docs(path="javadoc/org/gradle/api/provider/Provider.html#map(org.gradle.api.Transformer")`.)), or [`flatMap()`](https://docs.gradle.org/current/javadoc/org/gradle/api/provider/Provider.html#flatMap(org.gradle.api.Transformer) (Use `gradle_docs(path="javadoc/org/gradle/api/provider/Provider.html#flatMap(org.gradle.api.Transformer")`.)) instead.  
+When configuring tasks and extensions do not call [`get()` (Use `gradle_docs(path="javadoc/org/gradle/api/provider/Provider.md")`.)) on a provider, use [`map()` (Use `gradle_docs(path="javadoc/org/gradle/api/provider/Provider.md")`.)), or [`flatMap()` (Use `gradle_docs(path="javadoc/org/gradle/api/provider/Provider.md")`.)) instead.  
 
 ## Explanation
 A provider should be evaluated as late as possible. Calling `get()` forces immediate evaluation, which can trigger unintended side effects, such as:  
@@ -13,7 +13,7 @@ A provider should be evaluated as late as possible. Calling `get()` forces immed
 
 * The value may be evaluated too early, meaning you might not be using the final or correct value of the property. This may lead to painful and hard to debug ordering issues.
 
-* It breaks Gradle's ability to build dependencies and to track task inputs and outputs, making automatic task dependency wiring impossible. See [Working with task inputs and outputs](https://docs.gradle.org/current/userguide/lazy_configuration.html#working_with_task_dependencies_in_lazy_properties) (Use `gradle_docs(path="userguide/lazy_configuration.html#working_with_task_dependencies_in_lazy_properties")`.)
+* It breaks Gradle's ability to build dependencies and to track task inputs and outputs, making automatic task dependency wiring impossible. See [Working with task inputs and outputs (Use `gradle_docs(path="userguide/lazy_configuration.md")`.)
 
 It is preferable to avoid explicitly evaluating a `Provider` at all, and deferring to `map`/`flatMap` to connect `Providers` to `Providers` implicitly.  
 
@@ -116,7 +116,7 @@ tasks.register("doThis", MyTask) {
 | **2** | **Using `file()` to create a new `Provider<RegularFile>`** : the value of the `buildDirectory` is only checked when the value of the provider is read. |
 
 ## References
-* [Task Inputs and Outputs](https://docs.gradle.org/current/userguide/incremental_build.html#sec:task_input_output_side_effects) (Use `gradle_docs(path="userguide/incremental_build.html#sec:task_input_output_side_effects")`.)
+* [Task Inputs and Outputs (Use `gradle_docs(path="userguide/incremental_build.md")`.)
 
 ---
 

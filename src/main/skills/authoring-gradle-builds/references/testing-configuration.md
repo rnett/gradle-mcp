@@ -68,8 +68,8 @@ pluginManager.withPlugin("java") {
 
 **More info:**
 
-- Gradle docs: `gradle_docs` `tag:userguide test task JUnit Platform`, path `userguide/java_testing.md`; published page: https://docs.gradle.org/current/userguide/java_testing.html.
-- Test execution and zero-test verification: hand off to `using-gradle/references/testing.md`; `query_build` documentation: https://gradle-mcp.rnett.dev/latest/tools/LOOKUP_TOOLS/.
+- Gradle docs: `gradle_docs` `tag:userguide test task JUnit Platform`, path `userguide/java_testing.md`
+- Test execution and zero-test verification: hand off to `using-gradle/references/testing.md`; `query_build` documentation
 
 ## Test logging
 
@@ -117,8 +117,8 @@ tasks.named<Test>("test") {
 
 **More info:**
 
-- Gradle docs: `gradle_docs` `tag:userguide test logging events exceptionFormat standard streams`, path `userguide/java_testing.md`; published page: https://docs.gradle.org/current/userguide/java_testing.html.
-- Console execution and report inspection: hand off to `using-gradle/references/testing.md`; `query_build` documentation: https://gradle-mcp.rnett.dev/latest/tools/LOOKUP_TOOLS/.
+- Gradle docs: `gradle_docs` `tag:userguide test logging events exceptionFormat standard streams`, path `userguide/java_testing.md`
+- Console execution and report inspection: hand off to `using-gradle/references/testing.md`; `query_build` documentation
 
 ## Script-based test filtering
 
@@ -165,8 +165,8 @@ Use CLI `--tests` for an ad-hoc class or method selection that should not change
 
 **More info:**
 
-- Gradle docs: `gradle_docs` `tag:userguide test filtering`, path `userguide/java_testing.md`; published page: https://docs.gradle.org/current/userguide/java_testing.html.
-- Ad-hoc filtering and test execution: [using-gradle testing](../../using-gradle/references/testing.md). MCP test result lookup: https://gradle-mcp.rnett.dev/latest/tools/LOOKUP_TOOLS/.
+- Gradle docs: `gradle_docs` `tag:userguide test filtering`, path `userguide/java_testing.md`
+- Ad-hoc filtering and test execution: [using-gradle testing](../../using-gradle/references/testing.md). MCP test result lookup
 
 ## Kotlin Multiplatform test runs
 
@@ -237,7 +237,7 @@ Keep common test dependencies in `commonTest` only when the framework is common-
 
 **More info:**
 
-- Gradle docs: `gradle_docs` `tag:userguide test filtering and reports`, path `userguide/java_testing.md`; published page: https://docs.gradle.org/current/userguide/java_testing.html.
+- Gradle docs: `gradle_docs` `tag:userguide test filtering and reports`, path `userguide/java_testing.md`
 - KMP target task discovery and execution: hand off to `using-gradle`; use its testing reference at [testing.md](../../using-gradle/references/testing.md).
 
 ## Java test fixtures
@@ -282,7 +282,7 @@ Use `testFixturesApi` for dependencies needed by fixture types exposed to consum
 
 **More info:**
 
-- Gradle docs: `gradle_docs` `tag:userguide test fixtures java-test-fixtures`, path `userguide/java_testing.md`; published page: https://docs.gradle.org/current/userguide/java_testing.html.
+- Gradle docs: `gradle_docs` `tag:userguide test fixtures java-test-fixtures`, path `userguide/java_testing.md`
 - Fixture consumption is build configuration. Hand off running fixture-consuming tests to `using-gradle`; do not use this section to prescribe execution commands.
 
 ## Cross-reference: testing custom build logic

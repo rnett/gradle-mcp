@@ -2,13 +2,13 @@
 class: generated
 generator: best-practices
 gradle-version: 9.6.1
-hash: 63b18e27b27c01f21189f1732942305689cfab16efa83518811bf2aa868be5f7
+hash: 0013a418b01f989052aa57f6cc82c8ad0d226950b255db7b2c530ac17e10409e
 -->
 # Don't resolve Configurations before Task Execution
 Resolving configurations before the task execution phase can lead to incorrect results and slower builds.  
 
 ## Explanation
-Resolving a configuration - either directly via calling its [`resolve()`](https://docs.gradle.org/current/javadoc/org/gradle/api/artifacts/Configuration.html#resolve() (Use `gradle_docs(path="javadoc/org/gradle/api/artifacts/Configuration.html#resolve(")`.)) method or indirectly via accessing its set of artifacts - returns a set of files that does not preserve references to the tasks that produced those files.  
+Resolving a configuration - either directly via calling its [`resolve()` (Use `gradle_docs(path="javadoc/org/gradle/api/artifacts/Configuration.md")`.)) method or indirectly via accessing its set of artifacts - returns a set of files that does not preserve references to the tasks that produced those files.  
 Configurations *are* file collections and can be added to `@InputFiles` properties on other tasks. It is important to do this correctly to avoid breaking automatic task dependency wiring between a consumer task and any tasks that are implicitly required to produce the artifacts being consumed. For example, if a configuration contains a project dependency, Gradle knows that consumers of the configuration must first run any tasks that produce that project's artifacts.  
 In addition to correctness concerns, resolving configurations during the configuration phase can slow down the build, even when running unrelated tasks (e.g., `help`) that don't require the resolved dependencies.  
 
@@ -87,7 +87,7 @@ tasks.register("badClasspathPrinter", BadClasspathPrinter) {
 | **4** | **Resolve runtimeClasspath** : The implicit task dependency on `:library:jar` task is lost here when the configuration is resolved prior to task execution. The `lib` project will not be built when the `:app:badClasspathPrinter` task is run, leading to a failure in `calculateDigest` because the `lib.jar` file will not exist. |
 
 ### Do This Instead
-To avoid issues, always defer resolution to the execution phase by using lazy APIs like [FileCollection](https://docs.gradle.org/current/javadoc/org/gradle/api/file/FileCollection.html) (Use `gradle_docs(path="javadoc/org/gradle/api/file/FileCollection.html")`.).  
+To avoid issues, always defer resolution to the execution phase by using lazy APIs like [FileCollection (Use `gradle_docs(path="javadoc/org/gradle/api/file/FileCollection.md")`.).  
 build.gradle.kts  
 
 ```kotlin
