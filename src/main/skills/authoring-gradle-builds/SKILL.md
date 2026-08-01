@@ -37,7 +37,7 @@ Author or modify Gradle build definitions, build logic, project structure, and d
 2. Consult the compatibility quick-reference below; verify version-sensitive claims with `gradle_docs`.
 3. When the change is version-sensitive (wrapper upgrade, API migration, deprecation fix), consult the upgrading page for the wrapper's major version via `gradle_docs(path="userguide/upgrading_version_<N>.md")` and check `gradle_docs(query="tag:release-notes")` for breaking changes. See [Upgrading and Release Notes](references/upgrading-and-release-notes.md).
 4. Read `settings.gradle.kts`, `gradle/libs.versions.toml`, applied plugins, and convention plugins. Check for existing conventions before proposing changes.
-5. Use the Decision Routing table to load the narrowest authored reference, which is the single authoritative procedural load for the authoring action.
+5. Load the narrowest authored reference: links in the directives and workflows above are loaded in context; for the remaining actions, use the Decision Routing table.
 6. Treat `references/best-practices/_index.md` and its generated corpus detail as optional rationale, consulted on demand rather than as a mandatory pre-load.
 
 ## Compatibility Quick-Reference
@@ -54,14 +54,14 @@ Author or modify Gradle build definitions, build logic, project structure, and d
 
 ## Constitution
 
-- Prefer Kotlin DSL for new authoring (`best_practices_general.md`; use Groovy only when the project requires it).
-- Register lazily: use `tasks.register`, `tasks.named`, and `configureEach`, not eager `tasks.create` (`task_configuration_avoidance.md`).
+- Prefer [Kotlin DSL](references/kotlin-dsl.md) for new authoring (`best_practices_general.md`; use Groovy only when the project requires it).
+- Register lazily: use [Custom Tasks](references/custom-tasks.md), `tasks.register`, `tasks.named`, and `configureEach`, not eager `tasks.create` (`task_configuration_avoidance.md`).
 - Use version catalogs when present; centralize versions and aliases (`best_practices_dependencies.md`; catalogs are stable from 7.4).
 - Check existing conventions first; use declarative `plugins {}` and settings `pluginManagement {}` (`plugins.md`, `best_practices_structuring_builds.md`).
-- Never use `allprojects` or `subprojects`; apply explicit convention plugins and keep projects decoupled (`best_practices_structuring_builds.md`, `isolated_projects.md`).
-- Never use `Project` or `Task.project` inside task actions; inject public services and model task inputs (`configuration_cache_requirements.md`, `service_injection.md`).
+- Never use `allprojects` or `subprojects`; apply explicit [Convention Plugins](references/convention-plugins.md) and keep projects decoupled (`best_practices_structuring_builds.md`, `isolated_projects.md`).
+- Never use `Project` or `Task.project` inside task actions; inject [Advanced Configuration](references/advanced-configuration.md) services and model task inputs (`configuration_cache_requirements.md`, `service_injection.md`).
 - Never resolve configurations in the configuration phase; resolve through task inputs or task execution (`best_practices_tasks.md`).
-- Do not call `Provider.get()` while configuring unrelated work; wire `Provider` and `Property` values lazily (`properties_providers.md`, `best_practices_tasks.md`).
+- Do not call `Provider.get()` while configuring unrelated work; wire [Managed Types and Providers](references/managed-types-and-providers.md) with `Provider` and `Property` values lazily (`properties_providers.md`, `best_practices_tasks.md`).
 - Prohibit `afterEvaluate`; use providers, `pluginManager.withPlugin`, and lazy APIs. Permit it only for a documented correctness-critical ordering constraint, with an `afterEvaluate-justification:` comment (`best_practices_general.md`).
 - Operation/execution (running builds, running tests, diagnosing failures, and read-only dependency inspection/update discovery) belongs to `using-gradle`; authoring/modifying build definitions (including dependency declarations and version catalogs) belongs to `authoring-gradle-builds`. Trivial one-line everyday dependency edits (catalog entry + declaration + version bump) are a sanctioned overlap in `using-gradle`; anything structural (plugins, repositories, modules, toolchains, publishing, CI) is `authoring-gradle-builds` only.
 
@@ -69,27 +69,18 @@ Author or modify Gradle build definitions, build logic, project structure, and d
 
 | Authoring action | Reference |
 |---|---|
-| Add dependency, catalog, repository, or plugin dependency | [Dependencies and Catalogs](references/dependencies-and-catalogs.md) |
-| Create module, subproject, settings, or project-isolation wiring | [Modules and Settings](references/modules-and-settings.md) |
-| Create or refactor a convention plugin/build logic | [Convention Plugins](references/convention-plugins.md) |
-| Create a custom task or task inputs/outputs | [Custom Tasks](references/custom-tasks.md) |
-| Use service injection, build services, value sources, or advanced isolation | [Advanced Configuration](references/advanced-configuration.md) |
 | Configure a JDK toolchain or resolver | [JDK Toolchains](references/jdk-toolchains.md) |
 | Configure Kotlin compiler options | [Kotlin Compiler Options](references/kotlin-compiler-options.md) |
 | Configure test frameworks or test behavior | [Testing Configuration](references/testing-configuration.md) |
 | Publish artifacts or configure Central Portal delivery | [Artifact Publishing](references/artifact-publishing.md) |
 | Wire CI/CD builds | [CI/CD Builds](references/ci-cd-builds.md) |
 | Enable or update dependency locking | [Dependency Locking](references/dependency-locking.md) |
-| Configure build scans | [Build Scans](references/build-scans.md) |
 | Parallelize task work with Worker API | [Worker API](references/worker-api.md) |
 | Configure continuous builds | [Continuous Builds](references/continuous-builds.md) |
 | Understand build lifecycle, phases, task graph, or hook ordering | [Build Lifecycle](references/build-lifecycle.md) |
-| Author Kotlin DSL scripts, accessors, or receivers | [Kotlin DSL](references/kotlin-dsl.md) |
-| Model Property/Provider values, managed collections, or lazy files | [Managed Types and Providers](references/managed-types-and-providers.md) |
 | Develop a binary plugin, test with TestKit, or publish a plugin | [Plugin Development](references/plugin-development.md) |
 | Configure Java source sets, annotation processing, or mixed languages | [Java Builds](references/java-builds.md) |
 | Model configurations, feature variants, capabilities, or variant sharing | [Configurations and Variants](references/configurations-and-variants.md) |
-| Upgrade Gradle version, fix deprecations, or check breaking changes | [Upgrading and Release Notes](references/upgrading-and-release-notes.md) |
 
 ## Cross-Skill Handoffs
 
@@ -104,25 +95,25 @@ Author or modify Gradle build definitions, build logic, project structure, and d
 ### Create Module
 
 1. Read the wrapper version, settings, project layout, catalogs, and applied conventions.
-2. Load `modules-and-settings.md` as the single authoritative procedural reference; add the project and its build logic without root-wide mutation.
+2. Load [Modules and Settings](references/modules-and-settings.md) as the single authoritative procedural reference; add the project and its build logic without root-wide mutation.
 3. Use existing convention plugins and version aliases; add only module-specific configuration.
 4. Hand off to `using-gradle` to verify project discovery and the module's lifecycle tasks.
 
 ### Add Dependency
 
 1. Determine whether the change is structural; hand off read-only GAV discovery to `using-gradle`.
-2. Load `dependencies-and-catalogs.md` as the single authoritative procedural reference; update the catalog when one exists and declare the alias in the consuming project.
+2. Load [Dependencies and Catalogs](references/dependencies-and-catalogs.md) as the single authoritative procedural reference; update the catalog when one exists and declare the alias in the consuming project.
 3. Centralize repositories in settings and apply content filters when multiple repositories are required.
 4. Hand off to `using-gradle` to verify dependency resolution and the affected configuration.
 
 ### Performance Audit
 
-1. Read the wrapper version and use the narrowest authored reference as the single authoritative procedural reference for each audit action.
-2. Optionally consult `references/best-practices/_index.md` and its generated detail for rationale; this is not a competing procedural load.
+1. Read the wrapper version and use the narrowest authored reference as the single authoritative procedural reference for each audit action; links in the directives and workflows above identify references that are already loaded in context.
+2. Optionally consult [Best-Practices Index](references/best-practices/_index.md) and its generated detail for rationale; this is not a competing procedural load.
 3. Inspect build logic for eager task APIs, provider realization, configuration-phase resolution, cross-project mutation, and configuration-cache violations.
-4. Apply the smallest lazy, decoupled change; use `build-scans.md` only when publication is intentional.
+4. Apply the smallest lazy, decoupled change; use [Build Scans](references/build-scans.md) only when publication is intentional.
 5. Hand off to `using-gradle` to run the relevant verification and inspect task outcomes or configuration-cache diagnostics.
 
 ## Best-Practices Consultation
 
-Use the authored reference selected by Decision Routing as the single authoritative procedural load for each authoring action. Consult `references/best-practices/_index.md` and its generated corpus detail only when rationale is needed or the authored reference points there; then query `gradle_docs` when deeper rationale or the authoritative version-scoped source is required. The escalation path remains `Index -> Detail -> Gradle Docs`, but it does not force a second competing procedural load. The corpus is frozen: route to it, do not edit it or restate its detail in this hub.
+Use the authored reference linked in the relevant directive or workflow as the single authoritative procedural load when one is provided; for the remaining authoring actions, use the Decision Routing table. Consult `references/best-practices/_index.md` and its generated corpus detail only when rationale is needed or the authored reference points there; then query `gradle_docs` when deeper rationale or the authoritative version-scoped source is required. The escalation path remains `Index -> Detail -> Gradle Docs`, but it does not force a second competing procedural load. The corpus is frozen: route to it, do not edit it or restate its detail in this hub.

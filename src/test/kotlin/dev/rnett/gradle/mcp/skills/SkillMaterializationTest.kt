@@ -9,6 +9,7 @@ import kotlin.io.path.isDirectory
 import kotlin.io.path.readBytes
 import kotlin.io.path.readText
 import kotlin.io.path.relativeTo
+import kotlin.io.path.exists
 import kotlin.io.path.writeText
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -23,6 +24,17 @@ class SkillMaterializationTest {
     fun `repository skill tree verifies clean`() {
         val violations = SkillMaterialization.verify(projectRoot)
         assertEquals(emptyList(), violations, "Expected no materialization violations, but found:\n${violations.joinToString("\n")}")
+    }
+
+    @Test
+    fun `no generated root reference index exists`() {
+        val skillsDir = projectRoot.resolve("src/main/skills")
+        SkillMaterialization.CANONICAL_SKILLS.forEach { skill ->
+            assertTrue(
+                !skillsDir.resolve("$skill/references/_index.md").exists(),
+                "Root reference index must not exist for $skill",
+            )
+        }
     }
 
     @Test
@@ -118,17 +130,6 @@ class SkillMaterializationTest {
         assertContains(violations.single(), "run generateBestPracticesDoc")
     }
 
-    @Test
-    fun `detects an index stale with respect to the manifest`(@TempDir tempDir: Path) {
-        val skillsDir = tempDir.resolve("src/main/skills")
-        val index = skillsDir.resolve("interacting-with-project-runtime/references/_index.md")
-        index.parent.createDirectories()
-        index.writeText(SkillMaterialization.renderIndexFile("interacting-with-project-runtime", emptyList()))
-
-        val violations = SkillMaterialization.checkGeneratedContent(skillsDir, null)
-        assertEquals(1, violations.size)
-        assertContains(violations.single(), "stale with respect to the canonical index manifest")
-    }
 
     @Test
     fun `detects dead links and orphaned references`(@TempDir tempDir: Path) {
@@ -137,13 +138,13 @@ class SkillMaterializationTest {
         skillDir.resolve("SKILL.md").writeText(
             """
             # Skill
-            See [Missing](references/missing.md) and [Index](references/_index.md).
+            See [Missing](references/missing.md) and [Linked](references/linked.md).
             """.trimIndent()
         )
-        skillDir.resolve("references/_index.md").writeText("# Index")
+        skillDir.resolve("references/linked.md").writeText("# Linked")
         skillDir.resolve("references/orphan.md").writeText("# Orphan")
 
-        val violations = SkillMaterialization.checkIndexCompleteness(tempDir)
+        val violations = SkillMaterialization.checkReferenceReachability(tempDir)
         assertTrue(violations.any { "Dead link" in it && "missing.md" in it }, "Expected dead link violation, got: $violations")
         assertTrue(violations.any { "Orphaned reference" in it && "orphan.md" in it }, "Expected orphan violation, got: $violations")
     }
@@ -165,14 +166,14 @@ class SkillMaterializationTest {
         val body = "# Body Content\n\nWith details.\n"
         val rendered = SkillMaterialization.renderGeneratedFile(
             skill = "using-gradle",
-            generator = "skill-index",
+            generator = "best-practices",
             body = body,
         )
 
         val parsed = assertNotNull(SkillMaterialization.splitGeneratedHeader(rendered))
         assertEquals("generated", parsed.fields["class"])
         assertEquals("using-gradle", parsed.fields["skill"])
-        assertEquals("skill-index", parsed.fields["generator"])
+        assertEquals("best-practices", parsed.fields["generator"])
         assertEquals(SkillMaterialization.sha256Hex(body), parsed.fields["hash"])
         assertEquals(body, parsed.body)
     }

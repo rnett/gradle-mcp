@@ -77,17 +77,9 @@ Inspects, executes, diagnoses, and researches existing Gradle builds using manag
 3. **Verify**: Run `inspect_dependencies` to confirm resolution.
 *Anything structural (plugins, repositories, modules, toolchains, publishing, CI, compiler options, or testing frameworks) $\rightarrow$ hand off to `authoring-gradle-builds`.*
 
-## Decision Routing
+## Reference Discovery
 
-| Need | Reference | Load When |
-| :--- | :--- | :--- |
-| Recognize project/filesystem markers; read settings before interpreting paths | [Build Orientation](references/build-orientation.md) | First contact with an unfamiliar checkout |
-| Resolve properties, environment, JVM ownership, proxies, or hidden init inputs | [Build Environment](references/build-environment.md) | Comparing runs or diagnosing configuration and process behavior |
-| Execution lifecycle, task paths, `captureTaskOutput`, and CLI controls | [Running Builds](references/running-builds.md) | Executing any task or selecting diagnostics |
-| Test selection, run patterns, failure isolation | [Testing](references/testing.md) | Running or triaging tests |
-| Failure triage, daemon, config-cache, build scans | [Troubleshooting](references/troubleshooting.md) | Build fails or behaves oddly |
-| Graph audit, conflicts, updates, `dependencyInsight` | [Dependencies](references/dependencies.md) | Auditing or updating libs |
-| `gradle_docs`, Gradle/JDK source research | [Research](references/research.md) | Searching official/internal source
+Read the linked references as part of the workflow: use [Build Orientation](references/build-orientation.md) and [Build Environment](references/build-environment.md) when first orienting yourself or resolving environment inputs; use [Running Builds](references/running-builds.md) for foreground or background lifecycle execution, recursive or absolute task-path selection, and isolated task output; use [Testing](references/testing.md) for filtered class or method runs, failure isolation, and targeted reruns across Gradle versions; use [Troubleshooting](references/troubleshooting.md) for configuration or compilation failures, configuration-cache diagnosis, daemon/JVM/`JAVA_HOME`/memory issues, and build-scan or deprecation diagnostics; use [Dependencies](references/dependencies.md) for compile/runtime/test configuration scoping, resolved-graph audits, version conflicts, and stable updates; and use [Research](references/research.md) for version-aware official Gradle documentation, Gradle internals and lifecycle, and dependency, plugin, or JDK source research.
 
 ## Cross-Skill Handoffs
 
