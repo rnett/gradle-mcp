@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # Build Scans
 
 A Build Scan is a published, shareable record of a Gradle invocation. It can expose build performance, task outcomes, dependency resolution, environment data, and failure diagnostics. Publication is an external side effect, not local logging.

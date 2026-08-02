@@ -10,7 +10,6 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
-import java.security.MessageDigest
 import java.util.zip.ZipFile
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.createDirectories
@@ -301,7 +300,7 @@ internal fun writePages(
     }
 
     bestPracticesDirectory.resolve("_index.md")
-        .writeText(generatedFile(version, generateIndex(sections, version)), StandardCharsets.UTF_8)
+        .writeText(generateIndex(sections, version), StandardCharsets.UTF_8)
     sectionFiles.forEach { (section, fileName) ->
         val document = buildString {
             appendLine(section.markdown)
@@ -310,30 +309,11 @@ internal fun writePages(
             appendLine()
             appendLine("For the most up-to-date guidance, use `gradle_docs` with `tag:best-practices`.")
         }
-        bestPracticesDirectory.resolve(fileName).writeText(generatedFile(version, document), StandardCharsets.UTF_8)
+        bestPracticesDirectory.resolve(fileName).writeText(document, StandardCharsets.UTF_8)
     }
     return bestPracticesDirectory
 }
 
-/**
- * Prepends the deterministic `generated` provenance header to a best-practices artifact.
- * The `hash` field covers the body bytes exactly as written, enabling drift detection
- * by the skill materialization verifier.
- */
-internal fun generatedFile(version: String, body: String): String = buildString {
-    appendLine("<!--")
-    appendLine("class: generated")
-    appendLine("generator: best-practices")
-    appendLine("gradle-version: $version")
-    appendLine("hash: ${sha256Hex(body)}")
-    appendLine("-->")
-    append(body)
-}
-
-internal fun sha256Hex(content: String): String =
-    MessageDigest.getInstance("SHA-256")
-        .digest(content.toByteArray(StandardCharsets.UTF_8))
-        .joinToString("") { "%02x".format(it) }
 
 private fun sectionAnchor(title: String, index: Int): String {
     val normalized = title.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')

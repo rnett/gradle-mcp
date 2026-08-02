@@ -17,10 +17,6 @@ metadata:
   author: https://github.com/rnett/gradle-mcp
   version: "1.0.0"
 ---
-<!--
-class: authored-local
-skill: verifying-compose-ui
--->
 
 # Visual Verification of Compose UI Components
 

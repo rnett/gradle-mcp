@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: 8f953ff5da05f087f88732409a10a4296aecba7c68b214dd7b15d14623be029f
--->
 # Do Not Put Source Files in the Root Project
 Do not put source files in your root project; instead, put them in a separate project.  
 

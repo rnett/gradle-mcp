@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # Kotlin DSL
 
 Prefer Kotlin DSL for new build authoring. It provides static typing, IDE-assisted navigation, and better maintainability than Groovy. Use Groovy only when maintaining legacy builds or when a specific plugin requires it.

@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: 21a995bf9432dc5ce05ac1ddf978a45e650b80b20c899b9dc3e8349d28b62c60
--->
 # Prefer the `-bin` Gradle Distribution
 Gradle publishes two distribution variants for each release: `-bin` (binaries only) and `-all` (binaries, sources, and documentation). For most builds, you should prefer the smaller `-bin` distribution.  
 Using `-bin` reduces download size and verification effort, speeds up CI and developer builds, and limits the number of artifacts you need to trust.  

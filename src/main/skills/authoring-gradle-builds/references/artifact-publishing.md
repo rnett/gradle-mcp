@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # Artifact Publishing
 
 Configure JVM library publication with `maven-publish` and `signing`. The current Maven Central destination is the Central Publisher Portal at `central.sonatype.com`; make that Portal flow the primary release recipe.

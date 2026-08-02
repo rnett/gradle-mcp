@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # Advanced Configuration
 
 Use this reference when authoring service-injected tasks or plugins, shared build services, value sources, or configuration-cache-compatible build logic. Prefer the latest Gradle 9.x APIs, but preserve the fallbacks in the compatibility notes when the wrapper targets Gradle 7 or 8.

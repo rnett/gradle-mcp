@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: 7487da86a3106f759f8fef2fa9432fef3ad1a2c729fe530aec0177e1583855f5
--->
 # Best Practices for Security
 
 ## Validate the Gradle Distribution SHA-256 Checksum

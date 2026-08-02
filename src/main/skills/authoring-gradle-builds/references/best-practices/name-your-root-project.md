@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: cf25189cada55a75e4dad0258032874e976a4fac8944440142537b2b45aea7ab
--->
 # Name Your Root Project
 Always name your root project in the `settings.gradle(.kts)` file.  
 

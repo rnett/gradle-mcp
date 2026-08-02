@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: b301bcc7b7a3b51f35565d40090a687038743ad3eda1c45abc252d66a029fd62
--->
 # Best Practices for Testing
 
 ## Test your custom Task and Plugins with TestKit

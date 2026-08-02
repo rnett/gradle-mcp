@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: cc9a7c89533b786d37c4cb9c419cba8392ab75aa1e96b12e85b62c9b2927af52
--->
 # Avoid Unintentionally Creating Empty Projects
 When using a hierarchical directory structure to organize your Gradle projects, make sure to avoid unintentionally creating empty projects in your build.  
 

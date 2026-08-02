@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # CI/CD Builds
 
 Author CI builds as reproducible, diagnosable invocations of the checked-in Gradle wrapper. CI is not a separate build definition: it is another environment that must consume declared inputs, the same dependency graph, and the same task outputs.

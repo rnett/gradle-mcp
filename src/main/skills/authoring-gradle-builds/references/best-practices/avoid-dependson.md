@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: e4755eba7cecf4273527c4d0f932b3135887eb899dba085dcc2c8023abf992bd
--->
 # Avoid DependsOn
 The task [dependsOn (Use `gradle_docs(path="javadoc/org/gradle/api/DefaultTask.md")`.)) method should only be used for [lifecycle tasks (Use `gradle_docs(path="userguide/organizing_tasks.md")`.) (tasks without task actions).  
 

@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: using-gradle
--->
 # Dependencies
 
 Audits the resolved dependency graph, resolves version conflicts, and manages library updates.

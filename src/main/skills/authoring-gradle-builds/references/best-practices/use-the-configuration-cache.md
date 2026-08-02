@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: 1a078a060521d87a472a57590d054d8107257f3f4e70da4025bcc3893ad678c4
--->
 # Use the Configuration Cache
 Use the Configuration Cache to significantly improve build performance by caching the result of the configuration phase and reusing it in subsequent builds.  
 

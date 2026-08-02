@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: 61b59abe7b0dad43fb225de46115104620884756006572beed4e44e0d56ea22d
--->
 # Use Content Filtering with multiple Repositories
 When using multiple repositories in a build, use [repository content filtering (Use `gradle_docs(path="userguide/filtering_repository_content.md")`.) to ensure that dependencies are resolved from an appropriate repository.  
 

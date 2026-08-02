@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # Build Lifecycle
 
 Understand the three primary phases of a Gradle build and how the task graph is constructed. Top-level script code runs during initialization and configuration; only task actions execute during the execution phase.

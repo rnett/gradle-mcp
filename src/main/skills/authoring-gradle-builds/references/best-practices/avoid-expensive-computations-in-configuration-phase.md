@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: 4db6c4c5706cabb3751a7866e29adf4fee6950492dc1d6211fe6832aaa39f36e
--->
 # Avoid Expensive Computations in Configuration Phase
 Avoid expensive computations in the [configuration phase (Use `gradle_docs(path="userguide/build_lifecycle.md")`.), instead, move them to task actions.  
 

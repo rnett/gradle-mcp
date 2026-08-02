@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: 70e73c0aeef842f4b59f6b3889f391ebe7ecb598b7b0daefab12764efd18f68b
--->
 # Use the Latest Minor Version of Gradle
 Stay on the latest minor version of the major Gradle release you're using, and regularly update your plugins to the latest compatible versions.  
 

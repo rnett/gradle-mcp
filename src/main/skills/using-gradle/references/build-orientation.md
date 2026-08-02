@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: using-gradle
--->
 # Build Orientation
 
 Use this reference when you first encounter an existing Gradle checkout. Identify the filesystem markers, read settings before interpreting project paths, then inspect the applied plugins and configurations that explain the build.

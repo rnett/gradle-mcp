@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # JDK Toolchains
 
 Use a Java toolchain to declare the Java language level that compile, test, and tool tasks must use. A toolchain makes the build's required JDK explicit and decouples that JDK from the JVM that starts the Gradle daemon. Configure the toolchain in convention or build logic shared by every JVM-producing project.

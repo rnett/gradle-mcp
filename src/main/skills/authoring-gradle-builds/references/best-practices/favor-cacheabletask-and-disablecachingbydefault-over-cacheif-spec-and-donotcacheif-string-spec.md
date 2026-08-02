@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: f682eb2f23a60916f5edd62d0f9bd539ad074f889237d564da83679dac965ce4
--->
 # Favor `@CacheableTask` and `@DisableCachingByDefault` over `cacheIf(Spec)` and `doNotCacheIf(String, Spec)`
 The [`cacheIf` (Use `gradle_docs(path="javadoc/org/gradle/api/tasks/TaskOutputs.md")`.)) and [`doNotCacheIf` (Use `gradle_docs(path="javadoc/org/gradle/api/tasks/TaskOutputs.md")`.)) methods should only be used in situations where the [cacheability (Use `gradle_docs(path="userguide/build_cache.md")`.) of a task varies between different task instances or cannot be determined until the task is executed by Gradle. You should instead favor annotating the task class itself with [`@CacheableTask` (Use `gradle_docs(path="javadoc/org/gradle/api/tasks/CacheableTask.md")`.) annotation for any task that is *always* cacheable. Likewise, the [`@DisableCachingByDefault` (Use `gradle_docs(path="javadoc/org/gradle/work/DisableCachingByDefault.md")`.) should be used to always disable caching for all instances of a task type.  
 

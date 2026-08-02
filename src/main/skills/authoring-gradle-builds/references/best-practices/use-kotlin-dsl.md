@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: d928885d2bffa1c9f678d663380a3ee7b22f2c9c6f4a7537405697243b0775d0
--->
 # Use Kotlin DSL
 Prefer the Kotlin DSL (`build.gradle.kts`) over the Groovy DSL (`build.gradle`) when authoring new builds or creating new subprojects in existing builds.  
 

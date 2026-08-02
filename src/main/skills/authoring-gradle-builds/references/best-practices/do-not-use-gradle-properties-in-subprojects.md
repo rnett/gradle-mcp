@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: 3bf3fd8b2b4ee41c44dde7a9007d653585bb1181c5aba4a17b4ed55c14441a94
--->
 # Do not use `gradle.properties` in subprojects
 Do not place a `gradle.properties` file inside subprojects to configure your build.  
 

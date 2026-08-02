@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: 3d5ae49094ad025785246b6c97b24d2aa6aac20cae43ed7643b96107e01abdf6
--->
 # Apply Plugins Using the `plugins` Block
 You should always use the `plugins` block to [apply plugins (Use `gradle_docs(path="userguide/plugin_basics.md")`.) in your build scripts.  
 

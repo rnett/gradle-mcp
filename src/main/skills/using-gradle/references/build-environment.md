@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: using-gradle
--->
 # Build Environment
 
 Use this reference to inspect and reproduce the evaluated environment of an existing Gradle build. Operate configuration; do not author build logic. Route edits to properties, init scripts, toolchains, proxies, or other build configuration to `authoring-gradle-builds`.

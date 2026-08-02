@@ -22,10 +22,6 @@ metadata:
   author: https://github.com/rnett/gradle-mcp
   version: "1.1.0"
 ---
-<!--
-class: authored-local
-skill: using-gradle
--->
 
 # Authoritative Gradle Build Execution, Testing & Inspection
 

@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: d59b9e2863087b2f353d6eb2dadec1676544f0d9abad907d9f43982e44306406
--->
 # Modularize Your Builds
 Modularize your builds by splitting your code into multiple projects.  
 

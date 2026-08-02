@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: 9210bc3c8cf898de6839b4695e74511d10d844ec550b1cf6badc6a28b46ce902
--->
 # Use `@PathSensitivity.NONE` for file inputs and `@PathSensitivity.RELATIVE` for directories
 Use [`@PathSensitivity.NONE` (Use `gradle_docs(path="javadoc/org/gradle/api/tasks/PathSensitivity.md")`.) for file inputs and [`@PathSensitivity.RELATIVE` (Use `gradle_docs(path="javadoc/org/gradle/api/tasks/PathSensitivity.md")`.) for directory inputs.  
 

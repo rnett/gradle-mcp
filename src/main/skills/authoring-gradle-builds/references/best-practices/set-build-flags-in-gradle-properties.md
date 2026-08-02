@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: c16a7b75f5530b81563164a4ed4485debac586dbce8878f69ec2846449c66513
--->
 # Set Build Flags in `gradle.properties`
 Set Gradle build property flags in the `gradle.properties` file.  
 

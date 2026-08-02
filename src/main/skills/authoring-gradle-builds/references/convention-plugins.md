@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # Convention Plugins
 
 Put shared build policy in a `build-logic` included build and expose it through precompiled script plugins. Apply conventions explicitly in consuming projects. Keep plugin reactions event-driven, because sibling convention-plugin ordering is not a safe contract. Classify applied plugins as core, community/Portal, or custom/local before authoring their configuration.

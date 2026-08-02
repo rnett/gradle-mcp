@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: c4f95f5c81bc78b943f7e9b87b017a24411eca4d9c533be925c4b77f861b9073
--->
 # Use the Build Cache
 Use the Build Cache to save time by reusing outputs produced by previous builds.  
 

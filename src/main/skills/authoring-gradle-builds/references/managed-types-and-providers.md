@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # Managed Types and Providers
 
 Model build properties lazily using the Property and Provider APIs. Wire values through providers to defer realization until the execution boundary; this ensures configuration avoidance and compatibility with the configuration cache.

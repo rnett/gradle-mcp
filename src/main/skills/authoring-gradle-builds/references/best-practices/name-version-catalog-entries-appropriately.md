@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: 3301fdf7742d0e9e7503313fca691516b7cb8bb509cf239bd50a537d5b7e195f
--->
 # Name Version Catalog Entries Appropriately
 Consistent and descriptive names in your version catalog enhance readability and maintainability across your build scripts.  
 

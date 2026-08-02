@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: verifying-compose-ui
--->
 # Troubleshooting Compose in REPL
 
 Common issues when rendering Compose components in the REPL and how to resolve them.

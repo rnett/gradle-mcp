@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # Configurations and Variants
 
 Author the configuration and variant model to control dependency resolution, isolate project outputs, and expose artifacts for consumption. This reference covers configuration roles, feature variants, and variant-aware consumption. Use this to model how your project provides and consumes binaries; hand off the resulting resolution graph inspection to `using-gradle`.

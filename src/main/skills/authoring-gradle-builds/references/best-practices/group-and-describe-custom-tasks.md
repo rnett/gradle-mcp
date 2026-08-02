@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: a9a244751d55273d327fd77ee72310ce37a2c23695c21a1cd81555689177222c
--->
 # Group and Describe custom Tasks
 When defining custom task types or registering ad-hoc tasks, always set a clear `group` and `description`.  
 

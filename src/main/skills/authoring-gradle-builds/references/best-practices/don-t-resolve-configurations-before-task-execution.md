@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: 0013a418b01f989052aa57f6cc82c8ad0d226950b255db7b2c530ac17e10409e
--->
 # Don't resolve Configurations before Task Execution
 Resolving configurations before the task execution phase can lead to incorrect results and slower builds.  
 

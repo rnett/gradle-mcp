@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: 260cfe5d7fa392fb05b854702fc01c54537c1fc6f76f4c968e8bdd80e8f787ce
--->
 # Apply Exclusions Narrowly
 When excluding transitive dependencies, apply exclusions as narrowly as possible.  
 

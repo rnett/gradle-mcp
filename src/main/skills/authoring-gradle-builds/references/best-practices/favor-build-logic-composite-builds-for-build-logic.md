@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: 7e5b9d4327c4343551d5c9958f793ef45a073a9b09142e63076e2bc200823786
--->
 # Favor `build-logic` Composite Builds for Build Logic
 You should set up a [Composite Build (Use `gradle_docs(path="userguide/composite_builds.md")`.) (often called an "included build") to hold your build logic---including any custom plugins, convention plugins, and other build-specific customizations.  
 

@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # Dependencies and Catalogs
 
 Author dependency declarations, version catalogs, repositories, and dependency-resolution policy. Use Kotlin DSL for build scripts and settings files. This reference is the authoring layer: hand off read-only coordinate lookup, graph inspection, conflict analysis, and update discovery to `using-gradle`.

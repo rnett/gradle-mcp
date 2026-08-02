@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: 5975498f3e64716ea4e569d33577f713267e87fbab94c6bb61e10ecad1abcb18
--->
 # Set up your Dependency Repositories in the Settings file
 Declare your repositories for your plugins and dependencies in `settings.gradle.kts`.  
 

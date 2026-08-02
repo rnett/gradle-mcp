@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # Plugin Development
 
 Produce distributable plugins from a standalone build. Prefer precompiled script plugins in `build-logic` for in-repo sharing (see [Convention Plugins](convention-plugins.md)); this reference is for BINARY plugins that are packaged and consumed across different projects or repositories.

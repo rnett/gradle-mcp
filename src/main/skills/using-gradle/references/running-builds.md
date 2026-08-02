@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: using-gradle
--->
 # Running Builds
 
 Expresses Gradle builds through the `gradle` MCP tool in foreground or background, manages build lifecycle, and captures task output.

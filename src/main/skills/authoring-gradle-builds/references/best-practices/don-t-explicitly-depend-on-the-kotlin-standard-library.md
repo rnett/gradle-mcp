@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: a7103d78c370f3677513bb52dd9dadd71f3000c803d6ba6e918cfc857868e272
--->
 # Don't Explicitly Depend on the Kotlin Standard Library
 The Kotlin Gradle Plugin automatically adds a dependency on the Kotlin standard library (`stdlib`) to each source set, so there is no need to declare it explicitly.  
 

@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: using-gradle
--->
 # Troubleshooting
 
 Triage build failures and diagnose environmental anomalies using structured MCP diagnostics and Gradle lifecycle controls.

@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # Kotlin Compiler Options
 
 Configure Kotlin compiler behavior with the typed `compilerOptions` DSL. Treat compiler options as part of the build contract: the JVM target, language/API levels, warning policy, and opt-ins must be deliberate, consistent, and scoped to the compilation that needs them.

@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # Custom Tasks
 
 Model task inputs and outputs, register tasks lazily, and keep task actions independent of the Gradle model. Use task dependencies to express lifecycle ordering, not to hide implementation coupling.

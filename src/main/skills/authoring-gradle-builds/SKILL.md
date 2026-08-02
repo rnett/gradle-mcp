@@ -20,10 +20,6 @@ metadata:
   author: https://github.com/rnett/gradle-mcp
   version: "1.2.0"
 ---
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 
 # Gradle Build Authoring
 

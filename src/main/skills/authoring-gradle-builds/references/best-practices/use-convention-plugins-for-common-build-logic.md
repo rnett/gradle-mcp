@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: fe0321c5642df1621c1794c03b06d0715b0fe02070c31ae78259d4fc262ef302
--->
 # Use Convention Plugins for Common Build Logic
 Use [convention plugins (Use `gradle_docs(path="userguide/implementing_gradle_plugins_precompiled.md")`.) to encapsulate and reuse shared build logic across multiple projects in your build.  
 

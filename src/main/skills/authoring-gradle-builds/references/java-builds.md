@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # Java Builds
 
 Author JVM-based builds using the Java and Java Library plugins. This reference covers the Java plugin model, from source sets and compilation to annotation processing and mixed-language support. Use this to set up the build structure; hand off day-to-day execution, test runs, and artifact inspection to `using-gradle`.

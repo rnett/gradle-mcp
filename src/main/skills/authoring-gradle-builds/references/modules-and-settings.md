@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # Modules and Settings
 
 Define the build graph in `settings.gradle.kts`, keep project boundaries explicit, and put reusable behavior in convention plugins. Prefer a small root project that owns build-wide coordination, not source code or hidden mutation. For the operating-side filesystem and project model, see [using-gradle Build Orientation](../../using-gradle/references/build-orientation.md); do not duplicate that first-contact workflow here.

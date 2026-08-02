@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: using-gradle
--->
 # Testing
 
 Authored for AI agents. Provides directive patterns for executing and triaging Gradle tests.

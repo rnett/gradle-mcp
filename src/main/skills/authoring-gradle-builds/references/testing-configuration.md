@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # Testing Configuration
 
 Configure the test model in build definitions. This reference covers framework selection, reporting, permanent test selection, Kotlin Multiplatform (KMP) target configuration, and reusable test fixtures. Hand off test execution, task discovery, `--tests`, failure diagnosis, and report inspection to `using-gradle`.

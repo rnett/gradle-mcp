@@ -17,10 +17,6 @@ metadata:
   author: https://github.com/rnett/gradle-mcp
   version: "1.0.0"
 ---
-<!--
-class: authored-local
-skill: interacting-with-project-runtime
--->
 
 # Persistent JVM/Kotlin REPL for Project Runtime Probing
 

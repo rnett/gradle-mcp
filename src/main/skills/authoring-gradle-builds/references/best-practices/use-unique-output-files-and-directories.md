@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: e2176986dabada24fefe8a53b0a41243eb8957a223088ef620d859b989cb73e5
--->
 # Use unique output files and directories
 Overlapping output files or directories cause tasks to rerun unnecessarily and waste work.  
 

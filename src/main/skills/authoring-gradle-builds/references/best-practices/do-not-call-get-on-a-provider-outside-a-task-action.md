@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: 5c9f0a86f5a74da3384d177c24f02ef370b0f7efe18d0088806d8717e9544c12
--->
 # Do not call `get()` on a Provider outside a Task action
 When configuring tasks and extensions do not call [`get()` (Use `gradle_docs(path="javadoc/org/gradle/api/provider/Provider.md")`.)) on a provider, use [`map()` (Use `gradle_docs(path="javadoc/org/gradle/api/provider/Provider.md")`.)), or [`flatMap()` (Use `gradle_docs(path="javadoc/org/gradle/api/provider/Provider.md")`.)) instead.  
 

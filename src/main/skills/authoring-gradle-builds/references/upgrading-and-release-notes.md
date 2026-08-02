@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # Upgrading and Release Notes
 
 Consult these resources when making version-sensitive changes: wrapper upgrades, API migrations, deprecation fixes, or any change whose behavior differs across Gradle versions.

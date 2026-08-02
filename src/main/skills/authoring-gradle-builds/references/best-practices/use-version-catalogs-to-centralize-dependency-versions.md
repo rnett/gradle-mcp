@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: f7da3908e40f1750bf7cef2a6a180da7576264abac48ba66527f0d81bbc58f37
--->
 # Use Version Catalogs to Centralize Dependency Versions
 Version Catalogs provide a centralized, declarative way to manage dependency versions throughout a build.  
 

@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # Worker API
 
 Use the Worker API to fan out independent, bounded units of task work. A worker action must be self-contained: pass declared, serializable parameters and do not retain `Project`, `Task`, mutable extensions, or other live Gradle model state. Use the Worker API only when parallel work or isolation solves a measured problem; do not replace a normal task action with workers for a small sequential operation.

@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: cc2c56ff3d86f48cbe2ffd9c32c56aa699ba607ef6474c1c50db0f21f8b4b565
--->
 # Declare Dependencies using a single GAV (`group:artifact:version`) String
 When declaring dependencies without a [version catalog (Use `gradle_docs(path="userguide/version_catalogs.md")`.), prefer using the single GAV string notation `implementation("org.example:library:1.0")`. Avoid using the named argument notation. The named argument notation has been deprecated and will no longer be supported starting in Gradle 10.  
 

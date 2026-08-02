@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: 88d2213d61a46798cd2f3903b3f12ce84cb0980d202dc1a113b144a858f0fc59
--->
 # Don't Assume your Plugin is Applied after Another
 Gradle's plugin application is deterministic but opaque. It is difficult to reason about, especially across multiple build scripts, projects, convention plugins, or included builds.  
 As a result, you should not write build logic or plugins that depend on a specific plugin application order.  

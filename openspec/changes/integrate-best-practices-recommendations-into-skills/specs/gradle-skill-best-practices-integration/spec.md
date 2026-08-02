@@ -2,7 +2,7 @@
 
 ### Requirement: Frozen generated corpus preserved
 
-New best-practice guidance SHALL be added alongside the frozen generated corpus in `authoring-gradle-builds/references/best-practices/*.md` and SHALL NOT modify, regenerate, or re-hash any frozen file. New authored content SHALL carry `class: authored-local` and SHALL NOT reside inside the regenerated `best-practices/` directory.
+New best-practice guidance SHALL be added alongside the frozen generated corpus in `authoring-gradle-builds/references/best-practices/*.md` and SHALL NOT modify, regenerate, or re-hash any frozen file. New authored content SHALL NOT reside inside the regenerated `best-practices/` directory and SHALL NOT contain HTML comments or provenance metadata headers.
 
 #### Scenario: Corpus remains byte-identical
 
@@ -49,12 +49,12 @@ Every recommendation in `reports/gradle-best-practices-recommendations.md` SHALL
 
 ### Requirement: Authored best-practice reference materialization
 
-New authored references SHALL carry a `class: authored-local` provenance header, SHALL be reachable from `SKILL.md` through relative links, and SHALL cite documentation through `gradle_docs` hints rather than `docs.gradle.org` or `gradle-mcp.rnett.dev` URLs. Version-sensitive entries SHALL retain a `(version-sensitive)` marker and SHALL require reading the wrapper version before application.
+New authored references SHALL be reachable from `SKILL.md` through relative links, SHALL NOT contain HTML comments or provenance metadata headers, and SHALL cite documentation through `gradle_docs` hints rather than `docs.gradle.org` or `gradle-mcp.rnett.dev` URLs. Version-sensitive entries SHALL retain a `(version-sensitive)` marker and SHALL require reading the wrapper version before application.
 
 #### Scenario: Authored reference is reachable
 
-- **WHEN** a new authored-local reference is added
-- **THEN** it has the required provenance header and a relative link from `SKILL.md`
+- **WHEN** a new authored reference is added
+- **THEN** it has a relative link from `SKILL.md` and contains no HTML comments or provenance metadata header
 - **AND** `checkReferenceReachability` reports no dead reference link
 
 #### Scenario: Version-sensitive guidance is checked

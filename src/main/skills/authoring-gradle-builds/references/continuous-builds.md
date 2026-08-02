@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # Continuous Builds
 
 Author a build so `--continuous` can re-run a task when a declared input changes. Continuous execution is a Gradle runtime feature, not a second incremental-build model: the watcher observes the task graph's declared inputs and Gradle decides whether the task is out-of-date, up-to-date, or from-cache.

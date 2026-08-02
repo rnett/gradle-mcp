@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: using-gradle
--->
 # Gradle & Dependency Research
 
 Authoritative workflow for researching official documentation, Gradle internals, and the dependency source graph.

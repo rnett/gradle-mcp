@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: abeecfdee62418f4ddfa0cf91afabf14c6703fae6f71f25e336e400873d87cc5
--->
 # Avoid using eager APIs on File Collections
 When working with Gradle's file collection types, be careful to avoid triggering dependency resolution during the configuration phase.  
 

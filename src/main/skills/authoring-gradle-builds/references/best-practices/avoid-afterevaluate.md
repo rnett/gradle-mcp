@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: f59bcf757ba20bdd23a22d96822fc668956531a436b12d8b75cd775b1b0d0f1b
--->
 # Avoid `afterEvaluate`
 Do not use [`project.afterEvaluate {}` (Use `gradle_docs(path="javadoc/org/gradle/api/Project.md")`.)) to configure tasks, wire properties, or react to plugin application. Use [lazy properties (Use `gradle_docs(path="userguide/properties_providers.md")`.) and [`pluginManager.withPlugin()` (Use `gradle_docs(path="javadoc/org/gradle/api/plugins/PluginManager.md")`.)) instead.  
 

@@ -1,7 +1,3 @@
-<!--
-class: authored-local
-skill: authoring-gradle-builds
--->
 # Dependency Locking
 
 Use dependency locking when reproducibility matters more than automatically receiving newly published versions. A lock records the resolved module versions for a configuration. It does not replace declared constraints, repository policy, dependency verification, or a deliberate upgrade process.

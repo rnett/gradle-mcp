@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: 859c49b5adb6f1c3f5d47cc6a1a75fffc21b0e1ef0711fae8c3a656a811b7e7b
--->
 # Use UTF-8 File Encoding
 Set `UTF-8` as the default file encoding to ensure consistent behavior across platforms.  
 

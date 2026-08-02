@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: 73869c8983274ee5db494f42efc868f9a69e451173c162b32e438f05c6d847e4
--->
 # Gradle Best Practices Index
 
 Generated from Gradle 9.6.1 documentation.

@@ -1,9 +1,3 @@
-<!--
-class: generated
-generator: best-practices
-gradle-version: 9.6.1
-hash: efbadb38168d2bedac122d37fa291a39845533e99488ee683d805e5644c36ce2
--->
 # Avoid Redundant Dependency Declarations
 Avoid declaring the same dependency multiple times, especially when it is already available transitively or through another configuration.  
 
