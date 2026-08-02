@@ -28,7 +28,7 @@ jobs:
             25
 
       - name: Set up OSS Community Develocity Instance for Gradle
-        uses: gradle/actions/setup-gradle@v6.2.0
+        uses: gradle/actions/setup-gradle@v6.3.0
         with:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
           develocity-access-key: community.develocity.cloud=${{ secrets.DEVELOCITY_ACCESS_KEY }}
@@ -62,7 +62,7 @@ jobs:
             25
 
       - name: Set up OSS Community Develocity Instance for Gradle
-        uses: gradle/actions/setup-gradle@v6.2.0
+        uses: gradle/actions/setup-gradle@v6.3.0
         with:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
           develocity-access-key: community.develocity.cloud=${{ secrets.DEVELOCITY_ACCESS_KEY }}
