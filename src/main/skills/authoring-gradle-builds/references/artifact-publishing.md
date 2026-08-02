@@ -29,6 +29,12 @@ java {
 
 Do not add `sourcesJar` or `javadocJar` tasks manually when the Java plugin already provides these options. Keep shared plugin and version policy in the existing convention-plugin or version-catalog structure rather than duplicating it in each publication script. See the frozen corpus entry [Use Kotlin DSL](best-practices/use-kotlin-dsl.md) for the project-wide authoring default and [Use the latest minor version of Gradle](best-practices/use-the-latest-minor-version-of-gradle.md) for version currency.
 
+## Preserve module metadata and reproducible archives
+
+Publish from the relevant component, for example `from(components["java"])`, and keep Gradle Module Metadata (`.module`) alongside the POM or Ivy metadata so consumers retain variant and capability information. Prefer Gradle's reproducible archive defaults; do not add timestamp or ordering workarounds unless the target wrapper's documentation requires them. Configure publication metadata lazily, before the publication is created; eager publication APIs were removed in Gradle 9.0.
+
+**Version-sensitive field-guide rule:** Read `gradle/wrapper/gradle-wrapper.properties` before applying these rules.
+
 ## Define a complete Maven publication
 
 Create the publication from the Java component. Set coordinates from the project model or the existing convention; do not hard-code a second, conflicting version source. The Central Portal validates POM metadata, so provide all required identity and provenance fields.

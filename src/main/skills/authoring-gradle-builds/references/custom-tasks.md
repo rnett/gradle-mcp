@@ -145,6 +145,8 @@ taskB.configure {
 
 **Default:** Use `mustRunAfter` for strict ordering of independent tasks. Use `shouldRunAfter` for preferred ordering that Gradle can ignore to avoid cycles. Use finalizer tasks (via `finalizedBy`) to ensure cleanup or reporting occurs even after a task fails.
 
+**Task contracts:** Use `onlyIf` only for deterministic, cheap eligibility checks; do not perform expensive I/O or use it to compensate for missing task inputs or outputs. A `finalizedBy` finalizer runs even when the finalized task is skipped or has no source, so use finalizers for cleanup or reporting, never for data flow. Model producer-consumer relationships with inputs and outputs instead.
+
 **Anti-pattern:** Use `dependsOn` for a "run this first" constraint; this forces the dependency to run every time, which can break lazy registration and prolong build times. Do not define circular ordering constraints; Gradle will fail the build if a cycle is detected.
 
 ## Incremental Task Model
@@ -183,11 +185,13 @@ Ensure tasks are deterministic to maximize cache hits. A task is cacheable if it
 
 **Default:** Apply `@CacheableTask` only to deterministic tasks. Use path sensitivity (`@PathSensitivity`) to decide if the absolute path of an input should affect the cache key. Prefer `RELATIVE` for directories and `NONE` for content-only matching.
 
-**Anti-pattern:** Use `@CacheableTask` on tasks that rely on system environment variables, wall-clock time, or undeclared project-state; this leads to "cache poisoning" where incorrect results are served to other developers.
+**Anti-pattern:** Use `@CacheableTask` on tasks that rely on system environment variables, wall-clock time, or undeclared project-state; this leads to "cache poisoning" where incorrect results are served to other developers. Do not upload untrusted outputs or outputs from overlapping writers to a shared build cache.
 
 See [Managed Types and Providers](managed-types-and-providers.md) for wiring inputs lazily to maintain cacheability.
 
 ### Version notes
+
+Before applying version-sensitive task or cache guidance, read `gradle/wrapper/gradle-wrapper.properties` and verify the exact wrapper version.
 
 - **Gradle 9.x:** Lazy registration, provider wiring, task input/output modeling, and explicit lifecycle-only `dependsOn` are current best-practice defaults. Configuration cache is stable but remains build/plugin-specific.
 - **Gradle 8.x:** The same APIs apply; configuration cache is stable from 8.1, while 8.0 requires compatibility testing.

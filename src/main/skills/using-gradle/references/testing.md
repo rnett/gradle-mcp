@@ -34,6 +34,10 @@ Use `--tests` to filter the test set.
 - **Android**: Distinguish `test` unit tests from `connectedCheck`/`androidTest` instrumented tests.
 - Confirm the selected task's executed-test count and report before claiming a filtered run passed.
 
+### Discovery and worker topology
+
+Use `--test-dry-run` to verify that the intended tests are discovered before relying on a green task. **Wrapper check:** Gradle 9.0 can silently pass an empty discovery, so treat zero discovered tests as a failed verification even when the task is green. Set `forkEvery` and `maxParallelForks` deliberately for isolation and throughput; a low `forkEvery` is not a cure for flaky tests. Custom JVM test suites may not be wired into `check`, so inspect the task graph and run the suite task explicitly.
+
 ## Failure Investigation Workflow
 
 ### 1. Isolate and Identify

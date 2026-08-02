@@ -31,6 +31,8 @@ Treat repositories as a first-class inspection topic before interpreting a depen
 3. Record repository order and content filters. Order affects which repository supplies metadata or artifacts; filters explain why a repository was or was not considered.
 4. Use `dependencies` to inspect the resolved tree and `dependencyInsight` to explain selection and provenance for a specific artifact.
 
+For existing builds, treat centralized settings repositories as the expected repository invariant. If project repositories violate that invariant or repository declarations need authoring, route the correction to `authoring-gradle-builds` rather than changing build structure here.
+
 Settings-level repository management and content filtering exist across Gradle 7/8/9. Verify the wrapper and settings before asserting `FAIL_ON_PROJECT_REPOS`; do not assume project repositories are forbidden merely because settings declares repositories.
 
 ## Graph Audit via `inspect_dependencies`
@@ -83,6 +85,16 @@ When a conflict is detected, choose a resolution strategy based on the intent:
 
 A resolved dependency graph is time-, repository-, and cache-dependent. A direct declaration is not necessarily the selected runtime version.
 
+### Field-guide rule: Dependency cache TTL is not `--refresh-dependencies`
+
+Read `gradle/wrapper/gradle-wrapper.properties` before applying version-sensitive cache advice. Dynamic versions and changing modules normally use a 24-hour metadata cache TTL unless the build overrides it. `--refresh-dependencies` asks configured repositories to recheck metadata, but it does not force every task to execute and does not make a changing dependency reproducible.
+
+```json
+{"commandLine":[":app:dependencies","--configuration","runtimeClasspath","--refresh-dependencies"]}
+```
+
+Do not rerun the same command and assume remote metadata was checked again.
+
 | Scenario | Observable Symptom | Action |
 | :--- | :--- | :--- |
 | **Dynamic/SNAPSHOT cache** | Newer publication exists but the graph shows an older result. | Use `--refresh-dependencies` for an intentional online refresh; record the refresh and exact selected version. The documented default TTL for dynamic/changing modules is 24 hours unless the build overrides it. |
@@ -91,6 +103,10 @@ A resolved dependency graph is time-, repository-, and cache-dependent. A direct
 | **Repository order** | Same GAV changes after repository additions or reordering. | Record repository declarations and order, preserve existing order during diagnosis, and compare with a refresh; coordinates alone do not prove artifact provenance. |
 
 **Anti-pattern**: Re-running commands and assuming Gradle re-checks dynamic metadata immediately, or forcing a version before reading the resolution path.
+
+### Locking and verification
+
+`gradle.lockfile` pins the resolved versions for declared configurations. `gradle/verification-metadata.xml` authenticates artifact bytes and publisher identity. Locking and verification are different controls; neither replaces the other. Keep strict verification enabled. NEVER use `--dependency-verification=off` or lenient mode to unblock a build: missing metadata, bad checksums, or untrusted signatures require review.
 
 ### Checking for Stable Updates
 

@@ -43,7 +43,25 @@ Inspects, executes, diagnoses, and researches existing Gradle builds using manag
 - **ALWAYS** read the task outcome (`UP-TO-DATE`, `FROM-CACHE`, `SKIPPED`, etc.); a green result with zero execution is unproven.
 - **ALWAYS** read the wrapper version (`gradle/wrapper/gradle-wrapper.properties`) before applying version-specific advice.
 - **NEVER** guess task names; use `help --task <name>` for authoritative documentation.
-- **Handoff**: Route structural build edits, compiler-option configuration, and testing-framework configuration to `authoring-gradle-builds`.
+- **Handoff**: Route structural build edits, compiler-option configuration, and testing-framework configuration to `authoring-gradle-builds`; see [Cross-Skill Handoffs](#cross-skill-handoffs).
+
+## Always-Loaded Operational Footguns
+
+These rules are intentionally compact. Follow the linked authored reference for the evidence, snippets, and version-scoped `gradle_docs` guidance.
+
+- **Model initialization, configuration, and execution separately.** Read settings and build structure as initialization, distinguish model construction from selected task actions, and do not treat configuration output as proof of execution. See [Running Builds](references/running-builds.md).
+- **Interpret task outcomes before claiming work occurred.** Check `EXECUTED`, `UP-TO-DATE`, `FROM-CACHE`, `NO-SOURCE`, `SKIPPED`, and `EXCLUDED`; a green build can perform no action. See [Running Builds](references/running-builds.md).
+- **Use `--continue` only for failure inventory.** It can run independent tasks after a failure, but dependent work is not proof of success. See [Running Builds](references/running-builds.md).
+- **Use `--offline` only when cached-only operation is intentional.** It can reuse stale metadata and artifacts; distinguish dependency-cache state from task and configuration-cache state. See [Dependencies](references/dependencies.md).
+- **Respect dependency cache TTL versus `--refresh-dependencies` (version-sensitive).** Read the wrapper first; the default dynamic/changing-module TTL is distinct from an intentional metadata refresh, and refresh does not rerun every task. See [Dependencies](references/dependencies.md).
+- **Use `--warning-mode=fail` as a migration gate, not a default.** Start with `--warning-mode=all` to collect evidence, then enable failure only when deprecations are an explicit gate. See [Running Builds](references/running-builds.md).
+- **Match daemon identity before using `--status` or `--stop`.** Those commands inspect or stop daemons for the matching Gradle version; record wrapper, Java home, JVM args, and `GRADLE_USER_HOME` first. See [Troubleshooting](references/troubleshooting.md).
+- **Pin and verify the Wrapper.** Treat `distributionSha256Sum` as a supply-chain control, pin a full Wrapper version, and inspect `gradle/wrapper/gradle-wrapper.properties` before trusting a downloaded distribution. See [Troubleshooting](references/troubleshooting.md).
+- **Treat `--scan` as metadata publication.** Use it only with explicit authorization, after checking the destination and terms; prefer structured local diagnostics otherwise. See [Troubleshooting](references/troubleshooting.md).
+- **Treat `--no-daemon` as a possible single-use daemon, not no JVM.** Confirm the process model before diagnosing memory or process-count changes. See [Running Builds](references/running-builds.md).
+- **Never disable strict dependency verification** to unblock a build; review missing metadata, checksums, or signatures instead. See [Dependencies](references/dependencies.md).
+- **Verify test discovery, not only task success.** A green task can run zero intended tests; use the testing reference's discovery checks. See [Testing](references/testing.md).
+- **A configuration-cache warning can still pass.** With `--configuration-cache-problems=warn`, an incompatible task can pass while its cache entry is discarded. See [Troubleshooting](references/troubleshooting.md).
 
 ## First Contact with a Build
 
@@ -75,7 +93,7 @@ Inspects, executes, diagnoses, and researches existing Gradle builds using manag
 1. **Add Entry**: Add version and library to `gradle/libs.versions.toml`.
 2. **Declare**: Add dependency to `build.gradle.kts` (e.g., `implementation(libs.library.name)`).
 3. **Verify**: Run `inspect_dependencies` to confirm resolution.
-*Anything structural (plugins, repositories, modules, toolchains, publishing, CI, compiler options, or testing frameworks) $\rightarrow$ hand off to `authoring-gradle-builds`.*
+*Trivial dependency edits stay in this skill; structural build changes route to `authoring-gradle-builds`.*
 
 ## Reference Discovery
 
@@ -97,7 +115,7 @@ Read the linked references as part of the workflow: use [Build Orientation](refe
 
 1. Identify missing/incorrect config using inspection tools.
 2. If the change is a trivial dependency edit, update the version-catalog entry and library declaration in this skill, then verify resolution with `inspect_dependencies`.
-3. If the change is structural (plugins, repositories, modules/subprojects, toolchains, publishing, CI, compiler options, or testing frameworks), hand off to `authoring-gradle-builds`.
+3. If the change is structural (plugins, repositories, modules/subprojects, toolchains, publishing, CI, compiler options, or testing frameworks), follow the authoritative handoff in [Constitution](#constitution).
 4. Verify the fix with a fresh build.
 
 ### Everyday Dependency Edit

@@ -30,6 +30,12 @@ gradlePlugin {
 
 **Anti-pattern:** Manually author plugin descriptors or marker JARs, use non-unique IDs that might collide with community plugins, or apply the plugin via `apply(plugin = "...")` in modern builds instead of the `plugins {}` block.
 
+## Plugin API dependencies and diagnostics
+
+In plugin projects, use `compileOnlyApi` for `gradleApi()` on Gradle 9.4 and later so the Gradle API is available to plugin consumers at compile time without being bundled on the plugin runtime classpath. Report actionable plugin diagnostics through the Problems API, including a stable problem ID, details, severity, solution, and documentation link; throw only when continuing is unsafe.
+
+**Version-sensitive field-guide rule:** Read `gradle/wrapper/gradle-wrapper.properties` before applying the Gradle 9.4+ rule.
+
 ## Extensions and Task Validation
 
 Expose a public extension API to allow consumers to configure your plugin's behavior. Use managed properties for the extension and validate task properties to ensure the plugin fails fast with clear error messages.
@@ -108,6 +114,10 @@ class MyPluginTest {
 **Anti-pattern:** Use unit tests to mock the `Project` or `Task` objects (which often leads to "success" in tests that fail in real builds), avoid temporary project directories, or omit task-outcome assertions.
 
 See [Testing Configuration](testing-configuration.md) for consumer-side test setup; this section focuses strictly on the plugin author's functional verification.
+
+## Init and precompiled script plugin boundaries
+
+Use init plugins only for truly global machine, enterprise, or invocation-wide policy. In precompiled plugin `plugins {}` blocks, do not use `version(...)` or `apply false`; put external plugin versions on the precompiled build's implementation classpath instead. Do not specify versions in precompiled Settings plugins.
 
 ## Publishing Plugins
 

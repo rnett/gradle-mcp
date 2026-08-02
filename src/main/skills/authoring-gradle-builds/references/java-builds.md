@@ -79,6 +79,12 @@ tasks.withType<JavaCompile>().configureEach {
 
 **This is prohibited:** Adding annotation processors to `implementation` or `api`. This pollutes the runtime classpath with build-time tools.
 
+## Java execution and application boundaries
+
+Use the `application` plugin for runnable distributions and configure `mainClass`; use `JavaExec` for focused execution. Gradle 9.0 changed the toolchain boundary for `JavaExec`, so verify which toolchain launches the process instead of assuming it follows compilation automatically.
+
+**Version-sensitive field-guide rule:** Read `gradle/wrapper/gradle-wrapper.properties` before applying the Gradle 9.0 `JavaExec` rule.
+
 ## Mixed JVM Languages
 
 Gradle supports joint compilation of Java, Kotlin, and Groovy. The build is structured to allow these languages to depend on each other.

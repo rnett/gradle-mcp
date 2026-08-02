@@ -22,7 +22,7 @@ Do not apply "nearest file wins" folklore. First classify the value, then identi
 
 **Anti-pattern:** infer one effective value from one file, or treat a user-home setting as evidence of project reproducibility.
 
-**Version notes:** The mechanisms exist across Gradle 7, 8, and 9, but precedence and parsing details are wrapper-version concerns. Read the wrapper before applying current 9.x guidance; for Gradle 7.x, verify the exact user guide page for the wrapper minor.
+**Gradle 9.4 wrapper check:** Read `gradle/wrapper/gradle-wrapper.properties` before applying precedence guidance. Wrapper properties control wrapper bootstrap and are not another Gradle property source; once the wrapper launches Gradle, use the documented command-line, system-property, Gradle-property, and environment-variable precedence for the build.
 
 **More info:**
 - `gradle_docs`: `tag:userguide`, path `userguide/build_environment.md`, terms `Priority for configurations`, `Available mechanisms`
@@ -87,6 +87,8 @@ Classify the failing JVM before changing memory, Java versions, or flags.
 | Test worker or application JVM | Test task worker settings, `JavaExec`/application settings, plugin-specific configuration | The Gradle daemon heap. Authoring changes belong to `authoring-gradle-builds`. |
 
 `org.gradle.jvmargs` tunes the Gradle build and daemon JVM. It does **not** tune forked test workers or application JVMs. `JAVA_OPTS` tunes the client JVM. `GRADLE_OPTS` is a Gradle process-startup channel and is not a substitute for `org.gradle.jvmargs`. `org.gradle.java.home` selects a Gradle JVM for the build when supported; project toolchains select JDKs for compilation and related tasks. Keep these diagnoses separate.
+
+Toolchain provisioning is a repository, vendor, and platform problem as well as a Gradle configuration problem. Verify the provisioning source, vendor availability, platform/architecture support, network or credentials, and the resolved JDK before changing build logic.
 
 **Do this:** compare `JAVA_HOME`, `org.gradle.java.home`, `org.gradle.jvmargs`, `GRADLE_OPTS`, daemon identity, and the project toolchain independently. Change only the owner of the failing process.
 

@@ -98,6 +98,10 @@ include(":app", ":core")
 
 **Anti-pattern:** Include every directory, create a placeholder `build.gradle.kts` to silence discovery, or put application/library source in the root project.
 
+## Settings properties and included directories
+
+Pass project properties with `-Pname=value` or `ORG_GRADLE_PROJECT_name=value`; include them in the property-precedence review before relying on an environment or command-line override. Gradle 9.0 fails when an included build or included project directory is missing or read-only, so validate those directories during authoring rather than treating them as optional placeholders.
+
 ## Project Isolation
 
 Project isolation is an experimental Gradle mode that isolates mutable project state so Gradle can configure projects independently. Enable diagnostics deliberately for Gradle 9.x builds:
@@ -148,7 +152,8 @@ All projects may still be configured in isolated-projects mode. Configuration-on
 
 ### Version notes
 
-- **Gradle 9.x:** Project isolation is experimental, and diagnostics and supported APIs can change between 9.x minors. Use the current wrapper's version-scoped documentation before enabling it broadly.
+- **Gradle 9.x:** Project isolation is experimental, and diagnostics and supported APIs can change between 9.x minors. Read the current wrapper before enabling it: **Version-sensitive field-guide rule:** Read `gradle/wrapper/gradle-wrapper.properties` before applying the `org.gradle.unsafe.isolated-projects` rule.
+- **Gradle 9.6:** Hidden parent-project property lookup is warned about and is slated for removal; use explicit property ownership and project wiring instead.
 - **Gradle 8.x:** Do not enable the experimental flag as a baseline. Use decoupled project logic and configuration-cache-compatible providers as the fallback.
 - **Gradle 7.x:** Use explicit project dependencies, task inputs, and provider wiring. Do not rely on project-isolation support; preserve decoupling for future migration.
 

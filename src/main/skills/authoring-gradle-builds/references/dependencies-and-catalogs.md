@@ -183,6 +183,12 @@ repositories {
 - Repository declaration: `gradle_docs` `tag:userguide`, path `userguide/declaring_repositories.md`
 - Approved patterns: [Set up your Dependency Repositories in the Settings file](best-practices/set-up-your-dependency-repositories-in-the-settings-file.md) and [Use Content Filtering with multiple Repositories](best-practices/use-content-filtering-with-multiple-repositories.md).
 
+## Dependency verification and supply chain
+
+Locking and verification solve different problems: `gradle.lockfile` pins resolved versions, while `gradle/verification-metadata.xml` authenticates artifact bytes and publisher identity. Enable strict verification, review metadata changes, and never use `--dependency-verification=off` or lenient mode to unblock a build. Repository content filters narrow candidates but do not provide exclusivity; do not trust a shared writable dependency cache across trust boundaries. Validate the wrapper distribution checksum and wrapper JAR as part of bootstrap. For the detailed security rationale, read [Best Practices for Security](best-practices/best-practices-for-security.md).
+
+**Version-sensitive field-guide rule:** Read `gradle/wrapper/gradle-wrapper.properties` before applying a version-sensitive entry.
+
 ## Constraints and Conflict Resolution
 
 Use a constraint to influence a module's version without adding the module to the dependency graph:

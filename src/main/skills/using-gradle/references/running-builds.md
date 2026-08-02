@@ -37,7 +37,10 @@ Returns a `BuildId` immediately. Use the following monitor sequence:
 **Anti-pattern**: Leaving background builds running after the task is complete.
 
 ### Continuous Builds
-Background mode with the `--continuous` flag. Wait for `"Waiting for changes"` via `wait_build`.
+Background mode with the `--continuous` flag. `--continuous` reacts only to declared inputs, so undeclared files or external state do not trigger a rebuild. Wait for `"Waiting for changes"` via `wait_build`.
+
+### Performance and parallelism
+Separate configuration time, task execution, dependency resolution, cache outcomes, and daemon-JVM behavior before concluding where build time went. For CI reproducibility, pin the full Wrapper version, JDK, project toolchain, and dependency versions before increasing parallelism. Use `--parallel` only when projects do not share mutable state.
 
 ## Task Path Syntax (Surgical Home)
 
@@ -59,7 +62,7 @@ The underlying Gradle command model is `gradle [tasks...] [options...]`. Options
 {"commandLine":["--dry-run","build"]}
 ```
 
-Built-in options control Gradle execution (`--stacktrace`, `--dry-run`, `--build-cache`, `--console=verbose`). Task-specific options belong to the named task (`--tests=...`, `--args=...`); do not treat them as global switches. Direct `./gradlew` or `gradlew.bat` invocation is the documented fallback only when no MCP Gradle tooling is available.
+Built-in options control Gradle execution (`--stacktrace`, `--dry-run`, `--build-cache`, `--console=verbose`). Task-specific options belong to the named task (`--tests=...`, `--args=...`); do not treat them as global switches. Always invoke these controls through the MCP `gradle` tool's `commandLine` array; the examples here are not shell instructions.
 
 ## Inspection Loop
 
@@ -67,6 +70,12 @@ Built-in options control Gradle execution (`--stacktrace`, `--dry-run`, `--build
 2. Run `help --task <path>` through `commandLine` to read authoritative task options and behavior.
 3. Run `--dry-run` (short form `-m`) through `commandLine` against the intended task to preview which tasks **would** run and in what order.
 4. Run the task through `commandLine`, then verify transitive prerequisites, task outcomes, and the selected project/variant.
+
+### Task outcome evidence
+
+Inspect every selected task outcome before concluding that work occurred. `EXECUTED` proves the task action ran; `UP-TO-DATE` and `FROM-CACHE` prove that Gradle reused a valid result; `NO-SOURCE`, `SKIPPED`, and `EXCLUDED` prove that no task action produced work. A green lifecycle task with only non-executed outcomes is not evidence that the requested operation ran.
+
+`--continue` is a failure-inventory control: independent tasks may run after a failure, but dependent tasks are not proof of success. Use a fresh targeted run to verify a fix.
 
 Classify lifecycle tasks such as `build`, `check`, and `assemble` as graph entry points. Classify action tasks such as `compileKotlin`, `test`, or `run` as concrete work; names are plugin/project-specific, so discover them first.
 
@@ -92,7 +101,7 @@ Use these standard tasks as entry points:
 | `--dry-run` | Prints the task graph without executing actions. | Use to verify path selectors and task inclusion. |
 | `--offline` | Forces use of local cache only. | Use only when network absence is intentional; it may reuse stale dependencies. |
 | `--refresh-dependencies` | Forces remote check for dynamic/SNAPSHOT deps. | Use for intentional freshness diagnosis. |
-| `--parallel` | Executes independent projects in parallel. | Standard for multi-project builds. |
+| `--parallel` | Executes independent projects in parallel. | Use only when projects have no shared mutable state; first pin the Wrapper, JDK, toolchain, and dependency versions for reproducible comparisons. |
 | `--stacktrace` | Provides full JVM stack traces on failure. | Essential for build-logic debugging. |
 | `--info` / `--debug` | Increases log verbosity. | Use `--info` first; `--debug` is extremely noisy. |
 | `-P<name>=<val>` | Sets a project property. | Standard way to pass build-time config. |

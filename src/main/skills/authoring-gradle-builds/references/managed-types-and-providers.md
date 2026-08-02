@@ -34,11 +34,22 @@ tasks.register<MyTask>("myTask") {
 
 **Anti-pattern:** Call `.get()` or `.getOrElse()` during the configuration phase to compute another property; use `map` or `flatMap` instead.
 
+### `ProviderFactory.provider` is a configuration-time bridge
+
+`ProviderFactory.provider { }` (and `Project.provider { }`) wraps a computation in a `Provider`, but the lambda is a configuration-time bridge and may be evaluated eagerly. Do not use it to defer file I/O, network calls, process execution, or other execution work; use a task input and read it in the task action instead.
+
+```kotlin
+val configuredValue = providers.provider { readConfigurationFile() } // Configuration-time computation
+// For execution work, wire a task input and call the injected service from @TaskAction.
+```
+
 See [Do not call `get()` on a Provider outside a Task action](best-practices/do-not-call-get-on-a-provider-outside-a-task-action.md) for the rationale on avoiding premature realization.
 
-## set vs convention vs finalizeValue
+### Field-guide rule: Distinguish `set(null)` from an absent provider
 
-Use `convention()` to define a default that can be overridden. Use `set()` to either provide a fixed value or wire a provider. Use `finalizeValue()` to lock a property so subsequent attempts to change it are ignored.
+## set vs convention vs finalization
+
+Use `convention()` to define a default that can be overridden and `set()` to provide a fixed value or wire a provider. Prefer `finalizeValueOnRead()` when the property should become fixed at its first read, or `disallowChanges()` when configuration should close at a deliberate boundary. Use `finalizeValue()` only when immediate finalization and disposal of the value's source are intentional.
 
 ```kotlin
 abstract class MyExtension {
@@ -48,12 +59,13 @@ abstract class MyExtension {
 // In plugin apply logic:
 extension.outputDir.convention(layout.buildDirectory.dir("outputs"))
 extension.outputDir.set(layout.projectDirectory.dir("custom-out")) // Overrides convention
-extension.outputDir.finalizeValue() // Locks the value
+extension.outputDir.finalizeValueOnRead() // Finalizes when first read
+// Use disallowChanges() when the configuration boundary is explicit.
 ```
 
-**Default:** Apply conventions in plugin code so users have a sensible default. Use `finalizeValue()` for properties that must not be changed after a certain point in the configuration lifecycle.
+**Default:** Apply conventions in plugin code so users have a sensible default. Prefer `finalizeValueOnRead()` or `disallowChanges()` according to when the value must stop changing; reserve `finalizeValue()` for deliberate immediate finalization.
 
-**Anti-pattern:** Use `set()` for defaults, which prevents users from providing their own values without knowing the original default.
+**Anti-pattern:** Use `set()` for defaults, which prevents users from providing their own values without knowing the original default, or finalize immediately merely to prevent later configuration.
 
 ## Scalar, File, and Collection Properties
 
@@ -105,6 +117,8 @@ abstract class MyNamedDomainObject {
 **Default:** Declare managed properties as `abstract` in classes inheriting from `DefaultTask` or other managed types. Use `NamedDomainObjectContainer` to manage a collection of uniquely named objects.
 
 **Anti-pattern:** Use `new MySettings()` or `MySettings()` inside a task or extension; this breaks the managed lifecycle and configuration cache compatibility.
+
+**Field-guide rule: Use provider-backed managed model types.** Abstract managed properties created through Gradle's `ObjectFactory` preserve lifecycle, validation, and caching semantics that ordinary mutable fields do not.
 
 ## Collections and Containers
 

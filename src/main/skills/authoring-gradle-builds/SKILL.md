@@ -63,6 +63,21 @@ Author or modify Gradle build definitions, build logic, project structure, and d
 - Never resolve configurations in the configuration phase; resolve through task inputs or task execution (`best_practices_tasks.md`).
 - Do not call `Provider.get()` while configuring unrelated work; wire [Managed Types and Providers](references/managed-types-and-providers.md) with `Provider` and `Property` values lazily (`properties_providers.md`, `best_practices_tasks.md`).
 - Prohibit `afterEvaluate`; use providers, `pluginManager.withPlugin`, and lazy APIs. Permit it only for a documented correctness-critical ordering constraint, with an `afterEvaluate-justification:` comment (`best_practices_general.md`).
+
+## Always-Loaded Best-Practice Footguns
+
+These compact rules are loaded before any authoring reference. Links provide detailed rationale or, where available, the frozen generated detail; use the linked reference for the procedural guidance.
+
+- **Model initialization, configuration, and execution separately.** Phase boundaries are easy to blur, and the resulting ordering and performance bugs are often silent. See [Build Lifecycle](references/build-lifecycle.md).
+- **Keep expensive work out of configuration.** Unselected tasks still pay configuration-time costs, which makes this mistake hard to spot from a successful build. See [Build Lifecycle](references/build-lifecycle.md).
+- **Use configuration avoidance throughout the model.** Eager APIs look harmless but silently realize tasks and domain objects before they are needed. See [Custom Tasks](references/custom-tasks.md).
+- **Propagate laziness with providers and managed properties.** Provider-looking values can still be realized too early, losing provenance and cache inputs. See [Managed Types and Providers](references/managed-types-and-providers.md).
+- **Read providers only at an execution boundary.** Configuration-time reads can work in simple builds while breaking laziness or cache behavior in larger ones. See [Custom Tasks](references/custom-tasks.md).
+- **Use provider-backed managed model types.** Ad hoc mutable fields hide validation, lifecycle, and caching semantics that Gradle must observe. See [Managed Types and Providers](references/managed-types-and-providers.md).
+- **Use public APIs and injected services only.** Internal types often appear convenient until an upgrade exposes an undocumented compatibility break. See [Advanced Configuration](references/advanced-configuration.md).
+- **Wire cross-project behavior through model relationships.** Callback-based mutation depends on evaluation order and becomes hostile to project isolation. See [Convention Plugins](references/convention-plugins.md).
+- **Avoid `afterEvaluate` and `projectsEvaluated` as configuration mechanisms (version-sensitive).** Their timing can appear to repair ordering while masking a model relationship that should be explicit; read the wrapper first. See [Build Lifecycle](references/build-lifecycle.md).
+- **Distinguish `set(null)` from an absent provider.** Both represent "no value" at a glance, but only one lets a convention apply. See [Managed Types and Providers](references/managed-types-and-providers.md).
 - Operation/execution (running builds, running tests, diagnosing failures, and read-only dependency inspection/update discovery) belongs to `using-gradle`; authoring/modifying build definitions (including dependency declarations and version catalogs) belongs to `authoring-gradle-builds`. Trivial one-line everyday dependency edits (catalog entry + declaration + version bump) are a sanctioned overlap in `using-gradle`; anything structural (plugins, repositories, modules, toolchains, publishing, CI) is `authoring-gradle-builds` only.
 
 ## Decision Routing

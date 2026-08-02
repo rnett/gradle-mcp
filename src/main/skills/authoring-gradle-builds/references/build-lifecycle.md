@@ -39,6 +39,15 @@ tasks.register("echoLifecycle") {
 
 **Default:** Keep build scripts focused on registering tasks and wiring providers. Only perform actual work inside `@TaskAction` or `doLast` blocks.
 
+### Field-guide rule: Keep expensive work out of configuration
+
+All participating scripts are evaluated while Gradle builds the task graph, so file I/O, network calls, process execution, and CPU-heavy work for an unselected task still run. Register the task and wire its inputs during configuration, then perform the work at the execution boundary.
+
+```kotlin
+tasks.register("generate") { doLast { generateExpensiveOutput() } }
+// Don't: output = generateExpensiveOutput()
+```
+
 **Anti-pattern:** Perform expensive computations, network calls, or file system modifications at the top level of a build script. This slows down every build, including those where the task is not executed.
 
 See [Avoid expensive computations in the configuration phase](best-practices/avoid-expensive-computations-in-configuration-phase.md) for the performance rationale.
@@ -68,12 +77,16 @@ tasks.register("taskA") {
 Lifecycle hooks allow you to react to build events, but they are often misused as ordering repairs.
 
 ### Configuration-time Hooks
+
 - `project.afterEvaluate { ... }`: Fires after the current project's build script has been fully evaluated.
 - `gradle.taskGraph.whenReady { ... }`: Fires after the full task graph has been calculated but before any task executes.
+- `gradle.beforeProject { ... }` / `gradle.afterProject { ... }`: React to project configuration callbacks.
 
 **This is prohibited:** Use `afterEvaluate` to fix "task not found" errors or to synchronize model state across projects. Prefer `pluginManager.withPlugin`, lazy `Property` wiring, or the `Provider` API.
 
-See [Avoid `afterEvaluate`](best-practices/avoid-afterevaluate.md) for the prohibition rationale.
+**Callback contract:** `beforeProject`, `afterProject`, and related callback ordering are implementation details, not dependency-injection contracts. Do not rely on their timing to make values or services appear in another project's model.
+
+**Version-sensitive field-guide rule:** Read `gradle/wrapper/gradle-wrapper.properties` before applying the explicit avoid-`afterEvaluate` recommendation. The general lifecycle warning applies across 9.x, while the explicit best-practice entry was added in Gradle 9.6.0.
 
 ### Execution-time Listeners
 - `TaskExecutionListener` / `TaskActionListener`: Provide callbacks during task execution.

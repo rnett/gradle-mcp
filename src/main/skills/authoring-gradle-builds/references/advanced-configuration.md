@@ -6,8 +6,10 @@ skill: authoring-gradle-builds
 
 Use this reference when authoring service-injected tasks or plugins, shared build services, value sources, or configuration-cache-compatible build logic. Prefer the latest Gradle 9.x APIs, but preserve the fallbacks in the compatibility notes when the wrapper targets Gradle 7 or 8.
 
+**Version-sensitive field-guide rule:** Read `gradle/wrapper/gradle-wrapper.properties` before applying version-sensitive advanced-configuration guidance, including parallel-execution settings.
 ## Non-negotiable defaults
 
+- **Field-guide rule: Use public APIs and injected services only.** Use documented APIs and injected `ObjectFactory`, `ProviderFactory`, `ProjectLayout`, `ExecOperations`, and `FileSystemOperations`; never depend on `.internal` types because upgrade breakage is otherwise hidden.
 - Inject documented Gradle services. Do not construct Gradle services, retain `Project` for execution, or call `Project` APIs from task actions.
 - Model values with managed `Property` and `Provider` instances. Do not call `Provider.get()` during unrelated configuration; use `map` and `flatMap` to wire values lazily. See [Do not call `get()` on a Provider outside a Task action](best-practices/do-not-call-get-on-a-provider-outside-a-task-action.md).
 - Register build services with `registerIfAbsent`, declare every consumer with `usesService`, bound concurrency with `maxParallelUsages`, and close owned resources through `AutoCloseable`.
@@ -202,6 +204,10 @@ If the target Gradle version does not support the `@ServiceReference` form used 
 - Build services are not task inputs. Do not put output-affecting mutable state in a service and expect incremental execution or build-cache keys to detect it.
 - Keep shared state inside the service, not in global singletons. Use immutable parameters and synchronized or concurrent data structures for concurrent consumers.
 - Worker actions using classloader or process isolation cannot directly consume a build service. Pass serializable worker parameters or use `noIsolation()` when safe.
+
+### Parallel execution
+
+Enable parallel execution only after removing shared mutable state from build logic and services. Parallel-execution configuration keys are version-dependent, so read the wrapper properties before selecting or applying them; verify the exact key and semantics with `gradle_docs` for that version.
 
 **Anti-patterns**: start external resources during plugin application; use a global singleton; omit `usesService`; set unbounded parallel usage for a non-thread-safe client; or assume `close()` runs immediately after registration.
 

@@ -285,6 +285,10 @@ Use `testFixturesApi` for dependencies needed by fixture types exposed to consum
 - Gradle docs: `gradle_docs` `tag:userguide test fixtures java-test-fixtures`, path `userguide/java_testing.md`
 - Fixture consumption is build configuration. Hand off running fixture-consuming tests to `using-gradle`; do not use this section to prescribe execution commands.
 
+## Aggregate reports and fork isolation
+
+Build aggregate test or JaCoCo reports only from matching suite variants, and wire every intended producer into the aggregation model. Keep `forkEvery` at `0` unless evidence shows a leaked state boundary; a low value is not a generic flakiness cure and can hide the underlying defect at substantial startup cost.
+
 ## Cross-reference: testing custom build logic
 
 For tests of custom tasks or plugins, follow the frozen corpus entry [Best Practices for Testing](best-practices/best-practices-for-testing.md), which routes to Gradle TestKit and contains the approved rationale. See [Plugin Development](plugin-development.md) for the authoritative guide to authoring functional tests with TestKit. Do not duplicate that guidance here.

@@ -36,11 +36,11 @@ Do not use `:help --configuration-cache` as a health check. Use the representati
 1. Execute it with `--configuration-cache`; record whether the cache was reused or stored.
 2. Query `query_build(kind="PROBLEMS", buildId=ID)` for cache problems.
 3. Review `build/reports/configuration-cache/<hash>/configuration-cache-report.html`.
-4. Use `--configuration-cache-problems=warn` only as a temporary compatibility survey, not a permanent suppression.
+4. Use `--configuration-cache-problems=warn` only as a temporary compatibility survey, not a permanent suppression. A representative task can still pass while an incompatible task causes its cache entry to be discarded.
 
 A cache entry is reused only when the requested configuration and relevant inputs are compatible. Environment, properties, files, Gradle version, and build logic can invalidate reuse; unmodeled environment changes can also make reuse appear stale.
 
-**Version notes**: Configuration cache is opt-in, not enabled by default. Since Gradle 9.0 it is the preferred execution mode, but plugin and feature compatibility limitations remain; verify the representative build and treat incompatibilities as expected compatibility work, not necessarily project defects.
+**Wrapper check:** Read `gradle/wrapper/gradle-wrapper.properties` before applying this configuration-cache guidance. `--configuration-cache-problems=warn` is a diagnostic mode, not proof that the cache was stored.
 
 ## Environment and Daemon Control
 
@@ -53,7 +53,9 @@ The JVM running Gradle is distinct from the project's compile/test toolchain and
 - Keep the daemon enabled for normal local and CI operation. Use `--no-daemon` only for a documented CI/environment constraint or a controlled comparison.
 - A daemon is reusable only within a compatible identity scope. A changed Gradle version, Java home, or daemon JVM arguments can select a different daemon scope or a single-use daemon. Do not conclude that the daemon is disabled merely because one invocation used a disposable daemon.
 - Run `--status` to inspect daemons for the matching Gradle version. Run `--stop` only to isolate stale state or free evidenced resources, then rerun the original invocation. Inspect daemon logs and restart only after recording the failing evidence.
+- `--status` and `--stop` are scoped to the Gradle version that handles the invocation. A daemon from another wrapper version is not evidence about this build; record the exact wrapper before using either command.
 - Daemons normally clean up idle or memory-pressured processes; current guidance says idle daemons stop after about three hours. Treat manual deletion as a targeted recovery, not routine tuning.
+- If a daemon disappears, diagnose OS memory-pressure events, daemon crash files, and competing JVMs before increasing heap settings.
 
 **Anti-pattern:** kill arbitrary JVMs, use `--stop` as a first-line fix, or compare daemon behavior without recording wrapper version, Java home, JVM args, and `GRADLE_USER_HOME`.
 
@@ -71,7 +73,7 @@ Record `GRADLE_USER_HOME` before every cache or daemon comparison. It owns depen
 - Prefer targeted cache diagnosis. Do not delete all of `GRADLE_USER_HOME` to repair one resolution or daemon symptom.
 - Multiple Gradle versions can share a user home, but retention behavior is version-sensitive. Cache tagging is documented from Gradle 8.1 and configurable cleanup from 8.0; Gradle 7.x falls back to fixed default cleanup and does not support newer cleanup assumptions.
 
-**Anti-pattern:** share a customized Gradle 8/9 user home with older wrappers without checking retention compatibility, or treat a clean user home as equivalent to a clean checkout.
+**Anti-pattern:** share a customized Gradle 8/9 user home with older wrappers without checking retention compatibility, or treat a clean user home as equivalent to a clean checkout. Do not trust a shared writable cache across trust boundaries; isolate user homes or use a cache whose ownership and provenance are controlled.
 
 **Version notes:** Daemon controls exist across Gradle 7, 8, and 9. Current Gradle 9 guidance includes newer daemon JVM criteria; for Gradle 7.x, use `JAVA_HOME`, `org.gradle.java.home`, and project toolchains, then verify the wrapper-specific compatibility page.
 
@@ -79,6 +81,19 @@ Record `GRADLE_USER_HOME` before every cache or daemon comparison. It owns depen
 - `gradle_docs`: `tag:userguide`, path `userguide/gradle_daemon.md`, terms `Compatibility`, `Check Daemon status`, `Stop Daemon`, `Daemon Logs`
 - `gradle_docs`: `tag:userguide`, path `userguide/directory_layout.md`, terms `Cleanup of caches and distributions`, `Multiple versions of Gradle sharing a Gradle User Home`
 - JVM/property ownership and secure environment handling: [Build Environment](build-environment.md)
+
+## Wrapper Integrity
+
+**Wrapper check:** Read `gradle/wrapper/gradle-wrapper.properties` before applying this version-sensitive guidance. Before trusting a downloaded distribution, verify that `distributionSha256Sum` is present and matches the checksum published for the exact wrapper distribution. A version-only URL is not a supply-chain guarantee. Partial selectors such as `9` or `9.1` are moving versions, not pins. Pin the full version and validate the Wrapper JAR checksum in CI. If any checksum is absent or mismatched, stop and repair the wrapper configuration rather than bypassing verification.
+
+```properties
+distributionUrl=https\\://services.gradle.org/distributions/gradle-9.4.1-bin.zip
+distributionSha256Sum=<checksum-for-the-exact-distribution>
+```
+
+## Configuration and execution switches
+
+**Wrapper check:** Read `gradle/wrapper/gradle-wrapper.properties` before applying this version-sensitive guidance. Configuration-on-demand is not a universal speed switch because partial configuration can be incorrect for builds that rely on cross-project configuration. Isolated projects is experimental; use it only when the exact wrapper documentation and build compatibility support it.
 
 ## Build Scans and Deprecations
 

@@ -37,6 +37,15 @@ gradle_docs(query="tag:release-notes configuration cache")
 gradle_docs(path="userguide/upgrading_version_9.md")
 ```
 
+## Migration checklist
+
+1. Test plugin and build logic against the embedded Kotlin and Groovy versions used by the target Gradle release.
+2. For the Gradle 8 to 9 migration, audit toolchain enforcement, test discovery and execution defaults, and no-discovered-test behavior.
+3. Replace removed APIs before the major-version bump; do not assume Groovy DSL behavior is frozen across Gradle 8 to 9.
+4. Check Kotlin Gradle Plugin and Android Gradle Plugin compatibility in the target documentation; compatibility is version-dependent, so do not hardcode a compatibility table.
+
+**Version-sensitive field-guide rule:** Read `gradle/wrapper/gradle-wrapper.properties` before applying these migration rules.
+
 ## Workflow
 
 1. Read `gradle/wrapper/gradle-wrapper.properties` to identify the current wrapper version.
