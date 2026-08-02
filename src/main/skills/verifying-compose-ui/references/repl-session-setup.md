@@ -1,7 +1,3 @@
-<!--
-class: authored-shared
-targets: interacting-with-project-runtime/references/repl-session-setup.md, verifying-compose-ui/references/repl-session-setup.md
--->
 # REPL Session Setup
 
 Shared setup plumbing for the persistent JVM/Kotlin REPL used by runtime probing and Compose rendering.
@@ -19,7 +15,7 @@ Call `kotlin_repl(command="start", projectPath=":module", sourceSet="main")` to 
 
 - **`start`**: Initialize a session. Required before `run`.
 - **`run`**: Execute a snippet. Session state (variables, imports, class definitions) persists between calls.
-- **`stop`**: Terminate the session and release JVM resources. **Always** stop when finished.
+- **`stop`**: Terminate a session and release JVM resources. **Always** stop when finished.
 - **After modifying project source code**, call `stop` then `start` to pick up classpath changes.
 
 ## Troubleshooting

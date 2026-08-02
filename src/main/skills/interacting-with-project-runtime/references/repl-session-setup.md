@@ -1,7 +1,3 @@
-<!--
-class: authored-shared
-targets: interacting-with-project-runtime/references/repl-session-setup.md, verifying-compose-ui/references/repl-session-setup.md
--->
 # REPL Session Setup
 
 Shared setup plumbing for the persistent JVM/Kotlin REPL used by runtime probing and Compose rendering.
