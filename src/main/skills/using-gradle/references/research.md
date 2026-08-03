@@ -3,11 +3,11 @@
 Authoritative workflow for researching official documentation, Gradle internals, and the dependency source graph.
 
 ## Documentation & Research Workflow
-**Default Path**: Official Docs $\rightarrow$ Source Code $\rightarrow$ Release Notes.
+**Default Path**: Official Docs $\rightarrow$ Source Code $\rightarrow$ Release Notes. Start with `gradle_docs(query="tag:userguide <term>")` for a precise stored search entry point.
 **Anti-Pattern**: Reading source to understand a public API before checking `gradle_docs`. Use source only when docs do not pin down exact runtime behavior.
 
 ### Official Documentation (`gradle_docs`)
-Use `gradle_docs` for authoritative guidance. Every call MUST be scoped with a tag.
+Use `gradle_docs` for authoritative guidance. Stored search links use `gradle_docs(query="tag:<tag> <term>")`; path reads and no-argument section browsing take no tag.
 
 | Tag | Content | Use Case |
 | :--- | :--- | :--- |
@@ -18,9 +18,15 @@ Use `gradle_docs` for authoritative guidance. Every call MUST be scoped with a t
 | `tag:javadoc` | JavaDoc | Low-level Gradle API signatures. |
 | `tag:samples` | Samples | Implementation patterns and examples. |
 
-**Version-Scoped Research**: Use the `version` parameter to target specific releases.
-- **Recommended**: Omit `version` to research the project's current detected version.
-- **Anti-Pattern**: Using a generic version (e.g. "8") when a specific minor release (e.g. "8.6") is needed to verify a bug fix or feature.
+**Documentation Lookup Ladder**:
+1. Search precisely with `gradle_docs(query="tag:<tag> <term>")`.
+2. If that is too narrow, broaden the runtime search by dropping the tag: `gradle_docs(query="<term>")`.
+3. Browse the documentation tree with `gradle_docs(path=".")`; a no-argument `gradle_docs()` call lists the available documentation sections.
+4. Read the selected page with `gradle_docs(path="<clean .md path>")`.
+
+**Version-Scoped Research**: Resolution uses an explicit `version` first, then wrapper auto-detection through `projectRoot` or `GRADLE_MCP_PROJECT_ROOT`, then the latest-stable fallback. Wrapper detection can fail without a usable project root or wrapper.
+- **Recommended**: Normally omit `version`; specify `version="X.Y"` only when intentionally researching a target different from the wrapper, and state the migration or verification reason.
+- **Anti-Pattern**: Use a coarse version such as `"8"`, or assume omission guarantees wrapper detection when no usable project root or wrapper is available.
 
 ---
 
@@ -76,12 +82,11 @@ Plugin categories are stable across Gradle 7/8/9, but portal and resolution beha
 
 ## More info
 
-- Plugin basics: `gradle_docs` `tag:userguide`, path `userguide/plugin_basics.md`
-- `gradle_docs`: use `gradleOwnSource: true` for Gradle source.
-- Gradle source tools: `search_dependency_sources` and `read_dependency_sources`
-- Core topics: `tag:userguide`, path `userguide/command_line_interface_basics.md`; `tag:userguide`, path `userguide/gradle_optimizations.md`; `tag:userguide`, path `userguide/java_testing.md`
-- Execution and troubleshooting: `tag:userguide`, path `userguide/command_line_interface.md`; `tag:userguide`, path `userguide/controlling_task_execution.md`; `tag:userguide`, path `userguide/configuration_cache_debugging.md`
-- Dependencies: `tag:userguide`, path `userguide/dependency_constraints_conflicts.md`; `tag:userguide`, path `userguide/dependency_caching.md`; `tag:userguide`, path `userguide/viewing_debugging_dependencies.md`. 
+- Plugin basics: `gradle_docs(path="userguide/plugin_basics.md")`
+- Gradle source implementation: use `gradleOwnSource: true` with `search_dependency_sources` and `read_dependency_sources`.
+- Core topics: `gradle_docs(path="userguide/command_line_interface_basics.md")`; `gradle_docs(path="userguide/gradle_optimizations.md")`; `gradle_docs(path="userguide/java_testing.md")`
+- Execution and troubleshooting: `gradle_docs(path="userguide/command_line_interface.md")`; `gradle_docs(path="userguide/controlling_task_execution.md")`; `gradle_docs(path="userguide/configuration_cache_debugging.md")`
+- Dependencies: `gradle_docs(path="userguide/dependency_constraints_conflicts.md")`; `gradle_docs(path="userguide/dependency_caching.md")`; `gradle_docs(path="userguide/viewing_debugging_dependencies.md")`
 
 ## References
 - [using-gradle SKILL.md](../SKILL.md)

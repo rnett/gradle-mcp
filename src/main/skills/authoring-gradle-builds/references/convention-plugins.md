@@ -116,7 +116,7 @@ A plugin callback runs when the target plugin is applied and also handles the ca
 
 **More info:**
 
-- Composite build and conventions: `gradle_docs` `tag:userguide`, path `userguide/implementing_gradle_plugins_convention.md`
-- Build structure: `gradle_docs` `tag:best-practices`, path `userguide/best_practices_structuring_builds.md`, term `Use Convention Plugins`
-- Plugin reactions: `gradle_docs` `tag:dsl`, path `dsl/org.gradle.api.plugins.PluginManager.md`, term `withPlugin`
+- Composite build and conventions: `gradle_docs(path="userguide/implementing_gradle_plugins_convention.md")`
+- Build structure: `gradle_docs(path="userguide/best_practices_structuring_builds.md")`
+- Plugin reactions: `gradle_docs(path="dsl/org.gradle.api.plugins.PluginManager.md")`
 - Gradle documentation lookup: `gradle_docs`

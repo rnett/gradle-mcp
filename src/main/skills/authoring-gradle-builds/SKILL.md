@@ -25,12 +25,12 @@ metadata:
 
 Author or modify Gradle build definitions, build logic, project structure, and delivery wiring. Optimize for lazy, decoupled, configuration-cache-compatible builds.
 
-**More info**: Query `gradle_docs` with `tag:userguide` or `tag:best-practices` plus the topic path. Read `gradle/wrapper/gradle-wrapper.properties` before any version-sensitive authoring.
+**More info**: Search the User Guide with `gradle_docs(query="tag:userguide <term>")` or best practices with `gradle_docs(query="tag:best-practices <term>")`. Read `gradle/wrapper/gradle-wrapper.properties` before any version-sensitive authoring.
 
 ## Before You Modify
 
 1. Read `gradle/wrapper/gradle-wrapper.properties`; identify the wrapper version.
-2. Consult the compatibility quick-reference below; verify version-sensitive claims with `gradle_docs`.
+2. Consult the compatibility quick-reference below; verify version-sensitive claims with `gradle_docs(query="tag:userguide <term>")`.
 3. When the change is version-sensitive (wrapper upgrade, API migration, deprecation fix), consult the upgrading page for the wrapper's major version via `gradle_docs(path="userguide/upgrading_version_<N>.md")` and check `gradle_docs(query="tag:release-notes")` for breaking changes. See [Upgrading and Release Notes](references/upgrading-and-release-notes.md).
 4. Read `settings.gradle.kts`, `gradle/libs.versions.toml`, applied plugins, and convention plugins. Check for existing conventions before proposing changes.
 5. Load the narrowest authored reference: links in the directives and workflows above are loaded in context; for the remaining actions, use the Decision Routing table.
@@ -127,4 +127,4 @@ These compact rules are loaded before any authoring reference. Links provide det
 
 ## Best-Practices Consultation
 
-Use the authored reference linked in the relevant directive or workflow as the single authoritative procedural load when one is provided; for the remaining authoring actions, use the Decision Routing table. Consult `references/best-practices/_index.md` and its generated corpus detail only when rationale is needed or the authored reference points there; then query `gradle_docs` when deeper rationale or the authoritative version-scoped source is required. The escalation path remains `Index -> Detail -> Gradle Docs`, but it does not force a second competing procedural load. The corpus is frozen: route to it, do not edit it or restate its detail in this hub.
+Use the authored reference linked in the relevant directive or workflow as the single authoritative procedural load when one is provided; for the remaining authoring actions, use the Decision Routing table. Consult `references/best-practices/_index.md` and its generated corpus detail only when rationale is needed or the authored reference points there; then use `gradle_docs(query="tag:userguide <term>")` when deeper rationale or the authoritative version-scoped source is required. The escalation path remains `Index $\rightarrow$ Detail $\rightarrow$ Gradle Docs`, but it does not force a second competing procedural load. The corpus is frozen: route to it, do not edit it or restate its detail in this hub.

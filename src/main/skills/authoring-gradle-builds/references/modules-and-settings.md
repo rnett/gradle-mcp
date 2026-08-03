@@ -155,7 +155,7 @@ All projects may still be configured in isolated-projects mode. Configuration-on
 
 **More info:**
 
-- `gradle_docs`: `tag:userguide`, path `userguide/isolated_projects.md`, term `cross-project access`
-- Settings and hierarchy: `gradle_docs` `tag:userguide`, path `userguide/multi_project_builds.md`
-- Plugin management: `gradle_docs` `tag:userguide`, path `userguide/plugins.md`, search `pluginManagement plugins block`
+- Project isolation and cross-project access: `gradle_docs(path="userguide/isolated_projects.md")`
+- Settings and hierarchy: `gradle_docs(path="userguide/multi_project_builds.md")`
+- Plugin management: `gradle_docs(path="userguide/plugins.md")`
 - Gradle documentation lookup: `gradle_docs`

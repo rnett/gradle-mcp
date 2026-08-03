@@ -60,7 +60,7 @@ Use `--rerun` to force the execution of a test and its dependencies, bypassing t
 
 **Anti-pattern**: Using `clean` as a default diagnostic for test failures; it destroys too much state.
 
-**More info**: Test filtering and reports: `gradle_docs` `tag:userguide test filtering`, path `userguide/java_testing.md`; test diagnostics: `query_build(kind="TESTS")`.
+**More info**: Test filtering and reports: `gradle_docs(path="userguide/java_testing.md")`; test diagnostics: `query_build(kind="TESTS")`.
 
 Cross-references:
 - Build execution lifecycle $\\rightarrow$ [Running Builds](running-builds.md)

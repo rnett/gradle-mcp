@@ -34,7 +34,7 @@ Treat generated directories as evidence-bearing state, not source files:
 **Version notes:** Layout is stable across Gradle 7, 8, and 9. Cache marking is documented from Gradle 8.1 and configurable cleanup from 8.0; for Gradle 7.x, expect default fixed cleanup behavior and avoid applying newer cleanup configuration assumptions.
 
 **More info:**
-- `gradle_docs`: `tag:userguide`, path `userguide/directory_layout.md`, terms `Project cache cleanup`, `Gradle User Home directory`
+- `gradle_docs(path="userguide/directory_layout.md")` for project-cache cleanup and the Gradle User Home directory
 
 ## Project model and evaluation order
 
@@ -65,10 +65,10 @@ Drive builds through the `gradle` MCP tool. Its `commandLine` array expresses th
 **Version notes:** Settings/build-file roles and Groovy/Kotlin DSL remain stable across Gradle 7/8/9. Version catalogs require Gradle 7.4+; for older wrappers follow the compatibility fallback in [SKILL.md](../SKILL.md). Plugin-created configurations and source-set names remain plugin-, variant-, and target-dependent; discover them instead of assuming Java names.
 
 **More info:**
-- Core concepts: `gradle_docs` `tag:userguide`, path `userguide/gradle_basics.md`
-- Settings: `gradle_docs` `tag:userguide`, path `userguide/settings_file_basics.md`
-- Build files: `gradle_docs` `tag:userguide`, path `userguide/build_file_basics.md`
-- Plugins: `gradle_docs` `tag:userguide`, path `userguide/plugin_basics.md`
+- Core concepts: `gradle_docs(path="userguide/gradle_basics.md")`
+- Settings: `gradle_docs(path="userguide/settings_file_basics.md")`
+- Build files: `gradle_docs(path="userguide/build_file_basics.md")`
+- Plugins: `gradle_docs(path="userguide/plugin_basics.md")`
 - Project mapping and task inspection: `gradle` and `captureTaskOutput`
 
 **Cross-references:**

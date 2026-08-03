@@ -108,7 +108,7 @@ Use the `outgoingVariants` property to debug what a project is exposing. Use `us
 - **Gradle 7.6+:** Improved support for resolver repositories and variant-aware resolution.
 
 **More info:**
-- Dependency Configurations: `gradle_docs` `tag:userguide` path `userguide/dependency_configurations.md`
-- Component Capabilities: `gradle_docs` `tag:userguide` path `userguide/component_capabilities.md`
-- Sharing Outputs: `gradle_docs` `tag:userguide` path `userguide/how_to_share_outputs_between_projects.md`
-- Configuration Roles: `gradle_docs` `tag:userguide` path `userguide/declaring_configurations.md`
+- Dependency Configurations: `gradle_docs(path="userguide/dependency_configurations.md")`
+- Component Capabilities: `gradle_docs(path="userguide/component_capabilities.md")`
+- Sharing Outputs: `gradle_docs(path="userguide/how_to_share_outputs_between_projects.md")`
+- Configuration Roles: `gradle_docs(path="userguide/declaring_configurations.md")`

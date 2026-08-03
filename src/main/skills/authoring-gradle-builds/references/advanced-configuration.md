@@ -123,7 +123,7 @@ val operations = DefaultExecOperations(/* internal services */)
 
 **More info**:
 
-- `gradle_docs`: `tag:userguide`, path `userguide/service_injection.md`, terms `@Inject`, `ExecOperations`, `ProjectLayout`.
+- `gradle_docs(path="userguide/service_injection.md")` for `@Inject`, `ExecOperations`, and `ProjectLayout`
 
 ## Convention, Finalization, and Combination
 The model for conventions and finalization is detailed in [Managed Types and Providers](managed-types-and-providers.md). When authoring services or configuration-cache-safe logic, focus on ensuring that values are wired lazily via providers and that the resulting task state is serializable.
@@ -211,7 +211,7 @@ Enable parallel execution only after removing shared mutable state from build lo
 
 **More info**:
 
-- `gradle_docs`: `tag:userguide`, path `userguide/build_services.md`, terms `registerIfAbsent`, `usesService`, `maxParallelUsages`.
+- `gradle_docs(path="userguide/build_services.md")` for `registerIfAbsent`, `usesService`, and `maxParallelUsages`
 
 ## Value sources
 
@@ -273,8 +273,8 @@ val settingsText = file("settings.json").readText()
 
 **More info**:
 
-- `gradle_docs`: `tag:javadoc`, paths `kotlin-dsl/gradle/org.gradle.api.provider/-value-source/index.md`, `kotlin-dsl/gradle/org.gradle.api.provider/-value-source-parameters/index.md`, `kotlin-dsl/gradle/org.gradle.api.provider/-provider-factory/of.md`, and `kotlin-dsl/gradle/org.gradle.api.provider/-value-source/obtain.md`.
-- Version-scoped handoff: verify the target wrapper with `gradle_docs` `tag:javadoc ValueSource` and `tag:userguide "value sources"` (or `ValueSource ValueSourceParameters providers.of obtain`) before relying on a user-guide path or cross-version behavior claim.
+- Value source APIs: `gradle_docs(path="kotlin-dsl/gradle/org.gradle.api.provider/-value-source/index.md")`; `gradle_docs(path="kotlin-dsl/gradle/org.gradle.api.provider/-value-source-parameters/index.md")`; `gradle_docs(path="kotlin-dsl/gradle/org.gradle.api.provider/-provider-factory/of.md")`; `gradle_docs(path="kotlin-dsl/gradle/org.gradle.api.provider/-value-source/obtain.md")`
+- Version-scoped handoff: `gradle_docs(query="tag:javadoc ValueSource")`; `gradle_docs(query="tag:userguide value sources")`
 
 ## Configuration-Cache Requirements Matrix
 The configuration cache requires that the task graph be serializable. Any violation of these requirements is reported as a "problem" and causes the build to fail.
@@ -326,8 +326,8 @@ The configuration cache is validated during the "storing" phase (after configura
 - **Gradle 7.x:** Incubating; requires an explicit opt-in and manual validation. For Gradle 7.x builds, use ordinary providers and explicit task inputs as the fallback when the target wrapper does not expose the required `ValueSource` or `BuildService` APIs.
 
 **More info:**
-- `gradle_docs`: `tag:userguide`, path `userguide/configuration_cache_requirements.md`
-- `gradle_docs`: `tag:userguide`, path `userguide/configuration_cache_debugging.md`
-- `gradle_docs`: `tag:userguide`, path `userguide/configuration_cache_enabling.md`
+- `gradle_docs(path="userguide/configuration_cache_requirements.md")`
+- `gradle_docs(path="userguide/configuration_cache_debugging.md")`
+- `gradle_docs(path="userguide/configuration_cache_enabling.md")`
 - Frozen rationale: [Use the Configuration Cache](best-practices/use-the-configuration-cache.md) (provides usage and enablement rationale; hand off actual enabling to `using-gradle`).
 - Handoff: Enabling the configuration cache in `gradle.properties` or via CLI, reading runtime outcomes, and general failure diagnosis belongs to `using-gradle`.

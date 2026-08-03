@@ -113,7 +113,6 @@ To maintain incremental compilation, avoid using `@Input` on large, unstable fil
 - **Gradle 7.x:** Toolchains are stable from 7.0; however, auto-downloading JDKs requires 7.5+.
 
 **More info:**
-- Java Plugin: `gradle_docs` `tag:userguide` path `userguide/java_plugin.md`
-- Java Library: `gradle_docs` `tag:userguide` path `userguide/java_library_plugin.md`
-- Incremental Compilation: `gradle_docs` `tag:userguide` path `userguide/java_plugin.md` search `incremental compile`
-- Annotation Processing: `gradle_docs` `tag:userguide` path `userguide/java_plugin.md` search `annotation processing`
+- Java Plugin and incremental compilation: `gradle_docs(path="userguide/java_plugin.md")`
+- Java Library: `gradle_docs(path="userguide/java_library_plugin.md")`
+- Annotation Processing: `gradle_docs(path="userguide/java_plugin.md")`

@@ -11,14 +11,14 @@ Consult these resources when making version-sensitive changes: wrapper upgrades,
 
 ## Key Documentation Pages
 
-Use `gradle_docs` to read these pages at runtime:
+Use canonical `gradle_docs` calls to read these pages at runtime:
 
 | Page | `gradle_docs` path | Covers |
 |---|---|---|
-| Upgrading to Gradle 9 | `userguide/upgrading_version_9.md` | Breaking changes and migration steps for 9.x minor versions |
-| Upgrading to Gradle 8 | `userguide/upgrading_version_8.md` | Breaking changes and migration steps for 8.x minor versions |
-| Upgrading major versions | `userguide/upgrading_major_version_9.md` | Cross-major-version migration (e.g., 8 → 9) |
-| Release Notes | `release-notes.md` | New features, fixed issues, and known problems per version |
+| Upgrading to Gradle 9 | `gradle_docs(path="userguide/upgrading_version_9.md")` | Breaking changes and migration steps for 9.x minor versions |
+| Upgrading to Gradle 8 | `gradle_docs(path="userguide/upgrading_version_8.md")` | Breaking changes and migration steps for 8.x minor versions |
+| Upgrading major versions | `gradle_docs(path="userguide/upgrading_major_version_9.md")` | Cross-major-version migration (e.g., 8 $\rightarrow$ 9) |
+| Release Notes | `gradle_docs(path="release-notes.md")` | New features, fixed issues, and known problems per version |
 
 ## Tag Pointers
 
@@ -45,7 +45,7 @@ gradle_docs(path="userguide/upgrading_version_9.md")
 ## Workflow
 
 1. Read `gradle/wrapper/gradle-wrapper.properties` to identify the current wrapper version.
-2. Open the upgrading page for the target major version (e.g., `userguide/upgrading_version_9.md`).
+2. Open the upgrading page for the target major version with `gradle_docs(path="userguide/upgrading_version_<N>.md")`.
 3. Search within the page for the specific API, behavior, or deprecation you are addressing.
-4. Check `release-notes.md` for the target version for additional context on new features or known issues.
+4. Check `gradle_docs(path="release-notes.md")` for the target version for additional context on new features or known issues.
 5. If the generated best-practices corpus covers the topic, cross-reference it for rationale, but treat the upgrading page as authoritative for migration steps.

@@ -21,7 +21,7 @@ Do not apply "nearest file wins" folklore. First classify the value, then identi
 **Gradle 9.4 wrapper check:** Read `gradle/wrapper/gradle-wrapper.properties` before applying precedence guidance. Wrapper properties control wrapper bootstrap and are not another Gradle property source; once the wrapper launches Gradle, use the documented command-line, system-property, Gradle-property, and environment-variable precedence for the build.
 
 **More info:**
-- `gradle_docs`: `tag:userguide`, path `userguide/build_environment.md`, terms `Priority for configurations`, `Available mechanisms`
+- `gradle_docs(path="userguide/build_environment.md")` for configuration priorities and available mechanisms
 - Effective project properties: `gradle` and `captureTaskOutput`
 
 ## Property channels and locations
@@ -45,7 +45,7 @@ Choose locations deliberately:
 **Anti-pattern:** move a failing project's required property into a personal user file until the local build passes. That makes the failure non-reproducible.
 
 **More info:**
-- `gradle_docs`: `tag:userguide`, path `userguide/build_environment.md`, terms `The gradle.properties file`, `Project properties`, `System properties and environment variables`
+- `gradle_docs(path="userguide/build_environment.md")` for `gradle.properties`, project properties, system properties, and environment variables
 - Property inspection: `gradle` and `captureTaskOutput`
 
 ## Environment variables
@@ -68,7 +68,7 @@ Capture names and safe metadata, not values that may contain credentials or toke
 **Version notes:** `NO_COLOR` and the current client/daemon distinctions are documented in current Gradle guidance. For Gradle 7.x, retain the established `GRADLE_USER_HOME`, `JAVA_HOME`, `GRADLE_OPTS`, and `JAVA_OPTS` semantics, then verify newer output controls against the wrapper version.
 
 **More info:**
-- `gradle_docs`: `tag:userguide`, path `userguide/build_environment.md`, terms `Environment variables`, `System properties and environment variables`
+- `gradle_docs(path="userguide/build_environment.md")` for environment variables and system properties
 - Safe build queries: `query_build`
 
 ## JVM ownership boundary
@@ -93,9 +93,9 @@ Toolchain provisioning is a repository, vendor, and platform problem as well as 
 **Version notes:** Gradle 9 documents daemon JVM criteria and auto-provisioning more explicitly. For Gradle 7.x, use the launcher `JAVA_HOME`, `org.gradle.java.home`, and project toolchain model; do not apply 9.x-only criteria without checking the wrapper docs.
 
 **More info:**
-- `gradle_docs`: `tag:userguide`, path `userguide/build_environment.md`, term `Gradle properties`
-- `gradle_docs`: `tag:userguide`, path `userguide/gradle_daemon.md`, term `The Gradle Client vs. the Gradle Daemon`
-- `gradle_docs`: `tag:userguide`, path `userguide/config_gradle.md`, term `Changing JVM settings for the build VM`
+- `gradle_docs(path="userguide/build_environment.md")` for Gradle properties
+- `gradle_docs(path="userguide/gradle_daemon.md")` for the Gradle client and daemon JVM boundary
+- `gradle_docs(path="userguide/config_gradle.md")` for build JVM settings
 
 ## Proxy and network configuration
 
@@ -118,7 +118,7 @@ Test wrapper/bootstrap, plugin resolution, and dependency resolution as separate
 **Version notes:** Standard `systemProp.http[s].proxy*` mechanisms are stable across Gradle 7, 8, and 9; wrapper/bootstrap and plugin-resolution behavior remains version- and configuration-specific. For Gradle 7.x, use the same property names and verify the exact path.
 
 **More info:**
-- `gradle_docs`: `tag:userguide`, path `userguide/networking.md`, term `Accessing the web through a proxy`
+- `gradle_docs(path="userguide/networking.md")` for proxy configuration
 
 ## Hidden global inputs and secure diagnosis
 
@@ -131,5 +131,5 @@ Inspect `GRADLE_USER_HOME/init.d` and any `--init-script` supplied to the invoca
 **Version notes:** Init-script mechanics are stable across Gradle 7, 8, and 9, but APIs and configuration details are version-sensitive. For Gradle 7.x, inspect only and verify the wrapper-specific documentation.
 
 **More info:**
-- `gradle_docs`: `tag:userguide`, path `userguide/build_environment.md`, terms `Gradle initialization scripts`, `Available mechanisms`
+- `gradle_docs(path="userguide/build_environment.md")` for initialization scripts and configuration mechanisms
 - Structured build diagnostics: `query_build`

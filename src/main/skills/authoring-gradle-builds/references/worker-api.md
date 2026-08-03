@@ -130,7 +130,7 @@ Do not use workers when the operation is sequential, tiny, already parallelized 
 
 **More info**:
 
-- Worker API: `gradle_docs` `tag:userguide`, path `userguide/worker_api.md`, terms `noIsolation`, `classLoaderIsolation`, `processIsolation`
-- Service injection: `gradle_docs` `tag:userguide`, path `userguide/service_injection.md`, terms `@Inject`, `WorkerExecutor`
-- Shared build services: `gradle_docs` `tag:userguide`, path `userguide/build_services.md`, terms `usesService`, `maxParallelUsages`
+- Worker API: `gradle_docs(path="userguide/worker_api.md")`
+- Service injection: `gradle_docs(path="userguide/service_injection.md")`
+- Shared build services: `gradle_docs(path="userguide/build_services.md")`
 - Version-matched research: `gradle_docs`

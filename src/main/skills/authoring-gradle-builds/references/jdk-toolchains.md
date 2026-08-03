@@ -181,6 +181,6 @@ java {
 
 ## More info
 
-- Gradle toolchains: `gradle_docs` `tag:userguide`, path `userguide/toolchains.md`; resolver term `provisioning`, path `userguide/toolchain_plugins.md`
-- Gradle daemon/runtime compatibility: `gradle_docs` `tag:userguide`, path `userguide/compatibility.md`
+- Gradle toolchains and provisioning: `gradle_docs(path="userguide/toolchains.md")`; `gradle_docs(path="userguide/toolchain_plugins.md")`
+- Gradle daemon/runtime compatibility: `gradle_docs(path="userguide/compatibility.md")`
 - Gradle MCP documentation lookup: `gradle_docs`

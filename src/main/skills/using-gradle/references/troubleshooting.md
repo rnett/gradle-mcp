@@ -42,7 +42,7 @@ A cache entry is reused only when the requested configuration and relevant input
 
 ### JVM-to-Run Matrix
 
-The JVM running Gradle is distinct from the project's compile/test toolchain and from test workers. Before choosing `JAVA_HOME`, look up the exact Java-version range, including both minimum and maximum, supported by the project's specific Gradle version in the official compatibility matrix: `gradle_docs` with `tag:userguide`, path `userguide/compatibility.md`. Bounds exist on both ends and vary by Gradle minor version. Do not choose `JAVA_HOME` from `sourceCompatibility`, or change the toolchain to fix a launcher incompatibility.
+The JVM running Gradle is distinct from the project's compile/test toolchain and from test workers. Before choosing `JAVA_HOME`, look up the exact Java-version range, including both minimum and maximum, supported by the project's specific Gradle version in `gradle_docs(path="userguide/compatibility.md")`. Bounds exist on both ends and vary by Gradle minor version. Do not choose `JAVA_HOME` from `sourceCompatibility`, or change the toolchain to fix a launcher incompatibility.
 
 ### Daemon identity and lifecycle diagnosis
 
@@ -74,8 +74,8 @@ Record `GRADLE_USER_HOME` before every cache or daemon comparison. It owns depen
 **Version notes:** Daemon controls exist across Gradle 7, 8, and 9. Current Gradle 9 guidance includes newer daemon JVM criteria; for Gradle 7.x, use `JAVA_HOME`, `org.gradle.java.home`, and project toolchains, then verify the wrapper-specific compatibility page.
 
 **More info:**
-- `gradle_docs`: `tag:userguide`, path `userguide/gradle_daemon.md`, terms `Compatibility`, `Check Daemon status`, `Stop Daemon`, `Daemon Logs`
-- `gradle_docs`: `tag:userguide`, path `userguide/directory_layout.md`, terms `Cleanup of caches and distributions`, `Multiple versions of Gradle sharing a Gradle User Home`
+- `gradle_docs(path="userguide/gradle_daemon.md")` for daemon compatibility, status, stopping, and logs
+- `gradle_docs(path="userguide/directory_layout.md")` for cache cleanup and sharing Gradle User Home across versions
 - JVM/property ownership and secure environment handling: [Build Environment](build-environment.md)
 
 ## Wrapper Integrity
@@ -106,13 +106,13 @@ A Build Scan captures build metadata for troubleshooting, collaboration, and per
 **Version notes**: Gradle 7 environments may use historical Gradle Enterprise terminology. Gradle 8/9 Develocity plugin, DSL, endpoint, and consent properties are version-sensitive; verify the exact wrapper and plugin documentation. Warning modes are standard CLI behavior across Gradle 7/8/9.
 
 **More info**:
-- Failure flags and `--continue`: `gradle_docs` `tag:userguide`, path `userguide/command_line_interface.md`
-- Configuration cache and diagnostics: `gradle_docs` `tag:userguide`, path `userguide/configuration_cache.md`
-- Configuration-cache debugging: `gradle_docs` `tag:userguide`, path `userguide/configuration_cache_debugging.md`
-- Daemon and JVM compatibility: `gradle_docs` `tag:userguide`, path `userguide/gradle_daemon.md`
-- JVM compatibility: `gradle_docs` `tag:userguide`, path `userguide/compatibility.md`
-- Build scans: `gradle_docs` `tag:userguide`, path `userguide/build_scans.md`
-- Wrapper integrity: `gradle_docs` `tag:userguide`, path `userguide/gradle_wrapper.md`
+- Failure flags and `--continue`: `gradle_docs(path="userguide/command_line_interface.md")`
+- Configuration cache and diagnostics: `gradle_docs(path="userguide/configuration_cache.md")`
+- Configuration-cache debugging: `gradle_docs(path="userguide/configuration_cache_debugging.md")`
+- Daemon and JVM compatibility: `gradle_docs(path="userguide/gradle_daemon.md")`
+- JVM compatibility: `gradle_docs(path="userguide/compatibility.md")`
+- Build scans: `gradle_docs(path="userguide/build_scans.md")`
+- Wrapper integrity: `gradle_docs(path="userguide/gradle_wrapper.md")`
 
 **Wrapper-version caveat**: These `gradle_docs` hints are version-scoped; read the wrapper version before applying compatibility or CLI guidance.
 

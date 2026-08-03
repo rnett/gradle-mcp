@@ -155,7 +155,7 @@ See [using-gradle research](../../using-gradle/references/research.md) for the s
 
 ## More info
 
-- Gradle publication model: query `gradle_docs` with `tag:userguide`, path `userguide/publishing_maven.md`
+- Gradle publication model: `gradle_docs(path="userguide/publishing_maven.md")`
 - Gradle MCP documentation lookup: `gradle_docs`
 - Gradle MCP task execution handoff: `gradle`
 - Central Portal sunset announcement: https://central.sonatype.org/news/20250326_ossrh_sunset.

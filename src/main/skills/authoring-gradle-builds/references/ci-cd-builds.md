@@ -84,8 +84,8 @@ Do not encode `org.gradle.daemon=false` globally merely because one CI provider 
 
 **More info**:
 
-- Wrapper and CI environment: `gradle_docs` `tag:userguide`, path `userguide/gradle_wrapper.md`
-- Build cache: `gradle_docs` `tag:userguide`, path `userguide/build_cache.md`
-- Configuration cache requirements: `gradle_docs` `tag:userguide`, path `userguide/configuration_cache_requirements.md`
-- Gradle properties and build environment: `gradle_docs` `tag:userguide`, path `userguide/build_environment.md`
+- Wrapper and CI environment: `gradle_docs(path="userguide/gradle_wrapper.md")`
+- Build cache: `gradle_docs(path="userguide/build_cache.md")`
+- Configuration cache requirements: `gradle_docs(path="userguide/configuration_cache_requirements.md")`
+- Gradle properties and build environment: `gradle_docs(path="userguide/build_environment.md")`
 - CI execution and diagnostics: `gradle` and build lookup via `query_build`/`wait_build`

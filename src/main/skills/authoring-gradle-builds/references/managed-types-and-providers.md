@@ -166,7 +166,7 @@ See [Avoid using eager APIs on File Collections](best-practices/avoid-using-eage
 
 ## Incubating: Dataflow Actions
 
-**Warning:** Dataflow Actions are **incubating** and not a stable default. Use them only for non-task logic that requires annotated managed inputs. For implementation details, use `gradle_docs` with `tag:userguide` and path `userguide/dataflow_actions.md`.
+**Warning:** Dataflow Actions are **incubating** and not a stable default. Use them only for non-task logic that requires annotated managed inputs. For implementation details, use `gradle_docs(path="userguide/dataflow_actions.md")`.
 
 **Default:** Prefer standard tasks for any work that produces file outputs. Dataflow actions are intended for internal Gradle data-flow within the configuration or execution graph.
 
@@ -179,8 +179,8 @@ See [Avoid using eager APIs on File Collections](best-practices/avoid-using-eage
 - **Gradle 7.x:** Managed properties are available but some plugins may still use eager `create` patterns. Prefer `register` and `Property` where supported.
 
 **More info:**
-- Lazy configuration: `gradle_docs` `tag:userguide`, path `userguide/lazy_configuration.md`
-- Properties and Providers: `gradle_docs` `tag:userguide`, path `userguide/properties_providers.md`
-- Collections: `gradle_docs` `tag:userguide`, path `userguide/collections.md`
-- Working with files: `gradle_docs` `tag:userguide`, path `userguide/working_with_files.md`
-- Dataflow actions: `gradle_docs` `tag:userguide`, path `userguide/dataflow_actions.md`
+- Lazy configuration: `gradle_docs(path="userguide/lazy_configuration.md")`
+- Properties and Providers: `gradle_docs(path="userguide/properties_providers.md")`
+- Collections: `gradle_docs(path="userguide/collections.md")`
+- Working with files: `gradle_docs(path="userguide/working_with_files.md")`
+- Dataflow actions: `gradle_docs(path="userguide/dataflow_actions.md")`

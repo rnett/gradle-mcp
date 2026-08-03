@@ -27,7 +27,7 @@ metadata:
 
 Inspects, executes, diagnoses, and researches existing Gradle builds using managed orchestration and structured diagnostics.
 
-**More info**: Official Gradle guidance: `gradle_docs` with `tag:userguide` and the topic path; read `gradle/wrapper/gradle-wrapper.properties` before version-sensitive research.
+**More info**: Search official guidance with `gradle_docs(query="tag:userguide <term>")`; read `gradle/wrapper/gradle-wrapper.properties` before version-sensitive research.
 
 ## Constitution
 
@@ -80,7 +80,7 @@ These rules are intentionally compact. Follow the linked authored reference for 
 | `--rerun` | Yes | Yes | 7.6+ | 7.0-7.5: Use `cleanTest test` or `--rerun-tasks`. |
 | Catalogs | Yes | Yes | 7.4+ | < 7.4: Use existing `buildSrc`, scripts, or `ext`. |
 | Config Cache | Stable, opt-in | Stable from 8.1; 8.0 pre-stable | Incubating/experimental, opt-in | < 8.1: Use for explicit investigation only; inspect `PROBLEMS` and the HTML report. |
-| Run JVM | 17+ | 8+ | 8+ | For compile/test compatibility, use a toolchain and consult `gradle_docs` or the exact Gradle compatibility matrix; do not infer it from this minimum. |
+| Run JVM | 17+ | 8+ | 8+ | For compile/test compatibility, use a toolchain and consult `gradle_docs(path="userguide/compatibility.md")`; do not infer it from this minimum. |
 | Build Scan | Yes | Yes | Yes | `--scan` may prompt for terms of service. |
 | `properties --property <name>` | Yes | Current 8.x docs | Exact 7.x availability unverified | If unsupported, run the properties task and filter the captured output. |
 

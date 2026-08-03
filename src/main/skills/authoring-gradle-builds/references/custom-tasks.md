@@ -195,8 +195,8 @@ Before applying version-sensitive task or cache guidance, read `gradle/wrapper/g
 
 **More info:**
 
-- Task registration: `gradle_docs` `tag:userguide`, path `userguide/task_configuration_avoidance.md`
-- Task inputs and outputs: `gradle_docs` `tag:best-practices`, path `userguide/best_practices_tasks.md`, terms `inputs outputs cacheable task`
-- Configuration-cache requirements: `gradle_docs` `tag:userguide`, path `userguide/configuration_cache_requirements.md`
+- Task registration: `gradle_docs(path="userguide/task_configuration_avoidance.md")`
+- Task inputs and outputs: `gradle_docs(path="userguide/best_practices_tasks.md")`
+- Configuration-cache requirements: `gradle_docs(path="userguide/configuration_cache_requirements.md")`
 - Task execution and inspection through MCP
 - Gradle documentation lookup: `gradle_docs`

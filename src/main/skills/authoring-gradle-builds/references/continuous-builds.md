@@ -82,7 +82,7 @@ Keep configuration-cache safety at the source: use managed providers and `ValueS
 
 **More info**:
 
-- Continuous execution: `gradle_docs` `tag:userguide`, path `userguide/continuous_builds.md`
-- Incremental task inputs and outputs: `gradle_docs` `tag:userguide`, path `userguide/more_about_tasks.md`
-- Configuration-cache requirements: `gradle_docs` `tag:userguide`, path `userguide/configuration_cache_requirements.md`
+- Continuous execution: `gradle_docs(path="userguide/continuous_builds.md")`
+- Incremental task inputs and outputs: `gradle_docs(path="userguide/more_about_tasks.md")`
+- Configuration-cache requirements: `gradle_docs(path="userguide/configuration_cache_requirements.md")`
 - Running and stopping long-lived builds: `gradle` / `wait_build` / `query_build`
