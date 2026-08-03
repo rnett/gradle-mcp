@@ -58,18 +58,39 @@ class SkillToolsTest : BaseMcpServerTest() {
 
     @Test
     fun `skills zip contains exactly the four-name inventory`() {
-        val zipSkills = mutableSetOf<String>()
+        val zipEntries = mutableSetOf<String>()
+        var hasBestPracticesIndex = false
+        var hasBestPracticesCorpus = false
         javaClass.classLoader.getResourceAsStream("skills.zip")!!.use { stream ->
             ZipInputStream(stream).use { zis ->
                 var entry = zis.nextEntry
                 while (entry != null) {
-                    zipSkills.add(entry.name.substringBefore("/"))
+                    if (!entry.isDirectory) {
+                        zipEntries.add(entry.name.substringBefore("/"))
+                        if (entry.name == "authoring-gradle-builds/references/best-practices/_index.md") {
+                            hasBestPracticesIndex = true
+                        }
+                        if (entry.name.startsWith("authoring-gradle-builds/references/best-practices/") &&
+                            entry.name.endsWith(".md") &&
+                            entry.name != "authoring-gradle-builds/references/best-practices/_index.md"
+                        ) {
+                            hasBestPracticesCorpus = true
+                        }
+                    }
                     entry = zis.nextEntry
                 }
             }
         }
 
-        assertEquals(expectedInventory, zipSkills, "skills.zip entries must exactly equal the four-name inventory")
+        assertEquals(expectedInventory, zipEntries, "skills.zip entries must exactly equal the four-name inventory")
+        assertTrue(
+            hasBestPracticesIndex,
+            "skills.zip must contain the generated best-practices index (authoring-gradle-builds/references/best-practices/_index.md)"
+        )
+        assertTrue(
+            hasBestPracticesCorpus,
+            "skills.zip must contain generated best-practices corpus files under authoring-gradle-builds/references/best-practices/"
+        )
     }
 
     @Test

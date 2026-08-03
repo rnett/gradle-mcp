@@ -48,8 +48,14 @@ tasks.check {
     dependsOn(verifyToolsList)
 }
 
+val generatedSkillsDir = layout.buildDirectory.dir("generated/skills/authoring-gradle-builds/references")
+
 val zipSkills = tasks.register<Zip>("zipSkills") {
+    dependsOn(generateBestPracticesDoc)
     from("src/main/skills")
+    from(generatedSkillsDir) {
+        into("authoring-gradle-builds/references")
+    }
     archiveFileName.set("skills.zip")
     destinationDirectory.set(layout.buildDirectory.dir("generated/resources/skills"))
 }
@@ -71,13 +77,13 @@ val generateBestPracticesDoc = tasks.register<JavaExec>("generateBestPracticesDo
     dependsOn(generatorProject.tasks.named("classes"))
     mainClass.set("dev.rnett.gradle.mcp.bestpractices.GenerateBestPracticesDoc")
     args(
-        project.rootDir.resolve("src/main/skills/authoring-gradle-builds/references").absolutePath,
+        generatedSkillsDir.get().asFile.absolutePath,
         gradleDocsVersion.get(),
     )
     inputs.property("gradleDocsVersion", gradleDocsVersion)
     inputs.dir(generatorProject.layout.projectDirectory.dir("src/main/kotlin"))
         .withPathSensitivity(PathSensitivity.RELATIVE)
-    outputs.dir(project.rootDir.resolve("src/main/skills/authoring-gradle-builds/references/best-practices"))
+    outputs.dir(generatedSkillsDir.map { it.dir("best-practices") })
 }
 
 
