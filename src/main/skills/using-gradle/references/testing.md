@@ -63,5 +63,5 @@ Use `--rerun` to force the execution of a test and its dependencies, bypassing t
 **More info**: Test filtering and reports: `gradle_docs(path="userguide/java_testing.md")`; test diagnostics: `query_build(kind="TESTS")`.
 
 Cross-references:
-- Build execution lifecycle $\\rightarrow$ [Running Builds](running-builds.md)
-- General build failures and build scans $\\rightarrow$ [Troubleshooting](troubleshooting.md)
+- Build execution lifecycle $\rightarrow$ [Running Builds](running-builds.md)
+- General build failures and build scans $\rightarrow$ [Troubleshooting](troubleshooting.md)

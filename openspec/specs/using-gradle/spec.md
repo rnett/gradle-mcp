@@ -24,7 +24,7 @@ Schedules and performs root-level Gradle operations for inspecting and operating
 This capability defines the workflows and requirements for operating Gradle builds.
 ## Requirements
 ### Requirement: Broad Operational Index
-The skill MUST provide a compact workflow index that directs an AI feature developer operating an existing Gradle build to specialized procedures for project mapping, execution, testing, diagnosis, dependency inspection, and source research.
+The skill MUST provide a compact workflow index that directs an AI feature developer operating an existing Gradle build to specialized procedures for project mapping, execution, testing, diagnosis, dependency inspection, and source research. This MUST include routing to the new `diagnostic-tasks.md` reference.
 
 #### Scenario: Select an execution procedure
 - **WHEN** an agent needs to run an unfamiliar task
@@ -38,6 +38,10 @@ The skill MUST provide a compact workflow index that directs an AI feature devel
 #### Scenario: Handle execution footguns
 - **WHEN** an agent uses task-execution flags while diagnosing a build
 - **THEN** the running-builds guidance explains that `--continue` does not run tasks whose prerequisites failed, `--offline` can reuse stale cached dependencies, and `--warning-mode` changes deprecation reporting rather than fixing the warning
+
+#### Scenario: Execute a diagnostic task
+- **WHEN** an agent needs to diagnose a build issue using a reporting task
+- **THEN** it consults `diagnostic-tasks.md` to find the appropriate core task for the use-case (e.g. `dependencies`, `dependencyInsight`) or uses the discovery rule for plugin-provided reports
 
 ### Requirement: Dependency and Source Research
 The skill MUST consolidate dependency-graph auditing, version and conflict investigation, update discovery, and dependency, plugin, Gradle, and JDK source reading into the `using-gradle` workflow.
@@ -75,7 +79,7 @@ The `SKILL.md` body MUST provide enough guidance for an agent to orient in an un
 - **AND** it can recognize that plugin, repository, module, toolchain, publishing, CI, compiler-option, and testing-framework changes belong to `authoring-gradle-builds`
 
 ### Requirement: Version-Aware Guidance
-The skill MUST mark version-dependent advice inline for Gradle 7, 8, and 9, provide compatibility-safe fallbacks, bias guidance toward the latest supported wrapper version, and include a compact compatibility quick-reference.
+The skill MUST mark version-dependent advice inline for Gradle 7, 8, and 9, provide compatibility-safe fallbacks, bias guidance toward the latest supported wrapper version, and include a compact compatibility quick-reference. This MUST include a specific "smell" guidance for the high cost of `--rerun-tasks` vs the targeted nature of `--rerun`.
 
 #### Scenario: Choose a version-safe operation
 - **WHEN** an agent works across Gradle 7, 8, and 9
@@ -92,6 +96,10 @@ The skill MUST mark version-dependent advice inline for Gradle 7, 8, and 9, prov
 #### Scenario: Handle policy-sensitive diagnostics
 - **WHEN** an agent considers `--scan` or stricter warning handling
 - **THEN** it is warned that build scans publish build metadata and may require terms acceptance, and that `--warning-mode=fail` is an intentional migration gate rather than a default diagnostic setting
+
+#### Scenario: Choose efficient rerun strategy
+- **WHEN** an agent needs to force a task to rerun
+- **THEN** it uses `--rerun` for the specific task when supported, and recognizes that needing `--rerun-tasks` is a smell indicating errors in the build logic's output/input tracking
 
 ### Requirement: Progressive Disclosure
 The skill MUST implement a root-local reference system where detailed procedures are stored in task-shaped files and loaded only for the corresponding operating or research task, while keeping `SKILL.md` within its compact body budget.
@@ -134,7 +142,7 @@ The skill MUST provide substantive, version-aware coverage for Gradle command-li
 
 ### Requirement: High-Impact Operational Footgun Body Rules
 
-The `using-gradle` `SKILL.md` body SHALL carry the `[Runs builds]` hardest-to-figure-out highlights and High-severity cross-cutting rules as always-loaded operational rules. The rules SHALL cover, where applicable, interpreting task outcomes (`EXECUTED`, `UP-TO-DATE`, `FROM-CACHE`, `NO-SOURCE`, `SKIPPED`, and `EXCLUDED`) before treating success as proof of work, `--continue`, `--offline`, and `--warning-mode` footguns, dependency cache TTL versus `--refresh-dependencies`, same-version daemon scope for `--status` and `--stop`, wrapper checksum verification, `--scan` metadata publication, and `--warning-mode=fail` as a migration gate rather than a default.
+The `using-gradle` `SKILL.md` body SHALL carry the `[Runs builds]` hardest-to-figure-out highlights and High-severity cross-cutting rules as always-loaded operational rules. The rules SHALL cover, where applicable, interpreting task outcomes (`EXECUTED`, `UP-TO-DATE`, `FROM-CACHE`, `NO-SOURCE`, `SKIPPED`, and `EXCLUDED`) before treating success as proof of work, `--continue`, `--offline`, and `--warning-mode` footguns, dependency cache TTL versus `--refresh-dependencies`, same-version daemon scope for `--status` and `--stop`, wrapper checksum verification, `--scan` metadata publication, `--warning-mode=fail` as a migration gate rather than a default, and the `--rerun` versus `--rerun-tasks` distinction: `--rerun` re-runs a specific task, while `--rerun-tasks` re-runs everything, including included builds, is extremely expensive, and should almost never be used — needing `--rerun-tasks` is a smell for build-logic errors in output/input tracking.
 
 #### Scenario: Interpret an operational result
 
@@ -149,18 +157,22 @@ The `using-gradle` `SKILL.md` body SHALL carry the `[Runs builds]` hardest-to-fi
 - **AND** the agent checks the exact Gradle version before applying the guidance
 
 ### Requirement: Authored Operational Best-Practice References
-
-The `using-gradle` skill SHALL provide authored references carrying the remaining `[Runs builds]` recommendations and all do/don't snippets. Guidance SHALL be woven into `running-builds.md`, `troubleshooting.md`, `build-environment.md`, `dependencies.md`, `testing.md`, and `research.md`, or into new authored-local files where no natural home exists. The references SHALL preserve the frozen corpus and route authoritative documentation through `gradle_docs` hints.
+The skill SHALL provide authored references carrying the remaining `[Runs builds]` recommendations and all do/don't snippets. Guidance SHALL be woven into `running-builds.md`, `troubleshooting.md`, `build-environment.md`, `dependencies.md`, `testing.md`, and `research.md`, and lazed-configuration/IP-compatibility guidance SHALL be woven where operationally sensible.
 
 #### Scenario: Load focused operational guidance
-
 - **WHEN** an agent operates, diagnoses, tests, or researches an existing Gradle build
 - **THEN** it loads the corresponding authored reference for the recommendation and its do/don't snippet
 - **AND** it follows the linked `gradle_docs` hint for version-specific authority
 
 #### Scenario: Preserve generated-corpus routing
-
 - **WHEN** authored operational guidance needs generated best-practice rationale
 - **THEN** it preserves the frozen corpus and links through its `_index.md` entry and detail file
 - **AND** it does not replace or restate generated content
+
+### Requirement: Diagnostic Task Coverage (Topic 10)
+The skill MUST provide a use-case driven matrix of core diagnostic tasks and a discovery rule for identifying plugin-contributed reporting tasks.
+
+#### Scenario: Discover plugin-specific reports
+- **WHEN** an agent needs to find if a plugin provides a specialized reporting task
+- **THEN** it applies the discovery rule (e.g. `tasks --all` or `help --task`) to identify reports that are not part of the core Gradle diagnostic set
 

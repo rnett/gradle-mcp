@@ -111,7 +111,7 @@ Write build logic that remains valid with isolation enabled even when the build 
 
 ```kotlin
 // producer/build.gradle.kts
-val generatedElements by configurations.creating {
+val generatedElements = configurations.register("generatedElements") {
     isCanBeConsumed = true
     isCanBeResolved = false
     attributes {
@@ -130,6 +130,54 @@ dependencies {
 ```
 
 Use project dependencies and consumable/resolvable configurations to describe relationships. For custom artifacts or advanced variant matching, see [Configurations and Variants](configurations-and-variants.md). Use `Provider`, `Property`, artifact views, and explicit task dependencies to carry values and work. Do not reach across projects during task execution.
+
+### IP-safe cross-project aggregation
+
+When a build must aggregate data or artifacts across subprojects, do it through Gradle's model, not by walking the `projects` map. Never use `subprojects {}`/`allprojects {}` or read another project's `Project`/`extensions` to collect state; those patterns couple evaluation order and are hostile to isolation.
+
+**Shared configuration via a convention plugin.** Apply the same behavior to multiple projects by applying a shared convention plugin in each project, not by mutating them from the root:
+
+```kotlin
+// build-logic/src/main/kotlin/my-jvm-library.gradle.kts
+plugins {
+    id("java-library")
+}
+java {
+    withSourcesJar()
+}
+
+// app/build.gradle.kts
+plugins {
+    id("my-jvm-library")
+}
+```
+
+**Artifact-based collection.** Collect outputs by resolving a shared consumable configuration across projects, then feeding the resolved file collection into an aggregating task:
+
+```kotlin
+// report-aggregation/build.gradle.kts — the dedicated aggregating project
+val allReports = configurations.register("allReports") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+}
+dependencies {
+    // Declarative per-project dependency edges; never enumerate subprojects.
+    allReports(project(":app"))
+    allReports(project(":core"))
+}
+
+tasks.register("collectReports") {
+    val reports = allReports
+    inputs.files(reports)
+    doLast {
+        reports.get().files.forEach { println(it) }
+    }
+}
+```
+
+The aggregation task receives the resolved artifacts as inputs and reads them at execution time; no project object is accessed from inside the task action, and the dependency edge keeps the task graph intact and isolated-projects-compatible. Enumerate the contributing projects as explicit `project(...)` dependency declarations in the aggregating project — never by iterating `subprojects`/`allprojects`, which configures every project eagerly and couples evaluation order.
+
+**Configuration-cache / isolated-projects consequence:** both patterns keep cross-project relationships declarative (plugin application or dependency resolution) instead of imperative (`subprojects {}`, `projects` map access, `evaluationDependsOnChildren()`). Declarative relationships let Gradle order and isolate projects independently; imperative cross-project mutation must be eliminated before isolation can be enabled.
 
 ### Low-level / Legacy Compatibility
 In rare cases where variant-aware resolution is not possible or when supporting legacy builds, you can use the explicit configuration form:

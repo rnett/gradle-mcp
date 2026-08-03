@@ -50,15 +50,15 @@ Author or modify Gradle build definitions, build logic, project structure, and d
 
 ## Constitution
 
-- Prefer [Kotlin DSL](references/kotlin-dsl.md) for new authoring (`best_practices_general.md`; use Groovy only when the project requires it).
-- Register lazily: use [Custom Tasks](references/custom-tasks.md), `tasks.register`, `tasks.named`, and `configureEach`, not eager `tasks.create` (`task_configuration_avoidance.md`).
-- Use version catalogs when present; centralize versions and aliases (`best_practices_dependencies.md`; catalogs are stable from 7.4).
-- Check existing conventions first; use declarative `plugins {}` and settings `pluginManagement {}` (`plugins.md`, `best_practices_structuring_builds.md`).
-- Never use `allprojects` or `subprojects`; apply explicit [Convention Plugins](references/convention-plugins.md) and keep projects decoupled (`best_practices_structuring_builds.md`, `isolated_projects.md`).
-- Never use `Project` or `Task.project` inside task actions; inject [Advanced Configuration](references/advanced-configuration.md) services and model task inputs (`configuration_cache_requirements.md`, `service_injection.md`).
-- Never resolve configurations in the configuration phase; resolve through task inputs or task execution (`best_practices_tasks.md`).
-- Do not call `Provider.get()` while configuring unrelated work; wire [Managed Types and Providers](references/managed-types-and-providers.md) with `Provider` and `Property` values lazily (`properties_providers.md`, `best_practices_tasks.md`).
-- Prohibit `afterEvaluate`; use providers, `pluginManager.withPlugin`, and lazy APIs. Permit it only for a documented correctness-critical ordering constraint, with an `afterEvaluate-justification:` comment (`best_practices_general.md`).
+- Prefer [Kotlin DSL](references/kotlin-dsl.md) for new authoring (`gradle_docs(path="userguide/best_practices_general.md")`; use Groovy only when the project requires it).
+- Register lazily: use [Custom Tasks](references/custom-tasks.md), `tasks.register`, `tasks.named`, and `configureEach`, not eager `tasks.create` (`gradle_docs(path="userguide/task_configuration_avoidance.md")`).
+- Use version catalogs when present; centralize versions and aliases (`gradle_docs(path="userguide/best_practices_dependencies.md")`; catalogs are stable from 7.4).
+- Check existing conventions first; use declarative `plugins {}` and settings `pluginManagement {}` (`gradle_docs(path="userguide/plugins.md")`, `gradle_docs(path="userguide/best_practices_structuring_builds.md")`).
+- Never use `allprojects` or `subprojects`; apply explicit [Convention Plugins](references/convention-plugins.md) and keep projects decoupled (`gradle_docs(path="userguide/best_practices_structuring_builds.md")`, `gradle_docs(path="userguide/isolated_projects.md")`).
+- Never use `Project` or `Task.project` inside task actions; inject [Advanced Configuration](references/advanced-configuration.md) services and model task inputs (`gradle_docs(path="userguide/configuration_cache_requirements.md")`, `gradle_docs(path="userguide/service_injection.md")`).
+- Never resolve configurations in the configuration phase; resolve through task inputs or task execution (`gradle_docs(path="userguide/best_practices_tasks.md")`).
+- Do not call `Provider.get()` while configuring unrelated work; wire [Managed Types and Providers](references/managed-types-and-providers.md) with `Provider` and `Property` values lazily (`gradle_docs(path="userguide/properties_providers.md")`, `gradle_docs(path="userguide/best_practices_tasks.md")`).
+- Prohibit `afterEvaluate`; use providers, `pluginManager.withPlugin`, and lazy APIs. Permit it only for a documented correctness-critical ordering constraint, with an `afterEvaluate-justification:` comment (`gradle_docs(path="userguide/best_practices_general.md")`).
 
 ## Always-Loaded Best-Practice Footguns
 
@@ -74,6 +74,9 @@ These compact rules are loaded before any authoring reference. Links provide det
 - **Wire cross-project behavior through model relationships.** Callback-based mutation depends on evaluation order and becomes hostile to project isolation. See [Convention Plugins](references/convention-plugins.md).
 - **Avoid `afterEvaluate` and `projectsEvaluated` as configuration mechanisms (version-sensitive).** Their timing can appear to repair ordering while masking a model relationship that should be explicit; read the wrapper first. See [Build Lifecycle](references/build-lifecycle.md).
 - **Distinguish `set(null)` from an absent provider.** Both represent "no value" at a glance, but only one lets a convention apply. See [Managed Types and Providers](references/managed-types-and-providers.md).
+- **Never resolve or iterate at configuration time.** Configuration-phase resolution, iteration, or eager file-tree walking realizes values early and breaks laziness, the configuration cache, and project isolation. See [File Operations](references/file-operations.md) and [Managed Types and Providers](references/managed-types-and-providers.md).
+- **Do not capture realized files or `Project`.** Retaining an eager `File`/`Path` or the `Project` object freezes values that must stay lazy and is incompatible with the configuration cache and isolated projects. See [File Operations](references/file-operations.md).
+- **Prefer provider wiring over declaration copying.** Connect task and extension properties with providers (`set(...)`, `from(...)`, `map`/`flatMap`) so changes propagate without re-realizing values. See [Managed Types and Providers](references/managed-types-and-providers.md).
 - Operation/execution (running builds, running tests, diagnosing failures, and read-only dependency inspection/update discovery) belongs to `using-gradle`; authoring/modifying build definitions (including dependency declarations and version catalogs) belongs to `authoring-gradle-builds`. Trivial one-line everyday dependency edits (catalog entry + declaration + version bump) are a sanctioned overlap in `using-gradle`; anything structural (plugins, repositories, modules, toolchains, publishing, CI) is `authoring-gradle-builds` only.
 
 ## Decision Routing
@@ -92,6 +95,9 @@ These compact rules are loaded before any authoring reference. Links provide det
 | Develop a binary plugin, test with TestKit, or publish a plugin | [Plugin Development](references/plugin-development.md) |
 | Configure Java source sets, annotation processing, or mixed languages | [Java Builds](references/java-builds.md) |
 | Model configurations, feature variants, capabilities, or variant sharing | [Configurations and Variants](references/configurations-and-variants.md) |
+| Declare custom task property annotations or model task inputs/outputs | [Task Properties](references/task-properties.md) |
+| Copy, sync, delete, or lazily handle files in a task | [File Operations](references/file-operations.md) |
+| Create, get, or work with a plugin extension | [Extensions](references/extensions.md) |
 
 ## Cross-Skill Handoffs
 

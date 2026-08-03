@@ -136,7 +136,7 @@ For KMP, configure common language settings in common source sets and JVM compil
 ```kotlin
 kotlin {
     sourceSets {
-        val commonMain by getting {
+        val commonMain = named("commonMain") {
             languageSettings {
                 optIn("kotlin.RequiresOptIn")
             }

@@ -140,6 +140,20 @@ extensions.configure<MyExtension> {
 
 **Anti-pattern:** Iterate over a container using `forEach` or `toList()` during configuration, which forces eager realization of every managed object.
 
+## Eager to Lazy Replacement
+
+Replace eager APIs with their lazy counterparts to defer realization until the execution boundary. Each row lists the configuration-time consequence of staying eager.
+
+| Eager API | Lazy replacement | Configuration-time consequence of staying eager |
+| :--- | :--- | :--- |
+| `tasks.create("name") { }` / `container.create("name")` | `tasks.register("name") { }` / `container.register("name") { }` | The object is realized and configured immediately even when unselected; breaks configuration avoidance |
+| `getByName("name")` / `getByType<X>()` on a container | `named("name") { }` / `named<X>()` | Resolves the object eagerly, forcing realization before it is needed |
+| `all { }`, `forEach`, or `toList()` over a container/collection | `configureEach { }`, or provider/`FileCollection`-based consumption | Iteration forces eager realization of every element during configuration |
+| `Project.file("...")` / `new File(...)` | `layout.projectDirectory.file("...")` / provider-backed paths | Resolves a realized path against the current environment instead of staying lazy |
+| Direct cross-project output wiring (`project(":other").tasks["jar"]`) | consumable configuration + dependency resolution | Eagerly realizes the other project and breaks isolated-projects compatibility |
+
+**Configuration-cache consequence:** every eager call above performs work during configuration that must be deferred; the configuration cache and isolated projects reject or freeze this behavior. Prefer `register`/`named`/`configureEach` and provider wiring everywhere.
+
 ## Lazy Files
 
 Use `ProjectLayout` to resolve project-relative paths lazily. Avoid `new File()` as it resolves against the current working directory (CWD), which varies by execution environment.
@@ -162,7 +176,116 @@ tasks.register<Copy>("copyConfig") {
 
 **Anti-pattern:** Use `new File("path/to/file")` or `Project.file("...")` inside a task action; these are not lazy and can cause issues in isolated projects or remote cache restores.
 
+### `RegularFile`/`Directory` providers vs realized `File`/`Path`
+
+Model every path as a provider-backed `RegularFileProperty`/`DirectoryProperty` (mutable task/extension input or output) or a `Provider<RegularFile>`/`Provider<Directory>` (read-only view derived from `layout`). Resolve to a concrete `File`/`Path` only inside a task action, never in configuration.
+
+| Form | Nature | Use when |
+| :--- | :--- | :--- |
+| `RegularFileProperty` / `DirectoryProperty` | Lazy, managed, tracked by Gradle | Task inputs/outputs and extension properties |
+| `Provider<RegularFile>` / `Provider<Directory>` | Lazy read-only view | Wiring derived paths, e.g. `layout.buildDirectory.dir(...)` |
+| Realized `File` / `Path` | Eager, absolute, resolved now | Inside a task action or as a fixed static constant |
+
+**Configuration-cache consequence:** capturing a realized `File` or the `Project` object in a task field or extension freezes a value that must stay lazy (or is illegal) under the configuration cache and isolated projects. Keep file values as providers and resolve them only at an execution boundary.
+
+### Lazy file trees and archive trees
+
+Use `fileTree`, `zipTree`, and `tarTree` to model collections of files without resolving them eagerly:
+
+```kotlin
+val srcTree = layout.projectDirectory.dir("src").asFileTree
+val exploded = zipTree(layout.projectDirectory.file("lib.zip"))
+val tarContents = tarTree(layout.projectDirectory.file("bundle.tgz"))
+```
+
+**Archive-tree laziness:** `zipTree`/`tarTree` do **not** expand the archive at configuration time; the archive's contents are discovered when the consuming task executes (or the tree is resolved). Keep large archives off the configuration path and preserve config-cache/IP compatibility.
+
+**Build-cache consequence:** feeding an archive tree as a task input (`from(zipTree(...))` or `@InputFiles`) means Gradle hashes the *contents* of the archive; a changed archive invalidates the cache. Do not copy or re-emit the archive as a whole unless the archive file itself is the intended input.
+
+**Anti-pattern:** expanding an archive to disk during configuration, or iterating a tree at configuration time to build a file list.
+
+### `ConfigurableFileCollection` vs `FileCollection`
+
+| Type | Nature | Use when |
+| :--- | :--- | :--- |
+| `ConfigurableFileCollection` | Lazy **and mutable**; you add sources with `from(...)` | A task/extension property assembled during configuration and resolved at execution |
+| `FileCollection` | Read-only view of a collection | Consuming an already-built collection you only read (e.g. a task input) |
+
+**Configuration-cache consequence:** never iterate or resolve a collection at configuration time; resolve only inside a task action. See [File Operations](file-operations.md) for the full `Copy`/`Sync`/`Delete` recipes and file-tracking guidance.
+
 See [Avoid using eager APIs on File Collections](best-practices/avoid-using-eager-apis-on-file-collections.md) for the rationale on lazy file collections.
+
+## Lazy Producer/Consumer Recipe
+
+Produce an artifact in one project and consume it in another through configurations, keeping everything provider-backed and isolated-projects-compatible. Do **not** use `project(path, configuration)` or a cross-project task dependency.
+
+### 1. Producer: task with a provider-backed output
+
+```kotlin
+// producer/build.gradle.kts
+abstract class GenerateConfig : DefaultTask() {
+    @get:OutputFile
+    abstract val outputFile: RegularFileProperty
+
+    @get:Input
+    abstract val version: Property<String>
+
+    @TaskAction
+    fun generate() {
+        outputFile.get().asFile.writeText("version=${version.get()}")
+    }
+}
+
+val generateConfig = tasks.register<GenerateConfig>("generateConfig") {
+    outputFile.set(layout.buildDirectory.file("generated/config.properties"))
+    version.convention("1.0")
+}
+```
+
+### 2. Producer: expose the output on a consumable configuration
+
+```kotlin
+// producer/build.gradle.kts
+val generatedElements = configurations.register("generatedElements") {
+    isCanBeConsumed = true
+    isCanBeResolved = false
+    attributes {
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
+    }
+}
+
+artifacts {
+    add(generatedElements.name, generateConfig.map { it.outputFile.get().asFile })
+}
+```
+
+The `generateConfig.map { ... }` wiring attaches the artifact to the registered task's output lazily; `outputFile.get()` runs inside the artifact's own realization, not at configuration time.
+
+### 3. Consumer: resolvable consumption in another project
+
+```kotlin
+// consumer/build.gradle.kts
+val generatedConfig = configurations.register("generatedConfig") {
+    isCanBeResolved = true
+    isCanBeConsumed = false
+}
+
+dependencies {
+    generatedConfig(project(":producer"))
+}
+
+tasks.register("printConfig") {
+    val cfg = generatedConfig
+    inputs.files(cfg)
+    doLast {
+        cfg.get().files.forEach { println(it.readText()) }
+    }
+}
+```
+
+**Isolated-projects consequence:** the consumer asks Gradle to resolve `:producer`'s consumable configuration via normal dependency resolution; no project object is touched directly, so the build stays isolated-projects-compatible. The producer task runs only when its output is actually resolved.
+
+**This is prohibited:** `dependencies { add("implementation", project(path = ":producer", configuration = "generatedElements")) }` or `project(":producer").tasks["generateConfig"]` — the explicit configuration form bypasses variant-aware selection and direct task access breaks isolation. See [Configurations and Variants](configurations-and-variants.md) for the variant-aware recipe.
 
 ## Incubating: Dataflow Actions
 
@@ -174,8 +297,8 @@ See [Avoid using eager APIs on File Collections](best-practices/avoid-using-eage
 
 ### Version notes
 
-- **Gradle 9.x:** Property and Provider APIs are the stable standard. Config cache is stable; all managed types are required for compatibility. Dataflow actions remain incubating.
-- **Gradle 8.x:** The same APIs apply; config cache is stable from 8.1.
+- **Gradle 9.x:** Property and Provider APIs are the stable standard. Configuration cache is stable; all managed types are required for compatibility. Dataflow actions remain incubating.
+- **Gradle 8.x:** The same APIs apply; configuration cache is stable from 8.1.
 - **Gradle 7.x:** Managed properties are available but some plugins may still use eager `create` patterns. Prefer `register` and `Property` where supported.
 
 **More info:**

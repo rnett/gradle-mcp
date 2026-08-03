@@ -177,12 +177,12 @@ kotlin {
     jvm()
 
     sourceSets {
-        val commonTest by getting {
+        val commonTest = named("commonTest") {
             dependencies {
                 implementation(kotlin("test"))
             }
         }
-        val jvmTest by getting {
+        val jvmTest = named("jvmTest") {
             dependencies {
                 implementation("org.junit.jupiter:junit-jupiter:5.10.0")
             }

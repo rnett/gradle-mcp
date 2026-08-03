@@ -8,8 +8,9 @@ Use a Java toolchain to declare the Java language level that compile, test, and 
 |---|---|---|
 | Compile Java or run JVM tests | Configure `java.toolchain.languageVersion` | Depend on whichever `JAVA_HOME` happens to be installed |
 | Select a vendor | Omit `vendor` unless reproducibility or a vendor requirement demands it | Assume every resolver offers every vendor/version combination |
-| Express Java source and bytecode level | Use the toolchain language version | Treat `sourceCompatibility` and `targetCompatibility` as a substitute for selecting a JDK |
-| Run Gradle itself | Check the Gradle wrapper's JVM compatibility separately | Assume a project toolchain changes the JVM running Gradle |
+| Target a specific Java version (bytecode + API floor) | Use `options.release = JvmTarget.JDK_17` (or equivalent) | Treat `sourceCompatibility`/`targetCompatibility` as a substitute for `options.release` |
+| Select the JDK for compilation/tests | Configure a Java toolchain | Set `sourceCompatibility` and expect it to pick a JDK |
+| Change the JVM running Gradle | Edit the Daemon JVM criteria (`gradle/gradle-daemon-jvm.properties`, `./gradlew updateDaemonJvm`) | Configure a project toolchain and assume it changes the daemon JVM |
 | Kotlin/JVM output | Align Kotlin `jvmTarget` with the same language version | Set unrelated Java and Kotlin target versions |
 | Missing local JDK | Allow an approved resolver and document the network/cache policy | Hide automatic downloads from CI or developers |
 
@@ -40,7 +41,17 @@ Use one shared `JavaLanguageVersion` convention when Java and Kotlin targets are
 
 ## Toolchain versus compatibility properties
 
-`sourceCompatibility` controls the Java source language level accepted by Java compilation. `targetCompatibility` controls the class-file level emitted by Java compilation. Neither property selects the JDK used to run the compiler or tests, and neither guarantees that all toolchain-aware tasks use the same JDK.
+Separate three concerns that are often conflated:
+
+| Concern | Mechanism |
+|---|---|
+| Which JDK compiles and runs tests | A Java **toolchain** (`java.toolchain.languageVersion`) |
+| Bytecode level **and** Java API floor for a target version | `options.release` (strict `--release`) |
+| Legacy source/class-file compatibility fallback | `sourceCompatibility` / `targetCompatibility` |
+
+A toolchain selects the JDK used for compilation and test execution only. `options.release = JvmTarget.JDK_17` (or `options.release = 17`) tells the compiler to enforce **both** the bytecode level **and** the Java API floor — it prevents compiling against APIs newer than the target, matching `javac --release` semantics.
+
+`sourceCompatibility` controls the Java source language level accepted; `targetCompatibility` controls the class-file level emitted. These are legacy source/class-file fallbacks only and do **NOT** prevent compiling against newer APIs. Never equate them with `options.release`.
 
 Prefer this:
 
@@ -49,10 +60,13 @@ java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(17))
     }
+    options {
+        release.set(17) // or options.release = JvmTarget.JDK_17
+    }
 }
 ```
 
-Use compatibility properties only when a legacy plugin or publishing contract needs an explicit compatibility value in addition to the toolchain. If both are present, keep them consistent and document why the duplicate declaration exists. Do not use `sourceCompatibility = JavaVersion.VERSION_17` and `targetCompatibility = JavaVersion.VERSION_17` as the primary way to select the build JDK.
+Use `sourceCompatibility`/`targetCompatibility` only when a legacy plugin or publishing contract requires an explicit compatibility value, and even then prefer `options.release` for the enforcement. If both are present, keep them consistent and document why the duplicate declaration exists. Do not use `sourceCompatibility = JavaVersion.VERSION_17` and `targetCompatibility = JavaVersion.VERSION_17` as the primary way to target a Java version or select the build JDK.
 
 ## JVM that runs Gradle versus JVM used by the build
 
@@ -66,6 +80,29 @@ The JVM that launches Gradle is a separate concern from the project toolchain. R
 | 7.0-7.2 | Java 8 minimum; Java 17 is not supported for running Gradle | Upgrade the wrapper or run Gradle on a supported older JVM |
 
 **Anti-pattern:** configure a Java toolchain and claim that it upgrades or downgrades the JVM running Gradle. Use `gradle/gradle-daemon-jvm.properties` or the environment and wrapper policy for daemon selection; use `java.toolchain` for project work.
+
+### Daemon JVM criteria
+
+The JVM that runs the Gradle Daemon is selected by the **Daemon JVM criteria**, not by project toolchains. Define the criteria in `gradle/gradle-daemon-jvm.properties` at the project root, and manage it with the `updateDaemonJvm` tool:
+
+```text
+./gradlew updateDaemonJvm
+```
+
+A generated `gradle/gradle-daemon-jvm.properties` reflects the selected daemon JDK and per-OS/arch toolchain URLs (this project's file is produced by `updateDaemonJvm`):
+
+```properties
+toolchainVersion=25
+toolchainUrl.LINUX.X86_64=https\://api.foojay.io/disco/v3.0/ids/<id>/redirect
+toolchainUrl.WINDOWS.X86_64=https\://api.foojay.io/disco/v3.0/ids/<id>/redirect
+# ...one toolchainUrl.* entry per supported OS/architecture
+```
+
+Treat this file as generated: prefer `./gradlew updateDaemonJvm` over hand-editing it, matching how the project manages its own Daemon JVM criteria.
+
+When you need to change the JVM Gradle itself runs on, edit the Daemon JVM criteria (or run `updateDaemonJvm` to provision/adjust the recommended JDK). Configuring a project toolchain does **NOT** change the daemon JVM.
+
+**Configuration-cache / isolation consequence:** this is a runtime/daemon-level control, independent of the build's configuration model. Project toolchains describe compile/test work; the Daemon JVM criteria describe the process that evaluates the build. Keep them decoupled.
 
 ## Toolchain for compile, test, and run tasks
 
@@ -161,7 +198,7 @@ kotlin {
     }
 
     sourceSets {
-        val jvmMain by getting
+        val jvmMain = named("jvmMain")
     }
 }
 

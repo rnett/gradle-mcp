@@ -8,10 +8,32 @@ Author JVM-based builds using the Java and Java Library plugins. This reference 
 |---|---|---|
 | Plugin Choice | Use `java-library` for libraries (exposes an API); use `java` for applications. | Use the basic `java` plugin for libraries, hiding the API surface from consumers. |
 | JVM Toolchains | Always declare a toolchain for reproducible targets. | Rely on the environment's `JAVA_HOME` or default JDK. |
+| Java version targeting | Use `options.release` to enforce the bytecode level and Java API floor. | Use `sourceCompatibility`/`targetCompatibility` to target a Java version. |
 | Dependency Scope | Use `api` for public surface types; `implementation` for internals. | Put everything on `api` to avoid "missing class" errors. |
 | Project Layout | Stick to the convention: `src/main/java` and `src/test/java`. | Define haphazard directory structures without updating the `SourceSet` model. |
 
 For guidance on toolchain setup and reproducible JDKs, read [JDK Toolchains](jdk-toolchains.md). For configuring test tasks and environments, see [Testing Configuration](testing-configuration.md).
+
+## `options.release` and Java version targeting
+
+`options.release` enforces **both** the bytecode level **and** the Java API floor (strict `javac --release` semantics). Configure it on Java compile tasks alongside the toolchain:
+
+```kotlin
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17)) // selects the compile/test JDK
+    }
+    options {
+        release.set(17) // or options.release = JvmTarget.JDK_17
+    }
+}
+```
+
+**Relationship to the toolchain:** the toolchain selects which JDK compiles; `options.release` fixes the target the compiler must honor. Use both for reproducible targets — the toolchain provides a compiler, `options.release` prevents accidental use of APIs newer than the target regardless of which JDK happens to be selected.
+
+**Non-equivalence:** `sourceCompatibility`/`targetCompatibility` are legacy source/class-file fallbacks that do **NOT** enforce the API floor and must not be equated with `options.release`. Never use them as the primary way to target a Java version. See [JDK Toolchains](jdk-toolchains.md) for the full decoupling.
+
+For Kotlin/JVM, align `jvmTarget` with the same version (see [Kotlin Compiler Options](kotlin-compiler-options.md)). A Kotlin target newer than `options.release` can produce artifacts that violate the Java API floor.
 
 ## Source Sets and Configurations
 
@@ -26,7 +48,7 @@ sourceSets {
         java.setSrcDirs(listOf("src/main/java", "src/main/generated"))
         resources.setSrcDirs(listOf("src/main/resources"))
     }
-    create("integrationTest") {
+    register("integrationTest") {
         java.srcDir("src/integrationTest/java")
         resources.srcDir("src/integrationTest/resources")
     }

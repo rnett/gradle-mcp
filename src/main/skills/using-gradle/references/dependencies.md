@@ -102,7 +102,7 @@ Do not rerun the same command and assume remote metadata was checked again.
 
 ### Locking and verification
 
-`gradle.lockfile` pins the resolved versions for declared configurations. `gradle/verification-metadata.xml` authenticates artifact bytes and publisher identity. Locking and verification are different controls; neither replaces the other. Keep strict verification enabled. NEVER use `--dependency-verification=off` or lenient mode to unblock a build: missing metadata, bad checksums, or untrusted signatures require review.
+`gradle.lockfile` pins the resolved versions for declared configurations. `gradle/verification-metadata.xml` authenticates artifact bytes and publisher identity. Locking and verification are different controls; neither replaces the other. Verification is **conditional**, not a baseline: only enable it when the user explicitly asks for supply-chain hardening, and first state its UX costs — metadata maintenance on every dependency change, friction during dependency updates, and failure modes from missing or stale metadata. When verification is enabled, **never** use `--dependency-verification=off` or lenient mode to unblock a build: missing metadata, bad checksums, or untrusted signatures require review rather than silent disabling.
 
 ### Checking for Stable Updates
 

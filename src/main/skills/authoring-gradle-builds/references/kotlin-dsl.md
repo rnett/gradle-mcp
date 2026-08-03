@@ -23,6 +23,31 @@ kotlin {
 
 See [Apply plugins using the plugins block](best-practices/apply-plugins-using-the-plugins-block.md) for the approved pattern.
 
+## Deprecated Kotlin `by` delegates
+
+The Kotlin DSL container-property delegates — `by creating`, `by getting`, and their container-property variants — are formally deprecated. Replace them with the lazy `register`/`named` APIs on the container's `NamedDomainObjectProvider`, which avoid realizing the domain object during configuration.
+
+**Deprecation scope:** only the Kotlin DSL `by` delegates (`by creating`, `by getting`, `by registering`, `by named`, etc.) for container properties are deprecated. The underlying container methods `create`/`getByName` are NOT formally deprecated — calling `container.create("name")` or `container.getByName("name")` remains valid — but they are avoided in favor of `register`/`named` because the lazy forms preserve configuration-avoidance.
+
+**Do this:**
+
+```kotlin
+tasks.register("myTask") { ... }              // lazy; task not realized until needed
+val jvmMain = named("jvmMain")                // lazy reference to an existing object
+val commonDependencies = register("commonDependencies") // lazy creation of a container element
+```
+
+**Do not do this:**
+
+```kotlin
+val myTask by creating { ... }   // deprecated delegate syntax
+val jvmMain by getting           // deprecated delegate syntax
+```
+
+**Default:** use `register` to create a container element lazily and `named` to reference an element that already exists. Use `getByName`/`create` only when a lazy form is genuinely not applicable (rare in normal authoring).
+
+**Configuration-cache consequence:** `register`/`named` return `NamedDomainObjectProvider` handles that defer realization, keeping the model lazy and configuration-cache/isolated-projects compatible. Eager `getByName`/`create` in hot configuration paths realize objects early and add configuration-time cost even for tasks that are never run.
+
 ## Receivers and Nested-Lambda Ambiguity
 
 Kotlin DSL uses receivers to provide a concise syntax. However, nested lambdas can shadow receivers, leading to ambiguity or incorrect target calls.

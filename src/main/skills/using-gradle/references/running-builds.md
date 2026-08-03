@@ -99,6 +99,8 @@ Use these standard tasks as entry points:
 | `--refresh-dependencies` | Forces remote check for dynamic/SNAPSHOT deps. | Use for intentional freshness diagnosis. |
 | `--parallel` | Executes independent projects in parallel. | Use only when projects have no shared mutable state; first pin the Wrapper, JDK, toolchain, and dependency versions for reproducible comparisons. |
 | `--stacktrace` | Provides full JVM stack traces on failure. | Essential for build-logic debugging. |
+| `--rerun` | Re-runs one specific task, ignoring up-to-date/cache for it. | Prefer over `--rerun-tasks`; supported on Gradle 7.6+. |
+| `--rerun-tasks` | Re-runs every task, including included builds. | Extremely expensive; needing it is a smell for incorrect output/input tracking. |
 | `--info` / `--debug` | Increases log verbosity. | Use `--info` first; `--debug` is extremely noisy. |
 | `-P<name>=<val>` | Sets a project property. | Standard way to pass build-time config. |
 | `--warning-mode` | Controls deprecation reporting. | Use `all` for triage; use `fail` only as an intentional migration gate. |
@@ -127,6 +129,7 @@ Start with structured `query_build` output and the exact failure or problem reco
 | Recheck dependency metadata or dynamic/SNAPSHOT versions | `--refresh-dependencies` | Ask configured repositories again; it does not mean every task reruns. |
 | Reuse local or configured remote task outputs | `--build-cache` | Enables build-cache reuse; it is distinct from dependency caching and configuration cache. |
 | Force one known task action | `--rerun` where supported | Prefer targeted forcing; use the 7.0-7.5 fallback above. |
+| Re-run every task (project-wide cache corruption only) | `--rerun-tasks` | Extremely expensive (includes included builds); a smell for build-logic output/input-tracking errors. |
 
 **Do this:** choose one control that matches the hypothesis and record `GRADLE_USER_HOME` before comparing cache behavior.
 
@@ -153,8 +156,8 @@ The Gradle daemon is the default and should remain enabled for normal local and 
 - MCP execution and monitoring: `gradle` / `captureTaskOutput`; `query_build` / `wait_build`
 
 Cross-references:
-- Test selection and failure isolation $\\rightarrow$ [Testing](testing.md)
-- Build failure triage and build scans $\\rightarrow$ [Troubleshooting](troubleshooting.md)
-- Build environment configuration and property ownership $\\rightarrow$ [Build Environment](build-environment.md)
-- Dependency audits $\\rightarrow$ [Dependencies](dependencies.md)
-- Official/Internal source research $\\rightarrow$ [Research](research.md)
+- Test selection and failure isolation $\rightarrow$ [Testing](testing.md)
+- Build failure triage and build scans $\rightarrow$ [Troubleshooting](troubleshooting.md)
+- Build environment configuration and property ownership $\rightarrow$ [Build Environment](build-environment.md)
+- Dependency audits $\rightarrow$ [Dependencies](dependencies.md)
+- Official/Internal source research $\rightarrow$ [Research](research.md)

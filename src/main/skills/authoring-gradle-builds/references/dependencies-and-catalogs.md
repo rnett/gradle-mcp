@@ -124,17 +124,17 @@ dependencies {
 **This is prohibited:** Using map-notation (`group = "...", name = "...", version = "..."`) for dependency declarations. Map-notation was deprecated in Gradle 9.1 and will fail in Gradle 10. Use a single GAV string for all non-catalog declarations.
 
 Use the configuration that matches exposure and lifecycle: `api` for dependencies required by consumers of a library, `implementation` for internal runtime and compile dependencies, `compileOnly` for compile-time APIs supplied elsewhere, `runtimeOnly` for runtime providers, and `testImplementation` for test code. For a deeper dive into how these roles interact and how to model custom variants, read [Configurations and Variants](configurations-and-variants.md).
-129:
-130:**Default:** Add the narrowest declaration that supplies the required classpath. Avoid explicit Kotlin standard-library declarations when the Kotlin Gradle Plugin supplies them.
-131:
-132:**Anti-patterns:** Do not declare a test dependency as `implementation`, put an internal library on `api` without consumer need, or duplicate a dependency already supplied transitively or by a platform.
-133:
-134:**Version notes:** Configuration names and single-string notation work in Gradle 7, 8, and 9. Prefer the current Kotlin DSL and exact versions; on older 7.x builds, follow the existing declaration style if a plugin exposes a legacy configuration.
-135:
-136:**More info:**
+
+**Default:** Add the narrowest declaration that supplies the required classpath. Avoid explicit Kotlin standard-library declarations when the Kotlin Gradle Plugin supplies them.
+
+**Anti-patterns:** Do not declare a test dependency as `implementation`, put an internal library on `api` without consumer need, or duplicate a dependency already supplied transitively or by a platform.
+
+**Version notes:** Configuration names and single-string notation work in Gradle 7, 8, and 9. Prefer the current Kotlin DSL and exact versions; on older 7.x builds, follow the existing declaration style if a plugin exposes a legacy configuration.
+
+**More info:**
 - Dependency declarations: `gradle_docs(path="userguide/declaring_dependencies.md")`
 - Catalogs: `gradle_docs(path="userguide/version_catalogs.md")`
-139:- Approved declaration rationale: [Declare Dependencies using a single GAV String](best-practices/declare-dependencies-using-a-single-gav-group-artifact-version-string.md).
+- Approved declaration rationale: [Declare Dependencies using a single GAV String](best-practices/declare-dependencies-using-a-single-gav-group-artifact-version-string.md).
 
 ## Repositories, Content Filters, and Order
 
@@ -181,7 +181,18 @@ repositories {
 
 ## Dependency verification and supply chain
 
-Locking and verification solve different problems: `gradle.lockfile` pins resolved versions, while `gradle/verification-metadata.xml` authenticates artifact bytes and publisher identity. Enable strict verification, review metadata changes, and never use `--dependency-verification=off` or lenient mode to unblock a build. Repository content filters narrow candidates but do not provide exclusivity; do not trust a shared writable dependency cache across trust boundaries. Validate the wrapper distribution checksum and wrapper JAR as part of bootstrap. For the detailed security rationale, read [Best Practices for Security](best-practices/best-practices-for-security.md).
+Dependency verification is **conditional guidance**, not a baseline recommendation. It authenticates artifact bytes and publisher identity via `gradle/verification-metadata.xml`, and it is distinct from dependency locking (`gradle.lockfile`), which pins resolved versions. The two solve different problems; neither replaces the other.
+
+**UX costs (report these honestly before enabling):**
+- Every dependency change (version bump, added library, transitive change) triggers a metadata maintenance step, often requiring editing `verification-metadata.xml` or regenerating checksums.
+- Dependency updates become more involved and can fail on missing or stale metadata, adding friction to routine upgrade workflows.
+- Failure modes from missing or stale metadata can block resolution, requiring manual review or metadata regeneration to unblock.
+
+**Decision rule:** apply strict dependency verification only when the user explicitly asks for supply-chain hardening (for example, a security-mandated or regulated environment). When asked, first state the ongoing maintenance cost above, then enable it deliberately. Keep this conditional framing: do not present verification as a default every build should adopt.
+
+Inside that conditional framing, the existing cautions still apply: if verification is enabled, **never** use `--dependency-verification=off` or lenient mode to unblock a build — missing metadata, bad checksums, or untrusted signatures require review rather than silent disabling.
+
+**Default:** for most builds, rely on dependency locking for deterministic versions and treat verification as an opt-in hardening measure with explicit user consent. Repository content filters narrow candidates but do not provide exclusivity; do not trust a shared writable dependency cache across trust boundaries. Validate the wrapper distribution checksum and wrapper JAR as part of bootstrap. For the detailed security rationale, read [Best Practices for Security](best-practices/best-practices-for-security.md).
 
 **Version-sensitive field-guide rule:** Read `gradle/wrapper/gradle-wrapper.properties` before applying a version-sensitive entry.
 
