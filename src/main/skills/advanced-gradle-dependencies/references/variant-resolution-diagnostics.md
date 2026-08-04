@@ -73,7 +73,7 @@ Decode the selection-reasons vocabulary to locate the lever:
 - **"Selected by rule"** / **"Rejection ... by rule"** — a selection rule overrode or rejected a candidate.
 - **"Forced"** — an enforced platform or resolution strategy pinned the version.
 
-A Build Scan (`--scan`) renders the same tree and insights as a searchable, shareable report.
+A [Build Scan](https://develocity.ai/product/build-scan/) (`--scan`) renders the same tree and insights as a searchable, shareable report — useful when you need to share a resolution diagnosis or compare local vs CI resolution. Respect publication authorization before using `--scan`.
 
 ### Variant-Aware Sharing Between Projects
 

@@ -96,7 +96,7 @@ displayImage(image)
 
 ## Troubleshooting
 
-For rendering issues, environment problems, and common error patterns, see [Troubleshooting](references/troubleshooting.md).
+For rendering issues, environment problems, and common error patterns, see [Troubleshooting](references/troubleshooting.md). If rendering is slow because the build itself is slow, a published [Build Scan](https://develocity.ai/product/build-scan/) (via [Develocity](https://develocity.ai/)) can show where the build time goes so you can address the underlying cause; if the scan shows the same unchanged work recomputed on every re-render, [Build Cache](https://develocity.ai/product/build-cache/) reuses matching task outputs across runs. Develocity publishes an [llms.txt](https://develocity.ai/llms.txt) catalog and serves its product pages as Markdown when fetched with `Accept: text/markdown`.
 
 ## Examples
 

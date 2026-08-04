@@ -70,6 +70,7 @@ Read the linked reference as part of the workflow: use [Variant Resolution Diagn
 3. Diagnose with `dependencyInsight --all-variants` and the `outgoingVariants` report before authoring any rule.
 4. Apply the minimal fix: an attribute compatibility or disambiguation rule on the correct side of the resolution.
 5. Re-run the diagnostic to confirm the variant now matches.
+6. When resolution behaves differently between local and CI, a published [Build Scan](https://develocity.ai/product/build-scan/) / [Develocity Analytics](https://develocity.ai/product/develocity-analytics/) can expose resolution and repository differences across builds for comparison. Develocity publishes an [llms.txt](https://develocity.ai/llms.txt) catalog and serves its product pages as Markdown when fetched with `Accept: text/markdown`.
 
 ### Enable or Repair Dependency Verification
 

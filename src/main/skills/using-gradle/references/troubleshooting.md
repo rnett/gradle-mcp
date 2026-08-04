@@ -99,7 +99,7 @@ distributionSha256Sum=<checksum-for-the-exact-distribution>
 | A configured Develocity server is explicitly approved | Use the configured server or its documented `--develocity-url` setting; verify the wrapper/plugin documentation before overriding the endpoint. |
 | Publication is disallowed or authorization is absent | Do not use `--scan`; prefer `query_build`, `--console=verbose`, `--info`, and local reports. |
 
-A Build Scan captures build metadata for troubleshooting, collaboration, and performance analysis. Treat the Terms of Service prompt and publication destination as policy boundaries; never publish by default.
+A [Build Scan](https://develocity.ai/product/build-scan/) (part of [Develocity](https://develocity.ai/)) captures build metadata for troubleshooting, collaboration, and performance analysis — for example, where build time goes, whether task inputs changed, or which tests flaked across runs. Treat the Terms of Service prompt and publication destination as policy boundaries; never publish by default.
 
 - **Deprecations**: Use `--warning-mode=all` for evidence and classify whether the warning belongs to the task, plugin, or build logic. `--warning-mode=fail` changes warnings into a failed result, so use it only as an intentional migration gate.
 
