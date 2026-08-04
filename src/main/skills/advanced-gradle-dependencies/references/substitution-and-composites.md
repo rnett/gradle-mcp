@@ -27,31 +27,27 @@ Substitution happens during resolution and rewrites the dependency before varian
 
 **Anti-pattern:** using substitution when a version bump, alias, or platform is the actual intent, or substituting broadly in `configurations.all` when only one configuration needs the swap.
 
-## Composite Builds
+## Composite Builds (Diagnosis)
 
-A composite build lets one Gradle build include other builds as dependencies, so a module resolves from source instead of from a repository. Include a build in `settings.gradle.kts`:
+A composite build lets one Gradle build include other builds as dependencies, so a module resolves from source instead of from a repository. Authoring composites (declaring `includeBuild`, wiring plugin-management inclusion, and choosing buildSrc vs composite) lives in `authoring-gradle-builds`; see [Composite Builds](../../authoring-gradle-builds/references/composite-builds.md). This section covers diagnosing how a composite changes resolution.
 
-```kotlin
-includeBuild("../some-library")
-```
-
-Common uses:
+Common uses to recognize when diagnosing:
 
 - **Develop against a library in source** via project substitution without publishing or local-installing it.
 - **Coordinate multiple builds** with a shared delivery/consumption contract.
 - **Consume a build-logic build** as a composite for isolated build logic.
 
-A composite substitutes the included build's published coordinates with the included build's projects automatically. This is distinct from a hand-authored `dependencySubstitution`: the plugin/build wiring declares the coupling, and the resolution substitutes accordingly.
+A composite substitutes the included build's published coordinates with the included build's projects automatically. This is distinct from a hand-authored `dependencySubstitution`: the plugin/build wiring declares the coupling, and the resolution substitutes accordingly. **Automatic substitution matches by `group:name`, not the full GAV**: when the requested `group:name` matches an included build project's declared coordinates, Gradle substitutes that project regardless of the requested or declared version. Do not require or expect version equality (an "exact GAV match") for substitution to fire.
 
-**Anti-pattern:** adding an `includeBuild` solely to avoid a version bump, or relying on composite substitution without understanding that it overrides the repository-sourced version of the included coordinates.
+**Anti-pattern:** adding an `includeBuild` solely to avoid a version bump, or relying on composite substitution without understanding that it overrides the repository-sourced version of the included coordinates. Authoring fixes for a composite (path, coordinates, plugin wiring) are routed to `authoring-gradle-builds`; diagnose here first, then route the authoring change.
 
-### Using a Local Fork of a Module Dependency
+### Diagnosing a Local Fork of a Module Dependency
 
-To replace an external module with a local fork of its sources:
+To check whether a module resolves from a local fork of its sources:
 
-- Add `includeBuild("path/to/fork")` in `settings.gradle.kts` and keep the fork's `group`/`version` IDENTICAL to the external dependency it replaces — the exact-GAV match is what triggers substitution.
+- Confirm `includeBuild("path/to/fork")` is declared in `settings.gradle.kts` and that the fork's `group`/`name` match the external dependency it replaces — the `group:name` match is what triggers substitution; the version is not part of the match.
 - Declare the external coordinate normally in the consumer (no hand-written `dependencySubstitution` needed); Gradle substitutes from the composite automatically.
-- If the module still resolves externally, check the exact coordinate match and that `includeBuild` points at the right directory.
+- If the module still resolves externally, check the `group:name` match and that `includeBuild` points at the right directory; then route the authoring fix to `authoring-gradle-builds`.
 
 ## Diagnose-to-Fix Loop
 
@@ -68,5 +64,5 @@ To replace an external module with a local fork of its sources:
 - Viewing and debugging dependencies: `gradle_docs(path="userguide/viewing_debugging_dependencies.md")`
 - Using a local fork of a module dependency: `gradle_docs(path="userguide/how_to_use_local_forks.md")`
 - Gradle API dependencies (`gradleApi()`, `gradleTestKit()`, `localGroovy()`): `gradle_docs(path="userguide/gradle_dependencies.md")`
-- Authoring composite build logic is a retained `authoring-gradle-builds` topic; see [Convention Plugins](../authoring-gradle-builds/references/convention-plugins.md).
+- Authoring composite builds (declaring `includeBuild`, plugin-management inclusion, buildSrc vs composite): see [Composite Builds](../../authoring-gradle-builds/references/composite-builds.md) and [Convention Plugins](../../authoring-gradle-builds/references/convention-plugins.md).
 - Graph and winner inspection: `inspect_dependencies`; `dependencyInsight` via the `gradle` tool.

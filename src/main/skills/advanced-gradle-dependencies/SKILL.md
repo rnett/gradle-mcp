@@ -17,7 +17,7 @@ description: |
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Advanced Gradle Dependency Engineering
@@ -43,7 +43,7 @@ Diagnoses and fixes advanced Gradle dependency resolution problems as diagnose-t
 | Diagnose variant selection failures, attribute mismatches, or no-matching-variant errors | [Variant Resolution Diagnostics](references/variant-resolution-diagnostics.md) |
 | Enable or repair dependency verification (`verification-metadata.xml`, PGP keys, checksums, CI) | [Dependency Verification](references/dependency-verification.md) |
 | Author or troubleshoot component metadata rules and dependency selection rules | [Component Metadata Rules](references/component-metadata-rules.md) |
-| Diagnose or author dependency substitution and composite builds | [Substitution and Composites](references/substitution-and-composites.md) |
+| Diagnose dependency substitution or composite-build resolution (composite authoring lives in `authoring-gradle-builds`) | [Substitution and Composites](references/substitution-and-composites.md) |
 | Resolve feature-variant selection, configuration-role, or capability-conflict problems | [Feature Variants and Capabilities](references/feature-variants-and-capabilities.md) |
 | Apply lock modes or deep locking behavior beyond the basics | [Dependency Locking Deep Dive](references/dependency-locking-deep-dive.md) |
 | Author advanced version catalog topics (bundles, plugins, multiple catalogs, composition) | [Advanced Version Catalogs](references/advanced-version-catalogs.md) |
@@ -58,6 +58,7 @@ Read the linked reference as part of the workflow: use [Variant Resolution Diagn
 
 - **Everyday Dependency Inspection** (graph audits, `dependencyInsight` winner analysis, force/exclude/platform/constraint menu, cache TTL vs `--refresh-dependencies`, update discovery, trivial dependency edits) $\rightarrow$ `using-gradle`.
 - **Basic Dependency Authoring** (dependency declarations, version-catalog basics, repositories and content filters, constraints/BOMs, basic locking, custom-attribute/feature-variant basics) $\rightarrow$ `authoring-gradle-builds`.
+- **Composite Build Authoring** (`includeBuild` declarations, plugin-management inclusion, buildSrc vs composite trade-offs, cross-build task wiring) $\rightarrow$ `authoring-gradle-builds`. This skill keeps composite-build diagnosis and dependency-substitution authoring.
 - Receives advanced dependency engineering routed out of `using-gradle` and `authoring-gradle-builds`.
 
 ## Workflows

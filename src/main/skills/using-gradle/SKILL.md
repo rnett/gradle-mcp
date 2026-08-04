@@ -21,7 +21,7 @@ description: |
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Authoritative Gradle Build Execution, Testing & Inspection
@@ -97,7 +97,7 @@ These rules are intentionally compact. Follow the linked authored reference for 
 
 ## Reference Discovery
 
-Read the linked references as part of the workflow: use [Build Orientation](references/build-orientation.md) and [Build Environment](references/build-environment.md) when first orienting yourself or resolving environment inputs; use [Running Builds](references/running-builds.md) for foreground or background lifecycle execution, recursive or absolute task-path selection, and isolated task output; use [Testing](references/testing.md) for filtered class or method runs, failure isolation, and targeted reruns across Gradle versions; use [Troubleshooting](references/troubleshooting.md) for configuration or compilation failures, configuration-cache diagnosis, daemon/JVM/`JAVA_HOME`/memory issues, and build-scan or deprecation diagnostics; use [Diagnostic Tasks](references/diagnostic-tasks.md) when diagnosing a build issue or choosing a reporting task; use [Dependencies](references/dependencies.md) for compile/runtime/test configuration scoping, resolved-graph audits, version conflicts, and stable updates; and use [Research](references/research.md) for version-aware official Gradle documentation, Gradle internals and lifecycle, and dependency, plugin, or JDK source research.
+Read the linked references as part of the workflow: use [Build Orientation](references/build-orientation.md) and [Build Environment](references/build-environment.md) when first orienting yourself or resolving environment inputs; use [Running Builds](references/running-builds.md) for foreground or background lifecycle execution, recursive or absolute task-path selection, and isolated task output; use [Testing](references/testing.md) for filtered class or method runs, failure isolation, and targeted reruns across Gradle versions; use [Troubleshooting](references/troubleshooting.md) for configuration or compilation failures, configuration-cache diagnosis, daemon/JVM/`JAVA_HOME`/memory issues, and build-scan or deprecation diagnostics; use [Diagnostic Tasks](references/diagnostic-tasks.md) when diagnosing a build issue or choosing a reporting task; use [Dependencies](references/dependencies.md) for compile/runtime/test configuration scoping, resolved-graph audits, version conflicts, and stable updates; use [Included Builds](references/included-builds.md) when a build includes other builds via `includeBuild` or `--include-build` and you need to address their tasks or diagnose composite behavior; and use [Research](references/research.md) for version-aware official Gradle documentation, Gradle internals and lifecycle, and dependency, plugin, or JDK source research.
 
 ## Cross-Skill Handoffs
 

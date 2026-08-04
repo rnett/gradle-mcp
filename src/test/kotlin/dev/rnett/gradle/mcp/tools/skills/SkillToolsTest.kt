@@ -56,6 +56,8 @@ class SkillToolsTest : BaseMcpServerTest() {
         assertTrue(File(targetDir, "using-gradle/references/running-builds.md").exists())
         assertTrue(File(targetDir, "using-gradle/references/troubleshooting.md").exists())
         assertTrue(File(targetDir, "authoring-gradle-builds/references/dependencies-and-catalogs.md").exists())
+        assertTrue(File(targetDir, "using-gradle/references/included-builds.md").exists())
+        assertTrue(File(targetDir, "authoring-gradle-builds/references/composite-builds.md").exists())
         // Phase-1 references of the advanced-gradle-dependencies skill
         assertTrue(File(targetDir, "advanced-gradle-dependencies/references/variant-resolution-diagnostics.md").exists())
         assertTrue(File(targetDir, "advanced-gradle-dependencies/references/dependency-verification.md").exists())
@@ -74,6 +76,8 @@ class SkillToolsTest : BaseMcpServerTest() {
         val zipEntries = mutableSetOf<String>()
         var hasBestPracticesIndex = false
         var hasBestPracticesCorpus = false
+        var hasIncludedBuildsRef = false
+        var hasCompositeBuildsRef = false
         javaClass.classLoader.getResourceAsStream("skills.zip")!!.use { stream ->
             ZipInputStream(stream).use { zis ->
                 var entry = zis.nextEntry
@@ -89,6 +93,12 @@ class SkillToolsTest : BaseMcpServerTest() {
                         ) {
                             hasBestPracticesCorpus = true
                         }
+                        if (entry.name == "using-gradle/references/included-builds.md") {
+                            hasIncludedBuildsRef = true
+                        }
+                        if (entry.name == "authoring-gradle-builds/references/composite-builds.md") {
+                            hasCompositeBuildsRef = true
+                        }
                     }
                     entry = zis.nextEntry
                 }
@@ -103,6 +113,14 @@ class SkillToolsTest : BaseMcpServerTest() {
         assertTrue(
             hasBestPracticesCorpus,
             "skills.zip must contain generated best-practices corpus files under authoring-gradle-builds/references/best-practices/"
+        )
+        assertTrue(
+            hasIncludedBuildsRef,
+            "skills.zip must contain using-gradle/references/included-builds.md"
+        )
+        assertTrue(
+            hasCompositeBuildsRef,
+            "skills.zip must contain authoring-gradle-builds/references/composite-builds.md"
         )
     }
 

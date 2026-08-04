@@ -7,6 +7,7 @@ description: |
   - Authoring or modifying build.gradle(.kts), settings.gradle(.kts), convention plugins, modules, or subprojects.
   - Adding or changing dependency declarations, version catalogs, repositories, or plugin management.
   - Configuring JDK toolchains, Kotlin compiler options, test frameworks, publishing, or CI wiring.
+  - Declaring or modifying composite builds (included builds via `includeBuild`, build-logic wiring).
   - Creating custom tasks, worker actions, build services, value sources, service injection, or project-isolation-compatible build logic.
   - Modifying advanced Gradle configuration and build performance settings.
 
@@ -15,11 +16,11 @@ description: |
   - Researching internal Gradle APIs (use `using-gradle`'s research workflow).
   - Probing runtime project code (use `interacting-with-project-runtime`).
   - Verifying Compose UI (use `verifying-compose-ui`).
-  - Advanced dependency engineering — variant-aware resolution diagnostics, dependency verification implementation (verification-metadata.xml authoring, PGP key and checksum workflows, verification repair, and CI verification workflows), component metadata rules, substitution and composite builds, capability conflicts, lock modes beyond basics, advanced version catalogs, and repository governance modes (use `advanced-gradle-dependencies`). Basic dependency declaration, version-catalog basics, and basic locking stay here.
+  - Advanced dependency engineering — variant-aware resolution diagnostics, dependency verification implementation (verification-metadata.xml authoring, PGP key and checksum workflows, verification repair, and CI verification workflows), component metadata rules, dependency substitution rules and composite-build diagnosis, capability conflicts, lock modes beyond basics, advanced version catalogs, and repository governance modes (use `advanced-gradle-dependencies`). Composite-build authoring stays here. Basic dependency declaration, version-catalog basics, and basic locking stay here.
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
-  version: "1.2.0"
+  version: "1.3.0"
 ---
 
 # Gradle Build Authoring
@@ -92,6 +93,7 @@ These compact rules are loaded before any authoring reference. Links provide det
 | Enable or update dependency locking | [Dependency Locking](references/dependency-locking.md) |
 | Parallelize task work with Worker API | [Worker API](references/worker-api.md) |
 | Configure continuous builds | [Continuous Builds](references/continuous-builds.md) |
+| Declare or modify composite builds (included builds, `includeBuild`, build-logic) | [Composite Builds](references/composite-builds.md) |
 | Understand build lifecycle, phases, task graph, or hook ordering | [Build Lifecycle](references/build-lifecycle.md) |
 | Develop a binary plugin, test with TestKit, or publish a plugin | [Plugin Development](references/plugin-development.md) |
 | Configure Java source sets, annotation processing, or mixed languages | [Java Builds](references/java-builds.md) |
@@ -107,7 +109,7 @@ These compact rules are loaded before any authoring reference. Links provide det
 - Enabling isolated-projects flags/diagnostics and interpreting diagnostics output -> `using-gradle`.
 - Runtime probing or arbitrary JVM/Kotlin execution -> `interacting-with-project-runtime`.
 - Compose UI rendering or verification -> `verifying-compose-ui`.
-- Advanced Dependency Engineering -> `advanced-gradle-dependencies`. Routes advanced dependency depth out, including dependency verification implementation (verification-metadata.xml authoring, PGP key and checksum workflows, verification repair, and CI verification workflows), component metadata rules, substitution and composite builds, capability conflicts, lock modes beyond basics, advanced version catalogs, and repository governance modes. Basic dependency declaration, version-catalog basics, and basic locking stay here.
+- Advanced Dependency Engineering -> `advanced-gradle-dependencies`. Routes advanced dependency depth out, including dependency verification implementation (verification-metadata.xml authoring, PGP key and checksum workflows, verification repair, and CI verification workflows), component metadata rules, dependency substitution rules and composite-build diagnosis, capability conflicts, lock modes beyond basics, advanced version catalogs, and repository governance modes. Composite-build authoring stays here. Basic dependency declaration, version-catalog basics, and basic locking stay here.
 
 ## Workflows
 
