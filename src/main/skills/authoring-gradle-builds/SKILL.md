@@ -20,7 +20,7 @@ description: |
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
-  version: "1.3.0"
+  version: "1.4.0"
 ---
 
 # Gradle Build Authoring
@@ -89,6 +89,7 @@ These compact rules are loaded before any authoring reference. Links provide det
 | Configure Kotlin compiler options | [Kotlin Compiler Options](references/kotlin-compiler-options.md) |
 | Configure test frameworks or test behavior | [Testing Configuration](references/testing-configuration.md) |
 | Publish artifacts or configure Central Portal delivery | [Artifact Publishing](references/artifact-publishing.md) |
+| Customize published variants, components, or artifacts | [Artifact Publishing](references/artifact-publishing.md) |
 | Wire CI/CD builds | [CI/CD Builds](references/ci-cd-builds.md) |
 | Enable or update dependency locking | [Dependency Locking](references/dependency-locking.md) |
 | Parallelize task work with Worker API | [Worker API](references/worker-api.md) |

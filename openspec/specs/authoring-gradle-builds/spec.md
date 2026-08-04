@@ -144,6 +144,10 @@ The skill MUST cover Java plugin/source sets/annotation processing/mixed languag
 - **WHEN** an agent shares outputs between projects
 - **THEN** it is routed to the variant-aware recipe, not a cross-project task dependency
 
+#### Scenario: Publish and customize feature variants
+- **WHEN** an agent needs to publish a feature variant or customize which variants or artifacts a component publishes
+- **THEN** it adds the feature variant's consumable configuration to the component via `addVariantsFromConfiguration` on the `AdhocComponentWithVariants` component, and customizes the published variants with `withVariantsFromConfiguration` (e.g. `skip()`) or an ad hoc component from `softwareComponentFactory.adhoc(...)`, rather than attaching artifacts out of context
+
 ### Requirement: Build Cache and Configuration Cache Authoring Coverage
 The skill MUST cover the cacheability contract (determinism, normalization, unique outputs, `@CacheableTask` as a correctness promise), the configuration-cache requirements matrix, report-driven debugging, and isolated-projects constraint families; frozen enablement corpus entries MUST be labeled as usage rationale handed off to `using-gradle`. Guidance on build-cache, configuration-cache, and IP-compatibility MUST be woven throughout the authoring advice, emphasizing the prevention of eager configuration-time resolution.
 

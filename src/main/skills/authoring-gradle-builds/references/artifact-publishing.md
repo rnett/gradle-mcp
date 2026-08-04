@@ -27,7 +27,7 @@ Do not add `sourcesJar` or `javadocJar` tasks manually when the Java plugin alre
 
 ## Preserve module metadata and reproducible archives
 
-Publish from the relevant component, for example `from(components["java"])`, and keep Gradle Module Metadata (`.module`) alongside the POM or Ivy metadata so consumers retain variant and capability information. Prefer Gradle's reproducible archive defaults; do not add timestamp or ordering workarounds unless the target wrapper's documentation requires them. Configure publication metadata lazily, before the publication is created; eager publication APIs were removed in Gradle 9.0.
+Publish from the relevant component, for example `from(components["java"])`, and keep Gradle Module Metadata (`.module`) alongside the POM or Ivy metadata so consumers retain variant and capability information. The `.module` file carries the variant, capability, and dependency information Gradle consumers use for variant-aware resolution, while the POM serves Maven consumers. `maven-publish` emits `.module` alongside the POM by default when publishing from a component, so the operative rule is don't strip or suppress it: Gradle-only consumers gain, Maven consumers are unaffected. Prefer Gradle's reproducible archive defaults; do not add timestamp or ordering workarounds unless the target wrapper's documentation requires them. Configure publication metadata lazily, before the publication is created; eager publication APIs were removed in Gradle 9.0.
 
 **Version-sensitive field-guide rule:** Read `gradle/wrapper/gradle-wrapper.properties` before applying these rules.
 
@@ -78,6 +78,27 @@ publishing {
 ```
 
 **POM checklist:** `name`, `description`, `url`, at least one `license`, at least one `developer`, and `scm` must describe the actual artifact. Use HTTPS project and license URLs. Do not leave placeholder values in a release publication or rely on Gradle's generated defaults for Portal validation.
+
+## Customize what gets published
+
+**Shape a component's variants.** Components from the Java plugins (Java, Java Library, Java Platform) implement `AdhocComponentWithVariants`. Two distinct levers, BOTH called on the component, NOT on the publication:
+- `addVariantsFromConfiguration(config) { ... }` adds variants from a consumable configuration to the component; this is how a registered feature variant is included in the publication. Inside the action, map dependencies with `mapToMavenScope("runtime")` or `mapToOptional()`.
+- `withVariantsFromConfiguration(config) { ... }` modifies variants already added to the component, e.g. `skip()` the sources variant; it never adds variants.
+
+```kotlin
+val component = components["java"] as AdhocComponentWithVariants
+component.withVariantsFromConfiguration(configurations["sourcesElements"]) {
+    skip()
+}
+```
+
+**Publish additional artifacts.** Attach extras with `artifact(...)` on the publication ONLY when metadata is irrelevant — such artifacts are published "out of context" and are not referenced in Gradle Module Metadata or the POM.
+
+**Anti-pattern:** reaching for `artifact(...)` when consumers must discover the artifact; prefer adding a variant to a component.
+
+**Publish a custom (ad hoc) component.** For artifact sets that aren't a standard Java component, the documented route is: obtain the factory via `extensions.getByType(PublishingExtension).softwareComponentFactory` (an accessor on the publishing extension since Gradle 9.2; the file's existing version-sensitive field-guide rule governs older wrappers), create with `adhoc("name")`, register it with `components.add(component)`, attach variants via `addVariantsFromConfiguration(...)`, then publish with `from(components["name"])`.
+
+Full options, including conditional publishing and publish-task configuration, are in `gradle_docs(path="userguide/publishing_customization.md")`.
 
 ## Sign only when release key material is available
 
@@ -156,6 +177,10 @@ See [using-gradle research](../../using-gradle/references/research.md) for the s
 ## More info
 
 - Gradle publication model: `gradle_docs(path="userguide/publishing_maven.md")`
+- Publishing setup: `gradle_docs(path="userguide/publishing_setup.md")`
+- Gradle Module Metadata: `gradle_docs(path="userguide/publishing_gradle_module_metadata.md")`
+- Publishing customization: `gradle_docs(path="userguide/publishing_customization.md")`
+- Signing publications: `gradle_docs(path="userguide/publishing_signing.md")`
 - Gradle MCP documentation lookup: `gradle_docs`
 - Gradle MCP task execution handoff: `gradle`
 - Central Portal sunset announcement: https://central.sonatype.org/news/20250326_ossrh_sunset.
