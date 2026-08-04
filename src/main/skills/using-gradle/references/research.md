@@ -94,3 +94,5 @@ Plugin categories are stable across Gradle 7/8/9, but portal and resolution beha
 - [Testing](testing.md)
 - [Troubleshooting](troubleshooting.md)
 - [Dependencies](dependencies.md)
+- Build authoring research (plugin use and development): [authoring-gradle-builds Research](../../authoring-gradle-builds/references/research.md)
+- Advanced dependency research (resolution mechanics, governance, variants): [advanced-gradle-dependencies Research](../../advanced-gradle-dependencies/references/research.md)
