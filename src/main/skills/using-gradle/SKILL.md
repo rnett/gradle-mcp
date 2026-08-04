@@ -17,6 +17,7 @@ description: |
   - Structural build authoring: adding/changing plugins, repositories, modules/subprojects, toolchains, publishing, CI wiring, compiler options, or testing frameworks (use `authoring-gradle-builds`).
   - Executing arbitrary Kotlin/Java code via the REPL (use `interacting-with-project-runtime`).
   - Rendering Compose UI components (use `verifying-compose-ui`).
+  - Advanced dependency engineering — variant-aware resolution diagnostics, dependency verification, component metadata rules, substitution/composite builds, or dependency governance (use `advanced-gradle-dependencies`). Everyday dependency inspection, conflict analysis, and update discovery stay here.
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
@@ -103,6 +104,7 @@ Read the linked references as part of the workflow: use [Build Orientation](refe
 - **Structural Build Changes** (plugins, repositories, modules, toolchains, publishing, CI, compiler options, testing frameworks) $\rightarrow$ `authoring-gradle-builds`.
 - **Runtime Logic Probing** (JVM/Kotlin REPL) $\rightarrow$ `interacting-with-project-runtime`.
 - **UI Verification** (Compose) $\rightarrow$ `verifying-compose-ui`.
+- **Advanced Dependency Engineering** (variant-aware resolution diagnostics, dependency verification, component metadata rules, substitution/composite builds, dependency governance) $\rightarrow$ `advanced-gradle-dependencies`.
 
 ## Workflows
 

@@ -15,6 +15,7 @@ description: |
   - Researching internal Gradle APIs (use `using-gradle`'s research workflow).
   - Probing runtime project code (use `interacting-with-project-runtime`).
   - Verifying Compose UI (use `verifying-compose-ui`).
+  - Advanced dependency engineering — variant-aware resolution diagnostics, dependency verification implementation (verification-metadata.xml authoring, PGP key and checksum workflows, verification repair, and CI verification workflows), component metadata rules, substitution and composite builds, capability conflicts, lock modes beyond basics, advanced version catalogs, and repository governance modes (use `advanced-gradle-dependencies`). Basic dependency declaration, version-catalog basics, and basic locking stay here.
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
@@ -106,6 +107,7 @@ These compact rules are loaded before any authoring reference. Links provide det
 - Enabling isolated-projects flags/diagnostics and interpreting diagnostics output -> `using-gradle`.
 - Runtime probing or arbitrary JVM/Kotlin execution -> `interacting-with-project-runtime`.
 - Compose UI rendering or verification -> `verifying-compose-ui`.
+- Advanced Dependency Engineering -> `advanced-gradle-dependencies`. Routes advanced dependency depth out, including dependency verification implementation (verification-metadata.xml authoring, PGP key and checksum workflows, verification repair, and CI verification workflows), component metadata rules, substitution and composite builds, capability conflicts, lock modes beyond basics, advanced version catalogs, and repository governance modes. Basic dependency declaration, version-catalog basics, and basic locking stay here.
 
 ## Workflows
 

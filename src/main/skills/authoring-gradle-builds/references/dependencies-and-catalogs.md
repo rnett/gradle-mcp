@@ -188,7 +188,7 @@ Dependency verification is **conditional guidance**, not a baseline recommendati
 - Dependency updates become more involved and can fail on missing or stale metadata, adding friction to routine upgrade workflows.
 - Failure modes from missing or stale metadata can block resolution, requiring manual review or metadata regeneration to unblock.
 
-**Decision rule:** apply strict dependency verification only when the user explicitly asks for supply-chain hardening (for example, a security-mandated or regulated environment). When asked, first state the ongoing maintenance cost above, then enable it deliberately. Keep this conditional framing: do not present verification as a default every build should adopt.
+**Decision rule:** apply strict dependency verification only when the user explicitly asks for supply-chain hardening (for example, a security-mandated or regulated environment). When asked, first state the ongoing maintenance cost above, then route the implementation to `advanced-gradle-dependencies` (the Advanced Dependency Engineering handoff): `verification-metadata.xml` authoring, PGP key and checksum workflows, verification repair, and CI verification workflows are owned there. Keep this conditional framing here: do not present verification as a default every build should adopt, and do not direct verification implementation inside this authoring skill.
 
 Inside that conditional framing, the existing cautions still apply: if verification is enabled, **never** use `--dependency-verification=off` or lenient mode to unblock a build — missing metadata, bad checksums, or untrusted signatures require review rather than silent disabling.
 

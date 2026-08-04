@@ -17,7 +17,8 @@ class SkillToolsTest : BaseMcpServerTest() {
         "using-gradle",
         "authoring-gradle-builds",
         "interacting-with-project-runtime",
-        "verifying-compose-ui"
+        "verifying-compose-ui",
+        "advanced-gradle-dependencies"
     )
 
     @Test
@@ -32,12 +33,13 @@ class SkillToolsTest : BaseMcpServerTest() {
         assertTrue(text.contains("Successfully installed"), "Output should contain success message")
         assertTrue(text.contains("- using-gradle"), "Output should list installed skills")
 
-        // Verify files exist — exact four-name inventory
+        // Verify files exist — exact five-name inventory
         val skills = listOf(
             "using-gradle",
             "authoring-gradle-builds",
             "interacting-with-project-runtime",
-            "verifying-compose-ui"
+            "verifying-compose-ui",
+            "advanced-gradle-dependencies"
         )
 
         skills.forEach { skillName ->
@@ -46,18 +48,29 @@ class SkillToolsTest : BaseMcpServerTest() {
             assertTrue(File(skillDir, "SKILL.md").exists(), "SKILL.md should exist in $skillName")
         }
 
-        // Installed directory set must exactly equal the four-name inventory
+        // Installed directory set must exactly equal the five-name inventory
         val installedDirs = targetDir.listFiles { file -> file.isDirectory }!!.map { it.name }.toSet()
-        assertEquals(expectedInventory, installedDirs, "Installed skills must exactly equal the four-name inventory")
+        assertEquals(expectedInventory, installedDirs, "Installed skills must exactly equal the five-name inventory")
 
         // Verify some references
         assertTrue(File(targetDir, "using-gradle/references/running-builds.md").exists())
         assertTrue(File(targetDir, "using-gradle/references/troubleshooting.md").exists())
         assertTrue(File(targetDir, "authoring-gradle-builds/references/dependencies-and-catalogs.md").exists())
+        // Phase-1 references of the advanced-gradle-dependencies skill
+        assertTrue(File(targetDir, "advanced-gradle-dependencies/references/variant-resolution-diagnostics.md").exists())
+        assertTrue(File(targetDir, "advanced-gradle-dependencies/references/dependency-verification.md").exists())
+        assertTrue(File(targetDir, "advanced-gradle-dependencies/references/component-metadata-rules.md").exists())
+        assertTrue(File(targetDir, "advanced-gradle-dependencies/references/substitution-and-composites.md").exists())
+        // Phase-2 references of the advanced-gradle-dependencies skill
+        assertTrue(File(targetDir, "advanced-gradle-dependencies/references/feature-variants-and-capabilities.md").exists())
+        assertTrue(File(targetDir, "advanced-gradle-dependencies/references/dependency-locking-deep-dive.md").exists())
+        assertTrue(File(targetDir, "advanced-gradle-dependencies/references/advanced-version-catalogs.md").exists())
+        assertTrue(File(targetDir, "advanced-gradle-dependencies/references/repository-governance.md").exists())
+        assertTrue(File(targetDir, "advanced-gradle-dependencies/references/resolution-mechanics.md").exists())
     }
 
     @Test
-    fun `skills zip contains exactly the four-name inventory`() {
+    fun `skills zip contains exactly the five-name inventory`() {
         val zipEntries = mutableSetOf<String>()
         var hasBestPracticesIndex = false
         var hasBestPracticesCorpus = false
@@ -82,7 +95,7 @@ class SkillToolsTest : BaseMcpServerTest() {
             }
         }
 
-        assertEquals(expectedInventory, zipEntries, "skills.zip entries must exactly equal the four-name inventory")
+        assertEquals(expectedInventory, zipEntries, "skills.zip entries must exactly equal the five-name inventory")
         assertTrue(
             hasBestPracticesIndex,
             "skills.zip must contain the generated best-practices index (authoring-gradle-builds/references/best-practices/_index.md)"
