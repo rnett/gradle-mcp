@@ -120,6 +120,7 @@ Included skills:
 
 - `using-gradle`: Inspecting, executing, and diagnosing existing Gradle builds — project mapping, test diagnostics, dependency auditing, and source research.
 - `authoring-gradle-builds`: Modifying build definitions, wiring, and project structure — dependency declaration, module creation, toolchain configuration, and best practices.
+- `advanced-gradle-dependencies`: Analyzing advanced dependency resolution, variants, capabilities, verification, and governance.
 - `interacting-with-project-runtime`: Running Kotlin code in the project's full JVM classpath via a persistent REPL.
 - `verifying-compose-ui`: Visually verifying Compose UI components by rendering them to images.
 

@@ -1,28 +1,29 @@
 ---
 name: advanced-gradle-dependencies
-description: |
-  Diagnoses and fixes advanced Gradle dependency resolution problems across the operate/author split: variant-aware resolution diagnostics, dependency verification, component metadata rules, substitution and composite builds, and dependency governance.
-
-  ## Positive Triggers (when to activate)
-  - Variant selection failures or attribute mismatches, diagnosed via `outgoingVariants` and `dependencyInsight --all-variants`
-  - Dependency verification metadata, PGP keys, and CI verification workflows
-  - Component metadata rules, selection rules, dependency substitution, and composite build diagnosis
-  - Capability conflicts, feature variants, lock modes, advanced version catalogs beyond everyday catalog entries, repository governance, and caching/freshness tuning
-
-  ## Negative Triggers (when NOT to activate)
-  - Everyday dependency inspection, conflicts, or updates -> `using-gradle`
-  - Dependency declarations, basic version catalogs, or basic locking -> `authoring-gradle-builds`
-  - Running builds or generic failure diagnosis -> `using-gradle`
-  - Non-dependency structural authoring -> `authoring-gradle-builds`
+description: Analyzing advanced Gradle dependency behavior, including resolution, variants, capabilities, conflicts, constraints, and publication metadata. Activate for dependency-resolution design or diagnosis; use authoring-gradle-builds for routine dependency declarations.
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
-  version: "1.1.0"
+  version: "1.1.1"
 ---
 
 # Advanced Gradle Dependency Engineering
 
 Diagnoses and fixes advanced Gradle dependency resolution problems as diagnose-to-fix loops across the operate/author split. This skill owns the cross-cutting lane between everyday dependency inspection (`using-gradle`) and basic dependency authoring (`authoring-gradle-builds`).
+
+## Positive Triggers (when to activate)
+
+- Variant selection failures or attribute mismatches, diagnosed via `outgoingVariants` and `dependencyInsight --all-variants`
+- Dependency verification metadata, PGP keys, and CI verification workflows
+- Component metadata rules, selection rules, dependency substitution, and composite build diagnosis
+- Capability conflicts, feature variants, lock modes, advanced version catalogs beyond everyday catalog entries, repository governance, and caching/freshness tuning
+
+## Negative Triggers (when NOT to activate)
+
+- Everyday dependency inspection, conflicts, or updates -> `using-gradle`
+- Dependency declarations, basic version catalogs, or basic locking -> `authoring-gradle-builds`
+- Running builds or generic failure diagnosis -> `using-gradle`
+- Non-dependency structural authoring -> `authoring-gradle-builds`
 
 **More info**: Search the User Guide with `gradle_docs(query="tag:userguide <term>")`. Read `gradle/wrapper/gradle-wrapper.properties` before any version-sensitive advice; this skill's wrapper-first scoping is mandatory because resolution behavior is version-sensitive.
 

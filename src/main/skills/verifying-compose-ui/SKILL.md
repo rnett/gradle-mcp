@@ -1,26 +1,27 @@
 ---
 name: verifying-compose-ui
-description: |
-  Visually verifies Compose UI components and previews by rendering them to images from the JVM runtime.
-
-  ## Positive Triggers (when to activate)
-  - Rendering a specific Composable function or an @Preview to an image.
-  - Capturing state transitions of UI components via a sequence of images.
-  - Troubleshooting visual regressions or rendering issues in Compose.
-
-  ## Negative Triggers (when NOT to activate)
-  - Operating a Gradle build (use `using-gradle`).
-  - Modifying build definitions (use `authoring-gradle-builds`).
-  - Probing non-visual project logic (use `interacting-with-project-runtime`).
+description: Verifying Compose UI by rendering components or previews and inspecting the resulting images and state transitions. Activate for visual behavior that requires runtime rendering; use ordinary tests for nonvisual logic.
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
-  version: "1.0.0"
+  version: "1.0.1"
 ---
 
 # Visual Verification of Compose UI Components
 
 Renders Compose UI components and `@Preview` functions to images for rapid visual verification, enabling state-transition capture and regression detection without a full device or emulator.
+
+## Positive Triggers (when to activate)
+
+- Rendering a specific Composable function or an @Preview to an image.
+- Capturing state transitions of UI components via a sequence of images.
+- Troubleshooting visual regressions or rendering issues in Compose.
+
+## Negative Triggers (when NOT to activate)
+
+- Operating a Gradle build (use `using-gradle`).
+- Modifying build definitions (use `authoring-gradle-builds`).
+- Probing non-visual project logic (use `interacting-with-project-runtime`).
 
 ## Constitution
 

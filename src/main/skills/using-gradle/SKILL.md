@@ -1,32 +1,33 @@
 ---
 name: using-gradle
-description: |
-  Schedules and performs root-level Gradle operations for inspecting and operating existing builds.
-
-  ## Positive Triggers (when to activate)
-  - Mapping the project hierarchy, discovering runnable tasks, or inspecting project properties.
-  - Executing Gradle tasks in foreground or background.
-  - Monitoring build progress or capturing isolated task output.
-  - Diagnosing build failures through filtered test execution or diagnostic tasks.
-  - Researching official Gradle documentation, release notes, or internal APIs.
-  - Auditing the dependency graph, resolving version conflicts, or discovering library updates.
-  - Searching and reading source code for dependencies, plugins, or Gradle itself.
-  - Performing trivial everyday dependency edits (adding a version-catalog entry + library, bumping a version).
-
-  ## Negative Triggers (when NOT to activate)
-  - Structural build authoring: adding/changing plugins, repositories, modules/subprojects, toolchains, publishing, CI wiring, compiler options, or testing frameworks (use `authoring-gradle-builds`).
-  - Executing arbitrary Kotlin/Java code via the REPL (use `interacting-with-project-runtime`).
-  - Rendering Compose UI components (use `verifying-compose-ui`).
-  - Advanced dependency engineering — variant-aware resolution diagnostics, dependency verification, component metadata rules, substitution/composite builds, or dependency governance (use `advanced-gradle-dependencies`). Everyday dependency inspection, conflict analysis, and update discovery stay here.
+description: Using Gradle MCP tools to inspect and run existing builds, including projects, tasks, properties, dependencies, and build results. Activate for Gradle build operation and diagnosis; use authoring-gradle-builds when the build definition itself must change.
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
-  version: "1.2.0"
+  version: "1.2.1"
 ---
 
 # Authoritative Gradle Build Execution, Testing & Inspection
 
 Inspects, executes, diagnoses, and researches existing Gradle builds using managed orchestration and structured diagnostics.
+
+## Positive Triggers (when to activate)
+
+- Mapping the project hierarchy, discovering runnable tasks, or inspecting project properties.
+- Executing Gradle tasks in foreground or background.
+- Monitoring build progress or capturing isolated task output.
+- Diagnosing build failures through filtered test execution or diagnostic tasks.
+- Researching official Gradle documentation, release notes, or internal APIs.
+- Auditing the dependency graph, resolving version conflicts, or discovering library updates.
+- Searching and reading source code for dependencies, plugins, or Gradle itself.
+- Performing trivial everyday dependency edits (adding a version-catalog entry + library, bumping a version).
+
+## Negative Triggers (when NOT to activate)
+
+- Structural build authoring: adding/changing plugins, repositories, modules/subprojects, toolchains, publishing, CI wiring, compiler options, or testing frameworks (use `authoring-gradle-builds`).
+- Executing arbitrary Kotlin/Java code via the REPL (use `interacting-with-project-runtime`).
+- Rendering Compose UI components (use `verifying-compose-ui`).
+- Advanced dependency engineering — variant-aware resolution diagnostics, dependency verification, component metadata rules, substitution/composite builds, or dependency governance (use `advanced-gradle-dependencies`). Everyday dependency inspection, conflict analysis, and update discovery stay here.
 
 **More info**: Search official guidance with `gradle_docs(query="tag:userguide <term>")`; read `gradle/wrapper/gradle-wrapper.properties` before version-sensitive research.
 

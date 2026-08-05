@@ -1,26 +1,27 @@
 ---
 name: interacting-with-project-runtime
-description: |
-  Provides a persistent JVM/Kotlin REPL for executing and probing project logic within the full classpath context.
-
-  ## Positive Triggers (when to activate)
-  - Verifying dynamic behavior of a class or function in the project runtime.
-  - Probing internal state or executing experimental logic without a full build cycle.
-  - Rapidly prototyping logic changes within the JVM classpath.
-
-  ## Negative Triggers (when NOT to activate)
-  - Operating a Gradle build (use `using-gradle`).
-  - Modifying build definitions (use `authoring-gradle-builds`).
-  - Rendering Compose UI components (use `verifying-compose-ui`).
+description: Interacting with a project's JVM runtime through the Kotlin REPL to execute focused probes against project classes and dependencies. Activate when behavior must be observed by running code; use using-gradle for build inspection or task execution.
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
-  version: "1.0.0"
+  version: "1.0.1"
 ---
 
 # Persistent JVM/Kotlin REPL for Project Runtime Probing
 
 Executes Kotlin code interactively within the project's full runtime classpath, enabling rapid logic verification and state inspection without a full build cycle.
+
+## Positive Triggers (when to activate)
+
+- Verifying dynamic behavior of a class or function in the project runtime.
+- Probing internal state or executing experimental logic without a full build cycle.
+- Rapidly prototyping logic changes within the JVM classpath.
+
+## Negative Triggers (when NOT to activate)
+
+- Operating a Gradle build (use `using-gradle`).
+- Modifying build definitions (use `authoring-gradle-builds`).
+- Rendering Compose UI components (use `verifying-compose-ui`).
 
 ## Constitution
 

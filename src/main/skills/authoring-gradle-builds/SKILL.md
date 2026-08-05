@@ -1,31 +1,32 @@
 ---
 name: authoring-gradle-builds
-description: |
-  Authors and modifies Gradle build definitions, project structure, build logic, and delivery wiring, including dependencies and catalogs, convention plugins, custom tasks, build lifecycle, Kotlin DSL, managed types and providers, toolchain and Java builds, configurations and variants, binary plugin development, Kotlin compiler options, publishing via the Central Portal, CI, locking, build scans, Worker API, continuous builds, and advanced configuration such as service injection, build services, value sources, and project isolation.
-
-  ## Positive Triggers (when to activate)
-  - Authoring or modifying build.gradle(.kts), settings.gradle(.kts), convention plugins, modules, or subprojects.
-  - Adding or changing dependency declarations, version catalogs, repositories, or plugin management.
-  - Configuring JDK toolchains, Kotlin compiler options, test frameworks, publishing, or CI wiring.
-  - Declaring or modifying composite builds (included builds via `includeBuild`, build-logic wiring).
-  - Creating custom tasks, worker actions, build services, value sources, service injection, or project-isolation-compatible build logic.
-  - Modifying advanced Gradle configuration and build performance settings.
-
-  ## Negative Triggers (when NOT to activate)
-  - Operation/execution (running builds, running tests, diagnosing failures, and read-only dependency inspection/update discovery) belongs to `using-gradle`; authoring/modifying build definitions (including dependency declarations and version catalogs) belongs to `authoring-gradle-builds`. Trivial one-line everyday dependency edits (catalog entry + declaration + version bump) are a sanctioned overlap in `using-gradle`; anything structural (plugins, repositories, modules, toolchains, publishing, CI) is `authoring-gradle-builds` only.
-  - Researching internal Gradle APIs (use `using-gradle`'s research workflow).
-  - Probing runtime project code (use `interacting-with-project-runtime`).
-  - Verifying Compose UI (use `verifying-compose-ui`).
-  - Advanced dependency engineering — variant-aware resolution diagnostics, dependency verification implementation (verification-metadata.xml authoring, PGP key and checksum workflows, verification repair, and CI verification workflows), component metadata rules, dependency substitution rules and composite-build diagnosis, capability conflicts, lock modes beyond basics, advanced version catalogs, and repository governance modes (use `advanced-gradle-dependencies`). Composite-build authoring stays here. Basic dependency declaration, version-catalog basics, and basic locking stay here.
+description: Authoring and modifying Gradle build logic, including settings, plugins, dependencies, tasks, conventions, and upgrades. Activate when build files or plugins must change; use using-gradle for inspection or execution without build-definition edits.
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
-  version: "1.4.0"
+  version: "1.4.1"
 ---
 
 # Gradle Build Authoring
 
 Author or modify Gradle build definitions, build logic, project structure, and delivery wiring. Optimize for lazy, decoupled, configuration-cache-compatible builds.
+
+## Positive Triggers (when to activate)
+
+- Authoring or modifying build.gradle(.kts), settings.gradle(.kts), convention plugins, modules, or subprojects.
+- Adding or changing dependency declarations, version catalogs, repositories, or plugin management.
+- Configuring JDK toolchains, Kotlin compiler options, test frameworks, publishing, or CI wiring.
+- Declaring or modifying composite builds (included builds via `includeBuild`, build-logic wiring).
+- Creating custom tasks, worker actions, build services, value sources, service injection, or project-isolation-compatible build logic.
+- Modifying advanced Gradle configuration and build performance settings.
+
+## Negative Triggers (when NOT to activate)
+
+- Operation/execution (running builds, running tests, diagnosing failures, and read-only dependency inspection/update discovery) belongs to `using-gradle`; authoring/modifying build definitions (including dependency declarations and version catalogs) belongs to `authoring-gradle-builds`. Trivial one-line everyday dependency edits (catalog entry + declaration + version bump) are a sanctioned overlap in `using-gradle`; anything structural (plugins, repositories, modules, toolchains, publishing, CI) is `authoring-gradle-builds` only.
+- Researching internal Gradle APIs (use `using-gradle`'s research workflow).
+- Probing runtime project code (use `interacting-with-project-runtime`).
+- Verifying Compose UI (use `verifying-compose-ui`).
+- Advanced dependency engineering — variant-aware resolution diagnostics, dependency verification implementation (verification-metadata.xml authoring, PGP key and checksum workflows, verification repair, and CI verification workflows), component metadata rules, dependency substitution rules and composite-build diagnosis, capability conflicts, lock modes beyond basics, advanced version catalogs, and repository governance modes (use `advanced-gradle-dependencies`). Composite-build authoring stays here. Basic dependency declaration, version-catalog basics, and basic locking stay here.
 
 **More info**: Search the User Guide with `gradle_docs(query="tag:userguide <term>")` or best practices with `gradle_docs(query="tag:best-practices <term>")`. Read `gradle/wrapper/gradle-wrapper.properties` before any version-sensitive authoring.
 
@@ -79,7 +80,6 @@ These compact rules are loaded before any authoring reference. Links provide det
 - **Never resolve or iterate at configuration time.** Configuration-phase resolution, iteration, or eager file-tree walking realizes values early and breaks laziness, the configuration cache, and project isolation. See [File Operations](references/file-operations.md) and [Managed Types and Providers](references/managed-types-and-providers.md).
 - **Do not capture realized files or `Project`.** Retaining an eager `File`/`Path` or the `Project` object freezes values that must stay lazy and is incompatible with the configuration cache and isolated projects. See [File Operations](references/file-operations.md).
 - **Prefer provider wiring over declaration copying.** Connect task and extension properties with providers (`set(...)`, `from(...)`, `map`/`flatMap`) so changes propagate without re-realizing values. See [Managed Types and Providers](references/managed-types-and-providers.md).
-- Operation/execution (running builds, running tests, diagnosing failures, and read-only dependency inspection/update discovery) belongs to `using-gradle`; authoring/modifying build definitions (including dependency declarations and version catalogs) belongs to `authoring-gradle-builds`. Trivial one-line everyday dependency edits (catalog entry + declaration + version bump) are a sanctioned overlap in `using-gradle`; anything structural (plugins, repositories, modules, toolchains, publishing, CI) is `authoring-gradle-builds` only.
 
 ## Decision Routing
 

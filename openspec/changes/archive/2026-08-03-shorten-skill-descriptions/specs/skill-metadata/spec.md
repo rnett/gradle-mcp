@@ -1,9 +1,5 @@
-# Capability: skill-metadata
+## MODIFIED Requirements
 
-## Purpose
-
-Defines metadata requirements that prevent ambiguous routing between shipped skills with overlapping domains.
-## Requirements
 ### Requirement: Frontmatter negative triggers for routing-ambiguous skills
 
 Skills that overlap with or route similarly to other skills SHALL document explicit negative routing guidance at two levels. Their frontmatter description SHALL state the primary negative boundary needed for discovery-time routing (for example, "Do NOT use for ..."), and their `SKILL.md` body SHALL contain a Negative Triggers section with detailed cases and cross-skill pointers.
@@ -31,4 +27,3 @@ Skills that overlap with or route similarly to other skills SHALL document expli
 - **WHEN** a routing-ambiguous skill has several negative cases
 - **THEN** the complete list appears in the body Negative Triggers section
 - **AND** frontmatter retains only the discovery-critical boundary
-
