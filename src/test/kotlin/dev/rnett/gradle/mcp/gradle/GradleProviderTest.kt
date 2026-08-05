@@ -117,7 +117,7 @@ class GradleProviderTest {
             val args = GradleInvocationArguments(
                 additionalArguments = listOf("help"),
                 envSource = EnvSource.INHERIT
-            ).withTestGradleDefaults()
+            ).withTestGradleDefaults(pinJavaHome = false)
 
             val runningBuild = p.runBuild(
                 projectRoot = projectRoot,
@@ -183,7 +183,7 @@ class GradleProviderTest {
             val args = GradleInvocationArguments(
                 additionalArguments = listOf("help"),
                 envSource = EnvSource.INHERIT
-            ).withTestGradleDefaults()
+            ).withTestGradleDefaults(pinJavaHome = false)
 
             val runningBuild = p.runBuild(
                 projectRoot = projectRoot,

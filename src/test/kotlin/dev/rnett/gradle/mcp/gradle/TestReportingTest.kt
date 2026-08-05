@@ -22,7 +22,7 @@ class TestReportingTest {
 
     @Test
     fun `verifies comprehensive test reporting including skips`() = runTest(timeout = 180.seconds) {
-        val provider = createTestProvider()
+        createTestProvider().use { provider ->
         testJavaProject {
             file(
                 "src/test/java/com/example/ReportingTest.java", """
@@ -87,11 +87,12 @@ class TestReportingTest {
             assertTrue(skippedNames.any { it.contains("testAssumption") }, "testAssumption should be skipped. Found: $skippedNames")
             assertTrue(skippedNames.any { it.contains("testDisabled") }, "testDisabled should be skipped. Found: $skippedNames")
         }
+        }
     }
 
     @Test
     fun `verifies real-time test progress reporting`() = runTest(timeout = 180.seconds) {
-        val provider = createTestProvider()
+        createTestProvider().use { provider ->
         testJavaProject {
             file(
                 "src/test/java/com/example/ReportingTest.java", """
@@ -139,11 +140,12 @@ class TestReportingTest {
 
             assertTrue(hasPass || hasFail || hasCombined, "Should have seen test progress in messages: $messages")
         }
+        }
     }
 
     @Test
     fun `verifies test summary grouping in output`() = runTest(timeout = 180.seconds) {
-        val provider = createTestProvider()
+        createTestProvider().use { provider ->
         testJavaProject {
             file(
                 "src/test/java/com/example/SuiteA.java", """
@@ -187,6 +189,7 @@ class TestReportingTest {
             assertTrue(output.contains("    - testFail2"), "Should contain testFail2 under SuiteA. Output:\n$output")
             assertTrue(output.contains("- com.example.SuiteB"), "Should contain SuiteB group. Output:\n$output")
             assertTrue(output.contains("    - testFail3"), "Should contain testFail3 under SuiteB. Output:\n$output")
+        }
         }
     }
 }

@@ -15,8 +15,38 @@ import kotlin.reflect.KClass
 /** JVM heap size used for all test Gradle daemons. */
 private const val TEST_DAEMON_HEAP = "256m"
 
+/**
+ * Test-only daemon idle timeout (ms). Nested test builds run through the Tooling API, which cannot
+ * stop daemons, so this makes stragglers self-expire instead of lingering for Gradle's default
+ * multi-hour idle timeout.
+ */
+internal const val TEST_DAEMON_IDLE_TIMEOUT_MS = 120_000
+
+/**
+ * Canonical JVM args for nested test daemons: the test heap.
+ *
+ * Applied through the Tooling API JVM-arguments channel ([GradleInvocationArguments.additionalJvmArgs] ->
+ * `Launcher.addJvmArguments`, BuildExecutionService.kt:165) — verified to reach the daemon JVM by the
+ * task 3.1 probe (daemon context shows `-Xmx256m` replacing the user-home `-Xmx3g`). `-D` system
+ * properties passed through this channel are extracted by `JvmOptions` into build system properties
+ * and do NOT affect the daemon JVM, so the idle timeout is delivered as a launcher argument instead
+ * (see [TEST_DAEMON_IDLE_TIMEOUT_ARG]).
+ */
+internal val TEST_DAEMON_JVM_ARGS: List<String> = listOf("-Xmx$TEST_DAEMON_HEAP")
+
+/**
+ * Launcher argument that sets the test-only daemon idle timeout.
+ *
+ * Passed as a raw `-D` command-line argument (not a Tooling API system property):
+ * `ProviderConnection.initParams` feeds initial `-D` arguments into `DaemonBuildOptions` AFTER the
+ * user-home gradle.properties conversion, so this overrides `~/.gradle/gradle.properties` and reaches
+ * `DaemonParameters.idleTimeout` (source-verified in Gradle 9.6.1; see probes/FINDINGS-task3.1.md).
+ */
+internal val TEST_DAEMON_IDLE_TIMEOUT_ARG = "-Dorg.gradle.daemon.idletimeout=$TEST_DAEMON_IDLE_TIMEOUT_MS"
+
 private val defaultTestGradleSystemProperties: Map<String, String> = linkedMapOf(
-    "org.gradle.jvmargs" to "-Xmx$TEST_DAEMON_HEAP",
+    // Daemon JVM args (heap) are applied via the Tooling API JVM-arguments channel (TEST_DAEMON_JVM_ARGS);
+    // an `org.gradle.jvmargs` system property does not influence daemon startup.
     "org.gradle.workers.max" to "2",
     "org.gradle.vfs.watch" to "false",
     "org.gradle.caching" to "true",
@@ -24,12 +54,31 @@ private val defaultTestGradleSystemProperties: Map<String, String> = linkedMapOf
     "org.gradle.configuration-cache.parallel" to "true"
 )
 
+/**
+ * Wraps a [GradleProvider] so every nested build routes through the canonical test defaults
+ * ([withTestGradleDefaults]).
+ *
+ * @param pinJavaHome when true (default), the launcher `javaHome` is filled in with the test-worker
+ *   JDK (`System.getProperty("java.home")`) whenever the caller has not set one explicitly, so the
+ *   inherited `JAVA_HOME` environment fallback cannot spawn a separate daemon pool. Set to false to
+ *   opt out (dedicated fallback tests only); an explicit `javaHome` is never overwritten either way.
+ */
 fun GradleProvider.withTestGradleDefaults(
-    additionalSystemProps: Map<String, String> = emptyMap()
-): GradleProvider = TestGradleProvider(this, additionalSystemProps)
+    additionalSystemProps: Map<String, String> = emptyMap(),
+    pinJavaHome: Boolean = true
+): GradleProvider = TestGradleProvider(this, additionalSystemProps, pinJavaHome)
 
+/**
+ * Applies the canonical test defaults to [GradleInvocationArguments].
+ *
+ * @param pinJavaHome when true (default), fills in the launcher `javaHome` with the test-worker JDK
+ *   (`System.getProperty("java.home")`) only when the caller has not set one explicitly; an explicit
+ *   `javaHome` always takes precedence. Set to false to keep the pre-change fallback behavior
+ *   (environment `JAVA_HOME` / Tooling API default) for dedicated fallback tests.
+ */
 fun GradleInvocationArguments.withTestGradleDefaults(
-    additionalSystemProps: Map<String, String> = emptyMap()
+    additionalSystemProps: Map<String, String> = emptyMap(),
+    pinJavaHome: Boolean = true
 ): GradleInvocationArguments {
     val systemProps = defaultTestGradleSystemProperties
         .withOverriddenSystemProperties(additionalSystemProps)
@@ -41,8 +90,10 @@ fun GradleInvocationArguments.withTestGradleDefaults(
     )
 
     return copy(
+        javaHome = if (pinJavaHome) javaHome ?: System.getProperty("java.home") else javaHome,
+        additionalJvmArgs = TEST_DAEMON_JVM_ARGS + additionalJvmArgs,
         additionalSystemProps = systemProps,
-        additionalArguments = cacheArgs + additionalArguments
+        additionalArguments = cacheArgs + listOf(TEST_DAEMON_IDLE_TIMEOUT_ARG) + additionalArguments
     )
 }
 
@@ -52,7 +103,8 @@ private fun Map<String, String>.withOverriddenSystemProperties(
 
 private class TestGradleProvider(
     private val delegate: GradleProvider,
-    private val additionalSystemProps: Map<String, String>
+    private val additionalSystemProps: Map<String, String>,
+    private val pinJavaHome: Boolean
 ) : GradleProvider {
     override val buildManager: BuildManager
         get() = delegate.buildManager
@@ -70,7 +122,7 @@ private class TestGradleProvider(
         return delegate.getBuildModel(
             projectRoot = projectRoot,
             kClass = kClass,
-            args = args.withTestGradleDefaults(additionalSystemProps),
+            args = args.withTestGradleDefaults(additionalSystemProps, pinJavaHome),
             additionalProgressListeners = additionalProgressListeners,
             stdoutLineHandler = stdoutLineHandler,
             stderrLineHandler = stderrLineHandler,
@@ -89,7 +141,7 @@ private class TestGradleProvider(
     ): RunningBuild {
         return delegate.runBuild(
             projectRoot = projectRoot,
-            args = args.withTestGradleDefaults(additionalSystemProps),
+            args = args.withTestGradleDefaults(additionalSystemProps, pinJavaHome),
             additionalProgressListeners = additionalProgressListeners,
             stdoutLineHandler = stdoutLineHandler,
             stderrLineHandler = stderrLineHandler,
@@ -109,7 +161,7 @@ private class TestGradleProvider(
         return delegate.runTests(
             projectRoot = projectRoot,
             testPatterns = testPatterns,
-            args = args.withTestGradleDefaults(additionalSystemProps),
+            args = args.withTestGradleDefaults(additionalSystemProps, pinJavaHome),
             additionalProgressListeners = additionalProgressListeners,
             stdoutLineHandler = stdoutLineHandler,
             stderrLineHandler = stderrLineHandler,
