@@ -35,6 +35,7 @@ import dev.rnett.gradle.mcp.repl.ReplRequest
 import dev.rnett.gradle.mcp.repl.ReplResponse
 import dev.rnett.gradle.mcp.repl.ReplSession
 import dev.rnett.gradle.mcp.tools.PaginationInput
+import dev.rnett.gradle.mcp.tools.latestStableGradleVersionNoteForDocs
 import dev.rnett.gradle.mcp.utils.EnvProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
@@ -102,7 +103,8 @@ object UpdateTools {
             ThrowingSourcesService,
             ThrowingGradleSourceService,
             ThrowingSourceIndexService,
-            emptyList()
+            emptyList(),
+            latestStableGradleVersionNote = latestStableGradleVersionNoteForDocs(BuildConfig.GRADLE_VERSION)
         ).mapNotNull {
             val file = directory?.resolve("${it.name.replace(" ", "_").uppercase()}.md")
             executeForComponent(it, file, verify)
@@ -436,5 +438,8 @@ private object ThrowingJdkSourceService : JdkSourceService {
 
 private object ThrowingGradleVersionService : GradleVersionService {
     override suspend fun resolveVersion(version: String?): String =
+        throw UnsupportedOperationException("Not supported in tool generator")
+
+    override suspend fun resolveLatestStable(): LatestStableGradleVersion =
         throw UnsupportedOperationException("Not supported in tool generator")
 }

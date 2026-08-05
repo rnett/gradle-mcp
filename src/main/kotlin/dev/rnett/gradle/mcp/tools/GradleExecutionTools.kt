@@ -12,7 +12,7 @@ import kotlinx.serialization.Serializable
 import kotlin.time.ExperimentalTime
 
 class GradleExecutionTools(
-    val gradleProvider: GradleProvider
+    val gradleProvider: GradleProvider,
 ) : McpServerComponent("Execution Tools", "Tools for executing Gradle tasks and running tests.") {
     companion object {
         private const val TASK_OUTPUT_MAX_LINES = 100

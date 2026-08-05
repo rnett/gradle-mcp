@@ -131,6 +131,9 @@ class Application(val args: Array<String>, val transport: Transport) {
         System.err.println("Starting Gradle MCP server with ${transport.name} transport...")
         withContext(Dispatchers.IO) {
             try {
+                // Construct the server eagerly at startup for all transports so the bounded latest-stable-version
+                // resolution runs before any request arrives and never on Netty threads.
+                resolveServer(this@Application)
                 transport.start(this@Application, wait)
             } catch (t: Throwable) {
                 LOGGER.error("Fatal uncaught error", t)

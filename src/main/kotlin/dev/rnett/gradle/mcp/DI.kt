@@ -59,6 +59,8 @@ import dev.rnett.gradle.mcp.tools.GradleBuildLookupTools
 import dev.rnett.gradle.mcp.tools.GradleDocsTools
 import dev.rnett.gradle.mcp.tools.GradleExecutionTools
 import dev.rnett.gradle.mcp.tools.ReplTools
+import dev.rnett.gradle.mcp.tools.latestStableGradleVersionNote
+import dev.rnett.gradle.mcp.tools.latestStableGradleVersionNoteForDocs
 import dev.rnett.gradle.mcp.tools.dependencies.DependencySearchTools
 import dev.rnett.gradle.mcp.tools.dependencies.DependencySourceTools
 import dev.rnett.gradle.mcp.tools.dependencies.GradleDependencyTools
@@ -79,6 +81,7 @@ import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import nl.adaptivity.xmlutil.serialization.XML
 import org.koin.core.module.Module
@@ -175,6 +178,7 @@ object DI {
             val gradleSourceService: GradleSourceService = get()
             val indexService: SourceIndexService = get()
             val searchProviders: List<SearchProvider> = getAll()
+            val resolution = runBlocking { gradleVersionService.resolveLatestStable() }
             components(
                 provider,
                 replManager,
@@ -187,7 +191,8 @@ object DI {
                 sourcesService,
                 gradleSourceService,
                 indexService,
-                searchProviders
+                searchProviders,
+                latestStableGradleVersionNote = latestStableGradleVersionNote(resolution)
             )
         }
 
@@ -213,12 +218,13 @@ object DI {
         sourcesService: SourcesService,
         gradleSourceService: GradleSourceService,
         indexService: SourceIndexService,
-        searchProviders: List<SearchProvider>
+        searchProviders: List<SearchProvider>,
+        latestStableGradleVersionNote: String = latestStableGradleVersionNoteForDocs(BuildConfig.GRADLE_VERSION)
     ): List<McpServerComponent> = listOf(
         GradleExecutionTools(provider),
         ReplTools(provider, replManager, replEnvironmentService, envProvider),
         GradleBuildLookupTools(provider.buildManager),
-        GradleDocsTools(gradleDocsService, gradleVersionService),
+        GradleDocsTools(gradleDocsService, gradleVersionService, latestStableGradleVersionNote),
         GradleDependencyTools(gradleDependencyService),
         DependencySearchTools(depsDevService),
         DependencySourceTools(sourcesService, gradleSourceService, indexService, searchProviders),

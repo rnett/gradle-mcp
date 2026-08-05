@@ -91,3 +91,28 @@ The `gradle_docs` tool's `version` parameter description SHALL state the full re
 - **WHEN** the `version` parameter description is changed
 - **THEN** the generated tool documentation SHALL be regenerated so the published description matches the source
 
+### Requirement: Latest stable version surfaced in the tool description
+
+The `gradle_docs` tool description SHALL include a note stating the latest stable Gradle version, resolved at server startup from `https://services.gradle.org/versions/current`. The note SHALL be provenance-aware: it must not assert that a fallback value is the live latest version. The `gradle` tool description SHALL NOT carry this note, because `gradle` executes the project's wrapper version rather than the latest stable release.
+
+#### Scenario: Successful startup resolution
+- **WHEN** the server resolves the latest stable version from `https://services.gradle.org/versions/current` at startup
+- **THEN** the `gradle_docs` tool description SHALL state the resolved latest stable Gradle version
+- **AND** SHALL state that the version was resolved at server startup from `https://services.gradle.org/versions/current`
+
+#### Scenario: Failed startup resolution
+- **WHEN** the startup resolution fails because `https://services.gradle.org/versions/current` is unreachable
+- **THEN** the `gradle_docs` tool description SHALL state that the latest stable version could not be verified
+- **AND** SHALL identify the Gradle version the server was built against as the newest version it knows of
+- **AND** SHALL note that newer versions may exist
+- **AND** SHALL NOT assert that the bundled version is the live latest
+
+#### Scenario: Note absent from the gradle tool description
+- **WHEN** an agent reads the `gradle` tool description
+- **THEN** the description SHALL NOT contain the latest stable version note
+- **BECAUSE** `gradle` runs the project's wrapper version, not the latest stable release
+
+#### Scenario: Generated docs stay in sync
+- **WHEN** the wording of the version note in the tool description is changed
+- **THEN** the generated tool documentation SHALL be regenerated (`:updateToolsList`) so the published description matches the source
+

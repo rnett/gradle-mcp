@@ -17,18 +17,37 @@ The system SHALL provide a centralized mechanism to resolve Gradle version alias
 
 ### Requirement: Version resolution caching
 
-The system SHALL cache resolved version aliases for a short period (e.g., 5-10 minutes) to avoid redundant network requests while ensuring responsiveness to version updates.
+The system SHALL cache successful version resolutions for the lifetime of the server process, so a process performs a single fetch of the latest stable version and subsequent resolutions are served from the cache without further network requests. Failed resolutions SHALL NOT be cached, so later lookups can retry. Concurrent resolutions SHALL converge on the same cached value.
 
 #### Scenario: Cached version resolution
 
-- **WHEN** a version alias is resolved within the cache TTL
+- **WHEN** a version alias was previously resolved successfully
 - **THEN** the system SHALL return the cached version string without making a network request
+
+#### Scenario: Concurrent resolutions converge
+
+- **WHEN** multiple resolutions of the same alias occur concurrently
+- **THEN** the system SHALL return the same cached version string after the first successful resolution completes
+
+#### Scenario: Failed resolutions are not cached
+
+- **WHEN** a resolution attempt fails
+- **THEN** the system SHALL NOT cache the failure
+- **AND** a later resolution SHALL retry the network fetch instead of reusing the failed attempt
 
 ### Requirement: Version detection fallback
 
-If the system fails to resolve an alias via the network, it SHALL fall back to the most recent cached version of that alias or a safe default.
+If the system fails to resolve the latest stable version via the network, it SHALL return the bundled Gradle version the server was built against, marked with a `BUNDLED_FALLBACK` provenance. Resolution SHALL NOT throw: callers always receive a usable version value. The fallback SHALL NOT be cached, so later lookups can retry the network fetch.
 
 #### Scenario: Fallback during network failure
 
 - **WHEN** the network is unavailable during resolution of `"current"`
-- **THEN** the system SHALL return the last known stable version string if available, or return `"current"` as a last-resort fallback with a warning
+- **THEN** the system SHALL return the bundled Gradle version the server was built against
+- **AND** SHALL mark the result with a `BUNDLED_FALLBACK` provenance
+- **AND** SHALL NOT throw
+
+#### Scenario: Fallback does not suppress later retries
+
+- **WHEN** a resolution fell back to the bundled version because of a network failure
+- **THEN** a later resolution SHALL retry the fetch from `https://services.gradle.org/versions/current`
+- **AND** SHALL return the live latest stable version once the fetch succeeds
