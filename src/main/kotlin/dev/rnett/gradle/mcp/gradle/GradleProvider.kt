@@ -122,11 +122,15 @@ class DefaultGradleProvider(
         projectRootInput: GradleProjectRoot
     ): Pair<RunningBuild, Deferred<Result<R>>> {
         val projectRoot = GradlePathUtils.getRootProjectPath(projectRootInput, requiresGradleProject)
+        // Gradle only accepts the --non-interactive CLI option from 9.6.0 onwards; passing an
+        // unknown option to an older Gradle would fail the build. Only add the flag when the target
+        // project's Gradle version supports it (null/undetectable -> flag omitted).
+        val effectiveArgs = args.withNonInteractiveIfSupported(GradlePathUtils.getGradleVersion(projectRoot))
         val buildId = buildManager.newId()
         val cancellationTokenSource = GradleConnector.newCancellationTokenSource()
         val runningBuild = RunningBuild(
             id = buildId,
-            args = args,
+            args = effectiveArgs,
             startTime = Clock.System.now(),
             projectRoot = projectRoot,
             cancellationTokenSource = cancellationTokenSource,
@@ -137,11 +141,11 @@ class DefaultGradleProvider(
             var outcome: Result<R>? = null
             try {
                 outcome = try {
-                    if (args.isHelp) {
+                    if (effectiveArgs.isHelp) {
                         val model = getBuildModel(
                             projectRootInput,
                             org.gradle.tooling.model.build.Help::class,
-                            args.copy(
+                            effectiveArgs.copy(
                                 additionalArguments = emptyList(),
                                 publishScan = false,
                                 requestedInitScripts = emptyList()
@@ -156,11 +160,11 @@ class DefaultGradleProvider(
                         runningBuild.addLogLine(text)
                         stdoutLineHandler?.invoke(text)
                         Result.failure(InterceptedSpecialCommandException("Help command intercepted, result is in console output."))
-                    } else if (args.isVersion) {
+                    } else if (effectiveArgs.isVersion) {
                         val model = getBuildModel(
                             projectRootInput,
                             BuildEnvironment::class,
-                            args.copy(
+                            effectiveArgs.copy(
                                 additionalArguments = emptyList(),
                                 publishScan = false,
                                 requestedInitScripts = emptyList()
@@ -182,7 +186,7 @@ class DefaultGradleProvider(
                                 Result.success(
                                     executionService.invokeBuild(
                                         launcher,
-                                        args,
+                                        effectiveArgs,
                                         additionalProgressListeners,
                                         stdoutLineHandler,
                                         stderrLineHandler,

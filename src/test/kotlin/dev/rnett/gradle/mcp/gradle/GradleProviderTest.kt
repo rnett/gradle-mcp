@@ -202,6 +202,41 @@ class GradleProviderTest {
     }
 
     @Test
+    fun `build with gradle 9_6_1 passes non-interactive flag`() = runTest(timeout = 120.seconds) {
+        // The default test fixture Gradle version (BuildConfig.GRADLE_VERSION) is 9.6.1, which
+        // supports the --non-interactive CLI option.
+        val projectRoot = GradleProjectRoot(javaProject.pathString())
+        val runningBuild = provider.runBuild(
+            projectRoot = projectRoot,
+            args = GradleInvocationArguments(additionalArguments = listOf("help")).withTestGradleDefaults()
+        )
+        val result = runningBuild.awaitFinished()
+
+        assert(result.outcome is BuildOutcome.Success)
+        assert("--non-interactive" in runningBuild.args.allAdditionalArguments)
+    }
+
+    @Test
+    fun `build with gradle 9_5_0 omits non-interactive flag`() = runTest(timeout = 120.seconds) {
+        // 9.5.0 predates the --non-interactive option (added in 9.6.0); passing it would fail the
+        // build with an unknown-option error, so the version gate must omit it. The distribution is
+        // already available locally, so the build runs offline.
+        testJavaProject(hasTests = false) {
+            gradleVersion("9.5.0")
+        }.use { project ->
+            val projectRoot = GradleProjectRoot(project.pathString())
+            val runningBuild = provider.runBuild(
+                projectRoot = projectRoot,
+                args = GradleInvocationArguments(additionalArguments = listOf("help")).withTestGradleDefaults()
+            )
+            val result = runningBuild.awaitFinished()
+
+            assert(result.outcome is BuildOutcome.Success)
+            assert("--non-interactive" !in runningBuild.args.allAdditionalArguments)
+        }
+    }
+
+    @Test
     fun `can get connection to gradle project`() = runTest(timeout = 120.seconds) {
         provider.getConnection(javaProject.path()).use { connection ->
             val model = connection.model(BuildEnvironment::class.java).get()

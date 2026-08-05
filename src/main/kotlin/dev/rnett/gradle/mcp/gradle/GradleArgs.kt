@@ -10,6 +10,39 @@ import kotlinx.serialization.Transient
 import org.gradle.tooling.model.ProjectIdentifier
 import kotlin.io.path.absolute
 
+/**
+ * The Gradle CLI option that disables interactive console prompting.
+ *
+ * Gradle does not honor a `NONINTERACTIVE` environment variable; this option must be passed on
+ * the command line.
+ */
+internal const val NON_INTERACTIVE_ARG = "--non-interactive"
+
+/**
+ * The first Gradle version that supports the [NON_INTERACTIVE_ARG] option. Passing the option to
+ * an older version would fail the build with an unknown-option error.
+ */
+internal const val NON_INTERACTIVE_MIN_GRADLE_VERSION = "9.6.0"
+
+/**
+ * Whether the given Gradle version supports the `--non-interactive` CLI option, i.e. whether its
+ * numeric base version (the part before any `-pre`/`+build` suffix) is at least
+ * [NON_INTERACTIVE_MIN_GRADLE_VERSION]. Unparseable versions report `false` so callers fall back
+ * to not passing the flag.
+ */
+internal fun String.supportsNonInteractiveMode(): Boolean {
+    val base = substringBefore('-').substringBefore('+')
+    val parts = base.split('.')
+    val major = parts.getOrNull(0)?.toIntOrNull() ?: return false
+    val minor = parts.getOrNull(1)?.toIntOrNull() ?: 0
+
+    val minParts = NON_INTERACTIVE_MIN_GRADLE_VERSION.split('.')
+    val minMajor = minParts[0].toInt()
+    val minMinor = minParts[1].toInt()
+
+    return major > minMajor || (major == minMajor && minor >= minMinor)
+}
+
 fun ProjectIdentifier.matches(root: GradleProjectRoot, projectPath: GradleProjectPath): Boolean =
     buildIdentifier.rootDir.toPath().absolute() == GradlePathUtils.getRootProjectPath(root) && this.projectPath == projectPath.path
 
@@ -112,15 +145,11 @@ data class GradleInvocationArguments(
             EnvSource.SHELL -> envProvider.getShellEnvironment()
         }
 
-        // Add NONINTERACTIVE=true to the base environment map
-        val baseWithNoninteractive = base.toMutableMap()
-        baseWithNoninteractive["NONINTERACTIVE"] = "true"
+        if (additionalEnvVars.isEmpty()) return base
 
-        if (additionalEnvVars.isEmpty()) return baseWithNoninteractive
+        if (!OS.isWindows) return base + additionalEnvVars
 
-        if (!OS.isWindows) return baseWithNoninteractive + additionalEnvVars
-
-        val result = baseWithNoninteractive.toMutableMap()
+        val result = base.toMutableMap()
         additionalEnvVars.forEach { (k, v) ->
             val existingKey = result.keys.find { it.equals(k, ignoreCase = true) }
             if (existingKey != null) {
@@ -134,6 +163,19 @@ data class GradleInvocationArguments(
     @Transient
     val allAdditionalArguments = additionalArguments +
             (if (publishScan && "--scan" !in additionalArguments) listOf("--scan") else emptyList())
+
+    /**
+     * Returns a copy of these arguments with the [NON_INTERACTIVE_ARG] CLI option appended when the
+     * given Gradle version supports it. Gradle only accepts `--non-interactive` from version
+     * [NON_INTERACTIVE_MIN_GRADLE_VERSION] onwards, and passing an unknown option to older versions
+     * would fail the build, so the flag is omitted for older or undetectable versions. A flag that
+     * is already present (passed explicitly by the caller) is never duplicated.
+     */
+    fun withNonInteractiveIfSupported(gradleVersion: String?): GradleInvocationArguments {
+        if (gradleVersion == null || !gradleVersion.supportsNonInteractiveMode()) return this
+        if (NON_INTERACTIVE_ARG in allAdditionalArguments) return this
+        return copy(additionalArguments = additionalArguments + NON_INTERACTIVE_ARG)
+    }
 
     val isHelp: Boolean
         get() = "--help" in allAdditionalArguments || "-h" in allAdditionalArguments

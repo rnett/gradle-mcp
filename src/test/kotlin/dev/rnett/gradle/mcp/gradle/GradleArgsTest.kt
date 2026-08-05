@@ -163,13 +163,13 @@ class GradleInvocationArgumentsTest {
         assert(shellEnv.all { (k, v) -> actualShell[k] == v })
 
         val noneArgs = GradleInvocationArguments(envSource = EnvSource.NONE)
-        assert(noneArgs.actualEnvVars(testProvider) == mapOf("NONINTERACTIVE" to "true"))
+        assert(noneArgs.actualEnvVars(testProvider) == emptyMap<String, String>())
 
         val additionalArgs = GradleInvocationArguments(
             envSource = EnvSource.NONE,
             additionalEnvVars = mapOf("EXTRA" to "VAR")
         )
-        assert(additionalArgs.actualEnvVars(testProvider) == mapOf("EXTRA" to "VAR", "NONINTERACTIVE" to "true"))
+        assert(additionalArgs.actualEnvVars(testProvider) == mapOf("EXTRA" to "VAR"))
     }
 
     @Test
@@ -263,6 +263,48 @@ class GradleInvocationArgumentsTest {
         assert(GradleInvocationArguments(additionalArguments = listOf("-v")).isVersion)
         assert(!GradleInvocationArguments(additionalArguments = listOf("--help")).isVersion)
         assert(!GradleInvocationArguments(additionalArguments = listOf()).isVersion)
+    }
+
+    @Test
+    fun `non-interactive flag is added for gradle 9_6_0 and newer`() {
+        listOf("9.6.0", "9.6.1", "9.7.0", "9.10.0", "10.0.0", "9.6.0-rc-1", "9.6").forEach { version ->
+            assert(GradleInvocationArguments.DEFAULT.withNonInteractiveIfSupported(version).allAdditionalArguments.contains("--non-interactive"))
+        }
+    }
+
+    @Test
+    fun `non-interactive flag is not added for gradle older than 9_6_0`() {
+        listOf("9.5.0", "9.5.9", "9.4.1", "9.0.0", "9", "9.5", "8.14.2", "8.10.2", "7.6.3").forEach { version ->
+            assert(!GradleInvocationArguments.DEFAULT.withNonInteractiveIfSupported(version).allAdditionalArguments.contains("--non-interactive"))
+        }
+    }
+
+    @Test
+    fun `non-interactive flag is not added when version is unknown or unparseable`() {
+        listOf(null, "", "unknown", "not-a-version", "9.x").forEach { version ->
+            assert(!GradleInvocationArguments.DEFAULT.withNonInteractiveIfSupported(version).allAdditionalArguments.contains("--non-interactive"))
+        }
+    }
+
+    @Test
+    fun `non-interactive flag is not duplicated when already present`() {
+        val args = GradleInvocationArguments(additionalArguments = listOf("--non-interactive"))
+        val effective = args.withNonInteractiveIfSupported("9.6.1")
+        assert(effective.allAdditionalArguments.count { it == "--non-interactive" } == 1)
+        assert(effective.additionalArguments.count { it == "--non-interactive" } == 1)
+    }
+
+    @Test
+    fun `supportsNonInteractiveMode parses numeric version parts`() {
+        assert("9.6.0".supportsNonInteractiveMode())
+        assert("9.6.1".supportsNonInteractiveMode())
+        assert("9.10.0".supportsNonInteractiveMode())
+        assert("10.0.0".supportsNonInteractiveMode())
+        assert(!("9.5.0".supportsNonInteractiveMode()))
+        assert(!("9.5.9".supportsNonInteractiveMode()))
+        assert(!("8.14.2".supportsNonInteractiveMode()))
+        assert(!("unknown".supportsNonInteractiveMode()))
+        assert(!("".supportsNonInteractiveMode()))
     }
 }
 
