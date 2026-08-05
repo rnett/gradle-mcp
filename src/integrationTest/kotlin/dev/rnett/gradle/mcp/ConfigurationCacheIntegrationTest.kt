@@ -1,5 +1,6 @@
 package dev.rnett.gradle.mcp
 
+import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.dependencies.DefaultGradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService
 import dev.rnett.gradle.mcp.dependencies.DefaultSourcesService
@@ -7,16 +8,20 @@ import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.SourceStorageService
 import dev.rnett.gradle.mcp.dependencies.SourcesService
 import dev.rnett.gradle.mcp.dependencies.search.IndexService
+import dev.rnett.gradle.mcp.fixtures.SharedTestInfrastructure
 import dev.rnett.gradle.mcp.fixtures.dependencies.NoJdkSourceService
 import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectBuilder
 import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
 import dev.rnett.gradle.mcp.fixtures.gradle.testKotlinProject
 import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
+import dev.rnett.gradle.mcp.fixtures.mcp.McpServerFixture
+import dev.rnett.gradle.mcp.gradle.BuildManager
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
 import dev.rnett.gradle.mcp.gradle.GradleProvider
-import dev.rnett.gradle.mcp.gradle.InitScriptProvider
+import dev.rnett.gradle.mcp.tools.GradleBuildLookupTools
+import dev.rnett.gradle.mcp.tools.GradleExecutionTools
 import dev.rnett.gradle.mcp.tools.ToolNames
 import dev.rnett.gradle.mcp.tools.dependencies.GradleDependencyTools
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
@@ -25,6 +30,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -45,24 +51,26 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
     private lateinit var _project: GradleProjectFixture
     private val extraProjects = ArrayDeque<GradleProjectFixture>()
 
-    override fun Scope.createProvider(): GradleProvider {
-        return DefaultGradleProvider(
-            buildManager = get(),
-            initScriptProvider = get<InitScriptProvider>() as DefaultInitScriptProvider
-        ).withTestGradleDefaults(
-            additionalSystemProps = mapOf("org.gradle.configuration-cache.problems" to "fail")
-        )
-    }
+    // The class-scoped real provider + sources service are owned outside the per-method fixture
+    // (see [SharedComponentsHolder]); the fixture close chain must not close them, so the fixture
+    // excludes the components whose close() would close the shared provider and build manager.
+    override fun Scope.createProvider(): GradleProvider = sharedComponents.value.provider
 
     override fun createTestModule(): Module = module {
-        single<GradleDependencyService> { DefaultGradleDependencyService(get()) }
+        single { sharedComponents.value.buildManager }
+        single<GradleDependencyService> { sharedComponents.value.dependencyService }
         single<SourceStorageService> { DefaultSourceStorageService(get()) }
         single<IndexService> { mockk(relaxed = true) }
-        single<SourcesService> { DefaultSourcesService(get(), get(), get(), NoJdkSourceService) }
+        single<SourcesService> { sharedComponents.value.sourcesService }
         single { GradleDependencyTools(get()) }
     }
 
     override fun createTestModules(): List<Module> = listOf(super.createTestModule(), createTestModule())
+
+    override fun createFixture(): McpServerFixture = McpServerFixture(
+        koinModules = listOf(DI.createModule(createTestConfig())) + createTestModules(),
+        excludeFromClose = setOf(GradleExecutionTools::class, GradleBuildLookupTools::class)
+    )
 
     @BeforeEach
     override fun setup() = runTest {
@@ -295,10 +303,65 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
     }
 
     private fun assertLatestBuildReusedConfigurationCache() {
-        val console = buildManager.latestFinished(1).single().consoleOutput.toString()
+        val console = sharedComponents.value.buildManager.latestFinished(1).single().consoleOutput.toString()
         assertTrue(
-            console.contains("Reusing configuration cache.") || console.contains("Configuration cache entry reused."),
-            "Second Gradle invocation should reuse the configuration cache. Console output:\n$console"
+            // Either the second call launched a Gradle build that reused the configuration cache entry,
+            // or (with the class-scoped SourcesService) it was served from the session-view cache without
+            // launching another build at all, in which case the latest finished build is the first call,
+            // which stored the entry.
+            console.contains("Reusing configuration cache.") ||
+                console.contains("Configuration cache entry reused.") ||
+                console.contains("Configuration cache entry stored."),
+            "Second Gradle invocation should reuse the configuration cache (a build was launched) or be " +
+                "served from the session-view cache without launching a build (the latest build then stored " +
+                "the entry). Console output:\n$console"
         )
+    }
+
+    companion object {
+        // JUnit creates a fresh test instance per method; the companion object is shared across all
+        // methods, so the class-scoped components live here and are closed exactly once in @AfterAll.
+        private val sharedComponents: Lazy<SharedComponentsHolder> = lazy { SharedComponentsHolder() }
+
+        @JvmStatic
+        @AfterAll
+        fun closeSharedComponents() {
+            if (sharedComponents.isInitialized()) {
+                sharedComponents.value.close()
+            }
+        }
+    }
+}
+
+/**
+ * Class-scoped components owned outside the per-method [McpServerFixture]: the real
+ * [GradleProvider] (with its [BuildManager]) and the real [SourcesService]. The per-method close
+ * chain (`GradleExecutionTools.close()` closes the injected provider, `GradleBuildLookupTools.close()`
+ * closes its build manager) would make a per-method real provider terminal after the first method
+ * (`DefaultGradleProvider.close()` cancels its scope behind an AtomicBoolean with no reopen), so the
+ * fixture excludes those components from close and this holder closes them exactly once in the
+ * companion `@AfterAll`. Sharing one [SourcesService] keeps its session-view cache (Caffeine, 128
+ * keys / 30-min TTL) alive across methods and across the in-method server recreation, cutting
+ * repeated `mcpDependencyReport` builds.
+ */
+private class SharedComponentsHolder {
+    val buildManager = BuildManager()
+    val provider: GradleProvider = DefaultGradleProvider(
+        buildManager = buildManager,
+        initScriptProvider = DefaultInitScriptProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("init-scripts"))
+    ).withTestGradleDefaults(
+        additionalSystemProps = mapOf("org.gradle.configuration-cache.problems" to "fail")
+    )
+    val dependencyService: GradleDependencyService = DefaultGradleDependencyService(provider)
+    val sourcesService: SourcesService = DefaultSourcesService(
+        depService = dependencyService,
+        storageService = DefaultSourceStorageService(GradleMcpEnvironment(SharedTestInfrastructure.sharedMcpWorkingDir)),
+        indexService = mockk(relaxed = true),
+        jdkSourceService = NoJdkSourceService
+    )
+
+    fun close() {
+        provider.close()
+        buildManager.close()
     }
 }

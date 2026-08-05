@@ -18,6 +18,7 @@ import io.modelcontextprotocol.kotlin.sdk.types.Method
 import io.modelcontextprotocol.kotlin.sdk.types.Notification
 import io.modelcontextprotocol.kotlin.sdk.types.Request
 import io.modelcontextprotocol.kotlin.sdk.types.RequestResult
+import kotlin.reflect.KClass
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -71,7 +72,14 @@ class McpFixtureClient internal constructor(private val delegate: Client) {
  */
 class McpServerFixture(
     private val clientCapabilities: ClientCapabilities = ClientCapabilities(),
-    private val koinModules: List<Module> = emptyList()
+    private val koinModules: List<Module> = emptyList(),
+    /**
+     * Component classes whose lifecycle is owned outside this fixture (e.g. a class-scoped
+     * [dev.rnett.gradle.mcp.gradle.GradleProvider] shared across test methods). [close] skips
+     * these components when closing the server, so the owning test class closes them exactly once
+     * at class teardown instead of per method. Defaults to empty = current per-method close.
+     */
+    private val excludeFromClose: Set<KClass<out McpServerComponent>> = emptySet()
 ) {
     private val logger = LoggerFactory.getLogger(McpServerFixture::class.java)
 
@@ -102,7 +110,9 @@ class McpServerFixture(
 
     suspend fun close() {
         runCatchingExceptCancellation { sdkClient.close() }
-        runCatchingExceptCancellation { closeServer(server, components) }
+        runCatchingExceptCancellation {
+            closeServer(server, components.filterNot { it::class in excludeFromClose })
+        }
         runCatchingExceptCancellation { transports.clientTransport.close() }
         runCatchingExceptCancellation { transports.serverTransport.close() }
         koinApp.close()

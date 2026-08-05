@@ -4,8 +4,18 @@ import dev.rnett.gradle.mcp.DI
 import dev.rnett.gradle.mcp.DefaultGradleVersionService
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.GradleVersionService
+import dev.rnett.gradle.mcp.dependencies.DefaultSourceStorageService
+import dev.rnett.gradle.mcp.dependencies.DefaultSourcesService
+import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
+import dev.rnett.gradle.mcp.dependencies.SourcesService
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultGradleDocsService
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
+import dev.rnett.gradle.mcp.dependencies.search.DefaultIndexService
+import dev.rnett.gradle.mcp.dependencies.search.FullTextSearch
+import dev.rnett.gradle.mcp.dependencies.search.GlobSearch
+import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
+import dev.rnett.gradle.mcp.fixtures.SharedTestInfrastructure
+import dev.rnett.gradle.mcp.fixtures.dependencies.NoJdkSourceService
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import dev.rnett.gradle.mcp.tools.ToolNames
 import io.ktor.client.HttpClient
@@ -16,6 +26,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
+import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.koin.core.module.Module
@@ -64,6 +75,7 @@ class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
             single { mockClient }
             single<GradleVersionService> { DefaultGradleVersionService(get()) }
             single<GradleDocsService> { DefaultGradleDocsService(get(), get(), get(), get()) }
+            single<SourcesService> { sharedSourcesService }
         }
     )
 
@@ -91,5 +103,22 @@ class GradleVersionResolutionIntegrationTest : BaseMcpServerTest() {
 
         assertTrue(versionedDir.exists(), "Cache directory for resolved version $testVersion should exist (was: $versionedDir)")
         assertTrue(!literalCurrentDir.exists(), "Literal 'current' cache directory should NOT exist")
+    }
+
+    companion object {
+        // The session-view cache is per [SourcesService] instance. This class builds real MCP
+        // servers but runs no real Gradle builds (its `GradleProvider` is the inherited relaxed mock
+        // and `GradleDependencyService` is mocked), so per spec it shares only its real
+        // [SourcesService] at class scope; the per-method mock provider lifecycle is unchanged.
+        // [SourcesService] has no close(), so no companion `@AfterAll` close is required.
+        private val sharedSourcesService: SourcesService by lazy {
+            val environment = GradleMcpEnvironment(SharedTestInfrastructure.sharedMcpWorkingDir)
+            DefaultSourcesService(
+                depService = mockk<GradleDependencyService>(relaxed = true),
+                storageService = DefaultSourceStorageService(environment),
+                indexService = DefaultIndexService(environment, listOf<SearchProvider>(FullTextSearch(), GlobSearch())),
+                jdkSourceService = NoJdkSourceService
+            )
+        }
     }
 }

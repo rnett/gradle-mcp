@@ -1,4 +1,13 @@
 //import org.jetbrains.kotlin.powerassert.gradle.PowerAssertGradleExtension
+import java.time.Duration
+import java.time.Instant
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+import org.gradle.api.services.BuildService
+import org.gradle.api.services.BuildServiceParameters
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -261,6 +270,144 @@ tasks.withType<Test>().configureEach {
 tasks.named("check") {
     dependsOn(testing.suites.named("integrationTest"))
     dependsOn(testing.suites.named("treeSitterTest"))
+}
+
+/**
+ * Shared, build-scoped state for the baseline probe. A shared build service is the
+ * configuration-cache-safe way to coordinate state between task actions: the configuration cache
+ * gives every task its own copy of captured script state, so plain captured objects cannot be
+ * shared across tasks. Build services are recreated once per build and shared by all tasks that
+ * use them (see Gradle's "Using Shared Build Services").
+ *
+ * The two real-Gradle suites record their start/finish from `doFirst`/`doLast` actions; the
+ * baselineProbe task reads the aggregated report and writes it to `build/probes/`.
+ */
+abstract class BaselineProbeService : BuildService<BuildServiceParameters.None>, AutoCloseable {
+    private val startedSuites = AtomicInteger(0)
+    private val finishedSuites = AtomicInteger(0)
+    private val peakDaemons = AtomicInteger(0)
+    private val suiteStart = AtomicReference<Instant?>(null)
+    private val report = AtomicReference<String?>(null)
+    private val sampler = AtomicReference<ScheduledExecutorService?>(null)
+
+    /** Called from each suite task's `doFirst`. Starts the wall clock and the daemon sampler once. */
+    fun onSuiteStart() {
+        if (startedSuites.incrementAndGet() == 1) {
+            suiteStart.set(Instant.now())
+            val scheduler = Executors.newSingleThreadScheduledExecutor()
+            sampler.set(scheduler)
+            scheduler.scheduleAtFixedRate(
+                { peakDaemons.accumulateAndGet(countLiveGradleDaemons()) { a, b -> maxOf(a, b) } },
+                0,
+                2,
+                TimeUnit.SECONDS
+            )
+        }
+    }
+
+    /**
+     * Called from each suite task's `doLast`. When both suites have finished, stops the sampler and
+     * aggregates the report. Returns the report, or null if measurement never completed.
+     */
+    fun onSuiteFinish(): String? {
+        if (finishedSuites.incrementAndGet() == 2) {
+            sampler.getAndSet(null)?.shutdownNow()
+            val start = suiteStart.get()
+            if (start != null) {
+                val wall = Duration.between(start, Instant.now())
+                report.set(
+                    buildString {
+                        appendLine("baselineProbe (reduce-test-build-volume)")
+                        appendLine("timestamp: $start")
+                        appendLine("suites: integrationTest, treeSitterTest")
+                        appendLine("maxParallelForks: local 8 / CI 3 (fork reduction is baseline-gated)")
+                        appendLine("suiteWallTime: $wall")
+                        appendLine("peakLiveDaemons: ${peakDaemons.get()}")
+                        appendLine("note: live-daemon sampling includes the daemon running this build; compare relative runs, not absolute counts.")
+                    }
+                )
+            }
+        }
+        return report.get()
+    }
+
+    /** The aggregated report, or null if it was never produced. */
+    fun report(): String? = report.get()
+
+    override fun close() {
+        // Safety net: make sure the sampler is stopped even if the suites never both completed.
+        sampler.getAndSet(null)?.shutdownNow()
+    }
+
+    private fun countLiveGradleDaemons(): Int {
+        // A live Gradle daemon is a JVM whose main class is org.gradle.launcher.daemon.bootstrap.GradleDaemon.
+        return try {
+            ProcessHandle.allProcesses()
+                .toList()
+                .mapNotNull { handle -> runCatching { handle.info().commandLine().orElse(null) }.getOrNull() }
+                .count { commandLine -> commandLine.contains("GradleDaemon") }
+        } catch (e: Exception) {
+            // Measurement unavailable — report 0 so the probe still records suite wall time.
+            0
+        }
+    }
+}
+
+/**
+ * Shared service instance for the baseline probe. Registered here so the suite tasks and the
+ * baselineProbe task all use the same instance; created on first use, so unrelated builds never
+ * touch it.
+ */
+val baselineProbeService = gradle.sharedServices.registerIfAbsent(
+    "baselineProbeService",
+    BaselineProbeService::class.java
+) { }
+
+// Attach the probe measurement to the two real-Gradle suites. The actions only run when a suite
+// task executes, so ordinary builds (e.g. `test` or `check` without the probe) are unaffected.
+listOf("integrationTest", "treeSitterTest").forEach { suiteTask ->
+    // Bind to a local before the closures: referencing the script-level `baselineProbeService`
+    // property from inside the task action closures captures the script instance (`this$0`),
+    // which the configuration cache cannot serialize. A captured local Provider is fine.
+    val service = baselineProbeService
+    tasks.named(suiteTask) {
+        usesService(service)
+        doFirst { service.get().onSuiteStart() }
+        doLast { service.get().onSuiteFinish() }
+    }
+}
+
+/**
+ * Baseline probe for the real-Gradle suites (see the `reduce-test-build-volume` change). Runs
+ * `integrationTest` and `treeSitterTest` and records the combined suite wall time plus the peak
+ * number of live Gradle daemons observed during the run to `build/probes/`. The recorded baseline
+ * gates the fork-concurrency decision: local forks stay 8 / CI 3 unless a recorded baseline
+ * justifies a reduction to 4 (CI stays 3 regardless).
+ */
+val baselineProbe = tasks.register("baselineProbe") {
+    group = "verification"
+    description = "Runs the real-Gradle suites and records a baseline of suite wall time and peak Gradle daemon count to build/probes/."
+
+    // Same config-cache-safe local binding as above; the doLast closure must not capture the script.
+    val service = baselineProbeService
+    dependsOn(tasks.named("integrationTest"), tasks.named("treeSitterTest"))
+    usesService(service)
+
+    val probeDir = layout.buildDirectory.dir("probes")
+    outputs.dir(probeDir)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val report = service.get().report()
+        if (report == null) {
+            logger.warn("baselineProbe: suite timing was not captured (were the suites excluded?)")
+            return@doLast
+        }
+        val file = probeDir.get().file("baseline-${Instant.now().toString().replace(":", "-")}.txt").asFile
+        file.parentFile.mkdirs()
+        file.writeText(report)
+        logger.lifecycle("baselineProbe: baseline written to {}", file)
+    }
 }
 
 tasks.named<UpdateDaemonJvm>("updateDaemonJvm") {

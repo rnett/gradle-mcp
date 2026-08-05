@@ -23,6 +23,18 @@ import java.nio.file.Files
 import kotlin.test.assertTrue
 import kotlin.test.fail
 
+/**
+ * Base class for REPL integration tests.
+ *
+ * Runs one real MCP server per test class ([TestInstance.Lifecycle.PER_CLASS]): [setupAll] builds
+ * the server once in `@BeforeAll` and [cleanupAll] stops any REPL session, closes the project, and
+ * closes the server exactly once in `@AfterAll`. Because the server and its Koin modules are
+ * class-scoped, the real [GradleProvider] and [SourcesService] registered as Koin `single`s are
+ * class-scoped too, which satisfies the test-environment-optimization shared-provider/sources
+ * requirement without extra machinery. Subclasses inherit this lifecycle: they override
+ * [createProvider]/[createTestModule] as usual (and must keep `createProvider()` returning a real
+ * `DefaultGradleProvider`, per testing-standards) and must NOT override `setupAll`/`cleanupAll`.
+ */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
 
