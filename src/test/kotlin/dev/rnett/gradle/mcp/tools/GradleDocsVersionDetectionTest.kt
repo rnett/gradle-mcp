@@ -5,9 +5,12 @@ import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsSectionSummary
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
 import io.mockk.coEvery
+import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
+import org.koin.core.module.Module
+import org.koin.dsl.module
 import org.junit.jupiter.api.Test
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
@@ -17,6 +20,11 @@ class GradleDocsVersionDetectionTest : BaseMcpServerTest() {
 
     val mockDocsService: GradleDocsService get() = server.koin.get()
     val mockVersionService: GradleVersionService get() = server.koin.get()
+
+    override fun createTestModules(): List<Module> = listOf(
+        super.createTestModule(),
+        module { single<GradleVersionService> { mockk<GradleVersionService>(relaxed = true) } }
+    )
 
     @BeforeEach
     override fun setup() = runTest {

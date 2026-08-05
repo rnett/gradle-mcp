@@ -1,13 +1,18 @@
 package dev.rnett.gradle.mcp.tools.dependencies
 
+import dev.rnett.gradle.mcp.DI
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.SourceIndexService
 import dev.rnett.gradle.mcp.dependencies.SourcesService
 import dev.rnett.gradle.mcp.dependencies.model.ProjectManifest
 import dev.rnett.gradle.mcp.dependencies.model.SessionViewSourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
+import dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch
+import dev.rnett.gradle.mcp.dependencies.search.FullTextSearch
+import dev.rnett.gradle.mcp.dependencies.search.GlobSearch
 import dev.rnett.gradle.mcp.dependencies.search.NestedPackageContents
 import dev.rnett.gradle.mcp.dependencies.search.PackageContents
+import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
 import dev.rnett.gradle.mcp.dependencies.search.SearchResponse
 import dev.rnett.gradle.mcp.dependencies.search.SearchResult
 import dev.rnett.gradle.mcp.dependencies.search.SubPackageContents
@@ -23,6 +28,8 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.jupiter.api.BeforeEach
+import org.koin.core.module.Module
+import org.koin.dsl.module
 import org.junit.jupiter.api.Test
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createFile
@@ -36,6 +43,15 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
     private lateinit var sourcesService: SourcesService
     private lateinit var indexService: SourceIndexService
     private lateinit var mockSources: SourcesDir
+
+    override fun createTestModules(): List<Module> = listOf(
+        super.createTestModule(),
+        module {
+            single<SearchProvider>(DI.SearchProviderQualifiers.DECLARATIONS) { mockk<DeclarationSearch>(relaxed = true) }
+            single<SearchProvider>(DI.SearchProviderQualifiers.FULL_TEXT) { mockk<FullTextSearch>(relaxed = true) }
+            single<SearchProvider>(DI.SearchProviderQualifiers.GLOB) { mockk<GlobSearch>(relaxed = true) }
+        }
+    )
 
     @BeforeEach
     fun setupTest() = runTest {

@@ -4,7 +4,6 @@ import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
 import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProject
 import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
-import dev.rnett.gradle.mcp.fixtures.mcp.McpServerFixture
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
@@ -46,9 +45,6 @@ class GradleProgressIntegrationTest : BaseMcpServerTest() {
         )
     }
 
-    override fun createFixture(): McpServerFixture = McpServerFixture(
-        koinModules = listOf(createTestModule())
-    )
 
     @BeforeEach
     override fun setup() = runTest {

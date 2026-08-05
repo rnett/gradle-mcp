@@ -85,6 +85,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import nl.adaptivity.xmlutil.serialization.XML
 import org.koin.core.module.Module
+import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
@@ -116,6 +117,12 @@ object DI {
         }
     }
 
+    object SearchProviderQualifiers {
+        val DECLARATIONS = named("declarations")
+        val FULL_TEXT = named("full-text")
+        val GLOB = named("glob")
+    }
+
     fun createModule(config: ApplicationConfig): Module = module {
         single { config }
         single { xml }
@@ -143,9 +150,9 @@ object DI {
         single { ParserDownloader(get(), BuildConfig.TREE_SITTER_LANGUAGE_PACK_VERSION) }
         single { TreeSitterLanguageProvider(get()) }
         single { TreeSitterDeclarationExtractor(get()) }
-        single<SearchProvider> { DeclarationSearch(get()) }
-        single<SearchProvider> { FullTextSearch() }
-        single<SearchProvider> { GlobSearch() }
+        single<SearchProvider>(SearchProviderQualifiers.DECLARATIONS) { DeclarationSearch(get()) }
+        single<SearchProvider>(SearchProviderQualifiers.FULL_TEXT) { FullTextSearch() }
+        single<SearchProvider>(SearchProviderQualifiers.GLOB) { GlobSearch() }
 
         single<IndexService> { DefaultIndexService(get(), getAll()) }
         single<SourceStorageService> { DefaultSourceStorageService(get()) }
@@ -203,6 +210,7 @@ object DI {
     }
 
     fun createKoin(config: ApplicationConfig): org.koin.core.KoinApplication = org.koin.dsl.koinApplication {
+        allowOverride(false)
         modules(createModule(config))
     }
 

@@ -1,15 +1,16 @@
 package dev.rnett.gradle.mcp.fixtures.mcp
 
+import dev.rnett.gradle.mcp.BuildConfig
 import dev.rnett.gradle.mcp.DI
 import dev.rnett.gradle.mcp.GradleMcpEnvironment
 import dev.rnett.gradle.mcp.GradleVersionService
+import dev.rnett.gradle.mcp.LatestStableGradleVersion
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
 import dev.rnett.gradle.mcp.dependencies.GradleSourceService
 import dev.rnett.gradle.mcp.dependencies.JdkSourceService
+import dev.rnett.gradle.mcp.dependencies.SourceIndexService
 import dev.rnett.gradle.mcp.dependencies.SourcesService
-import dev.rnett.gradle.mcp.dependencies.gradle.docs.DefaultMarkdownService
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
-import dev.rnett.gradle.mcp.dependencies.gradle.docs.MarkdownService
 import dev.rnett.gradle.mcp.fixtures.SharedTestInfrastructure
 import dev.rnett.gradle.mcp.fixtures.dependencies.NoJdkSourceService
 import dev.rnett.gradle.mcp.gradle.BuildManager
@@ -21,12 +22,8 @@ import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.maven.DepsDevService
 import dev.rnett.gradle.mcp.maven.MavenCentralService
 import dev.rnett.gradle.mcp.maven.MavenRepoService
-import dev.rnett.gradle.mcp.repl.DefaultReplEnvironmentService
-import dev.rnett.gradle.mcp.repl.DefaultReplManager
-import dev.rnett.gradle.mcp.repl.ReplEnvironmentService
-import dev.rnett.gradle.mcp.repl.ReplManager
-import dev.rnett.gradle.mcp.utils.DefaultEnvProvider
-import dev.rnett.gradle.mcp.utils.EnvProvider
+import io.ktor.server.config.ApplicationConfig
+import io.ktor.server.config.MapApplicationConfig
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -39,6 +36,22 @@ import org.koin.dsl.module
 import java.nio.file.Path
 import kotlin.time.Duration.Companion.minutes
 
+private class TestGradleVersionService : GradleVersionService {
+    private val resolution = LatestStableGradleVersion(
+        BuildConfig.GRADLE_VERSION,
+        LatestStableGradleVersion.Source.BUNDLED_FALLBACK
+    )
+
+    override suspend fun resolveVersion(version: String?): String =
+        if (version == null || version.equals("current", ignoreCase = true) || version.equals("latest", ignoreCase = true)) {
+            resolution.version
+        } else {
+            version
+        }
+
+    override suspend fun resolveLatestStable(): LatestStableGradleVersion = resolution
+}
+
 abstract class BaseMcpServerTest {
 
     @TempDir
@@ -46,75 +59,51 @@ abstract class BaseMcpServerTest {
 
     protected lateinit var server: McpServerFixture
     val buildManager = BuildManager()
+
     protected open fun Scope.createProvider(): GradleProvider {
         val provider = mockk<GradleProvider>(relaxed = true)
         every { provider.buildManager } returns buildManager
         return provider
     }
 
+    protected open fun createTestConfig(): ApplicationConfig = MapApplicationConfig(
+        "gradle.maxConnections" to "10",
+        "gradle.ttl" to "PT5M",
+        "gradle.allowPublicScansPublishing" to "true"
+    )
+
+    /** Overrides only test boundaries; all other definitions come from [DI.createModule]. */
     protected open fun createTestModule(): Module = module {
-        single { DI.json }
-        single { DI.xml }
-        single<EnvProvider> { DefaultEnvProvider }
-        single { DI.createHttpClient(get(), get()) }
-        single<InitScriptProvider> { DefaultInitScriptProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("init-scripts")) }
-        single<BundledJarProvider> { DefaultBundledJarProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("jars")) }
+        single<InitScriptProvider> {
+            DefaultInitScriptProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("init-scripts"))
+        }
+        single<BundledJarProvider> {
+            DefaultBundledJarProvider(SharedTestInfrastructure.sharedWorkingDir.resolve("jars"))
+        }
         single { buildManager }
-        single<ReplManager> { DefaultReplManager(get()) }
-        single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
         single { GradleMcpEnvironment(SharedTestInfrastructure.sharedMcpWorkingDir) }
-        single<MarkdownService> { DefaultMarkdownService() }
+        single<GradleVersionService> { TestGradleVersionService() }
+
         single<GradleDocsService> { mockk<GradleDocsService>(relaxed = true) }
-        single<GradleVersionService> { mockk<GradleVersionService>(relaxed = true) }
         single<GradleDependencyService> { mockk<GradleDependencyService>(relaxed = true) }
         single<MavenRepoService> { mockk<MavenRepoService>(relaxed = true) }
         single<MavenCentralService> { mockk<MavenCentralService>(relaxed = true) }
         single<DepsDevService> { mockk<DepsDevService>(relaxed = true) }
         single<SourcesService> { mockk<SourcesService>(relaxed = true) }
-        single<dev.rnett.gradle.mcp.dependencies.search.SearchProvider>(org.koin.core.qualifier.named("declarations")) { mockk<dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch>(relaxed = true).apply { every { name } returns "declarations" } }
-        single<dev.rnett.gradle.mcp.dependencies.search.SearchProvider>(org.koin.core.qualifier.named("full-text")) { mockk<dev.rnett.gradle.mcp.dependencies.search.FullTextSearch>(relaxed = true).apply { every { name } returns "full-text" } }
-        single<dev.rnett.gradle.mcp.dependencies.search.SearchProvider>(org.koin.core.qualifier.named("glob")) { mockk<dev.rnett.gradle.mcp.dependencies.search.GlobSearch>(relaxed = true).apply { every { name } returns "glob" } }
-        single<dev.rnett.gradle.mcp.dependencies.SourceIndexService> { mockk<dev.rnett.gradle.mcp.dependencies.SourceIndexService>(relaxed = true) }
+        single<SourceIndexService> { mockk<SourceIndexService>(relaxed = true) }
         single<GradleSourceService> { mockk<GradleSourceService>(relaxed = true) }
         single<JdkSourceService> { NoJdkSourceService }
 
-        single<GradleProvider> {
-            createProvider()
-        }
-
-        factory {
-            val provider: GradleProvider = get()
-            val envProvider: EnvProvider = get()
-            val replManager: ReplManager = get()
-            val replEnvironmentService: ReplEnvironmentService = get()
-            val gradleDocsService: GradleDocsService = get()
-            val gradleVersionService: GradleVersionService = get()
-            val gradleDependencyService: GradleDependencyService = get()
-            val depsDevService: DepsDevService = get()
-            val sourcesService: SourcesService = get()
-            val gradleSourceService: GradleSourceService = get()
-            val indexService: dev.rnett.gradle.mcp.dependencies.SourceIndexService = get()
-            val searchProviders: List<dev.rnett.gradle.mcp.dependencies.search.SearchProvider> = getAll()
-            DI.components(
-                provider,
-                replManager,
-                replEnvironmentService,
-                envProvider,
-                gradleDocsService,
-                gradleVersionService,
-                gradleDependencyService,
-                depsDevService,
-                sourcesService,
-                gradleSourceService,
-                indexService,
-                searchProviders
-            )
-        }
+        single<GradleProvider> { createProvider() }
     }
+
+    protected open fun createTestModules(): List<Module> = listOf(createTestModule())
 
     val provider: GradleProvider get() = server.koin.get<GradleProvider>()
 
-    open fun createFixture(): McpServerFixture = McpServerFixture(koinModules = listOf(createTestModule()))
+    open fun createFixture(): McpServerFixture = McpServerFixture(
+        koinModules = listOf(DI.createModule(createTestConfig())) + createTestModules()
+    )
 
     @BeforeEach
     open fun setup() = runTest(timeout = 2.minutes) {

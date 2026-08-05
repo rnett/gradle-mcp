@@ -13,7 +13,6 @@ import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
 import dev.rnett.gradle.mcp.fixtures.gradle.testKotlinProject
 import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
 import dev.rnett.gradle.mcp.fixtures.mcp.BaseMcpServerTest
-import dev.rnett.gradle.mcp.fixtures.mcp.McpServerFixture
 import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.DefaultInitScriptProvider
 import dev.rnett.gradle.mcp.gradle.GradleProvider
@@ -63,9 +62,7 @@ class ConfigurationCacheIntegrationTest : BaseMcpServerTest() {
         single { GradleDependencyTools(get()) }
     }
 
-    override fun createFixture(): McpServerFixture = McpServerFixture(
-        koinModules = listOf(super.createTestModule(), createTestModule())
-    )
+    override fun createTestModules(): List<Module> = listOf(super.createTestModule(), createTestModule())
 
     @BeforeEach
     override fun setup() = runTest {
