@@ -3,6 +3,7 @@ package dev.rnett.gradle.mcp.tools.dependencies
 import dev.rnett.gradle.mcp.dependencies.GradleSourceService
 import dev.rnett.gradle.mcp.dependencies.SourcesService
 import dev.rnett.gradle.mcp.dependencies.normalizeDependencyFilter
+import dev.rnett.gradle.mcp.dependencies.model.MergedSourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.SessionViewSourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
 import dev.rnett.gradle.mcp.dependencies.search.DeclarationSearch
@@ -111,7 +112,7 @@ class DependencySourceTools(
                 dependencyFilter,
                 args.forceDownload,
                 args.fresh,
-                searchProviders.filterIsInstance<DeclarationSearch>().firstOrNull()
+                null
             )
         }
 
@@ -126,6 +127,16 @@ class DependencySourceTools(
             }
 
             if (!targetPath.exists()) {
+                val declarationProvider = searchProviders.filterIsInstance<DeclarationSearch>().firstOrNull()
+                if (declarationProvider != null) {
+                    with(progressReporter) {
+                        if (args.gradleOwnSource) {
+                            gradleSourceService.ensureIndexed(sources as MergedSourcesDir, declarationProvider)
+                        } else {
+                            sourcesService.ensureProviderIndexed(sources, declarationProvider)
+                        }
+                    }
+                }
                 val packageContents = try {
                     indexService.listPackageContents(sources, args.path)
                 } catch (e: Exception) {

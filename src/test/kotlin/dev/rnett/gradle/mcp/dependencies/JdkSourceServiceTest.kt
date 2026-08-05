@@ -201,6 +201,28 @@ class JdkSourceServiceTest {
     }
 
     @Test
+    fun `on-demand indexing materializes provider index after plain resolution`() = runTest {
+        val cacheDir = tempDir.resolve("cache").createDirectories()
+        val jdkHome = tempDir.resolve("jdk21")
+        val libDir = jdkHome.resolve("lib").createDirectories()
+        createSrcZip(libDir, "java.base/java/lang/String.java" to "package java.lang; public class String {}")
+        val provider = mockk<SearchProvider>(relaxed = true)
+        every { provider.markerFileName } returns "test-marker"
+        every { provider.name } returns "test"
+        every { provider.indexVersion } returns 1
+        val service = createService(cacheDir)
+
+        val result = with(ProgressReporter.NONE) { service.resolveSources(jdkHome.toString()) }
+        assertNotNull(result)
+        assertTrue(!result.index.resolve(provider.markerFileName).exists(), "Plain resolution must not create an index marker")
+
+        with(ProgressReporter.NONE) { service.ensureIndexed(result, provider) }
+
+        assertTrue(result.index.resolve(provider.markerFileName).exists(), "On-demand indexing must publish the provider marker")
+        assertTrue(result.index.resolve(provider.name).exists(), "On-demand indexing must publish the provider index")
+    }
+
+    @Test
     fun `resolveSources handles concurrent access`() = runTest {
         val cacheDir = tempDir.resolve("cache").createDirectories()
         val jdkHome = tempDir.resolve("jdk21")

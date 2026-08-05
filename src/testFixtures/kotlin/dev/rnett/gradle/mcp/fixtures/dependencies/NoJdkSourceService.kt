@@ -19,6 +19,11 @@ object NoJdkSourceService : JdkSourceService {
         fresh: Boolean,
         providerToIndex: SearchProvider?
     ): CASDependencySourcesDir? = null
+
+    context(progress: ProgressReporter)
+    override suspend fun ensureIndexed(casDir: CASDependencySourcesDir, provider: SearchProvider) {
+        error("No JDK sources are available in tests")
+    }
 }
 
 fun createTestSourcesService(

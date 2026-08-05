@@ -58,6 +58,10 @@ interface JdkSourceService {
         fresh: Boolean = false,
         providerToIndex: SearchProvider? = null
     ): CASDependencySourcesDir?
+
+    /** Materializes [provider]'s index for an already-resolved JDK CAS entry. */
+    context(progress: ProgressReporter)
+    suspend fun ensureIndexed(casDir: CASDependencySourcesDir, provider: SearchProvider)
 }
 
 /**
@@ -130,6 +134,12 @@ class DefaultJdkSourceService(
         }
 
         casDir
+    }
+
+    context(progress: ProgressReporter)
+    override suspend fun ensureIndexed(casDir: CASDependencySourcesDir, provider: SearchProvider) {
+        require(isBaseReady(casDir)) { "Cannot index incomplete JDK CAS entry ${casDir.hash}" }
+        ensureIndexed(casDir, provider, force = false)
     }
 
     private fun validateJdkHome(jdkHome: String): Path? {

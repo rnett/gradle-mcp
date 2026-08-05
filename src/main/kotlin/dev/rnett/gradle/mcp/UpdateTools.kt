@@ -225,6 +225,11 @@ private object ThrowingSourcesService : SourcesService {
     override suspend fun resolveAndProcessSourceSetSources(projectRoot: GradleProjectRoot, sourceSetPath: String, dependency: String?, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir {
         throw UnsupportedOperationException("Not used for tool listing")
     }
+
+    context(progress: ProgressReporter)
+    override suspend fun ensureProviderIndexed(view: SourcesDir, provider: SearchProvider) {
+        throw UnsupportedOperationException("Not used for tool listing")
+    }
 }
 
 private object ThrowingSourceIndexService : dev.rnett.gradle.mcp.dependencies.SourceIndexService {
@@ -428,12 +433,22 @@ private object ThrowingGradleSourceService : GradleSourceService {
     context(progress: ProgressReporter)
     override suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): SourcesDir =
         throw UnsupportedOperationException("Not supported in tool generator")
+
+    context(progress: ProgressReporter)
+    override suspend fun ensureIndexed(sources: dev.rnett.gradle.mcp.dependencies.model.MergedSourcesDir, provider: SearchProvider) {
+        throw UnsupportedOperationException("Not supported in tool generator")
+    }
 }
 
 private object ThrowingJdkSourceService : JdkSourceService {
     context(progress: ProgressReporter)
     override suspend fun resolveSources(jdkHome: String, forceDownload: Boolean, fresh: Boolean, providerToIndex: SearchProvider?): CASDependencySourcesDir? =
         throw UnsupportedOperationException("Not supported in tool generator")
+
+    context(progress: ProgressReporter)
+    override suspend fun ensureIndexed(casDir: CASDependencySourcesDir, provider: SearchProvider) {
+        throw UnsupportedOperationException("Not supported in tool generator")
+    }
 }
 
 private object ThrowingGradleVersionService : GradleVersionService {

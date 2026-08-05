@@ -2,8 +2,10 @@ package dev.rnett.gradle.mcp.tools.dependencies
 
 import dev.rnett.gradle.mcp.DI
 import dev.rnett.gradle.mcp.ProgressReporter
+import dev.rnett.gradle.mcp.dependencies.GradleSourceService
 import dev.rnett.gradle.mcp.dependencies.SourceIndexService
 import dev.rnett.gradle.mcp.dependencies.SourcesService
+import dev.rnett.gradle.mcp.dependencies.model.MergedSourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.ProjectManifest
 import dev.rnett.gradle.mcp.dependencies.model.SessionViewSourcesDir
 import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
@@ -41,6 +43,7 @@ import kotlin.test.assertTrue
 class DependencySourceToolsTest : BaseMcpServerTest() {
 
     private lateinit var sourcesService: SourcesService
+    private lateinit var gradleSourceService: GradleSourceService
     private lateinit var indexService: SourceIndexService
     private lateinit var mockSources: SourcesDir
 
@@ -56,6 +59,7 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
     @BeforeEach
     fun setupTest() = runTest {
         sourcesService = server.koin.get()
+        gradleSourceService = server.koin.get()
         indexService = server.koin.get()
 
         mockSources = mockk<SourcesDir>(relaxed = true)
@@ -384,6 +388,83 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
     }
 
     @Test
+    fun `plain read resolves sources without requesting declaration indexing`() = runTest {
+        val jdkFile = tempDir.resolve("jdk/sources/java.base/java/lang/String.java")
+        jdkFile.parent.createDirectories()
+        jdkFile.writeText("package java.lang; public class String {}")
+
+        server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
+                put("path", "jdk/sources/java.base/java/lang/String.java")
+                put("projectPath", ":")
+            }
+        )
+
+        coVerify {
+            with(any<ProgressReporter>()) {
+                sourcesService.resolveAndProcessProjectSources(any(), any(), any(), any(), any(), null)
+            }
+        }
+        coVerify(exactly = 0) {
+            with(any<ProgressReporter>()) { sourcesService.ensureProviderIndexed(any(), any()) }
+        }
+    }
+
+    @Test
+    fun `package read indexes dependency session view on demand`() = runTest {
+        coEvery { indexService.listPackageContents(any(), "java.lang") } returns PackageContents(
+            symbols = listOf("String"),
+            subPackages = emptyList()
+        )
+        coEvery { indexService.listNestedPackageContents(any(), "java.lang") } returns null
+
+        val result = server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
+                put("path", "java.lang")
+                put("projectPath", ":")
+            }
+        ) as CallToolResult
+
+        assertContains(resultText(result), "String")
+        coVerify(exactly = 1) {
+            with(any<ProgressReporter>()) { sourcesService.ensureProviderIndexed(mockSources, any()) }
+        }
+    }
+
+    @Test
+    fun `gradle package read indexes resolved Gradle sources on demand`() = runTest {
+        val storage = tempDir.resolve("gradle-sources/9.0").createDirectories()
+        val gradleSources = MergedSourcesDir(
+            storagePath = storage,
+            sourcesPath = storage.resolve("sources").createDirectories(),
+            metadataPath = storage.resolve("metadata").createDirectories()
+        )
+        coEvery {
+            with(any<ProgressReporter>()) { gradleSourceService.getGradleSources(any(), any(), any(), any()) }
+        } returns gradleSources
+        coEvery { indexService.listPackageContents(gradleSources, "org.gradle.api") } returns PackageContents(
+            symbols = listOf("Project"),
+            subPackages = emptyList()
+        )
+        coEvery { indexService.listNestedPackageContents(gradleSources, "org.gradle.api") } returns null
+
+        val result = server.client.callTool(
+            ToolNames.READ_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
+                put("gradleOwnSource", true)
+                put("path", "org.gradle.api")
+            }
+        ) as CallToolResult
+
+        assertContains(resultText(result), "Project")
+        coVerify(exactly = 1) {
+            with(any<ProgressReporter>()) { gradleSourceService.ensureIndexed(gradleSources, any()) }
+        }
+    }
+
+    @Test
     fun `search includes JDK sources in unified index`() = runTest {
         coEvery { indexService.search(any(), any(), any(), any()) } returns SearchResponse<SearchResult>(
             results = listOf(
@@ -417,6 +498,26 @@ class DependencySourceToolsTest : BaseMcpServerTest() {
         val text = resultText(result)
         assertContains(text, "DepClass")
         assertContains(text, "List")
+    }
+
+    @Test
+    fun `search still requests its selected provider during resolution`() = runTest {
+        coEvery { indexService.search(any(), any(), any(), any()) } returns SearchResponse(results = emptyList())
+
+        server.client.callTool(
+            ToolNames.SEARCH_DEPENDENCY_SOURCES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
+                put("query", "String")
+                put("searchType", "DECLARATION")
+                put("projectPath", ":")
+            }
+        )
+
+        coVerify {
+            with(any<ProgressReporter>()) {
+                sourcesService.resolveAndProcessProjectSources(any(), any(), any(), any(), any(), match { it != null })
+            }
+        }
     }
 
     @Test

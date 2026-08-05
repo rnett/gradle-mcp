@@ -8,6 +8,7 @@ import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.GradleProjectDependencies
 import dev.rnett.gradle.mcp.dependencies.model.GradleSourceSetDependencies
 import dev.rnett.gradle.mcp.dependencies.model.SourcesDir
+import dev.rnett.gradle.mcp.dependencies.model.SessionViewSourcesDir
 import dev.rnett.gradle.mcp.dependencies.search.IndexEntry
 import dev.rnett.gradle.mcp.dependencies.search.SearchProvider
 import dev.rnett.gradle.mcp.dependencies.search.markerFileName
@@ -98,6 +99,10 @@ interface SourcesService {
         fresh: Boolean = false,
         providerToIndex: SearchProvider? = null
     ): SourcesDir
+
+    /** Materializes [provider]'s indexes for every CAS entry referenced by [view]. */
+    context(progress: ProgressReporter)
+    suspend fun ensureProviderIndexed(view: SourcesDir, provider: SearchProvider)
 }
 
 /**
@@ -180,6 +185,34 @@ class DefaultSourcesService(
         is SourceScope.Project -> "project '$projectPath'"
         is SourceScope.Configuration -> "configuration '$configurationPath'"
         is SourceScope.SourceSet -> "source set '$sourceSetPath'"
+    }
+
+    context(progress: ProgressReporter)
+    override suspend fun ensureProviderIndexed(view: SourcesDir, provider: SearchProvider) {
+        val sessionView = requireNotNull(view as? SessionViewSourcesDir) {
+            "On-demand dependency indexing requires a session view"
+        }
+
+        sessionView.manifest.dependencies.unorderedParallelMap(context = dispatcher) { manifestDependency ->
+            val casDir = storageService.getCASDependencySourcesDir(manifestDependency.hash)
+            if (manifestDependency.id.startsWith("JDK:")) {
+                jdkSourceService.ensureIndexed(casDir, provider)
+            } else {
+                val relativePath = manifestDependency.relativePath
+                val separator = relativePath.indexOf('/')
+                require(separator > 0 && separator < relativePath.lastIndex) {
+                    "Invalid dependency prefix in session manifest: $relativePath"
+                }
+                val dependency = GradleDependency(
+                    id = manifestDependency.id,
+                    group = relativePath.substring(0, separator),
+                    name = relativePath.substring(separator + 1),
+                    version = null,
+                    sourcesFile = casDir.sources
+                )
+                processCasDependency(dependency, casDir, forceDownload = false, providerToIndex = provider)
+            }
+        }
     }
 
     context(progress: ProgressReporter)

@@ -40,6 +40,10 @@ import kotlin.time.measureTime
 interface GradleSourceService {
     context(progress: ProgressReporter)
     suspend fun getGradleSources(projectRoot: GradleProjectRoot, forceDownload: Boolean = false, fresh: Boolean = false, providerToIndex: SearchProvider? = null): SourcesDir
+
+    /** Materializes [provider]'s index for already-resolved Gradle-owned sources. */
+    context(progress: ProgressReporter)
+    suspend fun ensureIndexed(sources: MergedSourcesDir, provider: SearchProvider)
 }
 
 @OptIn(ExperimentalPathApi::class)
@@ -119,7 +123,25 @@ class DefaultGradleSourceService(
         }
     }
 
+    context(progress: ProgressReporter)
+    override suspend fun ensureIndexed(sources: MergedSourcesDir, provider: SearchProvider) = withContext(Dispatchers.IO) {
+        val markerFile = sources.storagePath.resolve(".completed")
+        val providerMarker = sources.index.resolve(provider.markerFileName)
+        val lockFile = storageService.getLockFile(sources.storagePath)
 
+        val indexed = FileLockManager.withLock(lockFile, shared = true) {
+            require(markerFile.exists()) { "Gradle sources are not resolved at ${sources.storagePath}" }
+            providerMarker.exists()
+        }
+        if (indexed) return@withContext
+
+        FileLockManager.withLock(lockFile, shared = false) {
+            require(markerFile.exists()) { "Gradle sources are not resolved at ${sources.storagePath}" }
+            if (!providerMarker.exists()) {
+                indexInternal(sources, provider)
+            }
+        }
+    }
     context(progress: ProgressReporter)
     private suspend fun downloadGradleSources(version: String): Path {
         val url = GRADLE_DIST_URL_TEMPLATE.format(version)
