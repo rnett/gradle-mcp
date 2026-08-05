@@ -18,7 +18,7 @@ The system SHALL provide an `authoring-gradle-builds` skill that guides build en
 #### Scenario: User asks to modify build.gradle.kts
 
 - **WHEN** user asks to modify a `build.gradle.kts` or `settings.gradle.kts` file
-- **THEN** system activates `authoring-gradle-builds` (not `using-gradle`) for the build-authoring guidance
+- **THEN** system activates `authoring-gradle-builds` (not `using-gradle`) for the build-authoring guidance. For additional test suites, it guides the use of the `jvm-test-suite` plugin over manual source-set registration.
 
 #### Scenario: Constitution enforces safe authoring practices
 
@@ -28,7 +28,7 @@ The system SHALL provide an `authoring-gradle-builds` skill that guides build en
 #### Scenario: Authoring workflows cover full lifecycle
 
 - **WHEN** a user needs help with any common build-authoring task
-- **THEN** the skill provides structured workflows for all eight domains: module creation, performance audit, build logic refactoring, dependency addition, testing configuration, CI/CD setup, dependency locking, and artifact publishing
+- **THEN** the skill provides structured workflows for all eight domains: module creation, performance audit, build logic refactoring, dependency addition, testing configuration (including `jvm-test-suite` registration and `check` wiring), CI/CD setup, dependency locking, and artifact publishing
 
 #### Scenario: Zero tool-execution content
 
@@ -52,7 +52,7 @@ The `authoring-gradle-builds` skill SHALL reference the following resources:
 #### Scenario: Agent consults gap-filling references
 
 - **WHEN** an agent in `authoring-gradle-builds` needs CI/CD configuration guidance
-- **THEN** it opens `references/ci-cd-builds.md` for best practices
+- **THEN** it opens `references/ci-cd-builds.md` for best practices and cross-references the `using-gradle` skill's CI-as-evidence orientation guidance.
 
 #### Scenario: Agent consults upgrading and release notes for version-sensitive changes
 

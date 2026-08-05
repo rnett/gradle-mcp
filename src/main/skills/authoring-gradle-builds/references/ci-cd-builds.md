@@ -2,6 +2,8 @@
 
 Author CI builds as reproducible, diagnosable invocations of the checked-in Gradle wrapper. CI is not a separate build definition: it is another environment that must consume declared inputs, the same dependency graph, and the same task outputs.
 
+For agents operating an existing build, inspect the checked-in CI workflows as evidence before guessing canonical task paths, test suites, JDK/toolchain versions, or Gradle flags, and confirm every Gradle-specific claim against the evaluated build model. See [Build Orientation](../../using-gradle/references/build-orientation.md) in `using-gradle`.
+
 ## Non-negotiable defaults
 
 - Run `gradlew`/`gradlew.bat`, never a globally installed `gradle`. Keep `gradle/wrapper/gradle-wrapper.properties` and the wrapper JAR under version control, and pin the distribution URL to the intended version.

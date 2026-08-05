@@ -34,6 +34,10 @@ Core Gradle provides only the diagnostic set above. Plugins add their own report
 
 **Anti-pattern:** assume a plugin exposes a report under a guessed name, or paste a report name from an older Gradle/plugin version without verifying it against `tasks --all`.
 
+## Verifying third-party plugin-produced artifacts
+
+For artifacts produced by third-party packaging plugins (for example Shadow, Vanniktech publishing, or BuildConfig), do not assume the plugin DSL or publication names. Inspect the applied plugin and its contributed tasks and configurations, then verify the component model with `outgoingVariants` and the relevant resolvable-configuration reports. For publications, run `publishToMavenLocal` and inspect its output — the POM, Gradle Module Metadata, and artifact names — as evidence.
+
 ## Scope and non-goals
 
 This reference does **not** exhaustively enumerate plugin-contributed tasks. Plugin task sets vary by plugin and Gradle version; the discovery rule is the general mechanism. For custom `@CacheableTask`/input modeling of reports you author yourself, route to `authoring-gradle-builds`.

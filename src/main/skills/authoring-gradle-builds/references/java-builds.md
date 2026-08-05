@@ -55,6 +55,8 @@ sourceSets {
 }
 ```
 
+For additional test suites with their own `Test` task, derived configurations, and source set, prefer the core `jvm-test-suite` plugin over manual source-set registration; see the [JVM test suites section](testing-configuration.md) in Testing Configuration.
+
 ### Source-Set-Based Configurations
 Each source set (e.g., `main`) generates configurations:
 - `implementation`: Internal dependencies for the source set.

@@ -6,7 +6,7 @@ Defines the `gradle` skill, the entry point for all Gradle build execution, test
 
 ## MODIFIED Requirements
 
-### Requirement: Gradle Skill provides unified build system expertise
+### Requirement: Gradle Skill provide unified build system expertise
 
 The `gradle` skill SHALL provide authoritative guidance for build execution, test running, project introspection, and failure diagnostics using the `gradle` MCP tool and companion tools (`query_build`, `wait_build`, `gradle_docs`). It SHALL NOT cover build script authoring, plugin development, or build performance optimization (use `gradle-build-authoring` for those concerns).
 
@@ -18,7 +18,7 @@ The `gradle` skill SHALL provide authoritative guidance for build execution, tes
 #### Scenario: Agent runs tests with filtering
 
 - **WHEN** an agent needs to execute tests with `--tests` filtering
-- **THEN** the `gradle` skill provides test selection pattern guidance (exact class, wildcard, package filter) and per-test failure isolation via `query_build`
+- **THEN** the `gradle` skill provides test selection pattern guidance (exact class, wildcard, package filter) and per-test failure isolation via `query_build`. If the build uses `jvm-test-suite`, the agent is guided to discover and run the specific suite task instead of assuming it is part of `test` or `check`.
 
 #### Scenario: Agent introspects project structure
 
@@ -41,6 +41,21 @@ The `gradle` skill constitution SHALL mandate:
 - Using `captureTaskOutput` for surgical task output isolation
 - Using `:properties --property` for surgical property extraction
 - Using `gradle_docs` for authoritative documentation lookup
+
+#### Scenario: Agent validates third-party plugin artifacts
+
+- **WHEN** an agent needs to verify artifacts produced by third-party plugins (e.g. Shadow, Vanniktech, BuildConfig)
+- **THEN** the skill directs the agent to use `outgoingVariants` and resolvable-configuration reports, and verify `publishToMavenLocal` output instead of assuming plugin DSL or publication names.
+
+#### Scenario: Agent introspects a build's entry point
+
+- **WHEN** an agent first encounters a checkout
+- **THEN** the skill guides the agent to treat checked-in CI workflow files (e.g. `.github/workflows/*.yml`) as operational evidence of canonical task paths, suites, and JDKs, confirming these against the evaluated build model.
+
+#### Scenario: Agent identifies valid build boundaries
+
+- **WHEN** an agent evaluates the root structure
+- **THEN** the skill recognizes that a settings-only root (no root `build.gradle(.kts)`) is a valid build, and that a coexisting root `pom.xml` marks Maven and Gradle as separate candidate boundaries, requiring README/CI evidence to select the entry point.
 
 #### Scenario: Agent debugs a build failure
 

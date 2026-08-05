@@ -34,6 +34,10 @@ Use `--tests` to filter the test set.
 
 Use `--test-dry-run` to verify that the intended tests are discovered before relying on a green task. **Wrapper check:** Gradle 9.0 can silently pass an empty discovery, so treat zero discovered tests as a failed verification even when the task is green. Set `forkEvery` and `maxParallelForks` deliberately for isolation and throughput; a low `forkEvery` is not a cure for flaky tests. Custom JVM test suites may not be wired into `check`, so inspect the task graph and run the suite task explicitly. For an intermittently failing test, a published [Build Scan](https://develocity.ai/product/build-scan/) can surface [Flaky Tests Detection](https://develocity.ai/product/flaky-tests-detection/) and per-test timing across runs to separate environmental flakiness from a real regression; when the same failure keeps recurring across builds and blocking CI, [Failure Analytics](https://develocity.ai/product/failure-analytics/) groups those failures by root cause so you can address the underlying issue instead of each occurrence. Develocity publishes an [llms.txt](https://develocity.ai/llms.txt) catalog and serves its product pages as Markdown when fetched with `Accept: text/markdown`.
 
+### Additional JVM test suites (`jvm-test-suite`)
+
+Builds may define additional test suites through the core `jvm-test-suite` plugin (for example an `integrationTest` suite). Each suite appears as its own `Test` task and source set: discover it via `:project:tasks` (or `tasks --all`) and do not assume suite tasks are part of `test` or `check` — the build must wire them into `check` deliberately. Run the suite task directly and verify its executed-test count. For authoring details, see the authoring skill's [Testing Configuration](../../authoring-gradle-builds/references/testing-configuration.md).
+
 ## Failure Investigation Workflow
 
 ### 1. Isolate and Identify

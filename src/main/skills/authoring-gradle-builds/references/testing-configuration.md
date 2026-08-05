@@ -164,6 +164,76 @@ Use CLI `--tests` for an ad-hoc class or method selection that should not change
 - Gradle test filtering: `gradle_docs(path="userguide/java_testing.md")`
 - Ad-hoc filtering and test execution: [using-gradle testing](../../using-gradle/references/testing.md). MCP test result lookup
 
+## JVM test suites (`jvm-test-suite`)
+
+The core `jvm-test-suite` plugin adds a managed `testing { suites { ... } }` model to JVM projects. It is the structured way to define additional test suites that each own a source set, derived configurations, and a dedicated `Test` task, instead of hand-registering source sets and test tasks. It requires a JVM language plugin (`java`, `java-library`, or the Kotlin JVM plugin) and is applied alongside it:
+
+```kotlin
+plugins {
+    kotlin("jvm") // or `java` / `java-library`
+    `jvm-test-suite`
+}
+```
+
+Register a named suite inside the `testing` extension and configure its dependencies and test task. This repository defines its `integrationTest` suite this way in the root `build.gradle.kts`:
+
+```kotlin
+testing {
+    suites {
+        val integrationTest by registering(JvmTestSuite::class) {
+            // equivalent to register<JvmTestSuite>("integrationTest")
+            // optional: mark the suite's purpose (defaults to a unit test suite)
+            // testType = TestSuiteType.INTEGRATION_TEST
+
+            // suite-scoped dependencies; the suite has its own configurations
+            dependencies {
+                implementation(project())
+                implementation(dependencies.testFixtures(project()))
+            }
+
+            targets {
+                all {
+                    testTask.configure {
+                        maxParallelForks = 8
+                        maxHeapSize = "1g"
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+Facts that matter for authoring:
+
+- The suite's source set and `Test` task both inherit the suite name, so the conventional source directory is `src/integrationTest/java` (`src/integrationTest/kotlin` with the Kotlin JVM plugin, as in this repository). Override it with `sources { java { setSrcDirs(...) } }` when the layout must differ.
+- Additional suites do not automatically see the project's production `implementation` dependencies (only the built-in `test` suite does); declare `implementation(project())` or test fixtures explicitly in the suite's `dependencies {}` block.
+- The suite's task is an ordinary `Test` task. Configure the framework with `useJUnitJupiter()` on the suite, or reuse `tasks.withType<Test>().configureEach { useJUnitPlatform() }` (this repository's approach). Non-default suites default to JUnit Jupiter by convention.
+- Configure the task via `targets { all { testTask.configure { ... } } }` or directly by name. Ordering relative to the `test` suite is deliberate (`shouldRunAfter`/`mustRunAfter`); this repository gates fork counts and ordering on its CI environment check.
+- `check` does not automatically include additional suite test tasks; wiring is deliberate. This repository hooks its suites explicitly:
+
+```kotlin
+tasks.named("check") {
+    dependsOn(testing.suites.named("integrationTest"))
+    dependsOn(testing.suites.named("treeSitterTest"))
+}
+```
+
+Hand the generated task (for example `integrationTest`) to `using-gradle` for discovery and execution: discover it via `:project:tasks`, run it as its own task, and verify executed-test counts before claiming the suite passed.
+
+**Anti-patterns:**
+
+- Assume `check` or `tasks.test` runs additional suites; wire them into `check` deliberately and run the suite's own task.
+- Declare suite dependencies in the top-level `dependencies {}`; use the suite's `dependencies {}` block.
+- Guess the suite's test task or source-set name; both derive from the suite name.
+
+**Version notes:** The `jvm-test-suite` DSL is an incubating core API, but the `testing { suites { ... } }` shape is available across Gradle 7, 8, and 9. Verify the wrapper version and prefer current Gradle 9.x behavior when authoring new suites.
+
+**More info:**
+
+- JVM test suite plugin: `gradle_docs(path="userguide/jvm_test_suite_plugin.md")`
+- Suite task discovery and execution: hand off to `using-gradle`; see its testing reference at [testing.md](../../using-gradle/references/testing.md).
+
 ## Kotlin Multiplatform test runs
 
 KMP does not have one universal JVM `test` task. Each target owns test runs and may expose a target-specific Gradle task. Configure the test run inside the target definition, and configure the target's dependencies in the matching source set:

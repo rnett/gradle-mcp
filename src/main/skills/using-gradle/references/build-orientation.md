@@ -17,6 +17,10 @@ Use this reference when you first encounter an existing Gradle checkout. Identif
 
 **Do this:** read `gradle/wrapper/gradle-wrapper.properties`, then `settings.gradle(.kts)`, then the root and relevant project build files. Use `:projects`, `:tasks`, and `:properties` to confirm the evaluated model.
 
+## Checked-in CI as operational evidence
+
+Before guessing a repository's canonical task paths, test suites, JDK/toolchain versions, Gradle flags, or release entry points, inspect the checked-in CI workflow files (for example `.github/workflows/*.yml`) and treat them as evidence of the intended operations. Confirm every Gradle-specific claim against the evaluated build model (`projects`, `tasks`, `help --task`, `properties`, and the wrapper version) rather than trusting a workflow snippet verbatim: CI files can be stale, templated, or non-canonical.
+
 ## Generated state and Gradle User Home
 
 Treat generated directories as evidence-bearing state, not source files:
@@ -44,6 +48,8 @@ A Gradle build contains one or more projects. `settings.gradle(.kts)` defines th
 - A multi-project build requires settings to include its projects. A missing or empty settings file is diagnostic evidence that paths may resolve as a different, single-project build.
 - Settings are evaluated first. Put build-wide concerns there: `pluginManagement`, `dependencyResolutionManagement`, repository policy, version catalogs, and included builds.
 - Build scripts are evaluated for individual projects. They apply plugins and configure that project's extensions, configurations, dependencies, and tasks.
+- A root with `settings.gradle(.kts)` but no root `build.gradle(.kts)` is a valid Gradle build, common with multi-sub-project builds. Derive behavior from settings, included projects, included builds, and per-project build scripts; do not invent a root script.
+- If a root `pom.xml` coexists with Gradle markers (wrapper, settings), treat Maven and Gradle as separate candidate build-system boundaries. Use README and CI evidence to pick the intended entry point; do not assume one mirrors or replaces the other.
 
 Groovy and Kotlin DSL files are both stable across Gradle 7, 8, and 9. Match the existing extension (`.gradle` or `.gradle.kts`) and do not translate syntax while diagnosing an operational issue.
 
