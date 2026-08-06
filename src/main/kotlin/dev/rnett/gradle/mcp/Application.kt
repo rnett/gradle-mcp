@@ -188,7 +188,8 @@ class Application(val args: Array<String>, val transport: Transport) {
 
         @JvmStatic
         fun server(args: Array<String>) = runBlocking {
-            Application(args, Transport.Sse()).start()
+            // Streamable HTTP is the default Ktor transport; SSE remains available via Transport.Sse.
+            Application(args, Transport.StreamableHttp()).start()
         }
 
         @JvmStatic
@@ -201,7 +202,8 @@ class Application(val args: Array<String>, val transport: Transport) {
             if (System.getenv("JBANG_CDS_DUMP") == "true" || args.contains("--version") || args.contains("-v")) {
                 println("gradle-mcp version ${BuildConfig.APP_VERSION}")
                 if (System.getenv("JBANG_CDS_DUMP") == "true") {
-                    val app = Application(args, Transport.Sse())
+                    // Warm up the default Ktor transport (Streamable HTTP) so the CDS archive captures its classes.
+                    val app = Application(args, Transport.StreamableHttp())
                     app.koinContext.get<Server>()
                 }
                 return

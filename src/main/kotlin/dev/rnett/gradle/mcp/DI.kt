@@ -75,7 +75,6 @@ import io.ktor.serialization.kotlinx.json.json
 import io.ktor.serialization.kotlinx.xml.xml
 import io.ktor.server.config.ApplicationConfig
 import io.ktor.server.config.getAs
-import io.modelcontextprotocol.kotlin.sdk.types.EmptyJsonObject
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
 import io.modelcontextprotocol.kotlin.sdk.server.Server
@@ -246,7 +245,6 @@ object DI {
             Implementation("gradle-mcp", BuildConfig.APP_VERSION),
             ServerOptions(
                 ServerCapabilities(
-                    logging = EmptyJsonObject,
                     tools = ServerCapabilities.Tools(false)
                 ),
                 enforceStrictCapabilities = false

@@ -14,7 +14,7 @@ The `Transport` sealed class in `Application.kt` SHALL include a `StreamableHttp
 
 - **WHEN** the server is started in the Streamable HTTP mode
 - **THEN** it SHALL serve MCP over Streamable HTTP via the `mcpStreamableHttp()` Ktor plugin
-- **AND** starting the server in `stdio` or `server` (SSE) mode SHALL behave exactly as before.
+- **AND** starting the server in `stdio` mode SHALL behave exactly as before; the `server` mode now defaults to the Streamable HTTP transport, while SSE remains available as an explicit `Transport.Sse` option.
 
 ### Requirement: Ktor Plugin Integration
 
@@ -46,4 +46,4 @@ The `StreamableHttp` transport SHALL derive host and port from the same Ktor con
 
 - **WHEN** the process is started with the Streamable HTTP mode argument (for example `streamable-http`)
 - **THEN** `Application.main` SHALL construct `Transport.StreamableHttp` and start it
-- **AND** the existing `stdio`/empty and `server` dispatch behavior SHALL be unchanged.
+- **AND** the existing `stdio`/empty dispatch behavior SHALL be unchanged, while the `server` mode now dispatches to the Streamable HTTP transport by default.

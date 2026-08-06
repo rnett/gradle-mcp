@@ -2,6 +2,7 @@ package dev.rnett.gradle.mcp.e2e
 
 import dev.rnett.gradle.mcp.Application
 import dev.rnett.gradle.mcp.Transport
+import io.modelcontextprotocol.kotlin.sdk.types.LATEST_PROTOCOL_VERSION
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.coroutineScope
 import org.junit.jupiter.api.AfterEach
@@ -42,7 +43,7 @@ class StreamableHttpStartupE2ETest {
             // The MCP SDK's mcpStreamableHttp() plugin exposes its endpoint at /mcp
             // and requires Accept headers for both application/json and text/event-stream
             try {
-                val jsonRpcBody = """{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test-client","version":"1.0"}}}"""
+                val jsonRpcBody = """{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"$LATEST_PROTOCOL_VERSION","capabilities":{},"clientInfo":{"name":"test-client","version":"1.0"}}}"""
 
                 val req = HttpRequest.newBuilder()
                     .uri(URI.create("http://localhost:$port/mcp"))
