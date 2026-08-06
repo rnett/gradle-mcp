@@ -250,7 +250,15 @@ object DI {
                     tools = ServerCapabilities.Tools(false)
                 ),
                 enforceStrictCapabilities = false
-            )
+            ),
+            instructionsProvider = {
+                "This server gives an AI agent deep, programmatic access to Gradle build systems through its tools. " +
+                    "Route all Gradle operations through this server's tools instead of invoking Gradle directly or via shell commands, " +
+                    "including running tasks and tests, inspecting builds, monitoring progress, and querying results. " +
+                    "Use `gradle` for task execution and `query_build` or `wait_build` to monitor progress and retrieve failures, test results, and task output. " +
+                    "Audit dependencies with `inspect_dependencies`, and read or search dependency, Gradle, and JDK sources with `read_dependency_sources` / `search_dependency_sources`. " +
+                    "Use `gradle_docs` for official Gradle documentation instead of generic web searches."
+            }
         ).apply {
             components.forEach { it.register(this, json) }
         }
