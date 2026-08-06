@@ -109,7 +109,7 @@ Note: Prefer `--rerun` (single task) over `--rerun-tasks` (all tasks, even inclu
             "string",
             "null"
           ],
-          "description": "The path to the Java home directory to use for the Gradle process. Optional. If omitted, JAVA_HOME from the environment (see envSource) is used as a fallback."
+          "description": "The path to the Java home directory to use for the Gradle daemon. When provided, it takes precedence over the project's daemon JVM settings (gradle/gradle-daemon-jvm.properties and org.gradle.java.home) and over JAVA_HOME from the environment, even if those settings contain invalid values; if the path is invalid no other JVM source is promoted. When omitted, the project's daemon JVM settings take precedence, then JAVA_HOME from the environment (see envSource), then the Tooling API default."
         }
       },
       "description": "Additional advanced invocation arguments for the Gradle process."

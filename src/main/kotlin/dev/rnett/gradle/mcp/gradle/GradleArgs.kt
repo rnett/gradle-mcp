@@ -87,13 +87,19 @@ data class GradleInvocationArguments(
     val envSource: EnvSource = EnvSource.INHERIT,
 
     /**
-     * The path to the Java home directory to use for the Gradle process. 
-     * If provided, this overrides the default JDK used to launch Gradle.
+     * The path to the Java home directory to use for the Gradle daemon.
      *
-     * If not provided, the system will attempt to resolve the Java home from the environment variables (specifically `JAVA_HOME`)
-     * according to the [envSource] configuration.
+     * When provided, it takes precedence over the project's daemon JVM settings
+     * (`gradle/gradle-daemon-jvm.properties` and `org.gradle.java.home`) and over `JAVA_HOME` from
+     * the environment — even if those settings contain invalid values, because the same home is
+     * also passed as an `org.gradle.java.home` build argument; if the path is not a valid
+     * directory, no other JVM source is promoted (the launcher omits `setJavaHome` and Gradle's own
+     * daemon JVM resolution applies).
+     *
+     * When omitted, the project's daemon JVM settings take precedence, then `JAVA_HOME` from the
+     * environment (see [envSource]), then the Tooling API default.
      */
-    @Description("The path to the Java home directory to use for the Gradle process. Optional. If omitted, JAVA_HOME from the environment (see envSource) is used as a fallback.")
+    @Description("The path to the Java home directory to use for the Gradle daemon. When provided, it takes precedence over the project's daemon JVM settings (gradle/gradle-daemon-jvm.properties and org.gradle.java.home) and over JAVA_HOME from the environment, even if those settings contain invalid values; if the path is invalid no other JVM source is promoted. When omitted, the project's daemon JVM settings take precedence, then JAVA_HOME from the environment (see envSource), then the Tooling API default.")
     val javaHome: String? = null,
 
     /**

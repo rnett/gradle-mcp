@@ -2,14 +2,18 @@ package dev.rnett.gradle.mcp.fixtures.gradle
 
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.gradle.BuildManager
+import dev.rnett.gradle.mcp.gradle.DefaultGradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleInvocationArguments
 import dev.rnett.gradle.mcp.gradle.GradleProjectRoot
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.GradleResult
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
+import dev.rnett.gradle.mcp.utils.DefaultEnvProvider
+import dev.rnett.gradle.mcp.utils.EnvProvider
 import org.gradle.tooling.events.OperationType
 import org.gradle.tooling.events.ProgressListener
 import org.gradle.tooling.model.Model
+import java.nio.file.Path
 import kotlin.reflect.KClass
 
 /** JVM heap size used for all test Gradle daemons. */
@@ -96,6 +100,25 @@ fun GradleInvocationArguments.withTestGradleDefaults(
         additionalArguments = cacheArgs + listOf(TEST_DAEMON_IDLE_TIMEOUT_ARG) + additionalArguments
     )
 }
+
+/**
+ * Creates a [GradleProvider] bound to a controlled [gradleUserHome]: the connector channel
+ * (`useGradleUserHomeDir`) pins the effective user home, and every nested build routes through the
+ * canonical test defaults. Use for tests that reach daemon JVM settings detection (no explicit
+ * `javaHome`); builds with an explicit `javaHome` terminate before detection either way. Note
+ * (probe V1): invocation-level user-home channels do not change the daemon's effective user home,
+ * so the connector pinning is the sole effective test channel.
+ */
+fun testGradleProvider(
+    gradleUserHome: Path,
+    buildManager: BuildManager = BuildManager(),
+    envProvider: EnvProvider = DefaultEnvProvider,
+    pinJavaHome: Boolean = true
+): GradleProvider = DefaultGradleProvider(
+    buildManager = buildManager,
+    envProvider = envProvider,
+    gradleUserHome = gradleUserHome
+).withTestGradleDefaults(pinJavaHome = pinJavaHome)
 
 private fun Map<String, String>.withOverriddenSystemProperties(
     overrides: Map<String, String>

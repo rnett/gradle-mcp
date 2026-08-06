@@ -42,6 +42,7 @@ import dev.rnett.gradle.mcp.gradle.GradleConnectionService
 import dev.rnett.gradle.mcp.gradle.GradleProvider
 import dev.rnett.gradle.mcp.gradle.InitScriptProvider
 import dev.rnett.gradle.mcp.gradle.build.BuildExecutionService
+import dev.rnett.gradle.mcp.gradle.build.DaemonJvmSelector
 import dev.rnett.gradle.mcp.gradle.build.DefaultBuildExecutionService
 import dev.rnett.gradle.mcp.lucene.LuceneReaderCache
 import dev.rnett.gradle.mcp.maven.DefaultDepsDevService
@@ -163,7 +164,8 @@ object DI {
         single<JdkSourceService> { DefaultJdkSourceService(get(), get()) }
         single { BuildManager() }
         single<GradleConnectionService> { DefaultGradleConnectionService() }
-        single<BuildExecutionService> { DefaultBuildExecutionService(envProvider = get()) }
+        single { DaemonJvmSelector() }
+        single<BuildExecutionService> { DefaultBuildExecutionService(envProvider = get(), daemonJvmSelector = get()) }
         single<GradleProvider> {
             DefaultGradleProvider(
                 connectionService = get(),

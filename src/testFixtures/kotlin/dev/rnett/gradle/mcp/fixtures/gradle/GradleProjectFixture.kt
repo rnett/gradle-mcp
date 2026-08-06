@@ -302,6 +302,25 @@ fun testGradleProject(builder: GradleProjectBuilder.() -> Unit = {}): GradleProj
 }
 
 /**
+ * Registers a `printJavaHome` task that prints the daemon JVM's `java.home` on a marker line
+ * (`[daemon-jvm-probe] java.home=...`). Task code runs in the daemon JVM, so parsing the marker
+ * from the build output is daemon-JVM evidence; callers compare canonical paths via
+ * `Path.toRealPath()`.
+ */
+fun GradleProjectBuilder.printJavaHomeTask() {
+    buildScript(
+        """
+        tasks.register("printJavaHome") {
+            outputs.upToDateWhen { false }
+            doLast {
+                println("[daemon-jvm-probe] java.home=" + System.getProperty("java.home"))
+            }
+        }
+        """.trimIndent()
+    )
+}
+
+/**
  * Helper function to create a Java project with a simple structure.
  */
 fun testJavaProject(

@@ -1,6 +1,7 @@
 package dev.rnett.gradle.mcp.gradle
 
 import dev.rnett.gradle.mcp.fixtures.gradle.GradleProjectFixture
+import dev.rnett.gradle.mcp.fixtures.gradle.TestGradleUserHome
 import dev.rnett.gradle.mcp.fixtures.gradle.testJavaProject
 import dev.rnett.gradle.mcp.fixtures.gradle.testKotlinProject
 import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
@@ -31,9 +32,11 @@ class GradleProviderTest {
     private lateinit var provider: DefaultGradleProvider
     private lateinit var javaProject: GradleProjectFixture
     private lateinit var kotlinProject: GradleProjectFixture
+    private lateinit var gradleUserHome: TestGradleUserHome
 
     @BeforeAll
     fun setupAll() {
+        gradleUserHome = TestGradleUserHome.create()
         provider = createTestProvider()
         javaProject = testJavaProject()
         kotlinProject = testKotlinProject()
@@ -44,6 +47,7 @@ class GradleProviderTest {
         provider.close()
         javaProject.close()
         kotlinProject.close()
+        gradleUserHome.close()
     }
 
     @Test
@@ -109,7 +113,8 @@ class GradleProviderTest {
 
         val testProvider = DefaultGradleProvider(
             buildManager = BuildManager(),
-            envProvider = mockEnv
+            envProvider = mockEnv,
+            gradleUserHome = gradleUserHome.path
         )
 
         testProvider.use { p ->
@@ -143,7 +148,8 @@ class GradleProviderTest {
 
         val testProvider = DefaultGradleProvider(
             buildManager = BuildManager(),
-            envProvider = mockEnv
+            envProvider = mockEnv,
+            gradleUserHome = gradleUserHome.path
         )
 
         testProvider.use { p ->
@@ -175,7 +181,8 @@ class GradleProviderTest {
 
         val testProvider = DefaultGradleProvider(
             buildManager = BuildManager(),
-            envProvider = mockEnv
+            envProvider = mockEnv,
+            gradleUserHome = gradleUserHome.path
         )
 
         testProvider.use { p ->
@@ -197,7 +204,8 @@ class GradleProviderTest {
 
     private fun createTestProvider(): DefaultGradleProvider {
         return DefaultGradleProvider(
-            buildManager = BuildManager()
+            buildManager = BuildManager(),
+            gradleUserHome = gradleUserHome.path
         )
     }
 
@@ -432,7 +440,8 @@ class GradleProviderTest {
         testJavaProject(hasTests = false).use { project ->
             val tempDir = Files.createTempDirectory("gradle-mcp-test-init-scans-")
             DefaultGradleProvider(
-                buildManager = BuildManager()
+                buildManager = BuildManager(),
+                gradleUserHome = gradleUserHome.path
             ).use { provider ->
                 val projectRoot = GradleProjectRoot(project.pathString())
                 val args = GradleInvocationArguments(

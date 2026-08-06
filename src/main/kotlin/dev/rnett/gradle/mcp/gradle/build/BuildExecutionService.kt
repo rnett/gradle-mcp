@@ -63,7 +63,8 @@ interface BuildExecutionService {
 
 class DefaultBuildExecutionService(
     private val envProvider: EnvProvider,
-    private val initScriptProvider: DefaultInitScriptProvider = DefaultInitScriptProvider()
+    private val initScriptProvider: DefaultInitScriptProvider = DefaultInitScriptProvider(),
+    private val daemonJvmSelector: DaemonJvmSelector = DaemonJvmSelector()
 ) : BuildExecutionService {
 
     companion object {
@@ -165,23 +166,17 @@ class DefaultBuildExecutionService(
         launcher.addJvmArguments(args.additionalJvmArgs + "-Dscan.tag.MCP")
         launcher.withDetailedFailure()
 
-        val resolvedJavaHome = args.javaHome ?: env["JAVA_HOME"]
-
-        if (resolvedJavaHome != null) {
-            val file = java.io.File(resolvedJavaHome)
-            if (file.exists() && file.isDirectory) {
-                launcher.setJavaHome(file)
-            } else {
-                val source = if (args.javaHome != null) "Specified" else "Environment (JAVA_HOME)"
-                LOGGER.warn("$source javaHome does not exist or is not a directory: $resolvedJavaHome")
-            }
-        }
+        val javaHomeConfig = configureJavaHome(launcher, args, env, runningBuild.projectRoot, daemonJvmSelector, LOGGER)
 
         val initScripts = initScriptProvider.extractInitScripts(
             args.requestedInitScripts +
                     (if (args.publishScan || args.additionalArguments.contains("--scan")) listOf("scans") else emptyList())
         )
-        val allArguments = initScripts.flatMap { listOf("-I", it.toString()) } + args.allAdditionalArguments
+        // The enforcement argument precedes allAdditionalArguments so a user-supplied
+        // `-Dorg.gradle.java.home` in additionalArguments still wins on conflict.
+        val allArguments = initScripts.flatMap { listOf("-I", it.toString()) } +
+            listOfNotNull(javaHomeConfig.javaHomeArgument) +
+            args.allAdditionalArguments
         launcher.withArguments(allArguments)
 
         launcher.withSystemProperties(args.additionalSystemProps)

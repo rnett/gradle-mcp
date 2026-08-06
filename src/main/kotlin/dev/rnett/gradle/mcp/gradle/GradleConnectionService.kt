@@ -8,10 +8,15 @@ interface GradleConnectionService {
     fun connect(projectRoot: Path): ProjectConnection
 }
 
-class DefaultGradleConnectionService : GradleConnectionService {
+class DefaultGradleConnectionService(
+    private val gradleUserHome: Path? = null
+) : GradleConnectionService {
     override fun connect(projectRoot: Path): ProjectConnection {
-        return GradleConnector.newConnector()
+        val connector = GradleConnector.newConnector()
             .forProjectDirectory(projectRoot.toFile())
-            .connect()
+        if (gradleUserHome != null) {
+            connector.useGradleUserHomeDir(gradleUserHome.toFile())
+        }
+        return connector.connect()
     }
 }

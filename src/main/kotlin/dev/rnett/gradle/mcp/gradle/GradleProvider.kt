@@ -4,6 +4,11 @@ package dev.rnett.gradle.mcp.gradle
 
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.gradle.build.BuildExecutionService
+import dev.rnett.gradle.mcp.gradle.build.DaemonJvmSelector
+import dev.rnett.gradle.mcp.gradle.build.DaemonJvmSettingsDetector
+import dev.rnett.gradle.mcp.gradle.build.EffectiveGradleUserHomeResolver
+import dev.rnett.gradle.mcp.gradle.build.GRADLE_USER_HOME_ENV
+import dev.rnett.gradle.mcp.gradle.build.GRADLE_USER_HOME_SYS_PROP
 import dev.rnett.gradle.mcp.gradle.build.DefaultBuildExecutionService
 import dev.rnett.gradle.mcp.gradle.build.RunningBuild
 import dev.rnett.gradle.mcp.tools.GradlePathUtils
@@ -79,15 +84,45 @@ class DefaultGradleProvider(
     constructor(
         buildManager: BuildManager,
         envProvider: EnvProvider = DefaultEnvProvider,
-        initScriptProvider: DefaultInitScriptProvider = DefaultInitScriptProvider()
+        initScriptProvider: DefaultInitScriptProvider = DefaultInitScriptProvider(),
+        gradleUserHome: Path? = null
     ) : this(
-        DefaultGradleConnectionService(),
-        DefaultBuildExecutionService(envProvider, initScriptProvider),
+        DefaultGradleConnectionService(gradleUserHome),
+        DefaultBuildExecutionService(
+            envProvider,
+            initScriptProvider,
+            daemonJvmSelector = daemonJvmSelectorFor(gradleUserHome)
+        ),
         buildManager
     )
 
     companion object {
         private val LOGGER = LoggerFactory.getLogger(DefaultGradleProvider::class.java)
+
+        /**
+         * Builds the daemon JVM selector for this provider. When [gradleUserHome] is given (test
+         * control), the selector's effective-user-home resolver is pinned to that home so both the
+         * connector channel (`useGradleUserHomeDir`) and the resolver-visible channels resolve the
+         * same controlled user home; the server process inputs otherwise fall through to the real
+         * process state.
+         */
+        private fun daemonJvmSelectorFor(gradleUserHome: Path?): DaemonJvmSelector =
+            if (gradleUserHome == null) {
+                DaemonJvmSelector()
+            } else {
+                DaemonJvmSelector(
+                    DaemonJvmSettingsDetector(),
+                    EffectiveGradleUserHomeResolver(
+                        serverSysProp = { name ->
+                            if (name == GRADLE_USER_HOME_SYS_PROP) gradleUserHome.toString() else System.getProperty(name)
+                        },
+                        serverEnv = { name ->
+                            if (name == GRADLE_USER_HOME_ENV) gradleUserHome.toString() else System.getenv(name)
+                        },
+                        defaultUserHome = { gradleUserHome }
+                    )
+                )
+            }
     }
 
     init {

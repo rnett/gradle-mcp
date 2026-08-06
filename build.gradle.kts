@@ -264,6 +264,7 @@ tasks.withType<Test>().configureEach {
     jvmArgs("--add-modules", "jdk.incubator.vector")
     useJUnitPlatform()
     systemProperty("GRADLE_MCP_LOG_DIR", layout.buildDirectory.dir("test-logs").get().asFile.absolutePath)
+    systemProperty("GRADLE_MCP_TEST_SHARED_DISTS_DIR", layout.buildDirectory.dir("test-shared-gradle-dists").get().asFile.absolutePath)
     systemProperty("docs.updateSnapshots", System.getProperty("docs.updateSnapshots"))
 }
 
