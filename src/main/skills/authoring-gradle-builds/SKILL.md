@@ -46,7 +46,7 @@ Author or modify Gradle build definitions, build logic, project structure, and d
 |---|---|---|---|
 | Version catalogs | Stable; prefer them | Stable; prefer them | 7.4+ stable; 7.0-7.3 preserve an existing catalog cautiously, otherwise use `buildSrc`, applied scripts, or `ext` |
 | Configuration cache | Stable and opt-in; stable ≠ every plugin/build compatible, 9.x strictness still evolving; enable when compatible | Stable from 8.1; 8.0 pre-stable | Incubating/experimental; use only for explicit migration experiments |
-| Project isolation | Experimental (not yet incubating); diagnostics change across 9.x minors | Do not enable as a baseline; use decoupled logic | Use decoupled logic + provider wiring; no isolation support |
+| Project isolation | Incubating as of 9.7; opt in with `--isolated-projects` or `org.gradle.isolated-projects=true` (legacy `unsafe` names deprecated); an explicit `false` from either property disables it; not the production default | Do not enable as a baseline; use decoupled logic | Use decoupled logic + provider wiring; no isolation support |
 | Dependency notation | Map notation deprecated since 9.1 and fails in Gradle 10; use single-string GAV or catalog accessors | Use single-string GAV or catalog accessors | Use single-string GAV or catalog accessors |
 | Toolchain auto-provisioning | Supported through a resolver plugin configured in settings | Supported; resolver plugin availability is version-specific | 7.5 auto-download; 7.6 pluggable resolver repositories; earlier versions require a local JDK |
 | JVM required to run Gradle | 17+ | Java 8 minimum; maximum varies by minor | Java 8 minimum; 7.0-7.2 cannot run on Java 17, 7.3+ can |

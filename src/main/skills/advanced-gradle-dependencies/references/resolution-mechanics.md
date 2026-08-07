@@ -125,6 +125,8 @@ The graph phase decides *what* (which versions, which variants); the artifact ph
 
 Consumers read artifact results through `incoming` on the resolvable configuration: it exposes `FileCollection` (a flat file list), `ArtifactCollection`, and `ConfigurableFileCollection` for task inputs. The older `ResolvedConfiguration`/`LenientConfiguration` APIs (and their `ResolvedArtifact`/`ResolvedDependency` views) are in maintenance mode — legacy, and discouraged for new development.
 
+`ENHANCED_GRAPH_ORDERING` previews the `DEFAULT`, `CONSUMER_FIRST`, and `DEPENDENCY_FIRST` graph orderings (constraint edges are ignored) and becomes the default in Gradle 10. Under the preview or under Gradle 10, classpath and artifact iteration order can change; do not rely on an implicit order.
+
 A transform is an abstract `TransformAction` with an `@get:InputArtifact` input and a `transform(TransformOutputs)` method; optional `TransformParameters` carry configuration. Register it via `dependencies.registerTransform(...) { from.attribute(...); to.attribute(...) }`, declaring the output attributes in `to`. Transforms run during resolution, before tasks, and are cached like tasks (`UP-TO-DATE`); `@Incremental` transforms process only the changed files. Reiterate the selection rule: a directly matching artifact set always wins over running a transform chain.
 
 #### Resolving a Specific Artifact

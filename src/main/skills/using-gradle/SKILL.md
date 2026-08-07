@@ -4,7 +4,7 @@ description: Using Gradle MCP tools to inspect and run existing builds, includin
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
-  version: "1.2.1"
+  version: "1.3.0"
 ---
 
 # Authoritative Gradle Build Execution, Testing & Inspection

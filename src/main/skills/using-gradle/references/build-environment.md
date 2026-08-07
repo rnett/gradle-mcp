@@ -35,6 +35,8 @@ Use project properties for values consumed by build logic and system properties 
 
 Inspect effective values with `:properties` or `:<project>:properties`; use `--property <name>` where the wrapper supports it, otherwise capture and filter the full report. `-P` and `-D` are invocation-visible inputs, so record their names without recording secret values.
 
+File-system watching works when the project cache directory is relocated via `--project-cache-dir` or `org.gradle.projectcachedir`; a custom project cache directory does not disable watching.
+
 Choose locations deliberately:
 
 - Put reproducible, non-secret project inputs in the checkout's `gradle.properties`.

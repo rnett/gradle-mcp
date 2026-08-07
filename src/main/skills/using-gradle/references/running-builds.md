@@ -133,6 +133,8 @@ Start with structured `query_build` output and the exact failure or problem reco
 | Force one known task action | `--rerun` where supported | Prefer targeted forcing; use the 7.0-7.5 fallback above. |
 | Re-run every task (project-wide cache corruption only) | `--rerun-tasks` | Extremely expensive (includes included builds); a smell for build-logic output/input-tracking errors. |
 
+Kotlin DSL accessor generation is not stored in the build cache; missing remote accessor-cache hits are expected and are not a sign of cache misconfiguration.
+
 **Do this:** choose one control that matches the hypothesis and record `GRADLE_USER_HOME` before comparing cache behavior.
 
 ### Console, task options, and selectors

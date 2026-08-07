@@ -47,5 +47,5 @@ OpenSpec specs are the **primary source of truth** for architectural rationale, 
 
 ## Build Verification
 
-- **Last verified**: `2026-07-27` — `./gradlew :check` — BUILD SUCCESSFUL (21 actionable tasks: 5 executed, 16 up-to-date)
-- **Context**: After `regex-dependency-filter` OpenSpec change implementation (filterDependencyTree extraction, FilterDependencyTreeTest, spec sync)
+- **Last verified**: `2026-08-06` — `./gradlew check verifySkillsList` — BUILD SUCCESSFUL (604 tests: 602 passed, 2 skipped, 0 failed; 31 actionable tasks: 31 executed)
+- **Context**: Gradle 9.7.0 upgrade ingestion (9.6.1 → 9.7.0): impact ledger applied; shipped skills updated and version-bumped; best-practices corpus regenerated; isolated-projects init-script limitation deferred per user to reports/isolated-projects-compatibility.md

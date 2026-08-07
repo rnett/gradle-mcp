@@ -34,6 +34,8 @@ Treat a fingerprint as a supply-chain control: pin the canonical 40-hex-digit fi
 
 **Anti-pattern:** trusting a broad key fingerprint with no group scope, or adding trusted keys without reviewing the dependency that pulled the new publisher in.
 
+`<trusted-key>`/`<pgp>` entries accept `origin` and `reason` attributes under the `dependency-verification-1.4.xsd` schema; verification failures also report how many other keys are trusted for the same module/group — a key-rotation signal to review.
+
 ## Checksums
 
 Checksums verify artifact bytes against a recorded hash, independent of any signature. `verification-metadata.xml` records per-component checksums that Gradle validates during resolution.

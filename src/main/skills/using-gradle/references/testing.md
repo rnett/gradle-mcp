@@ -55,6 +55,8 @@ Use `query_build` to extract the failure set:
 ### 3. Handling Name Collisions
 If `query_build` returns multiple tests for a query, use `testIndex` (0-based) to select the specific instance.
 
+TestNG, JUnit 4, and JUnit Platform initialization failures bypass default granularity filtering and surface directly in the console; classify them with `TestFailureDetails.isFrameworkFailure()`.
+
 ## Rerunning Tests
 
 ### Targeted Forcing

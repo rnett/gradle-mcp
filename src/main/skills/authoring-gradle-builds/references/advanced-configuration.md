@@ -321,6 +321,7 @@ The configuration cache is validated during the "storing" phase (after configura
 
 ### Version notes
 - **Gradle 9.0:** Unsupported provider event handling is now an error unless handled by approved `BuildService` providers.
+- **Gradle 9.7:** Serializing custom collection/map subclasses is deprecated (they are restored as standard types) and becomes an error in Gradle 10.
 - **Gradle 8.1:** Configuration cache is stable and ready for general use.
 - **Gradle 8.0:** Pre-stable; requires explicit compatibility testing.
 - **Gradle 7.x:** Incubating; requires an explicit opt-in and manual validation. For Gradle 7.x builds, use ordinary providers and explicit task inputs as the fallback when the target wrapper does not expose the required `ValueSource` or `BuildService` APIs.

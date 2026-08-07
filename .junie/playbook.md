@@ -1,4 +1,4 @@
-# Project Playbook (Windows + Gradle 9.4.1)
+# Project Playbook (Windows + Gradle 9.7.0)
 
 ## Environment
 
@@ -7,7 +7,7 @@
 - `GRADLE_MCP_PROJECT_ROOT` — optional, sets default Gradle project root for MCP tools
 - `GRADLE_MCP_LOG_DIR` — test log output directory (set automatically by build)
 - JDK 21+ required (project uses `jvmToolchain(21)` for main module)
-- Gradle wrapper version: 9.4.1
+- Gradle wrapper version: 9.7.0
 
 ---
 
@@ -159,7 +159,7 @@ No tests configured (`tasks.test.enabled = false`).
 
 ## Tools
 
-- **Gradle Wrapper**: `gradlew.bat` (Windows) / `gradlew` (Unix) — Gradle 9.4.1
+- **Gradle Wrapper**: `gradlew.bat` (Windows) / `gradlew` (Unix) — Gradle 9.7.0
 - **JDK**: 21+ required (main module), 8+ (repl modules)
 - **Build System**: Gradle with Kotlin DSL (`build.gradle.kts`)
 - **Testing**: JUnit 5 (Platform), Kotlin Test, MockK, Kotest (Power Assert)

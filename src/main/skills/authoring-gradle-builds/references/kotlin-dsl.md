@@ -82,6 +82,8 @@ The Kotlin DSL provides a set of public APIs for build authoring. Many "convenie
 
 **This is prohibited:** Use internal Gradle APIs (those in packages marked `.internal.` or without public documentation) in production build logic.
 
+`.gradle.kts` scripts cannot reference `org.gradle.internal.impldep.*`; build scripts compile against the prebuilt public API JAR, which excludes the relocated internal implementation dependencies.
+
 See [Do not use internal APIs](best-practices/do-not-use-internal-apis.md) for the stability rationale.
 
 ## IDE Import Behavior
@@ -103,6 +105,7 @@ While Kotlin DSL is preferred, Groovy remains more dynamic in specific areas:
 
 ### Version notes
 
+- **Gradle 9.7:** Embedded Kotlin moved from 2.3.21 to 2.4.0; `-language-version=1.9` is no longer supported for build scripts (minimum compile target is 2.0); the oldest supported `kotlin-dsl` plugin is 6.2.0 (requires at least Kotlin Gradle Plugin 1.9.22).
 - **Gradle 9.x:** Kotlin DSL is the first-class citizen. Accessor generation is highly optimized.
 - **Gradle 8.x:** Full support for Kotlin DSL; `compilerOptions` alignment became the standard for Kotlin plugins.
 - **Gradle 7.x:** Kotlin DSL was stable, but early versions had slower sync times. Accessor timing constraints were similar to current versions.

@@ -4,7 +4,7 @@ description: Analyzing advanced Gradle dependency behavior, including resolution
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
-  version: "1.1.1"
+  version: "1.2.0"
 ---
 
 # Advanced Gradle Dependency Engineering

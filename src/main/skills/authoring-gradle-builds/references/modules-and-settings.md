@@ -100,12 +100,14 @@ Pass project properties with `-Pname=value` or `ORG_GRADLE_PROJECT_name=value`; 
 
 ## Project Isolation
 
-Project isolation is an experimental Gradle mode that isolates mutable project state so Gradle can configure projects independently. Enable diagnostics deliberately for Gradle 9.x builds:
+Project isolation is an incubating Gradle mode (as of Gradle 9.7) that isolates mutable project state so Gradle can configure projects independently. It is not the production default. Enable it deliberately for Gradle 9.x builds:
 
 ```properties
 # gradle.properties
-org.gradle.unsafe.isolated-projects=true
+org.gradle.isolated-projects=true
 ```
+
+Enablement is `--isolated-projects` on the command line or `org.gradle.isolated-projects=true` in `gradle.properties`; the legacy `org.gradle.unsafe.isolated-projects*` names are deprecated but still accepted. An explicit `false` from either the legacy or the new property disables the feature.
 
 Write build logic that remains valid with isolation enabled even when the build does not require the flag in production. A project plugin must not read or mutate another project's `Project` object. Publish cross-project data through Gradle's model instead:
 
@@ -196,7 +198,7 @@ All projects may still be configured in isolated-projects mode. Configuration-on
 
 ### Version notes
 
-- **Gradle 9.x:** Project isolation is experimental, and diagnostics and supported APIs can change between 9.x minors. Read the current wrapper before enabling it: **Version-sensitive field-guide rule:** Read `gradle/wrapper/gradle-wrapper.properties` before applying the `org.gradle.unsafe.isolated-projects` rule.
+- **Gradle 9.x:** Project isolation is incubating as of Gradle 9.7, and diagnostics and supported APIs can change between 9.x minors. Read the current wrapper before enabling it: **Version-sensitive field-guide rule:** Read `gradle/wrapper/gradle-wrapper.properties` before applying the `org.gradle.isolated-projects` rule.
 - **Gradle 9.6:** Hidden parent-project property lookup is warned about and is slated for removal; use explicit property ownership and project wiring instead.
 - **Gradle 8.x:** Do not enable the experimental flag as a baseline. Use decoupled project logic and configuration-cache-compatible providers as the fallback.
 - **Gradle 7.x:** Use explicit project dependencies, task inputs, and provider wiring. Do not rely on project-isolation support; preserve decoupling for future migration.

@@ -123,12 +123,12 @@ Researching **developing** a plugin — authoring logic that other builds apply 
 ## More info
 
 - Plugin application: `gradle_docs(path="userguide/plugins.md")`; `gradle_docs(path="userguide/plugin_basics.md")`
-- Plugin management/repositories: `gradle_docs(path="userguide/plugins.md")`; `gradle_docs(path="userguide/plugin_management.md")`
+- Plugin management/repositories: `gradle_docs(path="userguide/plugins.md")`; `gradle_docs(path="kotlin-dsl/gradle/org.gradle.plugin.management/-plugin-management-spec/index.md")`
 - Implementing plugins: `gradle_docs(path="userguide/implementing_gradle_plugins.md")`; `gradle_docs(path="userguide/java_gradle_plugin.md")`
 - Testing plugins: `gradle_docs(path="userguide/testing_gradle_plugins.md")`
 - Publishing plugins: `gradle_docs(path="userguide/publishing_gradle_plugins.md")`
 - Gradle source implementation: use `gradleOwnSource: true` with `search_dependency_sources` and `read_dependency_sources`.
-- Configuration & lifecycle: `gradle_docs(path="userguide/build_lifecycle_details.md")`; `gradle_docs(path="userguide/lazy_configuration.md")`; `gradle_docs(path="userguide/configuration_cache.md")`
+- Configuration & lifecycle: `gradle_docs(path="userguide/build_lifecycle.md")`; `gradle_docs(path="userguide/lazy_configuration.md")`; `gradle_docs(path="userguide/configuration_cache.md")`
 
 ## References
 

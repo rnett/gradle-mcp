@@ -1,13 +1,13 @@
 # Release Notes Impact Map
 
-Triage aid for step 4 of the ingest-gradle-upgrade workflow. Tag each material ledger item with exactly one domain from Table A, then open the mapped surfaces. Tables B and C are the grep-verified hotspot inventories (seed, not exhaustive — rerun the discovery patterns every ingestion). All paths are relative to the repo root; line numbers were verified at wrapper 9.6.1 and will drift.
+Triage aid for step 4 of the ingest-gradle-upgrade workflow. Tag each material ledger item with exactly one domain from Table A, then open the mapped surfaces. Tables B and C are the grep-verified hotspot inventories (seed, not exhaustive — rerun the discovery patterns every ingestion). All paths are relative to the repo root; line numbers were verified at wrapper 9.7.0 and will drift.
 
 ## Table A — Release-note domain → surfaces
 
 | Release-note domain | Priority | Project-code surfaces | Shipped-skill surfaces |
 |---|---|---|---|
 | Configuration Cache improvements | High | `src/main/kotlin/dev/rnett/gradle/mcp/gradle/build/BuildExecutionService.kt`, `RunningBuild.kt` (event/progress capture under config cache); config-cache-sensitive tests | `using-gradle/SKILL.md` footguns; `using-gradle/references/troubleshooting.md`; `authoring-gradle-builds/references/advanced-configuration.md` |
-| Isolated Projects | High | Tooling-layer decoupling: `src/main/kotlin/dev/rnett/gradle/mcp/gradle/GradleProvider.kt`, `gradle/GradleConnectionService.kt` | `authoring-gradle-builds/SKILL.md` Compatibility Quick-Reference (heading at line 41, "Project isolation" row) |
+| Isolated Projects | High | Tooling-layer decoupling: `src/main/kotlin/dev/rnett/gradle/mcp/gradle/GradleProvider.kt`, `gradle/GradleConnectionService.kt` | `authoring-gradle-builds/SKILL.md` Compatibility Quick-Reference (heading at line 42, "Project isolation" row) |
 | CLI, logging, and problem reporting | High | Console/problem parsing: `src/main/kotlin/dev/rnett/gradle/mcp/gradle/build/ProblemsAccumulator.kt`, `FailureIndexer.kt`; `--warning-mode` usage in `gradle/GradleArgs.kt` | `using-gradle/references/running-builds.md`, `troubleshooting.md`, `diagnostic-tasks.md` |
 | Test reporting and execution | High | `src/main/kotlin/dev/rnett/gradle/mcp/gradle/build/TestCollector.kt`, `BuildExecutionService.kt`; `jvm-test-suite` usage in `build.gradle.kts` | `using-gradle/references/testing.md`; `authoring-gradle-builds/references/testing-configuration.md` |
 | Core plugin and plugin authoring enhancements | High | Init scripts `src/main/resources/init-scripts/dependencies-report.init.gradle.kts`, `task-out.init.gradle.kts`, `repl-env.init.gradle.kts`, `scans.init.gradle`; model queries in `gradle/GradleProvider.kt` | `authoring-gradle-builds/references/plugin-development.md`, `custom-tasks.md`, `worker-api.md`, `convention-plugins.md` |
@@ -22,59 +22,51 @@ Triage aid for step 4 of the ingest-gradle-upgrade workflow. Tag each material l
 
 Any other subsection present in the notes: map it with the discovery patterns below; if no surface matches, it is non-material and gets covered by the sentinel row of its containing section.
 
-## Table B — Shipped-skill version-sensitive hotspots (grep-verified at wrapper 9.6.1)
+## Table B — Shipped-skill version-sensitive hotspots (grep-verified at wrapper 9.7.0)
 
 Lifecycle language (`incubating`):
 - `advanced-gradle-dependencies/references/resolution-mechanics.md:86`
-- `authoring-gradle-builds/SKILL.md:46-47`
-- `authoring-gradle-builds/references/advanced-configuration.md:326`
+- `authoring-gradle-builds/SKILL.md:47-48`
+- `authoring-gradle-builds/references/advanced-configuration.md:327`
 - `authoring-gradle-builds/references/build-lifecycle.md:95,98,108`
 - `authoring-gradle-builds/references/managed-types-and-providers.md:290,292,300`
-- `using-gradle/SKILL.md:86`
+- `authoring-gradle-builds/references/modules-and-settings.md:103,201`
+- `using-gradle/SKILL.md:87`
+- `using-gradle/references/troubleshooting.md:92`
 
-Lifecycle language (`experimental`, 18 hunks):
-- `authoring-gradle-builds/SKILL.md:46-47`
+Lifecycle language (`experimental`, 11 hunks):
+- `authoring-gradle-builds/SKILL.md:47-48`
 - `authoring-gradle-builds/references/build-lifecycle.md:110`
-- `authoring-gradle-builds/references/ci-cd-builds.md:83`
+- `authoring-gradle-builds/references/ci-cd-builds.md:85`
 - `authoring-gradle-builds/references/custom-tasks.md:194`
 - `authoring-gradle-builds/references/dependencies-and-catalogs.md:72,101,304,334`
-- `authoring-gradle-builds/references/kotlin-compiler-options.md:113,120`
-- `authoring-gradle-builds/references/modules-and-settings.md:103,201`
-- `using-gradle/SKILL.md:86`
+- `authoring-gradle-builds/references/modules-and-settings.md:203`
+- `using-gradle/SKILL.md:87`
 - `using-gradle/references/research.md:79`
-- `using-gradle/references/troubleshooting.md:92`
-- `interacting-with-project-runtime/SKILL.md:8`
-- `interacting-with-project-runtime/references/repl-session-setup.md:12`
-- `verifying-compose-ui/references/repl-session-setup.md:12`
 
 Compatibility quick-reference tables (update rows to NEW):
-- `authoring-gradle-builds/SKILL.md:41` (heading `Compatibility Quick-Reference`)
-- `using-gradle/SKILL.md:80` (heading `Compatibility Quick-Reference`)
+- `authoring-gradle-builds/SKILL.md:42` (heading `Compatibility Quick-Reference`)
+- `using-gradle/SKILL.md:81` (heading `Compatibility Quick-Reference`)
 
 Upgrade-guide / release-notes pointers (validate page names and links per delta):
-- `authoring-gradle-builds/SKILL.md:36`
+- `authoring-gradle-builds/SKILL.md:37`
 - `authoring-gradle-builds/references/upgrading-and-release-notes.md:18-21,25-26,31-33,48-50` — this reference is itself an upgrade artifact: its page pointers and migration checklists move with every delta
 - `using-gradle/references/research.md:16`
 
 `afterEvaluate` hunks (safety rule applies to any edit near them — see the shipped-skills checklist):
-- `authoring-gradle-builds/SKILL.md:63,77`
+- `authoring-gradle-builds/SKILL.md:64,78`
 - `authoring-gradle-builds/references/build-lifecycle.md:77,81,85,110`
 - `authoring-gradle-builds/references/convention-plugins.md:105`
 - `authoring-gradle-builds/references/custom-tasks.md:31,110`
 - `authoring-gradle-builds/references/testing-configuration.md:14`
 
 `workaround` wording (check against `Fixed issues` each delta):
-- `advanced-gradle-dependencies/references/component-metadata-rules.md:91-93`
-- `authoring-gradle-builds/references/advanced-configuration.md:272`
 - `authoring-gradle-builds/references/artifact-publishing.md:30`
 - `authoring-gradle-builds/references/build-scans.md:53`
-- `authoring-gradle-builds/references/plugin-development.md:160`
-- `using-gradle/references/diagnostic-tasks.md:35`
-- `verifying-compose-ui/references/troubleshooting.md:74-75`
 
 Per-version notes blocks: `authoring-gradle-builds/references/*` carry `Version notes` / `Version-sensitive field-guide rule` blocks across `advanced-configuration.md` (including per-version notes like "Gradle 9.0: …"), `build-lifecycle.md`, `testing-configuration.md`, `kotlin-dsl.md`, `managed-types-and-providers.md`, `modules-and-settings.md`, `plugin-development.md`, `worker-api.md`, `java-builds.md`, `jdk-toolchains.md`, `artifact-publishing.md`, `ci-cd-builds.md`, `composite-builds.md`, `configurations-and-variants.md`, `continuous-builds.md`, `convention-plugins.md`, `custom-tasks.md`, `dependencies-and-catalogs.md`, `dependency-locking.md`, `build-scans.md`.
 
-Low-churn skills: `interacting-with-project-runtime` and `verifying-compose-ui` are largely version-agnostic — check only JVM/toolchain requirements and the lifecycle hunks listed above.
+Low-churn skills: `interacting-with-project-runtime` and `verifying-compose-ui` are largely version-agnostic — check only JVM/toolchain requirements.
 
 ## Table C — Project-code hotspots (confirmed surfaces)
 
@@ -90,8 +82,8 @@ Low-churn skills: `interacting-with-project-runtime` and `verifying-compose-ui` 
   - `src/test/kotlin/dev/rnett/gradle/mcp/GradleVersionServiceTest.kt` (8.7/8.6)
   - `src/test/kotlin/dev/rnett/gradle/mcp/tools/GradleDocsVersionDetectionTest.kt` (8.5/7.6.3)
   - `src/test/kotlin/dev/rnett/gradle/mcp/dependencies/gradle/docs/GradleDocsServiceTest.kt` (9.4.0 fixtures)
-  - `src/integrationTest/kotlin/dev/rnett/gradle/mcp/e2e/GradleVersionResolutionIntegrationTest.kt:76` (9.9.9)
-- Records: `.junie/playbook.md` (wrapper version line, Build Verification section)
+  - `src/integrationTest/kotlin/dev/rnett/gradle/mcp/e2e/GradleVersionResolutionIntegrationTest.kt:42` (9.9.9)
+- Records: wrapper version line in `.junie/playbook.md`; `Build Verification` record in `AGENTS.md`
 
 ## Discovery patterns (rerun every ingestion — inventories drift)
 
@@ -105,7 +97,7 @@ Shipped skills — search `src/main/skills`, `*.md` files:
 7. `workaround|Workaround` — fix-obsoolution candidates
 
 Repo code — search `src/main`, `src/test`, `src/integrationTest`, `*.kt`/`*.kts`/init scripts:
-8. `<OLD version literal>` — the OLD version escaped as a regex, written `9\.4\.1` when OLD is 9.4.1 — and `<NEW major>\.`: hardcoded versions
+8. `<OLD version literal>` — the OLD version escaped as a regex, written `9\.6\.1` when OLD is 9.6.1 — and `<NEW major>\.`: hardcoded versions
 9. `workaround|Workaround` — code-level workarounds vs `Fixed issues`
 10. `org\.gradle\.tooling` — Tooling API usage vs Tooling/IDE-integration notes
 11. `gradleVersion|GradleVersion` in test sources — version-pinned assertions

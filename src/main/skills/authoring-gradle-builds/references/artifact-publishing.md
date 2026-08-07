@@ -29,6 +29,8 @@ Do not add `sourcesJar` or `javadocJar` tasks manually when the Java plugin alre
 
 Publish from the relevant component, for example `from(components["java"])`, and keep Gradle Module Metadata (`.module`) alongside the POM or Ivy metadata so consumers retain variant and capability information. The `.module` file carries the variant, capability, and dependency information Gradle consumers use for variant-aware resolution, while the POM serves Maven consumers. `maven-publish` emits `.module` alongside the POM by default when publishing from a component, so the operative rule is don't strip or suppress it: Gradle-only consumers gain, Maven consumers are unaffected. Prefer Gradle's reproducible archive defaults; do not add timestamp or ordering workarounds unless the target wrapper's documentation requires them. Configure publication metadata lazily, before the publication is created; eager publication APIs were removed in Gradle 9.0.
 
+`maven-publish` does not publish checksum files (`.sha1`/`.md5`) for signature files (`.asc`/`.sig`). For `SOURCE_DATE_EPOCH`-style reproducible timestamps, `AbstractArchiveTask.reproducibleFileTimestamp` (incubating) sets the reproducible file timestamp.
+
 **Version-sensitive field-guide rule:** Read `gradle/wrapper/gradle-wrapper.properties` before applying these rules.
 
 ## Define a complete Maven publication

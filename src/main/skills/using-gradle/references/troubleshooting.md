@@ -89,7 +89,7 @@ distributionSha256Sum=<checksum-for-the-exact-distribution>
 
 ## Configuration and execution switches
 
-**Wrapper check:** Read `gradle/wrapper/gradle-wrapper.properties` before applying this version-sensitive guidance. Configuration-on-demand is not a universal speed switch because partial configuration can be incorrect for builds that rely on cross-project configuration. Isolated projects is experimental; use it only when the exact wrapper documentation and build compatibility support it.
+**Wrapper check:** Read `gradle/wrapper/gradle-wrapper.properties` before applying this version-sensitive guidance. Configuration-on-demand is not a universal speed switch because partial configuration can be incorrect for builds that rely on cross-project configuration. Isolated projects is incubating as of Gradle 9.7 and is not the production default; use it only when the exact wrapper documentation and build compatibility support it.
 
 ## Build Scans and Deprecations
 
@@ -101,7 +101,7 @@ distributionSha256Sum=<checksum-for-the-exact-distribution>
 
 A [Build Scan](https://develocity.ai/product/build-scan/) (part of [Develocity](https://develocity.ai/)) captures build metadata for troubleshooting, collaboration, and performance analysis — for example, where build time goes, whether task inputs changed, or which tests flaked across runs. Treat the Terms of Service prompt and publication destination as policy boundaries; never publish by default.
 
-- **Deprecations**: Use `--warning-mode=all` for evidence and classify whether the warning belongs to the task, plugin, or build logic. `--warning-mode=fail` changes warnings into a failed result, so use it only as an intentional migration gate.
+- **Deprecations**: Use `--warning-mode=all` for evidence and classify whether the warning belongs to the task, plugin, or build logic. `--warning-mode=fail` changes warnings into a failed result, so use it only as an intentional migration gate. Source locations are reported for up to 2050 problems (previously the first 50); `--warning-mode=all` remains unlimited.
 
 **Version notes**: Gradle 7 environments may use historical Gradle Enterprise terminology. Gradle 8/9 Develocity plugin, DSL, endpoint, and consent properties are version-sensitive; verify the exact wrapper and plugin documentation. Warning modes are standard CLI behavior across Gradle 7/8/9.
 

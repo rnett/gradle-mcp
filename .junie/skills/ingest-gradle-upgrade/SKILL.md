@@ -16,7 +16,7 @@ description: |
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
-  version: "1.0.0"
+  version: "1.3.1"
 ---
 # Ingest Gradle Upgrade
 
@@ -36,7 +36,7 @@ In scope:
 1. This repo's own code and tooling: build scripts, the Tooling API layer, init scripts, docs/version services, tests.
 2. Shipped skills under `src/main/skills/`: SKILL.md bodies, references, compatibility tables, lifecycle language, and `gradle_docs` pointers.
 3. The generated best-practices corpus — regenerated, never hand-edited.
-4. Records in `.junie/playbook.md` (wrapper version line, Build Verification section).
+4. Records: wrapper version line in `.junie/playbook.md`; `Build Verification` record in `AGENTS.md`.
 
 Out of scope: the wrapper bump itself; changes to other projects; new feature work discovered while reading the notes (record as follow-ups, do not implement here).
 
@@ -51,6 +51,7 @@ Out of scope: the wrapper bump itself; changes to other projects; new feature wo
 7. **Regenerate, don't hand-edit, the best-practices corpus.** `generateBestPracticesDoc` owns that content.
 8. **Shipped-skill edits follow the shipped-skill rules.** Load [Shipped Skills Update Checklist](references/shipped-skills-update-checklist.md) before touching `src/main/skills/`.
 9. **Ingestion ends in verification.** `./gradlew check` green (or green except explicitly named known pre-existing failures), plus an updated `.junie/playbook.md`.
+10. **The ingested version is CURRENT, not future.** Facts about NEW behavior that describe the current state of Gradle are written as plain current-state guidance, with no version label. Version anchors (`**Gradle N:**` / `as of N`) are reserved for version-specific facts — behavior only true under the ingested version (deprecation/removal timelines, incubating or lifecycle status, version numbers, transitional previews) — and for past notes about older versions. Never write `N+`-suffixed future-labelled notes (e.g. `**9.7+:**`): an `N+` suffix claims the fact holds for every later version and becomes wrong as soon as the next version ships, while anchored notes age into past notes naturally as later versions ship.
 
 ## Materiality and the Ledger Contract
 
@@ -81,11 +82,11 @@ Completeness check before leaving step 4: every material item in every walked so
 
 ### 1. Establish the Version Delta
 
-1. Read `gradle/wrapper/gradle-wrapper.properties` and parse NEW from `distributionUrl`; the distribution filename carries the version, so `gradle-9.6.1-bin.zip` parses to NEW = `9.6.1`.
+1. Read `gradle/wrapper/gradle-wrapper.properties` and parse NEW from `distributionUrl`; the distribution filename carries the version, so `gradle-9.7.0-bin.zip` parses to NEW = `9.7.0`.
 2. Establish OLD from `git log -p gradle/wrapper/gradle-wrapper.properties` (previous `distributionUrl`); fall back to the wrapper version recorded in `.junie/playbook.md`; otherwise ask. Never guess.
 3. Classify the delta — this decides steps 2 and 3:
    - **patch-only** — same major.minor, such as 9.6.0 → 9.6.1: one release-notes page; no upgrade-guide blocks in range; no major guide.
-   - **within-major** — such as 9.4.1 → 9.6.1: every final release in `(OLD, NEW]`; the in-range `changes_T` blocks of the single spanned version-family guide.
+   - **within-major** — such as 9.6.1 → 9.7.0: every final release in `(OLD, NEW]`; the in-range `changes_T` blocks of the single spanned version-family guide.
    - **cross-major** — such as 8.14 → 9.6.1: within-major rules applied to every spanned version family (the version-family guide of each major from `major(OLD)` through `major(NEW)` inclusive), plus the major upgrade guide for each crossed major.
 4. Confirm the bump is effective: run a trivial task through the repo's normal Gradle entry point and confirm the reported version equals NEW.
 
@@ -105,8 +106,8 @@ Completeness check before leaving step 4: every material item in every walked so
 ### 3. Read the Upgrade Guides (deterministic block selection)
 
 1. **Version-family guides — every spanned major.** For every major `M` with `major(OLD) <= M <= major(NEW)`, read `gradle_docs(path="userguide/upgrading_version_<M>.md", version="NEW")`. Within each family guide, blocks are anchored `#changes_<T>` where `T` is the **target feature release** — the anchor version, NOT the "Upgrading from X and earlier" heading baseline. Include block `changes_T` if and only if `OLD < T <= NEW` (semantic comparison; patch values participate; every block on a family page carries a `T` of that family's major `M`). Never derive the block set from heading text. Extract from each included block: `Potential breaking changes` (must fix) and `Deprecations` (fix the warning before it becomes a break). A same-major delta spans exactly one family guide; a cross-major delta spans one family guide per major in the closed range, and the intermediate majors' guides are mandatory, not optional.
-2. **Worked examples.** Within-major: OLD=9.4.1, NEW=9.6.1 spans `upgrading_version_9.md` only; read `changes_9.5.0` and `changes_9.6.0` only, noting that `changes_9.5.0` is headed "Upgrading from 9.4.0 and earlier" yet still applies because 9.5.0 > 9.4.1. Cross-major: OLD=7.4.0, NEW=9.6.1 spans `upgrading_version_7.md`, `upgrading_version_8.md`, and `upgrading_version_9.md`; include their blocks `changes_T` with 7.4.0 < T <= 9.6.1 — the `changes_7.x` blocks with T > 7.4.0, all `changes_8.x` blocks, and the `changes_9.x` blocks with T <= 9.6.0 (block anchors target feature releases; `9.6.1` is a patch and anchors no block) — and also read the step-3.3 transition guides `upgrading_major_version_8.md` and `upgrading_major_version_9.md`.
-3. **Cross-major transition guides.** For each major `N` with `major(OLD) < N <= major(NEW)`, read `gradle_docs(path="userguide/upgrading_major_version_<N>.md", version="NEW")` — runtime requirements, DSL changes, plugin changes, settings-file changes, task changes, and `Removal of ...` sections. These transition guides are in addition to the per-family within-major blocks of step 3.1, not a replacement for them. Same-major upgrades skip this step entirely.
+2. **Worked examples.** Within-major: OLD=9.6.1, NEW=9.7.0 spans `upgrading_version_9.md` only; read `changes_9.7.0` only, noting that `changes_9.7.0` is headed "Upgrading from 9.6.0 and earlier" yet still applies because 9.7.0 > 9.6.1. Cross-major: OLD=7.4.0, NEW=9.6.1 spans `upgrading_version_7.md`, `upgrading_version_8.md`, and `upgrading_version_9.md`; include their blocks `changes_T` with 7.4.0 < T <= 9.6.1 — the 7-family page's single `changes_8.0` block (that page is the 7→8 transition at 9.7.0), all `changes_8.x` blocks, and the `changes_9.x` blocks with T <= 9.6.0 (block anchors target feature releases; `9.6.1` is a patch and anchors no block) — and also read the step-3.3 transition guide `upgrading_major_version_9.md` (the 8→9 transition).
+3. **Cross-major transition guides.** For each major `N` with `major(OLD) < N <= major(NEW)`, read that major's transition guide — `gradle_docs(path="userguide/upgrading_major_version_<N>.md", version="NEW")` where the page exists (9.7.0: `upgrading_major_version_9.md` for the 8→9 transition); where it does not, the transition content is the `changes_<N>.0` block of the previous family page (the 7→8 transition is `upgrading_version_7.md#changes_8.0`). Read runtime requirements, DSL changes, plugin changes, settings-file changes, task changes, and `Removal of ...` sections. These transition guides are in addition to the per-family within-major blocks of step 3.1, not a replacement for them. Same-major upgrades skip this step entirely.
 4. **Patch-only deltas** have no block in range (no feature release `T` satisfies `OLD < T <= NEW`) and span no major boundary — record that and skip this step.
 5. Use `gradle_docs(query="tag:upgrading <term>", version="NEW")` for targeted migration detail on a ledger item.
 6. Check embedded Kotlin and Groovy version changes across the delta: init scripts and Kotlin DSL build logic compile against them.
@@ -135,7 +136,7 @@ Work ledger items with project-code impact:
 
 Load [Shipped Skills Update Checklist](references/shipped-skills-update-checklist.md), then work ledger items with shipped-skill impact:
 
-1. Update compatibility quick-reference tables, `Version notes` blocks, and version-sensitive footguns to match NEW.
+1. Update compatibility quick-reference tables, `Version notes` blocks, and version-sensitive footguns to match NEW. Describe current-state behavior as plain guidance without a version label; use version anchors (`**Gradle N:**` / `as of N`) only for version-specific facts (lifecycle status, deprecations, version numbers, transitional behavior) and past notes. Never use `N+` labels; when a later version is ingested, prior current notes remain as anchored past notes — no `N+` relabelling is ever needed.
 2. Apply `Promoted features`: remove incubating/experimental hedges for promoted features; delete or rewrite guidance for removed features.
 3. Apply the docs changelog from step 2.4.6: fix or replace `gradle_docs(path=...)` pointers whose pages moved or disappeared; add pointers for new doc areas a skill covers.
 4. Add new known-issue caveats to the relevant troubleshooting content; drop caveats made obsolete by fixes.
@@ -150,10 +151,10 @@ Nothing is committed from this step: the output lives under the gitignored `buil
 
 ### 8. Verify and Record
 
-1. Run `./gradlew check verifySkillsList` — unit tests (including the skill artifact safety test), `verifyToolsList`, and the skills-list sync check. `verifySkillsList` is not wired into `check`, so name it explicitly.
-2. If execution-layer code changed, also run `./gradlew integrationTest`; the pre-existing `JavaReplIntegrationTest.initializationError` / `KotlinReplIntegrationTest.basic execution works()` REPL failures are known — name them, don't silently tolerate new ones.
+1. Run `./gradlew check verifySkillsList` — unit tests (including the skill artifact safety test), `verifyToolsList`, the `integrationTest` and `treeSitterTest` suites (both wired into `check`), and the skills-list sync check. `verifySkillsList` is not wired into `check`, so name it explicitly.
+2. If execution-layer code changed, note that `integrationTest` already runs inside `check` (step 8.1); the pre-existing `JavaReplIntegrationTest.initializationError` / `KotlinReplIntegrationTest.basic execution works()` REPL failures are known — name them, don't silently tolerate new ones.
 3. Run `./gradlew :updateToolsList` only if Kotlin tool metadata changed.
-4. Update `.junie/playbook.md`: the wrapper version line and the `Build Verification` section (date, command, result, context).
+4. Update the records: the wrapper version line in `.junie/playbook.md`; the `Build Verification` record (date, command, result, context) in `AGENTS.md`.
 5. Report: the version delta and its class, the ledger with dispositions, skills changed with version bumps, and verification results.
 
 ## Definition of Done
@@ -164,7 +165,7 @@ Nothing is committed from this step: the output lives under the gitignored `buil
 4. All material items with shipped-skill impact applied per the shipped-skills checklist; `metadata.version` bumped where material; `SkillArtifactSafetyTest` and `verifySkillsList` pass.
 5. Best-practices corpus regenerates cleanly against NEW (task success + drift review; generator fixed if it failed).
 6. `./gradlew check` green (or green except explicitly named known pre-existing failures).
-7. `.junie/playbook.md` updated (wrapper version line, Build Verification section).
+7. Records updated: wrapper version line in `.junie/playbook.md`; `Build Verification` record in `AGENTS.md`.
 
 ## Reference Discovery
 
