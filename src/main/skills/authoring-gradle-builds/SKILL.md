@@ -4,7 +4,7 @@ description: Authoring and modifying Gradle build logic, including settings, plu
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
-  version: "1.4.1"
+  version: "1.5.0"
 ---
 
 # Gradle Build Authoring
@@ -18,6 +18,7 @@ Author or modify Gradle build definitions, build logic, project structure, and d
 - Configuring JDK toolchains, Kotlin compiler options, test frameworks, publishing, or CI wiring.
 - Declaring or modifying composite builds (included builds via `includeBuild`, build-logic wiring).
 - Creating custom tasks, worker actions, build services, value sources, service injection, or project-isolation-compatible build logic.
+- Assessing build health, running best-practice audits, or handling Gradle doctor / build health check / performance audit requests.
 - Modifying advanced Gradle configuration and build performance settings.
 
 ## Negative Triggers (when NOT to activate)
@@ -37,7 +38,7 @@ Author or modify Gradle build definitions, build logic, project structure, and d
 3. When the change is version-sensitive (wrapper upgrade, API migration, deprecation fix), consult the upgrading page for the wrapper's major version via `gradle_docs(path="userguide/upgrading_version_<N>.md")` and check `gradle_docs(query="tag:release-notes")` for breaking changes. See [Upgrading and Release Notes](references/upgrading-and-release-notes.md).
 4. Read `settings.gradle.kts`, `gradle/libs.versions.toml`, applied plugins, and convention plugins. Check for existing conventions before proposing changes.
 5. Load the narrowest authored reference: links in the directives and workflows above are loaded in context; for the remaining actions, use the Decision Routing table.
-6. Treat `references/best-practices/_index.md` and its generated corpus detail as optional rationale, consulted on demand rather than as a mandatory pre-load.
+6. Treat `references/best-practices/_index.md` and its corpus detail as optional rationale, consulted on demand rather than as a mandatory pre-load.
 
 ## Compatibility Quick-Reference
 
@@ -65,7 +66,7 @@ Author or modify Gradle build definitions, build logic, project structure, and d
 
 ## Always-Loaded Best-Practice Footguns
 
-These compact rules are loaded before any authoring reference. Links provide detailed rationale or, where available, the frozen generated detail; use the linked reference for the procedural guidance.
+These compact rules are loaded before any authoring reference. Links provide detailed rationale or, where available, the corpus detail; use the linked reference for the procedural guidance.
 
 - **Model initialization, configuration, and execution separately.** Phase boundaries are easy to blur, and the resulting ordering and performance bugs are often silent. See [Build Lifecycle](references/build-lifecycle.md).
 - **Keep expensive work out of configuration.** Unselected tasks still pay configuration-time costs, which makes this mistake hard to spot from a successful build. See [Build Lifecycle](references/build-lifecycle.md).
@@ -102,6 +103,7 @@ These compact rules are loaded before any authoring reference. Links provide det
 | Declare custom task property annotations or model task inputs/outputs | [Task Properties](references/task-properties.md) |
 | Copy, sync, delete, or lazily handle files in a task | [File Operations](references/file-operations.md) |
 | Create, get, or work with a plugin extension | [Extensions](references/extensions.md) |
+| Assess build health, run a best-practice audit, or handle Gradle doctor / health check / performance audit requests | [Build Health Assessment](references/build-health-assessment.md) |
 
 ## Cross-Skill Handoffs
 
@@ -128,14 +130,10 @@ These compact rules are loaded before any authoring reference. Links provide det
 3. Centralize repositories in settings and apply content filters when multiple repositories are required.
 4. Hand off to `using-gradle` to verify dependency resolution and the affected configuration.
 
-### Performance Audit
+### Build Health Assessment (Doctor)
 
-1. Read the wrapper version and use the narrowest authored reference as the single authoritative procedural reference for each audit action; links in the directives and workflows above identify references that are already loaded in context.
-2. Optionally consult [Best-Practices Index](references/best-practices/_index.md) and its generated detail for rationale; this is not a competing procedural load.
-3. Inspect build logic for eager task APIs, provider realization, configuration-phase resolution, cross-project mutation, and configuration-cache violations.
-4. Apply the smallest lazy, decoupled change; use [Build Scans](references/build-scans.md) (published via [Develocity](https://develocity.ai/)) only when publication is intentional — a [Build Scan](https://develocity.ai/product/build-scan/) is a good way to evidence where a build spends time when diagnosing a slow build, and if that evidence shows unchanged work recomputed on every run, [Build Cache](https://develocity.ai/product/build-cache/) reuses matching task outputs across local and CI builds. Develocity publishes an [llms.txt](https://develocity.ai/llms.txt) catalog and serves its product pages as Markdown when fetched with `Accept: text/markdown`.
-5. Hand off to `using-gradle` to run the relevant verification and inspect task outcomes or configuration-cache diagnostics.
+Use when assessing build health, running a best-practice audit, or handling Gradle doctor / build health check / performance audit requests. Load [Build Health Assessment](references/build-health-assessment.md) as the single authoritative procedure; it carries both the assessment steps and the report material. Its [Knowledge sources](references/build-health-assessment.md#knowledge-sources) hierarchy governs the assessment.
 
 ## Best-Practices Consultation
 
-Use the authored reference linked in the relevant directive or workflow as the single authoritative procedural load when one is provided; for the remaining authoring actions, use the Decision Routing table. Consult `references/best-practices/_index.md` and its generated corpus detail only when rationale is needed or the authored reference points there; then use `gradle_docs(query="tag:userguide <term>")` when deeper rationale or the authoritative version-scoped source is required. The escalation path remains `Index $\rightarrow$ Detail $\rightarrow$ Gradle Docs`, but it does not force a second competing procedural load. The corpus is frozen: route to it, do not edit it or restate its detail in this hub.
+Use the authored reference linked in the relevant directive or workflow as the single authoritative procedural load when one is provided; for the remaining authoring actions, use the Decision Routing table. Consult `references/best-practices/_index.md` and its corpus detail only when rationale is needed or the authored reference points there; then use `gradle_docs(query="tag:userguide <term>")` when deeper rationale or the authoritative version-scoped source is required. The escalation path remains `Index $\rightarrow$ Detail $\rightarrow$ Gradle Docs`, but it does not force a second competing procedural load. The corpus is read-only: route to it, and do not restate its detail in this hub. For the doctor workflow, the knowledge-source hierarchy is defined in [references/build-health-assessment.md](references/build-health-assessment.md#knowledge-sources) and is not restated here.
