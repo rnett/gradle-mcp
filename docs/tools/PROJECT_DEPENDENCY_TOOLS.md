@@ -12,6 +12,7 @@ Inspects the project's resolved dependency graph, checks for updates, and audits
 - **[UPDATE CHECK SKIPPED]**: Appears only for dependencies that were in scope for update checking but whose resolution genuinely failed — not for dependencies intentionally excluded from the update-check scope (e.g., transitive deps when `onlyDirect=true`).
 - **Plugin Auditing**: Use `sourceSet="buildscript"` to audit plugins.
 - **Targeted**: Use `dependency` as a full-string Kotlin regex to narrow report output and update-check candidates. Resolved modules match `group:name:version[:variant]`; unresolved deps match `group:name`; project deps match `project::path`; blank strings are ignored.
+- **Consumers**: `includeConsumers=true` adds direct reverse consumer edges (who directly depends on each dependency) and implies full-graph processing as if `onlyDirect=false`; `onlyDirect=true` is overridden (with a note) when both are passed.
 - Use `lookup_maven_versions` to find released versions; `gradle` for `dependencyInsight`.
 
 <details>
@@ -63,6 +64,10 @@ Inspects the project's resolved dependency graph, checks for updates, and audits
     "onlyDirect": {
       "type": "boolean",
       "description": "Showing only direct dependencies in the summary. Set to false for the full tree. Also controls update-check scope: only direct deps are checked when `true`."
+    },
+    "includeConsumers": {
+      "type": "boolean",
+      "description": "Whether to include direct reverse consumer edges (who directly depends on each dependency). Implies full-graph processing as if `onlyDirect=false`; when `onlyDirect=true` is also passed, `includeConsumers` wins and a note is included in the response. Defaults to false."
     },
     "updatesOnly": {
       "type": "boolean",

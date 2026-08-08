@@ -10,6 +10,7 @@ package dev.rnett.gradle.mcp.dependencies
  * @property versionFilter Regex filter for considered update versions.
  * @property stableOnly Whether to only include stable versions when checking for updates.
  * @property onlyDirect Whether to only include direct dependencies in the report.
+ * @property includeConsumers Whether to compute and attach direct reverse consumer edges to every dependency node. Implies full-graph processing (as if `onlyDirect=false`). Defaults to false.
  * @property downloadSources Whether to download and include source artifacts.
  * @property excludeBuildscript Whether to exclude buildscript dependencies from the report. Defaults to true.
  * @property fresh Whether to force a fresh dependency resolution.
@@ -23,6 +24,7 @@ data class DependencyRequestOptions(
     val versionFilter: String? = null,
     val stableOnly: Boolean = false,
     val onlyDirect: Boolean = false,
+    val includeConsumers: Boolean = false,
     val downloadSources: Boolean = false,
     val excludeBuildscript: Boolean = true,
     val fresh: Boolean = false,

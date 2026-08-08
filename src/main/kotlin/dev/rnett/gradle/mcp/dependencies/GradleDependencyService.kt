@@ -456,7 +456,12 @@ class DefaultGradleDependencyService(
             result
         } else parsed
 
-        return filterDependencyTree(filtered, matcher)
+        val report = filterDependencyTree(filtered, matcher)
+
+        // Opt-in reverse consumer edges. Computed once per invocation on the final report graph
+        // (full graph when the caller requested includeConsumers, since the tool forces
+        // onlyDirect=false in that case) and memoized across all nodes in the response.
+        return if (options.includeConsumers) report.withConsumers() else report
     }
 
     context(progress: ProgressReporter)

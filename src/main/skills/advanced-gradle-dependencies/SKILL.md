@@ -4,7 +4,7 @@ description: Analyzing advanced Gradle dependency behavior, including resolution
 license: Apache-2.0
 metadata:
   author: https://github.com/rnett/gradle-mcp
-  version: "1.2.0"
+  version: "1.2.1"
 ---
 
 # Advanced Gradle Dependency Engineering
@@ -50,6 +50,14 @@ Diagnoses and fixes advanced Gradle dependency resolution problems as diagnose-t
 | Author advanced version catalog topics (bundles, plugins, multiple catalogs, composition) | [Advanced Version Catalogs](references/advanced-version-catalogs.md) |
 | Govern repository declaration modes, content filtering, or `exclusiveContent` | [Repository Governance](references/repository-governance.md) |
 | Reason about dependency cache freshness, resolution consistency, or resolution avoidance/performance | [Resolution Mechanics](references/resolution-mechanics.md) |
+
+## Provenance and Consumer Routing
+
+| Agent question | Route |
+| --- | --- |
+| Why this version? | Use `dependencyInsight`, then interpret the selected `version` (`selected.version`) with `reason`, `isDirect`, and `fromConfiguration` from `inspect_dependencies`. Treat `latestVersion` only as an optional advisory "newer available" signal; never use it to explain why the selected version won. |
+| Who depends on X? | Make one `inspect_dependencies { filter=X, includeConsumers:true }` call, then read the target's `consumers` list. `onlyDirect=false` is implied, so the full resolved graph is inverted without passing `onlyDirect=false` yourself. |
+| What is the blast radius? | Filter the target dependency and traverse successive direct `consumers` edges client-side. There is no server-side transitive-closure API. |
 
 ## Reference Discovery
 

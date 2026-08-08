@@ -36,6 +36,8 @@ class GradleDependencyTools(
         val checkUpdates: Boolean = true,
         @Description("Showing only direct dependencies in the summary. Set to false for the full tree. Also controls update-check scope: only direct deps are checked when `true`.")
         val onlyDirect: Boolean = true,
+        @Description("Whether to include direct reverse consumer edges (who directly depends on each dependency). Implies full-graph processing as if `onlyDirect=false`; when `onlyDirect=true` is also passed, `includeConsumers` wins and a note is included in the response. Defaults to false.")
+        val includeConsumers: Boolean = false,
         @Description("Returning a flat list of upgradeable dependencies: `group:artifact: current → latest` with project paths. Forces `checkUpdates=true`. Note: format changed from earlier versions — the dep key no longer includes the version and the separator changed from ASCII `->` to Unicode `→`.")
         val updatesOnly: Boolean = false,
         @Description("Ignoring pre-release versions (alpha, beta, rc, etc.) when checking for updates.")
@@ -57,6 +59,7 @@ class GradleDependencyTools(
             |- **[UPDATE CHECK SKIPPED]**: Appears only for dependencies that were in scope for update checking but whose resolution genuinely failed — not for dependencies intentionally excluded from the update-check scope (e.g., transitive deps when `onlyDirect=true`).
             |- **Plugin Auditing**: Use `sourceSet="buildscript"` to audit plugins.
             |- **Targeted**: Use `dependency` as a full-string Kotlin regex to narrow report output and update-check candidates. Resolved modules match `group:name:version[:variant]`; unresolved deps match `group:name`; project deps match `project::path`; blank strings are ignored.
+            |- **Consumers**: `includeConsumers=true` adds direct reverse consumer edges (who directly depends on each dependency) and implies full-graph processing as if `onlyDirect=false`; `onlyDirect=true` is overridden (with a note) when both are passed.
             |- Use `${ToolNames.LOOKUP_MAVEN_VERSIONS}` to find released versions; `${ToolNames.GRADLE}` for `dependencyInsight`.
         """.trimMargin()
     ) { it, progressReporter ->
@@ -64,6 +67,9 @@ class GradleDependencyTools(
         // updatesOnly forces checkUpdates regardless of the explicit checkUpdates value.
         val checkUpdatesEnabled = it.checkUpdates || it.updatesOnly
         val dependencyFilter = normalizeDependencyFilter(it.dependency)
+        // includeConsumers implies full-graph processing: force onlyDirect=false so inversion
+        // sees the whole resolved graph (mirrors how updatesOnly forces checkUpdates).
+        val onlyDirectEnabled = it.onlyDirect && !it.includeConsumers
         val report = with(progressReporter) {
             dependencyService.getDependencies(
                 projectRoot = root,
@@ -75,17 +81,23 @@ class GradleDependencyTools(
                     checkUpdates = checkUpdatesEnabled,
                     versionFilter = it.versionFilter,
                     stableOnly = it.stableOnly,
-                    onlyDirect = it.onlyDirect,
+                    onlyDirect = onlyDirectEnabled,
+                    includeConsumers = it.includeConsumers,
                     excludeBuildscript = it.excludeBuildscript // Use the arg value (default false)
                 )
             )
         }
 
+        // includeConsumers wins over an explicit onlyDirect=true: surface the override to the agent.
+        val reportWithNotes = if (it.includeConsumers && it.onlyDirect) {
+            report.copy(notes = report.notes + "onlyDirect overridden to false for consumers inversion")
+        } else report
+
         ToolCallResult(
             if (it.updatesOnly) {
-                formatUpdatesSummary(report, it.pagination)
+                formatUpdatesSummary(reportWithNotes, it.pagination)
             } else {
-                formatDependencyReport(report, it.pagination, checkUpdatesEnabled)
+                formatDependencyReport(reportWithNotes, it.pagination, checkUpdatesEnabled)
             }
         )
     }
@@ -96,7 +108,14 @@ class GradleDependencyTools(
         pagination: PaginationInput,
         checkUpdatesEnabled: Boolean = false
     ): String {
-        if (report.projects.isEmpty()) return "No projects found."
+        // Notes (e.g. the consumers-onlyDirect override note) are part of the response contract and
+        // must surface even when there are no projects to render.
+        if (report.projects.isEmpty()) {
+            return buildString {
+                appendLine("No projects found.")
+                report.notes.forEach { appendLine("Note: $it") }
+            }.trim()
+        }
 
         return buildString {
             appendLine("Dependency Report")
@@ -297,6 +316,21 @@ class GradleDependencyTools(
                 append(" (${dep.reason})")
             }
             appendLine()
+            dep.consumers?.takeIf { it.isNotEmpty() }?.let { consumers ->
+                append("  ".repeat(indent + 1))
+                appendLine("Consumers:")
+                consumers.forEach { consumer ->
+                    append("  ".repeat(indent + 2))
+                    append("- ${consumer.id}")
+                    if (consumer.variant != null) {
+                        append(" (variant: ${consumer.variant})")
+                    }
+                    if (consumer.fromConfiguration != null) {
+                        append(" (from: ${consumer.fromConfiguration})")
+                    }
+                    appendLine()
+                }
+            }
             if (!alreadyVisited) {
                 renderDependencies(dep.children, indent + 1, checkUpdatesEnabled, visited, noteProvider)
             }

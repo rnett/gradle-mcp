@@ -151,6 +151,23 @@ data class GradleConfigurationDependencies(
     }
 }
 
+/**
+ * A lightweight reverse dependency edge: a direct parent (consumer) of a [GradleDependency].
+ *
+ * Unlike a full [GradleDependency], this intentionally does not embed children so the reverse
+ * edge never recursively nests forward graphs. [path] identifies the direct parent edge, using
+ * that parent's identity/path rather than a root-to-parent traversal path.
+ */
+data class ConsumerEdge(
+    val id: String,
+    val group: String?,
+    val name: String,
+    val version: String?,
+    val variant: String? = null,
+    val fromConfiguration: String? = null,
+    val path: String
+)
+
 data class GradleDependency(
     val id: String,
     val group: String?,
@@ -165,6 +182,7 @@ data class GradleDependency(
     val commonComponentId: String? = null,
     val sourcesFile: Path? = null,
     val updatesChecked: Boolean = false,
+    val consumers: List<ConsumerEdge>? = null,
     val children: List<GradleDependency> = emptyList()
 ) {
     companion object {

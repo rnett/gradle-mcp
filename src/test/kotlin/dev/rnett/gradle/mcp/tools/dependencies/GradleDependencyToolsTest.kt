@@ -3,6 +3,7 @@ package dev.rnett.gradle.mcp.tools.dependencies
 import dev.rnett.gradle.mcp.ProgressReporter
 import dev.rnett.gradle.mcp.dependencies.DependencyRequestOptions
 import dev.rnett.gradle.mcp.dependencies.GradleDependencyService
+import dev.rnett.gradle.mcp.dependencies.model.ConsumerEdge
 import dev.rnett.gradle.mcp.dependencies.model.GradleConfigurationDependencies
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependency
 import dev.rnett.gradle.mcp.dependencies.model.GradleDependencyReport
@@ -445,5 +446,254 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
         assertTrue(result.contains("Project: :p3"), "Should contain third project")
         assertFalse(result.contains("Project: :p1"), "Should NOT contain first project")
         assertTrue(result.contains("Showing projects 2 to 3 of 5"), "Should contain pagination metadata")
+    }
+
+    @Test
+    fun `inspect_dependencies includeConsumers=true forces onlyDirect=false and emits override note`() = runTest {
+        val report = GradleDependencyReport(
+            projects = listOf(
+                GradleProjectDependencies(
+                    path = ":",
+                    sourceSets = emptyList(),
+                    repositories = emptyList(),
+                    configurations = listOf(
+                        GradleConfigurationDependencies(
+                            name = "implementation",
+                            description = null,
+                            isResolvable = true,
+                            dependencies = listOf(
+                                GradleDependency(
+                                    id = "org.example:lib:1.0",
+                                    group = "org.example",
+                                    name = "lib",
+                                    version = "1.0"
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        coEvery {
+            with(any<ProgressReporter>()) {
+                dependencyService.getDependencies(
+                    projectRoot = any(),
+                    projectPath = any(),
+                    options = match { !it.onlyDirect && it.includeConsumers }
+                )
+            }
+        } returns report
+
+        val response = server.client.callTool(
+            ToolNames.INSPECT_DEPENDENCIES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
+                put("onlyDirect", true)
+                put("includeConsumers", true)
+            }
+        ) as CallToolResult
+
+        val result = (response.content.first() as TextContent).text!!
+        assertTrue(
+            result.contains("Note: onlyDirect overridden to false for consumers inversion"),
+            "Response should carry the override note. Output:\n$result"
+        )
+        coVerify {
+            with(any<ProgressReporter>()) {
+                dependencyService.getDependencies(
+                    projectRoot = any(),
+                    projectPath = any(),
+                    options = match { !it.onlyDirect && it.includeConsumers }
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `inspect_dependencies override note survives an empty report`() = runTest {
+        // Empty report (no projects): the override note is part of the response contract and must
+        // not be dropped by the "No projects found." early return.
+        val emptyReport = GradleDependencyReport(projects = emptyList())
+
+        coEvery {
+            with(any<ProgressReporter>()) {
+                dependencyService.getDependencies(
+                    projectRoot = any(),
+                    projectPath = any(),
+                    options = match { !it.onlyDirect && it.includeConsumers }
+                )
+            }
+        } returns emptyReport
+
+        val response = server.client.callTool(
+            ToolNames.INSPECT_DEPENDENCIES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
+                put("onlyDirect", true)
+                put("includeConsumers", true)
+            }
+        ) as CallToolResult
+
+        val result = (response.content.first() as TextContent).text!!
+        assertTrue(result.contains("No projects found."), "Empty report should still render. Output:\n$result")
+        assertTrue(
+            result.contains("Note: onlyDirect overridden to false for consumers inversion"),
+            "Override note must survive an empty report. Output:\n$result"
+        )
+    }
+
+    @Test
+    fun `inspect_dependencies includeConsumers=true with onlyDirect=false has no override note`() = runTest {
+        val report = GradleDependencyReport(
+            projects = listOf(
+                GradleProjectDependencies(
+                    path = ":",
+                    sourceSets = emptyList(),
+                    repositories = emptyList(),
+                    configurations = listOf(
+                        GradleConfigurationDependencies(
+                            name = "implementation",
+                            description = null,
+                            isResolvable = true,
+                            dependencies = listOf(
+                                GradleDependency(
+                                    id = "org.example:lib:1.0",
+                                    group = "org.example",
+                                    name = "lib",
+                                    version = "1.0"
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        coEvery {
+            with(any<ProgressReporter>()) {
+                dependencyService.getDependencies(any(), any(), any())
+            }
+        } returns report
+
+        val response = server.client.callTool(
+            ToolNames.INSPECT_DEPENDENCIES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
+                put("onlyDirect", false)
+                put("includeConsumers", true)
+            }
+        ) as CallToolResult
+
+        val result = (response.content.first() as TextContent).text!!
+        assertFalse(result.contains("onlyDirect overridden"), "No override note expected. Output:\n$result")
+    }
+
+    @Test
+    fun `inspect_dependencies renders consumers when present`() = runTest {
+        val report = GradleDependencyReport(
+            projects = listOf(
+                GradleProjectDependencies(
+                    path = ":",
+                    sourceSets = emptyList(),
+                    repositories = emptyList(),
+                    configurations = listOf(
+                        GradleConfigurationDependencies(
+                            name = "implementation",
+                            description = null,
+                            isResolvable = true,
+                            dependencies = listOf(
+                                GradleDependency(
+                                    id = "org.example:lib-c:1.0",
+                                    group = "org.example",
+                                    name = "lib-c",
+                                    version = "1.0",
+                                    consumers = listOf(
+                                        ConsumerEdge(
+                                            id = "org.example:lib-b:1.0",
+                                            group = "org.example",
+                                            name = "lib-b",
+                                            version = "1.0",
+                                            variant = "jvm",
+                                            fromConfiguration = "implementation",
+                                            path = "org.example:lib-b:1.0"
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        coEvery {
+            with(any<ProgressReporter>()) {
+                dependencyService.getDependencies(
+                    projectRoot = any(),
+                    projectPath = any(),
+                    options = match { it.includeConsumers }
+                )
+            }
+        } returns report
+
+        val response = server.client.callTool(
+            ToolNames.INSPECT_DEPENDENCIES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
+                put("includeConsumers", true)
+            }
+        ) as CallToolResult
+
+        val result = (response.content.first() as TextContent).text!!
+        assertTrue(result.contains("Consumers:"), "Should render the Consumers block. Output:\n$result")
+        assertTrue(
+            result.contains("- org.example:lib-b:1.0 (variant: jvm) (from: implementation)"),
+            "Should render the consumer edge with variant and configuration. Output:\n$result"
+        )
+    }
+
+    @Test
+    fun `inspect_dependencies omits consumers by default`() = runTest {
+        val report = GradleDependencyReport(
+            projects = listOf(
+                GradleProjectDependencies(
+                    path = ":",
+                    sourceSets = emptyList(),
+                    repositories = emptyList(),
+                    configurations = listOf(
+                        GradleConfigurationDependencies(
+                            name = "implementation",
+                            description = null,
+                            isResolvable = true,
+                            dependencies = listOf(
+                                GradleDependency(
+                                    id = "org.example:lib-c:1.0",
+                                    group = "org.example",
+                                    name = "lib-c",
+                                    version = "1.0"
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        coEvery {
+            with(any<ProgressReporter>()) {
+                dependencyService.getDependencies(
+                    projectRoot = any(),
+                    projectPath = any(),
+                    options = match { it.onlyDirect && !it.includeConsumers }
+                )
+            }
+        } returns report
+
+        val response = server.client.callTool(
+            ToolNames.INSPECT_DEPENDENCIES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
+            }
+        ) as CallToolResult
+
+        val result = (response.content.first() as TextContent).text!!
+        assertTrue(result.contains("org.example:lib-c:1.0"), "Dependency should still render. Output:\n$result")
+        assertFalse(result.contains("Consumers:"), "Consumers must be absent by default. Output:\n$result")
     }
 }
