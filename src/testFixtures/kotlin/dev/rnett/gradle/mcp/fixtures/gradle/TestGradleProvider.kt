@@ -93,11 +93,22 @@ fun GradleInvocationArguments.withTestGradleDefaults(
         if (systemProps["org.gradle.caching"] == "false") "--no-build-cache" else "--build-cache"
     )
 
+    // Isolated Projects is a start-parameter / gradle.properties mechanism on Gradle 9.7.0 (like the
+    // configuration cache): daemon JVM system properties delivered via `withSystemProperties` do NOT
+    // activate it, so the property must be synthesized into a CLI start argument. Mirrors the
+    // configuration-cache derivation above, but is opt-in: no default is added to
+    // `defaultTestGradleSystemProperties`, so only tests that explicitly pass
+    // `org.gradle.isolated-projects` (true/false) get the `--isolated-projects`/`--no-isolated-projects`
+    // flag, leaving all existing tests unaffected.
+    val isolatedProjectsArgs = systemProps["org.gradle.isolated-projects"]?.let { value ->
+        listOf(if (value == "false") "--no-isolated-projects" else "--isolated-projects")
+    } ?: emptyList()
+
     return copy(
         javaHome = if (pinJavaHome) javaHome ?: System.getProperty("java.home") else javaHome,
         additionalJvmArgs = TEST_DAEMON_JVM_ARGS + additionalJvmArgs,
         additionalSystemProps = systemProps,
-        additionalArguments = cacheArgs + listOf(TEST_DAEMON_IDLE_TIMEOUT_ARG) + additionalArguments
+        additionalArguments = cacheArgs + isolatedProjectsArgs + listOf(TEST_DAEMON_IDLE_TIMEOUT_ARG) + additionalArguments
     )
 }
 

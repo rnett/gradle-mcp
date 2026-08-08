@@ -879,6 +879,7 @@ class McpGraphConverter(
     }
 }
 
+object McpJvmMetadataHelpers {
 fun mcpNoArgMethod(target: Any, name: String) =
     target.javaClass.methods.find { it.name == name && it.parameterCount == 0 }
 
@@ -1076,8 +1077,9 @@ fun mcpDetectJdk(
         null
     }
 }
+}
 
-allprojects {
+gradle.lifecycle.beforeProject {
     tasks.register("mcpDependencyReport", McpDependencyReportTask::class.java) {
         val proj = this.project
 
@@ -1275,16 +1277,16 @@ allprojects {
         })
 
         val javaSourceSetMetadata = proj.provider {
-            mcpCollectJavaSourceSetMetadata(proj)
+            McpJvmMetadataHelpers.mcpCollectJavaSourceSetMetadata(proj)
         }
         val kotlinSourceSetMetadata = proj.provider {
-            mcpCollectKotlinSourceSetMetadata(proj)
+            McpJvmMetadataHelpers.mcpCollectKotlinSourceSetMetadata(proj)
         }
 
         sourceSets.set(javaSourceSetMetadata)
         kotlinSourceSets.set(kotlinSourceSetMetadata)
 
-        val detectedJdk = proj.provider { mcpDetectJdk(proj, javaSourceSetMetadata.get(), kotlinSourceSetMetadata.get()) }
+        val detectedJdk = proj.provider { McpJvmMetadataHelpers.mcpDetectJdk(proj, javaSourceSetMetadata.get(), kotlinSourceSetMetadata.get()) }
         jdkHome.set(detectedJdk.map { it?.first ?: "" })
         jdkVersion.set(detectedJdk.map { it?.second ?: "" })
     }

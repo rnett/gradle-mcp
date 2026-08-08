@@ -62,24 +62,21 @@ abstract class ResolveReplEnvironmentTask : DefaultTask() {
 }
 
 
-// Configuration from start parameters
-val targetProject = (gradle.startParameter.projectProperties["gradle-mcp.repl.project"] ?: ":")
-val targetSourceSetName = (gradle.startParameter.projectProperties["gradle-mcp.repl.sourceSet"] ?: "main")
-val additionalDependencies = (gradle.startParameter.projectProperties["gradle-mcp.repl.additionalDependencies"]?.split(";|;")?.filter { it.isNotBlank() } ?: listOf())
 
 /**
  * Helper to safely call a method via reflection.
  */
-fun Any.callMethod(methodName: String, args: Array<Any?> = emptyArray(), throwIfNotFound: Boolean = true): Any? {
+object ReplEnvHelpers {
+fun callMethod(receiver: Any, methodName: String, args: Array<Any?> = emptyArray(), throwIfNotFound: Boolean = true): Any? {
     try {
-        val method = this.javaClass.methods.find { it.name == methodName && it.parameterCount == args.size }
+        val method = receiver.javaClass.methods.find { it.name == methodName && it.parameterCount == args.size }
         if (method != null) {
             method.isAccessible = true
-            return method.invoke(this, *args)
+            return method.invoke(receiver, *args)
         }
 
         if (throwIfNotFound) {
-            throw GradleException("Method $methodName not found on ${this.javaClass.name}")
+            throw GradleException("Method $methodName not found on ${receiver.javaClass.name}")
         }
         return null
     } catch (e: Throwable) {
@@ -91,18 +88,18 @@ fun Any.callMethod(methodName: String, args: Array<Any?> = emptyArray(), throwIf
 /**
  * Helper to safely get a property via a getter method.
  */
-fun Any.getProperty(propertyName: String, throwIfNotFound: Boolean = false): Any? {
+fun getProperty(receiver: Any, propertyName: String, throwIfNotFound: Boolean = false): Any? {
     val getterName = "get" + propertyName.replaceFirstChar { it.uppercase() }
-    val value = callMethod(getterName, throwIfNotFound = false)
+    val value = callMethod(receiver, getterName, throwIfNotFound = false)
     if (value != null) return value
 
     try {
-        val field = this.javaClass.getDeclaredField(propertyName)
+        val field = receiver.javaClass.getDeclaredField(propertyName)
         field.isAccessible = true
-        return field.get(this)
+        return field.get(receiver)
     } catch (e: Throwable) {
         if (throwIfNotFound) {
-            throw GradleException("Property $propertyName not found on ${this.javaClass.name}", e)
+            throw GradleException("Property $propertyName not found on ${receiver.javaClass.name}", e)
         }
         return null
     }
@@ -116,10 +113,10 @@ fun resolveKotlinCompilerOptions(task: Task): List<String> {
     val args = mutableListOf<String>()
     try {
         // 1. Try compilerOptions (KGP 1.7+)
-        val compilerOptions = task.callMethod("getCompilerOptions", throwIfNotFound = false)
+        val compilerOptions = callMethod(task, "getCompilerOptions", throwIfNotFound = false)
         if (compilerOptions != null) {
             val freeCompilerArgs = try {
-                compilerOptions.getProperty("freeCompilerArgs", throwIfNotFound = false)
+                getProperty(compilerOptions, "freeCompilerArgs", throwIfNotFound = false)
             } catch (e: Throwable) {
                 null
             }
@@ -135,15 +132,15 @@ fun resolveKotlinCompilerOptions(task: Task): List<String> {
             }
 
             val jvmTargetProperty = try {
-                compilerOptions.getProperty("jvmTarget", throwIfNotFound = false)
+                getProperty(compilerOptions, "jvmTarget", throwIfNotFound = false)
             } catch (e: Throwable) {
                 null
             }
             if (jvmTargetProperty != null && jvmTargetProperty is org.gradle.api.provider.Provider<*>) {
                 val jvmTargetValue = jvmTargetProperty.orNull
                 if (jvmTargetValue != null) {
-                    val targetString = jvmTargetValue.callMethod("getTarget", throwIfNotFound = false)?.toString()
-                        ?: jvmTargetValue.callMethod("getName", throwIfNotFound = false)?.toString()
+                    val targetString = callMethod(jvmTargetValue, "getTarget", throwIfNotFound = false)?.toString()
+                        ?: callMethod(jvmTargetValue, "getName", throwIfNotFound = false)?.toString()
                         ?: jvmTargetValue.toString()
                     if (!args.contains("-jvm-target")) {
                         args.add("-jvm-target")
@@ -154,11 +151,11 @@ fun resolveKotlinCompilerOptions(task: Task): List<String> {
         }
 
         // 2. Try kotlinOptions (older KGP)
-        val kotlinOptions = task.callMethod("getKotlinOptions", throwIfNotFound = false)
+        val kotlinOptions = callMethod(task, "getKotlinOptions", throwIfNotFound = false)
         if (kotlinOptions != null) {
             // Only if not already added
             if (!args.contains("-jvm-target")) {
-                val jvmTarget = kotlinOptions.getProperty("jvmTarget", throwIfNotFound = false)?.toString()
+                val jvmTarget = getProperty(kotlinOptions, "jvmTarget", throwIfNotFound = false)?.toString()
                 if (jvmTarget != null) {
                     args.add("-jvm-target")
                     args.add(jvmTarget)
@@ -167,7 +164,7 @@ fun resolveKotlinCompilerOptions(task: Task): List<String> {
 
             // Also freeCompilerArgs from kotlinOptions if we didn't get them from compilerOptions
             if (args.isEmpty() || (args.size == 2 && args[0] == "-jvm-target")) {
-                val freeCompilerArgs = kotlinOptions.getProperty("freeCompilerArgs", throwIfNotFound = false)
+                val freeCompilerArgs = getProperty(kotlinOptions, "freeCompilerArgs", throwIfNotFound = false)
                 if (freeCompilerArgs is List<*>) {
                     args.addAll(freeCompilerArgs.map { it.toString() })
                 }
@@ -177,7 +174,7 @@ fun resolveKotlinCompilerOptions(task: Task): List<String> {
         // 3. Last fallback: task.freeCompilerArgs (very old KGP)
         if (args.isEmpty()) {
             val freeCompilerArgs = try {
-                task.getProperty("freeCompilerArgs", throwIfNotFound = false)
+                getProperty(task, "freeCompilerArgs", throwIfNotFound = false)
             } catch (e: Throwable) {
                 null
             }
@@ -203,7 +200,7 @@ fun resolveKotlinCompilerOptions(task: Task): List<String> {
  */
 fun resolveKotlinCompilerPlugins(task: Task): Set<String> {
     return try {
-        val pluginClasspath = task.callMethod("getPluginClasspath", throwIfNotFound = false) as? org.gradle.api.file.FileCollection
+        val pluginClasspath = callMethod(task, "getPluginClasspath", throwIfNotFound = false) as? org.gradle.api.file.FileCollection
         pluginClasspath?.files?.map { it.absolutePath }?.toSet() ?: emptySet()
     } catch (e: Throwable) {
         emptySet()
@@ -215,7 +212,7 @@ fun resolveKotlinCompilerPlugins(task: Task): Set<String> {
  */
 fun resolveKotlinCompilerPluginOptions(task: Task): List<String> {
     return try {
-        val pluginOptions = task.callMethod("getPluginOptions", throwIfNotFound = false)
+        val pluginOptions = callMethod(task, "getPluginOptions", throwIfNotFound = false)
         if (pluginOptions != null) {
             // KGP 2.3+ or using BaseKotlinCompile.pluginOptions
             if (pluginOptions is org.gradle.api.provider.ListProperty<*>) {
@@ -223,11 +220,11 @@ fun resolveKotlinCompilerPluginOptions(task: Task): List<String> {
                 val allArgs = mutableListOf<String>()
                 for (config in configs) {
                     @Suppress("UNCHECKED_CAST")
-                    val optionsMap = config?.callMethod("allOptions") as? Map<String, List<Any>>
+                    val optionsMap = config?.let { callMethod(it, "allOptions") } as? Map<String, List<Any>>
                     optionsMap?.forEach { (pluginId, options) ->
                         for (option in options) {
-                            val key = option.getProperty("key")?.toString()
-                            val value = option.getProperty("value")?.toString()
+                            val key = getProperty(option, "key")?.toString()
+                            val value = getProperty(option, "value")?.toString()
                             if (key != null && value != null) {
                                 allArgs.add("$pluginId:$key=$value")
                             }
@@ -238,17 +235,17 @@ fun resolveKotlinCompilerPluginOptions(task: Task): List<String> {
             }
 
             // Fallback for older KGP versions or different structures
-            val arguments = pluginOptions.callMethod("getArguments", throwIfNotFound = false)
+            val arguments = callMethod(pluginOptions, "getArguments", throwIfNotFound = false)
             if (arguments is Iterable<*>) {
                 return arguments.map { it.toString() }
             }
 
-            val plugins = pluginOptions.getProperty("plugins", throwIfNotFound = false)
+            val plugins = getProperty(pluginOptions, "plugins", throwIfNotFound = false)
             if (plugins is Iterable<*>) {
                 val allArgs = mutableListOf<String>()
                 for (plugin in plugins) {
                     if (plugin != null) {
-                        val pluginArgs = plugin.callMethod("getArguments", throwIfNotFound = false)
+                        val pluginArgs = callMethod(plugin, "getArguments", throwIfNotFound = false)
                         if (pluginArgs is Iterable<*>) {
                             allArgs.addAll(pluginArgs.map { it.toString() })
                         }
@@ -262,37 +259,45 @@ fun resolveKotlinCompilerPluginOptions(task: Task): List<String> {
         emptyList()
     }
 }
+}
 
-allprojects {
-    if (path == targetProject) {
-        afterEvaluate {
-            tasks.register<ResolveReplEnvironmentTask>("resolveReplEnvironment") {
+run {
+    val replTargetProject = gradle.startParameter.projectProperties["gradle-mcp.repl.project"] ?: ":"
+    val replTargetSourceSet = gradle.startParameter.projectProperties["gradle-mcp.repl.sourceSet"] ?: "main"
+    val replAdditionalDependencies = gradle.startParameter.projectProperties["gradle-mcp.repl.additionalDependencies"]
+        ?.split(";|;")
+        ?.filter { it.isNotBlank() }
+        ?: listOf()
+
+gradle.lifecycle.afterProject {
+    if (path == replTargetProject) {
+        tasks.register<ResolveReplEnvironmentTask>("resolveReplEnvironment") {
                 outputs.upToDateWhen { false }
                 projectRootPath.set(project.rootDir.absolutePath)
 
                 // Get Kotlin extension and source sets via reflection to avoid direct dependency
                 val kotlinExt = project.extensions.findByName("kotlin")
-                val kotlinSourceSets = kotlinExt?.getProperty("sourceSets") as? NamedDomainObjectContainer<*>
+                val kotlinSourceSets = kotlinExt?.let { ReplEnvHelpers.getProperty(it, "sourceSets") } as? NamedDomainObjectContainer<*>
 
                 val sourceSets = project.extensions.findByType(SourceSetContainer::class.java)
-                val javaSourceSet = sourceSets?.findByName(targetSourceSetName)
-                val kotlinSourceSet = kotlinSourceSets?.findByName(targetSourceSetName)
+                val javaSourceSet = sourceSets?.findByName(replTargetSourceSet)
+                val kotlinSourceSet = kotlinSourceSets?.findByName(replTargetSourceSet)
 
                 val javaToolchainService = project.extensions.findByType(JavaToolchainService::class.java)
                 val javaPlugin = project.extensions.findByType(JavaPluginExtension::class.java)
 
                 // 1. Resolve Java Executable (preferring Kotlin toolchain)
                 val kotlinToolchainProvider = if (kotlinExt != null) {
-                    (kotlinExt.getProperty("jvmToolchain") as? Provider<*>) ?: run {
+                    (ReplEnvHelpers.getProperty(kotlinExt, "jvmToolchain") as? Provider<*>) ?: run {
                         // Try targets if it's KMP or just has targets
                         var found: Provider<*>? = null
-                        val targets = kotlinExt.getProperty("targets") as? Iterable<*>
+                        val targets = ReplEnvHelpers.getProperty(kotlinExt, "targets") as? Iterable<*>
                         if (targets != null) {
                             for (target in targets) {
                                 if (target != null) {
-                                    val platformType = target.callMethod("getPlatformType", throwIfNotFound = false)?.toString()?.lowercase()
+                                    val platformType = ReplEnvHelpers.callMethod(target, "getPlatformType", throwIfNotFound = false)?.toString()?.lowercase()
                                     if (platformType == "jvm") {
-                                        found = target.getProperty("jvmToolchain") as? Provider<*>
+                                        found = ReplEnvHelpers.getProperty(target, "jvmToolchain") as? Provider<*>
                                         if (found != null) break
                                     }
                                 }
@@ -317,15 +322,15 @@ allprojects {
                 // Helper to configure from a compilation
                 fun configureFromCompilation(compilation: Any) {
                     // Runtime classpath configuration
-                    val confName = compilation.getProperty("runtimeDependencyConfigurationName") as? String ?: compilation.getProperty("compileDependencyConfigurationName") as? String
+                    val confName = ReplEnvHelpers.getProperty(compilation, "runtimeDependencyConfigurationName") as? String ?: ReplEnvHelpers.getProperty(compilation, "compileDependencyConfigurationName") as? String
                     val conf = confName?.let { project.configurations.findByName(it) }
 
                     if (conf != null) {
-                        if (additionalDependencies.isNotEmpty()) {
+                        if (replAdditionalDependencies.isNotEmpty()) {
                             val replClasspath = project.configurations.create("gradleMcpReplClasspath")
                             replClasspath.isCanBeResolved = true
                             replClasspath.extendsFrom(conf)
-                            additionalDependencies.forEach { dependency ->
+                            replAdditionalDependencies.forEach { dependency ->
                                 replClasspath.dependencies.add(project.dependencies.create(dependency))
                             }
                             runtimeClasspath.from(replClasspath)
@@ -335,32 +340,32 @@ allprojects {
                     }
 
                     // Add classes and resources from the compilation
-                    val output = compilation.getProperty("output")
-                    val classesDirs = output?.getProperty("classesDirs") as? org.gradle.api.file.FileCollection
-                    val resourcesDir = output?.getProperty("resourcesDir")
+                    val output = ReplEnvHelpers.getProperty(compilation, "output")
+                    val classesDirs = output?.let { ReplEnvHelpers.getProperty(it, "classesDirs") } as? org.gradle.api.file.FileCollection
+                    val resourcesDir = output?.let { ReplEnvHelpers.getProperty(it, "resourcesDir") }
 
                     if (classesDirs != null) runtimeClasspath.from(classesDirs)
                     if (resourcesDir != null) runtimeClasspath.from(resourcesDir)
 
-                    val classesTaskName = compilation.getProperty("classesTaskName") as? String
+                    val classesTaskName = ReplEnvHelpers.getProperty(compilation, "classesTaskName") as? String
                     if (classesTaskName != null) dependsOn(classesTaskName)
 
                     // Resolve Kotlin compile task for compiler args/plugins
-                    val compileTaskProvider = compilation.callMethod("getCompileTaskProvider", throwIfNotFound = false) as? TaskProvider<out Task>
+                    val compileTaskProvider = ReplEnvHelpers.callMethod(compilation, "getCompileTaskProvider", throwIfNotFound = false) as? TaskProvider<out Task>
                     if (compileTaskProvider != null) {
-                        compilerArgs.set(compileTaskProvider.map { resolveKotlinCompilerOptions(it) })
-                        pluginsClasspath.set(compileTaskProvider.map { resolveKotlinCompilerPlugins(it) })
-                        compilerPluginOptions.set(compileTaskProvider.map { resolveKotlinCompilerPluginOptions(it) })
+                        compilerArgs.set(compileTaskProvider.map { ReplEnvHelpers.resolveKotlinCompilerOptions(it) })
+                        pluginsClasspath.set(compileTaskProvider.map { ReplEnvHelpers.resolveKotlinCompilerPlugins(it) })
+                        compilerPluginOptions.set(compileTaskProvider.map { ReplEnvHelpers.resolveKotlinCompilerPluginOptions(it) })
                     }
 
-                    targetSourceSet.set(targetSourceSetName)
+                    targetSourceSet.set(replTargetSourceSet)
                 }
 
                 // Helper to configure from a standard Java SourceSet
                 fun configureFromJavaSourceSet(sourceSet: SourceSet) {
-                    targetSourceSet.set(targetSourceSetName)
+                    targetSourceSet.set(replTargetSourceSet)
 
-                    if (additionalDependencies.isNotEmpty()) {
+                    if (replAdditionalDependencies.isNotEmpty()) {
                         val replClasspath = project.configurations.create("gradleMcpReplClasspath")
                         replClasspath.isCanBeResolved = true
                         val runtimeConf = project.configurations.findByName(sourceSet.runtimeClasspathConfigurationName)
@@ -370,7 +375,7 @@ allprojects {
                             // sourceSet.runtimeClasspath is a FileCollection, so we use from()
                             replClasspath.dependencies.add(project.dependencies.create(sourceSet.runtimeClasspath))
                         }
-                        additionalDependencies.forEach { dependency ->
+                        replAdditionalDependencies.forEach { dependency ->
                             replClasspath.dependencies.add(project.dependencies.create(dependency))
                         }
                         runtimeClasspath.from(replClasspath)
@@ -383,21 +388,21 @@ allprojects {
                     dependsOn(sourceSet.classesTaskName)
 
                     // Try to find the corresponding Kotlin compile task to get compiler args/plugins
-                    val kotlinTask = project.tasks.findByName("compile${targetSourceSetName.replaceFirstChar { it.uppercase() }}Kotlin")
+                    val kotlinTask = project.tasks.findByName("compile${replTargetSourceSet.replaceFirstChar { it.uppercase() }}Kotlin")
                         ?: project.tasks.findByName("compileKotlin")
-                        ?: project.tasks.find { it.name.contains("Kotlin") && it.name.contains(targetSourceSetName, ignoreCase = true) }
+                        ?: project.tasks.find { it.name.contains("Kotlin") && it.name.contains(replTargetSourceSet, ignoreCase = true) }
 
                     if (kotlinTask != null) {
                         compilerArgs.set(project.provider {
-                            resolveKotlinCompilerOptions(kotlinTask)
+                            ReplEnvHelpers.resolveKotlinCompilerOptions(kotlinTask)
                         })
 
                         pluginsClasspath.set(project.provider {
-                            resolveKotlinCompilerPlugins(kotlinTask)
+                            ReplEnvHelpers.resolveKotlinCompilerPlugins(kotlinTask)
                         })
 
                         compilerPluginOptions.set(project.provider {
-                            resolveKotlinCompilerPluginOptions(kotlinTask)
+                            ReplEnvHelpers.resolveKotlinCompilerPluginOptions(kotlinTask)
                         })
                     } else {
                         // Infer JVM target from Java if no Kotlin task is found
@@ -420,20 +425,20 @@ allprojects {
                 // Execution logic
                 var configured = false
                 if (kotlinExt != null) {
-                    val targets = kotlinExt.getProperty("targets") as? NamedDomainObjectCollection<*>
+                    val targets = ReplEnvHelpers.getProperty(kotlinExt, "targets") as? NamedDomainObjectCollection<*>
                     if (targets != null) {
                         // KMP project
                         outer@ for (target in targets) {
-                            val platformType = target.callMethod("getPlatformType", throwIfNotFound = false)?.toString()?.lowercase()
+                            val platformType = ReplEnvHelpers.callMethod(target, "getPlatformType", throwIfNotFound = false)?.toString()?.lowercase()
                             if (platformType != "jvm") continue
 
-                            val compilations = target.getProperty("compilations") as? NamedDomainObjectCollection<*> ?: continue
+                            val compilations = ReplEnvHelpers.getProperty(target, "compilations") as? NamedDomainObjectCollection<*> ?: continue
                             for (compilation in compilations) {
-                                val allSourceSets = compilation.callMethod("getAllKotlinSourceSets", throwIfNotFound = false) as? Iterable<*>
+                                val allSourceSets = ReplEnvHelpers.callMethod(compilation, "getAllKotlinSourceSets", throwIfNotFound = false) as? Iterable<*>
                                 if (allSourceSets != null) {
                                     for (ss in allSourceSets) {
-                                        val ssName = ss?.getProperty("name")?.toString()
-                                        if (ssName == targetSourceSetName) {
+                                        val ssName = ss?.let { ReplEnvHelpers.getProperty(it, "name") }?.toString()
+                                        if (ssName == replTargetSourceSet) {
                                             configureFromCompilation(compilation)
                                             configured = true
                                             break@outer
@@ -445,16 +450,16 @@ allprojects {
                     } else {
                         // Kotlin-only project (non-KMP)
                         // Try to find the jvm target which is often present even in non-KMP kotlin-jvm projects
-                        val target = kotlinExt.getProperty("target", throwIfNotFound = false) ?: kotlinExt.callMethod("getTargets", throwIfNotFound = false)?.let { (it as? Iterable<*>)?.firstOrNull() }
+                        val target = ReplEnvHelpers.getProperty(kotlinExt, "target", throwIfNotFound = false) ?: ReplEnvHelpers.callMethod(kotlinExt, "getTargets", throwIfNotFound = false)?.let { (it as? Iterable<*>)?.firstOrNull() }
                         if (target != null) {
-                            val compilations = target.getProperty("compilations") as? NamedDomainObjectCollection<*>
+                            val compilations = ReplEnvHelpers.getProperty(target, "compilations") as? NamedDomainObjectCollection<*>
                             if (compilations != null) {
                                 outer@ for (compilation in compilations) {
-                                    val allSourceSets = compilation.callMethod("getAllKotlinSourceSets", throwIfNotFound = false) as? Iterable<*>
+                                    val allSourceSets = ReplEnvHelpers.callMethod(compilation, "getAllKotlinSourceSets", throwIfNotFound = false) as? Iterable<*>
                                     if (allSourceSets != null) {
                                         for (ss in allSourceSets) {
-                                            val ssName = ss?.getProperty("name")?.toString()
-                                            if (ssName == targetSourceSetName) {
+                                            val ssName = ss?.let { ReplEnvHelpers.getProperty(it, "name") }?.toString()
+                                            if (ssName == replTargetSourceSet) {
                                                 configureFromCompilation(compilation)
                                                 configured = true
                                                 break@outer
@@ -475,10 +480,10 @@ allprojects {
 
                 if (!configured) {
                     val availableSourceSets = (sourceSets?.names ?: emptySet()) + (kotlinSourceSets?.names ?: emptySet())
-                    val message = if (targetSourceSetName in availableSourceSets) {
-                        "SourceSet '$targetSourceSetName' found in project '$path', but it does not appear to be a JVM source set. REPL is only supported for JVM source sets."
+                    val message = if (replTargetSourceSet in availableSourceSets) {
+                        "SourceSet '$replTargetSourceSet' found in project '$path', but it does not appear to be a JVM source set. REPL is only supported for JVM source sets."
                     } else {
-                        "SourceSet '$targetSourceSetName' not found in project '$path'. Available source sets: ${availableSourceSets.joinToString(", ")}"
+                        "SourceSet '$replTargetSourceSet' not found in project '$path'. Available source sets: ${availableSourceSets.joinToString(", ")}"
                     }
                     throw GradleException(message)
                 }
