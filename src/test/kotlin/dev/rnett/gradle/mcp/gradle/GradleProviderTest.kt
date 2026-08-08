@@ -210,8 +210,8 @@ class GradleProviderTest {
     }
 
     @Test
-    fun `build with gradle 9_6_1 passes non-interactive flag`() = runTest(timeout = 120.seconds) {
-        // The default test fixture Gradle version (BuildConfig.GRADLE_VERSION) is 9.6.1, which
+    fun `build with gradle 9_7_0 passes non-interactive flag`() = runTest(timeout = 120.seconds) {
+        // The default test fixture Gradle version (BuildConfig.GRADLE_VERSION) is 9.7.0, which
         // supports the --non-interactive CLI option.
         val projectRoot = GradleProjectRoot(javaProject.pathString())
         val runningBuild = provider.runBuild(
