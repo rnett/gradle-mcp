@@ -20,7 +20,7 @@ import org.koin.core.KoinApplication
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.test.assertEquals
+import kotlin.test.assertContains
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -94,7 +94,7 @@ class LatestGradleVersionWiringE2ETest {
     }
 
     @Test
-    fun `fetched live latest stable version is wired into tool descriptions`() = runBlocking {
+    fun `fetched live latest stable version is wired into server instructions, tool descriptions stay version-insensitive`() = runBlocking {
         val stub = StubGradleVersionService(
             LatestStableGradleVersion("9.99.99", LatestStableGradleVersion.Source.FETCHED_LIVE)
         )
@@ -102,23 +102,25 @@ class LatestGradleVersionWiringE2ETest {
 
         assertTrue(stub.resolveLatestStableCalls.get() >= 1, "resolveLatestStable should have been called during server wiring")
 
-        val tools = client!!.listTools().tools
+        // The live resolution is disclosed in the server instructions, not a tool description.
+        val instructions = client!!.serverInstructions.orEmpty()
+        assertContains(instructions, "The latest Gradle version is **9.99.99**.")
+        assertFalse(instructions.contains("could not be verified"), "Live resolution must not carry the bundled-fallback caveat")
 
+        val tools = client!!.listTools().tools
         val gradleDocs = tools.first { it.name == ToolNames.GRADLE_DOCS }.description.orEmpty()
-        assertTrue(gradleDocs.contains("The latest stable Gradle version is **9.99.99**"))
-        assertTrue(gradleDocs.contains("https://services.gradle.org/versions/current"))
-        assertFalse(gradleDocs.contains("is reported instead"))
+        assertFalse(gradleDocs.contains("latest Gradle version"), "GRADLE_DOCS description should not state the latest Gradle version")
+        assertFalse(gradleDocs.contains("9.99.99"), "GRADLE_DOCS description should not hard-code the fetched live version")
+        assertFalse(gradleDocs.contains("https://services.gradle.org/versions/current"), "GRADLE_DOCS description should not reference the version-check endpoint")
 
         val gradle = tools.first { it.name == ToolNames.GRADLE }.description.orEmpty()
-        assertFalse(gradle.contains("The latest stable Gradle version is **9.99.99**"), "GRADLE description should not contain the fetched live note")
-        assertFalse(gradle.contains("https://services.gradle.org/versions/current"), "GRADLE description should not contain the latest version provenance URL")
-
-        val toolsWithVersion = tools.filter { it.description.orEmpty().contains("9.99.99") }.map { it.name }.sorted()
-        assertEquals(listOf(ToolNames.GRADLE_DOCS), toolsWithVersion)
+        assertFalse(gradle.contains("latest Gradle version"), "GRADLE description should not state the latest Gradle version")
+        assertFalse(gradle.contains("9.99.99"), "GRADLE description should not hard-code the fetched live version")
+        assertTrue(tools.none { it.name != ToolNames.GRADLE_DOCS && it.description.orEmpty().contains("9.99.99") })
     }
 
     @Test
-    fun `bundled fallback latest stable version is wired into tool descriptions`() = runBlocking {
+    fun `bundled fallback latest stable version is wired into server instructions, tool descriptions stay version-insensitive`() = runBlocking {
         val stub = StubGradleVersionService(
             LatestStableGradleVersion("8.88.88", LatestStableGradleVersion.Source.BUNDLED_FALLBACK)
         )
@@ -126,20 +128,19 @@ class LatestGradleVersionWiringE2ETest {
 
         assertTrue(stub.resolveLatestStableCalls.get() >= 1, "resolveLatestStable should have been called during server wiring")
 
+        // The bundled fallback is disclosed in the server instructions, clearly labeled as the bundled version.
+        val instructions = client!!.serverInstructions.orEmpty()
+        assertContains(instructions, "The latest Gradle version is **8.88.88** (this server's bundled Gradle version).")
+        assertFalse(instructions.contains("could not be verified"), "Fallback instruction must not claim the check outcome")
+
         val tools = client!!.listTools().tools
-
         val gradleDocs = tools.first { it.name == ToolNames.GRADLE_DOCS }.description.orEmpty()
+        assertFalse(gradleDocs.contains("latest Gradle version"), "GRADLE_DOCS description should not state the latest Gradle version")
+        assertFalse(gradleDocs.contains("8.88.88"), "GRADLE_DOCS description should not hard-code the bundled fallback version")
+
         val gradle = tools.first { it.name == ToolNames.GRADLE }.description.orEmpty()
-
-        assertTrue(gradleDocs.contains("could not be verified"))
-        assertTrue(gradleDocs.contains("newer versions may exist"))
-        assertTrue(gradleDocs.contains("8.88.88"))
-        assertFalse(gradleDocs.contains("latest stable Gradle version is **"), "Fallback note must not claim the bundled version is the live latest")
-
-        assertFalse(gradle.contains("could not be verified"), "GRADLE description should not contain the bundled fallback note")
-        assertFalse(gradle.contains("8.88.88"), "GRADLE description should not contain the bundled fallback version")
-
-        val toolsWithVersion = tools.filter { it.description.orEmpty().contains("8.88.88") }.map { it.name }.sorted()
-        assertEquals(listOf(ToolNames.GRADLE_DOCS), toolsWithVersion)
+        assertFalse(gradle.contains("latest Gradle version"), "GRADLE description should not state the latest Gradle version")
+        assertFalse(gradle.contains("8.88.88"), "GRADLE description should not hard-code the bundled fallback version")
+        assertTrue(tools.none { it.name != ToolNames.GRADLE_DOCS && it.description.orEmpty().contains("8.88.88") })
     }
 }
