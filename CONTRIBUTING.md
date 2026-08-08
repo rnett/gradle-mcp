@@ -47,12 +47,12 @@ All dependency versions go in `gradle/libs.versions.toml`.
 | `src/test/kotlin/` | Unit and integration tests                                                                                      |
 | `repl-worker/`     | Subprocess that executes Kotlin snippets via the Kotlin scripting engine. Used for classpath and JVM isolation. |
 | `repl-shared/`     | Data classes and protocol types shared between the main process and `repl-worker`                               |
-| `skills/`          | Agent skills                                                                                                    |
+| `src/main/skills/` | Agent skills                                                                                                    |
 | `docs/`            | Human-facing documentation                                                                                      |
 
 ## Skills
 
-Skills in `skills/` are standalone agent skills distributed to end users. When modifying a tool, update any referencing skills to stay consistent. After any tool metadata or description change, run:
+Skills in `src/main/skills/` are standalone agent skills distributed to end users. When modifying a tool, update any referencing skills to stay consistent. After any tool metadata or description change, run:
 
 ```shell
 ./gradlew :updateToolsList

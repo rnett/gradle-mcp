@@ -118,11 +118,11 @@ Agent Skills are specialized guides that help AI agents navigate common Gradle w
 
 Included skills:
 
-- `using-gradle`: Inspecting, executing, and diagnosing existing Gradle builds — project mapping, test diagnostics, dependency auditing, and source research.
-- `authoring-gradle-builds`: Modifying build definitions, wiring, and project structure — dependency declaration, module creation, toolchain configuration, and best practices.
-- `advanced-gradle-dependencies`: Analyzing advanced dependency resolution, variants, capabilities, verification, and governance.
-- `interacting-with-project-runtime`: Running Kotlin code in the project's full JVM classpath via a persistent REPL.
-- `verifying-compose-ui`: Visually verifying Compose UI components by rendering them to images.
+- `using-gradle`: Inspect, run, and diagnose existing Gradle builds — project mapping, test diagnostics, dependency auditing, and source research.
+- `authoring-gradle-builds`: Modify build definitions, wiring, and project structure — dependency declarations, module creation, toolchain configuration, and best practices.
+- `advanced-gradle-dependencies`: Diagnose and resolve complex dependency issues involving variants, capabilities, verification, and repository governance.
+- `interacting-with-project-runtime`: Execute and verify project logic in real-time using a persistent Kotlin REPL with full classpath access.
+- `verifying-compose-ui`: Visually audit Compose UI components by rendering them to images from the project runtime.
 
 For instructions on how to use these skills, see the [Agent Skills](skills.md) documentation.
 
