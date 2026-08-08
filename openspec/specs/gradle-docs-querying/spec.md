@@ -91,28 +91,37 @@ The `gradle_docs` tool's `version` parameter description SHALL state the full re
 - **WHEN** the `version` parameter description is changed
 - **THEN** the generated tool documentation SHALL be regenerated so the published description matches the source
 
-### Requirement: Latest stable version surfaced in the tool description
+### Requirement: Latest stable version surfaced in the server instructions
 
-The `gradle_docs` tool description SHALL include a note stating the latest stable Gradle version, resolved at server startup from `https://services.gradle.org/versions/current`. The note SHALL be provenance-aware: it must not assert that a fallback value is the live latest version. The `gradle` tool description SHALL NOT carry this note, because `gradle` executes the project's wrapper version rather than the latest stable release.
+The server instructions SHALL state the latest stable Gradle version resolved at server startup from `https://services.gradle.org/versions/current`. The statement SHALL be provenance-aware: it must not assert that a fallback value is the live latest version. The `gradle_docs` tool description SHALL NOT contain the version statement, the version-check endpoint, or any hard-coded Gradle version, so the tool description remains version-insensitive. The `gradle` tool description SHALL NOT carry the version statement either, because `gradle` executes the project's wrapper version rather than the latest stable release.
 
 #### Scenario: Successful startup resolution
 - **WHEN** the server resolves the latest stable version from `https://services.gradle.org/versions/current` at startup
-- **THEN** the `gradle_docs` tool description SHALL state the resolved latest stable Gradle version
-- **AND** SHALL state that the version was resolved at server startup from `https://services.gradle.org/versions/current`
+- **THEN** the server instructions SHALL state the resolved latest stable Gradle version
 
 #### Scenario: Failed startup resolution
 - **WHEN** the startup resolution fails because `https://services.gradle.org/versions/current` is unreachable
-- **THEN** the `gradle_docs` tool description SHALL state that the latest stable version could not be verified
-- **AND** SHALL identify the Gradle version the server was built against as the newest version it knows of
-- **AND** SHALL note that newer versions may exist
+- **THEN** the server instructions SHALL identify the Gradle version the server was built against as the resolved value
+- **AND** SHALL identify that value as the server's bundled Gradle version
 - **AND** SHALL NOT assert that the bundled version is the live latest
 
-#### Scenario: Note absent from the gradle tool description
+#### Scenario: Version statement absent from the gradle_docs tool description
+- **WHEN** an agent reads the `gradle_docs` tool description
+- **THEN** the description SHALL NOT contain the latest stable version statement
+- **AND** SHALL NOT contain `https://services.gradle.org/versions/current`
+- **AND** SHALL NOT contain a hard-coded Gradle version
+- **BECAUSE** the resolved version is surfaced in the server instructions instead
+
+#### Scenario: Version statement absent from the gradle tool description
 - **WHEN** an agent reads the `gradle` tool description
-- **THEN** the description SHALL NOT contain the latest stable version note
+- **THEN** the description SHALL NOT contain the latest stable version statement
 - **BECAUSE** `gradle` runs the project's wrapper version, not the latest stable release
 
+#### Scenario: Doc content links pinned to the resolved version
+- **WHEN** a `gradle_docs` response contains documentation content or search snippets with `https://docs.gradle.org/current/` URLs
+- **THEN** those URLs SHALL be rewritten to `https://docs.gradle.org/<resolved version>/`
+
 #### Scenario: Generated docs stay in sync
-- **WHEN** the wording of the version note in the tool description is changed
+- **WHEN** the server instructions or a tool description wording is changed
 - **THEN** the generated tool documentation SHALL be regenerated (`:updateToolsList`) so the published description matches the source
 

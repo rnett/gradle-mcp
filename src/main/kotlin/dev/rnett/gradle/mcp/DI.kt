@@ -60,8 +60,7 @@ import dev.rnett.gradle.mcp.tools.GradleBuildLookupTools
 import dev.rnett.gradle.mcp.tools.GradleDocsTools
 import dev.rnett.gradle.mcp.tools.GradleExecutionTools
 import dev.rnett.gradle.mcp.tools.ReplTools
-import dev.rnett.gradle.mcp.tools.latestStableGradleVersionNote
-import dev.rnett.gradle.mcp.tools.latestStableGradleVersionNoteForDocs
+import dev.rnett.gradle.mcp.tools.latestStableGradleVersionInstructionsLine
 import dev.rnett.gradle.mcp.tools.dependencies.DependencySearchTools
 import dev.rnett.gradle.mcp.tools.dependencies.DependencySourceTools
 import dev.rnett.gradle.mcp.tools.dependencies.GradleDependencyTools
@@ -186,7 +185,6 @@ object DI {
             val gradleSourceService: GradleSourceService = get()
             val indexService: SourceIndexService = get()
             val searchProviders: List<SearchProvider> = getAll()
-            val resolution = runBlocking { gradleVersionService.resolveLatestStable() }
             components(
                 provider,
                 replManager,
@@ -199,14 +197,15 @@ object DI {
                 sourcesService,
                 gradleSourceService,
                 indexService,
-                searchProviders,
-                latestStableGradleVersionNote = latestStableGradleVersionNote(resolution)
+                searchProviders
             )
         }
 
         single {
             val components: List<McpServerComponent> = get()
-            createServer(get(), components)
+            val gradleVersionService: GradleVersionService = get()
+            val resolution = runBlocking { gradleVersionService.resolveLatestStable() }
+            createServer(get(), components, latestGradleVersionInstructions = latestStableGradleVersionInstructionsLine(resolution))
         }
     }
 
@@ -227,20 +226,19 @@ object DI {
         sourcesService: SourcesService,
         gradleSourceService: GradleSourceService,
         indexService: SourceIndexService,
-        searchProviders: List<SearchProvider>,
-        latestStableGradleVersionNote: String = latestStableGradleVersionNoteForDocs(BuildConfig.GRADLE_VERSION)
+        searchProviders: List<SearchProvider>
     ): List<McpServerComponent> = listOf(
         GradleExecutionTools(provider),
         ReplTools(provider, replManager, replEnvironmentService, envProvider),
         GradleBuildLookupTools(provider.buildManager),
-        GradleDocsTools(gradleDocsService, gradleVersionService, latestStableGradleVersionNote),
+        GradleDocsTools(gradleDocsService, gradleVersionService),
         GradleDependencyTools(gradleDependencyService),
         DependencySearchTools(depsDevService),
         DependencySourceTools(sourcesService, gradleSourceService, indexService, searchProviders),
         SkillTools()
     )
 
-    fun createServer(json: Json, components: List<McpServerComponent>): Server {
+    fun createServer(json: Json, components: List<McpServerComponent>, latestGradleVersionInstructions: String = "The latest Gradle version is ${BuildConfig.GRADLE_VERSION}."): Server {
         return Server(
             Implementation("gradle-mcp", BuildConfig.APP_VERSION),
             ServerOptions(
@@ -255,7 +253,8 @@ object DI {
                     "including running tasks and tests, inspecting builds, monitoring progress, and querying results. " +
                     "Use `gradle` for task execution and `query_build` or `wait_build` to monitor progress and retrieve failures, test results, and task output. " +
                     "Audit dependencies with `inspect_dependencies`, and read or search dependency, Gradle, and JDK sources with `read_dependency_sources` / `search_dependency_sources`. " +
-                    "Use `gradle_docs` for official Gradle documentation instead of generic web searches."
+                    "Use `gradle_docs` for official Gradle documentation instead of generic web searches." +
+                    "\n\n" + latestGradleVersionInstructions
             }
         ).apply {
             components.forEach { it.register(this, json) }

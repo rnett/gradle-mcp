@@ -1,6 +1,5 @@
 package dev.rnett.gradle.mcp.tools
 
-import dev.rnett.gradle.mcp.BuildConfig
 import dev.rnett.gradle.mcp.GradleVersionService
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.DocsPageContent
 import dev.rnett.gradle.mcp.dependencies.gradle.docs.GradleDocsService
@@ -15,7 +14,6 @@ import kotlinx.serialization.Serializable
 class GradleDocsTools(
     private val gradleDocsService: GradleDocsService,
     private val versionService: GradleVersionService,
-    private val latestStableGradleVersionNote: String = latestStableGradleVersionNoteForDocs(BuildConfig.GRADLE_VERSION)
 ) : McpServerComponent("Gradle Docs Tools", "Tools for querying and reading Gradle documentation.") {
 
     @Serializable
@@ -36,8 +34,6 @@ class GradleDocsTools(
         ToolNames.GRADLE_DOCS,
         """
             |Searches and reads official Gradle documentation (User Guide, DSL Reference, Release Notes) for the project's exact Gradle version; use instead of generic web searches.
-            |
-            |$latestStableGradleVersionNote
             |
             |### Documentation Tags
             |- `tag:userguide` — high-level concepts

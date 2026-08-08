@@ -40,6 +40,9 @@ data class DocsSearchResponse(
     val error: String? = null
 )
 
+internal fun pinDocVersionLinks(content: String, version: String): String =
+    content.replace("https://docs.gradle.org/current/", "https://docs.gradle.org/$version/")
+
 interface GradleDocsService : AutoCloseable {
     context(progress: ProgressReporter)
     suspend fun getDocsPageContent(path: String, version: String? = null): DocsPageContent
@@ -116,7 +119,7 @@ class DefaultGradleDocsService(
                     appendLine("- $displayName")
                 }
             }
-            return DocsPageContent.Markdown(content + parsedPath.queryNote())
+            return DocsPageContent.Markdown(pinDocVersionLinks(content + parsedPath.queryNote(), resolvedVersion))
         }
 
         if (isImage(targetPath)) {
@@ -129,7 +132,7 @@ class DefaultGradleDocsService(
         val content = parsedPath.fragment?.let { fragment ->
             extractSection(page, fragment, path)
         } ?: page
-        return DocsPageContent.Markdown(content + parsedPath.queryNote())
+        return DocsPageContent.Markdown(pinDocVersionLinks(content + parsedPath.queryNote(), resolvedVersion))
     }
 
     private data class ParsedPagePath(
@@ -251,7 +254,10 @@ class DefaultGradleDocsService(
     context(progress: ProgressReporter)
     override suspend fun searchDocs(query: String, version: String?): DocsSearchResponse {
         val resolvedVersion = ensurePrepared(version ?: "current")
-        return indexer.search(query, resolvedVersion)
+        val response = indexer.search(query, resolvedVersion)
+        return response.copy(
+            results = response.results.map { it.copy(snippet = pinDocVersionLinks(it.snippet, resolvedVersion)) }
+        )
     }
 
     context(progress: ProgressReporter)

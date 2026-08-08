@@ -51,3 +51,13 @@ If the system fails to resolve the latest stable version via the network, it SHA
 - **WHEN** a resolution fell back to the bundled version because of a network failure
 - **THEN** a later resolution SHALL retry the fetch from `https://services.gradle.org/versions/current`
 - **AND** SHALL return the live latest stable version once the fetch succeeds
+
+### Requirement: Surfaced fallback provenance
+
+WHEN the server surfaces the resolved latest version in the server instructions AND resolution fell back to the bundled version, THEN the surfaced value SHALL be identified as the bundled version and SHALL NOT be asserted as the live latest.
+
+#### Scenario: Fallback surfaced with provenance
+
+- **WHEN** the server surfaces the resolved latest version in the server instructions after resolution fell back to the bundled version
+- **THEN** the surfaced statement SHALL identify the value as the server's bundled Gradle version
+- **AND** SHALL NOT assert that the value is the live latest stable version

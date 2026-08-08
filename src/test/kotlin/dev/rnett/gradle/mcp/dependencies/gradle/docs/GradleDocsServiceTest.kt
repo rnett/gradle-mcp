@@ -343,6 +343,30 @@ class GradleDocsServiceTest {
         tempDir.toFile().deleteRecursively()
     }
 
+    @Test
+    fun `pinDocVersionLinks rewrites current doc URLs to the resolved version`() {
+        val content = "See https://docs.gradle.org/current/userguide/x.html and https://docs.gradle.org/current/dsl/groovy.html."
+        assertEquals(
+            "See https://docs.gradle.org/9.4.0/userguide/x.html and https://docs.gradle.org/9.4.0/dsl/groovy.html.",
+            pinDocVersionLinks(content, "9.4.0")
+        )
+    }
+
+    @Test
+    fun `pinDocVersionLinks leaves content without current links unchanged`() {
+        val content = "See https://docs.gradle.org/9.4.0/userguide/x.html and plain text."
+        assertEquals(content, pinDocVersionLinks(content, "9.4.0"))
+    }
+
+    @Test
+    fun `pinDocVersionLinks does not rewrite other hosts or non-current doc URLs`() {
+        val content = "See https://docs.gradle.org/current/ and https://example.com/current/userguide/x.html."
+        assertEquals(
+            "See https://docs.gradle.org/9.4.0/ and https://example.com/current/userguide/x.html.",
+            pinDocVersionLinks(content, "9.4.0")
+        )
+    }
+
     private fun createFragmentService(page: String): Pair<DefaultGradleDocsService, java.nio.file.Path> {
         val tempDir = Files.createTempDirectory("gradle-mcp-test-fragment-listing")
         val environment = GradleMcpEnvironment(tempDir)

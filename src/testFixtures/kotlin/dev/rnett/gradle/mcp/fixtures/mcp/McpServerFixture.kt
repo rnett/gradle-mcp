@@ -1,7 +1,10 @@
 package dev.rnett.gradle.mcp.fixtures.mcp
 
+import dev.rnett.gradle.mcp.BuildConfig
 import dev.rnett.gradle.mcp.DI
+import dev.rnett.gradle.mcp.GradleVersionService
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import dev.rnett.gradle.mcp.tools.latestStableGradleVersionInstructionsLine
 import dev.rnett.gradle.mcp.mcp.closeServer
 import dev.rnett.gradle.mcp.runCatchingExceptCancellation
 import io.modelcontextprotocol.kotlin.sdk.client.Client
@@ -26,6 +29,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.koin.core.module.Module
 import org.koin.dsl.koinApplication
@@ -96,7 +100,13 @@ class McpServerFixture(
 
     val koin = koinApp.koin
     val components = koin.get<List<McpServerComponent>>()
-    val server = DI.createServer(koin.get(), components)
+    val server = DI.createServer(
+        koin.get(),
+        components,
+        latestGradleVersionInstructions = koin.getOrNull<GradleVersionService>()?.let { versionService ->
+            runBlocking { latestStableGradleVersionInstructionsLine(versionService.resolveLatestStable()) }
+        } ?: "The latest Gradle version is ${BuildConfig.GRADLE_VERSION}."
+    )
     private val sdkClient = Client(
         Implementation("gradle-mcp-test-client", "test"),
         ClientOptions(clientCapabilities)

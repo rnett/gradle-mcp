@@ -8,8 +8,6 @@ Tools for querying and reading Gradle documentation.
 
 Searches and reads official Gradle documentation (User Guide, DSL Reference, Release Notes) for the project's exact Gradle version; use instead of generic web searches.
 
-At server startup this server resolves the latest stable Gradle version from https://services.gradle.org/versions/current and reports it here; if that check fails, the Gradle version the server was built against (currently **9.6.1**) is reported instead.
-
 ### Documentation Tags
 - `tag:userguide` — high-level concepts
 - `tag:dsl` — property/method syntax
