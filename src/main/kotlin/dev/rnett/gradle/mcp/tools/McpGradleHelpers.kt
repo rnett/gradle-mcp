@@ -16,7 +16,7 @@ suspend inline fun GradleProvider.doBuild(
     val root = projectRoot.resolve()
     val running = runBuild(
         root,
-        invocationArgs.withInitScript(InitScriptNames.TASK_OUT),
+        invocationArgs.withInitScript(InitScriptNames.TASK_OUT).withInitScript(InitScriptNames.CC_REPORT),
         stdoutLineHandler = { /* captured via RunningBuild.consoleOutput */ },
         stderrLineHandler = { /* captured via RunningBuild.consoleOutput */ },
         progress = progressReporter

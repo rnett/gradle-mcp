@@ -75,7 +75,7 @@ class GradleExecutionTools(
             @OptIn(kotlinx.coroutines.FlowPreview::class)
             val running = gradleProvider.runBuild(
                 root,
-                invocationArgs.withInitScript(InitScriptNames.TASK_OUT)
+                invocationArgs.withInitScript(InitScriptNames.TASK_OUT).withInitScript(InitScriptNames.CC_REPORT)
             )
             return@tool ToolCallResult(running.id.toString())
         } else {

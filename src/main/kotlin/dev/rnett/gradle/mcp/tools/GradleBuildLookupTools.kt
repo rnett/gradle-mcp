@@ -256,6 +256,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                     appendLine("Outcome: ${taskResult.outcome}")
                     appendLine("Duration: ${taskResult.duration}")
                     taskResult.provenance?.let { appendLine("Provenance: $it") }
+                    taskResult.reason?.let { appendLine("Reason: $it") }
                     appendLine()
 
                     val relatedTests = result.testResults.all.filter { it.taskPath == taskResult.path }.toList()
@@ -313,6 +314,12 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                     "${task.path}${task.provenance?.let { " ($it)" } ?: ""} | ${task.outcome} | ${task.duration}"
                 }
                 append(paged)
+
+                if (result.taskOriginAggregation.isNotEmpty()) {
+                    appendLine()
+                    appendLine("Task Origins:")
+                    result.taskOriginAggregation.forEach { (plugin, count) -> appendLine("  $plugin: $count") }
+                }
 
                 if (tasks.any { it.path in tasksWithTests }) {
                     appendLine()

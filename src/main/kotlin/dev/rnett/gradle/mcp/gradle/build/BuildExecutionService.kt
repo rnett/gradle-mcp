@@ -70,6 +70,9 @@ class DefaultBuildExecutionService(
     companion object {
         private val LOGGER = LoggerFactory.getLogger(DefaultBuildExecutionService::class.java)
 
+        private const val CC_REPORT_MARKER = "[MCP-CC-REPORT]"
+        private val CC_REPORT_URL_REGEX = Regex("file://[^\\s\"']*configuration-cache-report\\.html")
+
         private fun findTaskPath(descriptor: OperationDescriptor?): String? {
             var current = descriptor
             while (current != null) {
@@ -272,21 +275,29 @@ class DefaultBuildExecutionService(
             runningBuild.progressTracker.removeActiveOperation(taskPath)
 
             val result = event.result
-            val outcome = when (result) {
+
+            // reason is only populated for skipped tasks, where it holds the verbatim Gradle
+            // skipMessage so consumers can tell why a task was skipped. For every other outcome
+            // the enum value is sufficient, so it is left null.
+            val (outcome, reason) = when (result) {
                 is TaskSuccessResult -> when {
-                    result.isFromCache -> BuildComponentOutcome.FROM_CACHE
-                    result.isUpToDate -> BuildComponentOutcome.UP_TO_DATE
-                    else -> BuildComponentOutcome.SUCCESS
+                    result.isFromCache -> BuildComponentOutcome.FROM_CACHE to null
+                    result.isUpToDate -> BuildComponentOutcome.UP_TO_DATE to null
+                    else -> BuildComponentOutcome.SUCCESS to null
                 }
 
-                is TaskFailureResult -> BuildComponentOutcome.FAILED
-                is TaskSkippedResult -> if (result.skipMessage == "NO-SOURCE") BuildComponentOutcome.NO_SOURCE else BuildComponentOutcome.SKIPPED
-                else -> BuildComponentOutcome.SUCCESS
+                is TaskFailureResult -> BuildComponentOutcome.FAILED to null
+                is TaskSkippedResult -> if (result.skipMessage == "NO-SOURCE") {
+                    BuildComponentOutcome.NO_SOURCE to result.skipMessage
+                } else {
+                    BuildComponentOutcome.SKIPPED to result.skipMessage
+                }
+                else -> BuildComponentOutcome.SUCCESS to null
             }
 
             val duration = if (result.startTime > 0) (event.eventTime - result.startTime).milliseconds else 0.seconds
             val provenance = descriptor.taskProvenance()
-            runningBuild.addTaskResult(taskPath, outcome, duration, runningBuild.taskOutputs[taskPath], provenance)
+            runningBuild.addTaskResult(taskPath, outcome, duration, runningBuild.taskOutputs[taskPath], provenance, reason)
             runningBuild.progressTracker.onItemFinish()
         } else {
             runningBuild.addTaskCompleted(event.descriptor.displayName)
@@ -366,6 +377,17 @@ class DefaultBuildExecutionService(
         getPending: () -> String?,
         setPending: (String?) -> Unit
     ) {
+        // Consume the authoritative [MCP-CC-REPORT] marker emitted by the cc-report init script.
+        // It is an internal protocol marker analogous to [MCP-BUILD-SCAN], so it is captured and
+        // not written to the console log.
+        if (line.startsWith(CC_REPORT_MARKER)) {
+            captureConfigCacheReportMarker(line, runningBuild)
+            return
+        }
+        // Fallback: Gradle itself prints the report path on discovery; keep the line in the log
+        // but also capture the verbatim path.
+        captureConfigCacheReportDiscoveredLine(line, runningBuild)
+
         val marker = "[gradle-mcp]"
         if (line.startsWith(marker)) {
             val remaining = line.substringAfter(marker).trim()
@@ -421,11 +443,45 @@ class DefaultBuildExecutionService(
         buildId: BuildId,
         lineHandler: ((String) -> Unit)?
     ) {
+        captureConfigCacheReportDiscoveredLine(line, runningBuild)
         val logLine = "STDERR: $line"
         runningBuild.addLogLine(logLine)
         lineHandler?.invoke(line)
         LOGGER.makeLoggingEventBuilder(Level.INFO)
             .addKeyValue("buildId", buildId)
             .log("Build stderr: $line")
+    }
+
+    /**
+     * Captures the verbatim configuration-cache report path from the authoritative
+     * `[MCP-CC-REPORT] <path>` marker. The path is stored exactly as emitted and never opened or
+     * parsed. Only the first captured path is kept.
+     */
+    private fun captureConfigCacheReportMarker(line: String, runningBuild: RunningBuild) {
+        if (runningBuild.configCacheReportPointerInternal != null) return
+        val path = line.removePrefix(CC_REPORT_MARKER).trim()
+        if (path.isNotEmpty()) {
+            runningBuild.configCacheReportPointerInternal = path
+        }
+    }
+
+    /**
+     * Fallback capture: Gradle prints the location of a generated configuration-cache report on
+     * the console (e.g. `See the complete report at file://...`). We capture that path verbatim
+     * while still letting the line flow into the log. No path is ever inferred.
+     */
+    private fun captureConfigCacheReportDiscoveredLine(line: String, runningBuild: RunningBuild) {
+        if (runningBuild.configCacheReportPointerInternal != null) return
+        extractConfigCacheReportPath(line)?.let { runningBuild.configCacheReportPointerInternal = it }
+    }
+
+    private fun extractConfigCacheReportPath(line: String): String? {
+        val reportHint = "See the complete report at "
+        val hintIndex = line.indexOf(reportHint)
+        if (hintIndex >= 0) {
+            val path = line.substring(hintIndex + reportHint.length).trim()
+            if (path.isNotEmpty()) return path
+        }
+        return CC_REPORT_URL_REGEX.find(line)?.value
     }
 }

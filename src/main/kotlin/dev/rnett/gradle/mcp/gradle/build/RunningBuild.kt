@@ -82,6 +82,10 @@ class RunningBuild(
     @Volatile
     override var taskOutputCapturingFailed: Boolean = false
 
+    @Volatile
+    var configCacheReportPointerInternal: String? = null
+    override val configCacheReportPointer: String? get() = configCacheReportPointerInternal
+
     /**
      * The number of tests that have passed so far.
      */
@@ -123,6 +127,20 @@ class RunningBuild(
         return finishedBuildDeferred.await()
     }
 
+    private fun computeTaskOriginAggregation(): Map<String, Int> {
+        val counts = mutableMapOf<String, Int>()
+        for (result in taskResults.values) {
+            val key = result.provenance ?: "_unknown"
+            counts[key] = (counts[key] ?: 0) + 1
+        }
+        if ("_unknown" in counts && counts["_unknown"] == 0) counts.remove("_unknown")
+        // Omit _unknown when unused is already satisfied by not inserting it; but if all tasks have provenance, _unknown won't be present
+        return counts
+    }
+
+    override val phaseCounts: Map<String, PhaseCount> get() = progressTracker.computePhaseCounts()
+    override val taskOriginAggregation: Map<String, Int> get() = computeTaskOriginAggregation()
+
     private fun toFinishedBuild(exception: Exception? = null): FinishedBuild {
         val buildFailures = (exception as? GradleConnectionException)?.failures?.map { indexer.withIndex(it.toContent()) }.orEmpty()
         val outcome = when {
@@ -132,7 +150,11 @@ class RunningBuild(
             else -> BuildOutcome.Success
         }
 
-        return RefFinishedBuild(this, Clock.System.now(), outcome)
+        val frozenPhaseCounts = progressTracker.computePhaseCounts()
+        val frozenTaskOrigin = computeTaskOriginAggregation()
+        val frozenCcPointer = configCacheReportPointerInternal
+
+        return RefFinishedBuild(this, Clock.System.now(), outcome, frozenPhaseCounts, frozenTaskOrigin, frozenCcPointer)
     }
 
     fun finish(exception: Exception? = null, store: (FinishedBuild) -> Unit): FinishedBuild {
@@ -154,8 +176,8 @@ class RunningBuild(
         _logLines.tryEmit(line)
     }
 
-    internal fun addTaskResult(taskPath: String, outcome: BuildComponentOutcome, duration: Duration, consoleOutput: String?, provenance: String?) {
-        taskResults[taskPath] = TaskResult(taskPath, outcome, duration, consoleOutput, provenance)
+    internal fun addTaskResult(taskPath: String, outcome: BuildComponentOutcome, duration: Duration, consoleOutput: String?, provenance: String?, reason: String? = null) {
+        taskResults[taskPath] = TaskResult(taskPath, outcome, duration, consoleOutput, provenance, reason)
         _taskPaths.add(taskPath)
         _completingTasks.tryEmit(taskPath)
         progressTracker.emitProgress()
@@ -175,7 +197,14 @@ class RunningBuild(
 
 }
 
-private class RefFinishedBuild(val runningBuild: RunningBuild, override val finishTime: Instant, override val outcome: BuildOutcome) : FinishedBuild, Build by runningBuild {
+private class RefFinishedBuild(
+    val runningBuild: RunningBuild,
+    override val finishTime: Instant,
+    override val outcome: BuildOutcome,
+    private val frozenPhaseCounts: Map<String, PhaseCount>,
+    private val frozenTaskOrigin: Map<String, Int>,
+    private val frozenCcPointer: String?
+) : FinishedBuild, Build by runningBuild {
     override suspend fun awaitFinished(): FinishedBuild {
         return this
     }
@@ -185,6 +214,9 @@ private class RefFinishedBuild(val runningBuild: RunningBuild, override val fini
     }
     override val status: BuildStatus
         get() = runningBuild.status
+    override val phaseCounts: Map<String, PhaseCount> get() = frozenPhaseCounts
+    override val taskOriginAggregation: Map<String, Int> get() = frozenTaskOrigin
+    override val configCacheReportPointer: String? get() = frozenCcPointer
 }
 
 private fun TestCollector.Result.toModel(indexer: FailureIndexer, status: BuildComponentOutcome): TestResult {

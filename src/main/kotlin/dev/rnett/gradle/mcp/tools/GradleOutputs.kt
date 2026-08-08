@@ -159,6 +159,11 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
             }
         }
 
+        appendLine("Work:")
+        phaseCounts.forEach { (bucket, count) ->
+            appendLine("  $bucket: ${count.completedItems}/${count.totalItems} completed")
+        }
+        configCacheReportPointer?.let { appendLine("Configuration Cache Report: $it") }
         // Scan from the end of the output to avoid materialising all lines for large builds
         // (e.g. builds run with --info can produce millions of lines).
         val lineLimit = if (this@toOutputString.status == BuildOutcome.Success) 10 else 50

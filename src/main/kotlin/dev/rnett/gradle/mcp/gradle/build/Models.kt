@@ -12,7 +12,19 @@ data class TaskResult(
     val outcome: BuildComponentOutcome,
     val duration: Duration,
     val consoleOutput: String?,
-    val provenance: String? = null
+    val provenance: String? = null,
+
+    /**
+     * The verbatim Gradle [org.gradle.tooling.events.task.TaskSkippedResult.skipMessage] when the
+     * outcome is SKIPPED or NO_SOURCE, otherwise null. Null for SUCCESS/FAILED/CANCELLED/
+     * FROM_CACHE/UP_TO_DATE where the outcome enum is sufficient to describe the result.
+     */
+    val reason: String? = null
+)
+
+data class PhaseCount(
+    val totalItems: Long,
+    val completedItems: Long
 )
 
 data class TestResults(

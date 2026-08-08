@@ -20,6 +20,13 @@ sealed interface Build {
     val taskOutputs: Map<String, String>
     val taskOutputCapturingFailed: Boolean
     val activeOperations: List<String> get() = emptyList()
+    val phaseCounts: Map<String, PhaseCount> get() = mapOf(
+        "configuration" to PhaseCount(0, 0),
+        "dependency-resolution" to PhaseCount(0, 0),
+        "task-execution" to PhaseCount(0, 0)
+    )
+    val taskOriginAggregation: Map<String, Int> get() = emptyMap()
+    val configCacheReportPointer: String? get() = null
 
     val hasBuildFinished: Boolean get() = status is BuildOutcome
     val isRunning: Boolean get() = status is BuildStatus.Running
@@ -103,7 +110,14 @@ private data class FrozenBuild(
     override val taskOutputs: Map<String, String> = emptyMap(),
     override val taskOutputCapturingFailed: Boolean = false,
     override val outcome: BuildOutcome,
-    override val finishTime: Instant
+    override val finishTime: Instant,
+    override val phaseCounts: Map<String, PhaseCount> = mapOf(
+        "configuration" to PhaseCount(0, 0),
+        "dependency-resolution" to PhaseCount(0, 0),
+        "task-execution" to PhaseCount(0, 0)
+    ),
+    override val taskOriginAggregation: Map<String, Int> = emptyMap(),
+    override val configCacheReportPointer: String? = null
 ) : FinishedBuild {
     override val consoleOutputLines by lazy { consoleOutput.lines() }
 }
@@ -120,7 +134,10 @@ internal fun FinishedBuild.freeze(): FinishedBuild = FrozenBuild(
     taskOutputs = taskOutputs,
     taskOutputCapturingFailed = taskOutputCapturingFailed,
     outcome = outcome,
-    finishTime = finishTime
+    finishTime = finishTime,
+    phaseCounts = phaseCounts,
+    taskOriginAggregation = taskOriginAggregation,
+    configCacheReportPointer = configCacheReportPointer
 )
 
 fun FinishedBuild(
@@ -135,7 +152,14 @@ fun FinishedBuild(
     taskOutputs: Map<String, String> = emptyMap(),
     taskOutputCapturingFailed: Boolean = false,
     outcome: BuildOutcome,
-    finishTime: Instant
+    finishTime: Instant,
+    phaseCounts: Map<String, PhaseCount> = mapOf(
+        "configuration" to PhaseCount(0, 0),
+        "dependency-resolution" to PhaseCount(0, 0),
+        "task-execution" to PhaseCount(0, 0)
+    ),
+    taskOriginAggregation: Map<String, Int> = emptyMap(),
+    configCacheReportPointer: String? = null
 ): FinishedBuild = FrozenBuild(
     id = id,
     args = args,
@@ -148,5 +172,8 @@ fun FinishedBuild(
     taskOutputs = taskOutputs,
     taskOutputCapturingFailed = taskOutputCapturingFailed,
     outcome = outcome,
-    finishTime = finishTime
+    finishTime = finishTime,
+    phaseCounts = phaseCounts,
+    taskOriginAggregation = taskOriginAggregation,
+    configCacheReportPointer = configCacheReportPointer
 )

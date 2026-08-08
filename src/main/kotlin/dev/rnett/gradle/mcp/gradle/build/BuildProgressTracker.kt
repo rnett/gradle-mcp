@@ -41,7 +41,15 @@ class BuildProgressTracker(private val infoProvider: BuildProgressInfoProvider) 
         val completedItems: AtomicLong = AtomicLong(0)
     )
 
+    data class FrozenPhaseState(
+        val name: String,
+        val totalItems: Long,
+        val completedItems: Long
+    )
+
     private val phaseStack = ConcurrentLinkedDeque<PhaseState>()
+
+    private val completedPhaseHistory: MutableList<FrozenPhaseState> = Collections.synchronizedList(mutableListOf())
 
     private val _progress = MutableSharedFlow<BuildProgress>(
         replay = 1,
@@ -101,6 +109,35 @@ class BuildProgressTracker(private val infoProvider: BuildProgressInfoProvider) 
         private const val RUN_WORK = "RUN_WORK"
         private const val CONFIGURATION = "CONFIGURATION"
         private const val EXECUTION = "EXECUTION"
+
+        private val CONFIGURATION_REGEX = Regex("^(CONFIGURATION|configure\\b.*|configuration\\b.*|project configuration\\b.*)$", RegexOption.IGNORE_CASE)
+        private val DEPENDENCY_RESOLUTION_REGEX = Regex("^(.*dependency.*resolution.*|.*resolve.*dependenc.*|resolve dependencies\\b.*)$", RegexOption.IGNORE_CASE)
+        private val TASK_EXECUTION_REGEX = Regex("^(.*task.*execution.*|.*execute.*tasks?.*|.*run.*tasks?.*|task execution\\b.*)$", RegexOption.IGNORE_CASE)
+    }
+
+    fun classifyPhaseName(rawName: String): String? {
+        val trimmed = rawName.trim()
+        if (CONFIGURATION_REGEX.containsMatchIn(trimmed)) return "configuration"
+        if (DEPENDENCY_RESOLUTION_REGEX.containsMatchIn(trimmed)) return "dependency-resolution"
+        if (TASK_EXECUTION_REGEX.containsMatchIn(trimmed)) return "task-execution"
+        return null
+    }
+
+    fun snapshotCompletedHistory(): List<FrozenPhaseState> = completedPhaseHistory.toList()
+
+    fun computePhaseCounts(): Map<String, PhaseCount> {
+        val result = mutableMapOf(
+            "configuration" to PhaseCount(0, 0),
+            "dependency-resolution" to PhaseCount(0, 0),
+            "task-execution" to PhaseCount(0, 0)
+        )
+        val snapshot = completedPhaseHistory.toList()
+        for (frozen in snapshot) {
+            val bucket = classifyPhaseName(frozen.name) ?: continue
+            val current = result[bucket]!!
+            result[bucket] = PhaseCount(current.totalItems + frozen.totalItems, current.completedItems + frozen.completedItems)
+        }
+        return result
     }
 
     internal fun emitProgress(isFinish: Boolean = false) {
@@ -143,6 +180,7 @@ class BuildProgressTracker(private val infoProvider: BuildProgressInfoProvider) 
         while (it.hasNext()) {
             val state = it.next()
             if (isSameLogicalPhase(state.name.load(), phase)) {
+                completedPhaseHistory.add(FrozenPhaseState(state.name.load(), state.totalItems.load(), state.completedItems.load()))
                 it.remove()
                 break
             }
@@ -216,8 +254,6 @@ class BuildProgressTracker(private val infoProvider: BuildProgressInfoProvider) 
 
         if (total <= 0) {
             if (completed > 0 || currentItemProgress > 0) {
-                // Unknown total, use a curve: completed / (completed + 1)
-                // Add currentItemProgress to the "next" step
                 val effectiveCompleted = completed.toDouble() + currentItemProgress
                 return (effectiveCompleted / (effectiveCompleted + 1.0)).coerceAtMost(MAX_ITEM_PROGRESS)
             }
