@@ -157,10 +157,10 @@ class DefaultGradleProvider(
         projectRootInput: GradleProjectRoot
     ): Pair<RunningBuild, Deferred<Result<R>>> {
         val projectRoot = GradlePathUtils.getRootProjectPath(projectRootInput, requiresGradleProject)
-        // Gradle only accepts the --non-interactive CLI option from 9.6.0 onwards; passing an
-        // unknown option to an older Gradle would fail the build. Only add the flag when the target
-        // project's Gradle version supports it (null/undetectable -> flag omitted).
-        val effectiveArgs = args.withNonInteractiveIfSupported(GradlePathUtils.getGradleVersion(projectRoot))
+        // Disable Gradle's interactive console prompting by setting the org.gradle.console.interactive
+        // Gradle property to false, rather than passing a CLI option. As a system property it is
+        // harmless to Gradle versions that predate it, so no version check is required.
+        val effectiveArgs = args.withInteractiveConsoleDisabled()
         val buildId = buildManager.newId()
         val cancellationTokenSource = GradleConnector.newCancellationTokenSource()
         val runningBuild = RunningBuild(

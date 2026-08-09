@@ -210,9 +210,9 @@ class GradleProviderTest {
     }
 
     @Test
-    fun `build with gradle 9_7_0 passes non-interactive flag`() = runTest(timeout = 120.seconds) {
-        // The default test fixture Gradle version (BuildConfig.GRADLE_VERSION) is 9.7.0, which
-        // supports the --non-interactive CLI option.
+    fun `build with gradle 9_7_0 disables interactive console via property`() = runTest(timeout = 120.seconds) {
+        // The default test fixture Gradle version (BuildConfig.GRADLE_VERSION) is 9.7.0. The
+        // org.gradle.console.interactive property is set on the effective build args.
         val projectRoot = GradleProjectRoot(javaProject.pathString())
         val runningBuild = provider.runBuild(
             projectRoot = projectRoot,
@@ -221,14 +221,14 @@ class GradleProviderTest {
         val result = runningBuild.awaitFinished()
 
         assert(result.outcome is BuildOutcome.Success)
-        assert("--non-interactive" in runningBuild.args.allAdditionalArguments)
+        assert(runningBuild.args.additionalSystemProps[DISABLE_INTERACTIVE_CONSOLE_PROP] == "false")
     }
 
     @Test
-    fun `build with gradle 9_5_0 omits non-interactive flag`() = runTest(timeout = 120.seconds) {
-        // 9.5.0 predates the --non-interactive option (added in 9.6.0); passing it would fail the
-        // build with an unknown-option error, so the version gate must omit it. The distribution is
-        // already available locally, so the build runs offline.
+    fun `build with gradle 9_5_0 also disables interactive console via property`() = runTest(timeout = 120.seconds) {
+        // 9.5.0 predates the --non-interactive CLI option, but the system property approach is
+        // harmless to older Gradle, so it is set unconditionally. The distribution is already
+        // available locally, so the build runs offline.
         testJavaProject(hasTests = false) {
             gradleVersion("9.5.0")
         }.use { project ->
@@ -240,7 +240,7 @@ class GradleProviderTest {
             val result = runningBuild.awaitFinished()
 
             assert(result.outcome is BuildOutcome.Success)
-            assert("--non-interactive" !in runningBuild.args.allAdditionalArguments)
+            assert(runningBuild.args.additionalSystemProps[DISABLE_INTERACTIVE_CONSOLE_PROP] == "false")
         }
     }
 
