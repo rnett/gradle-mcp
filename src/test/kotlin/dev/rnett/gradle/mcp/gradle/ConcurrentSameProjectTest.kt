@@ -1,6 +1,8 @@
 package dev.rnett.gradle.mcp.gradle
 
+import dev.rnett.gradle.mcp.fixtures.gradle.TestGradleUserHome
 import dev.rnett.gradle.mcp.fixtures.gradle.testJavaProject
+import dev.rnett.gradle.mcp.fixtures.gradle.testGradleProvider
 import dev.rnett.gradle.mcp.fixtures.gradle.withTestGradleDefaults
 import dev.rnett.gradle.mcp.gradle.build.BuildOutcome
 import dev.rnett.gradle.mcp.gradle.build.failuresIfFailed
@@ -17,18 +19,21 @@ import kotlin.time.Duration.Companion.seconds
 class ConcurrentSameProjectTest {
 
     private lateinit var buildManager: BuildManager
-    private lateinit var provider: DefaultGradleProvider
+    private lateinit var provider: GradleProvider
+    private lateinit var gradleUserHome: TestGradleUserHome
 
     @BeforeAll
     fun setupAll() {
         buildManager = BuildManager()
-        provider = DefaultGradleProvider(buildManager = buildManager)
+        gradleUserHome = TestGradleUserHome.create()
+        provider = testGradleProvider(gradleUserHome = gradleUserHome.path, buildManager = buildManager)
     }
 
     @AfterAll
     fun cleanupAll() {
         provider.close()
         buildManager.close()
+        gradleUserHome.close()
     }
 
     @Test

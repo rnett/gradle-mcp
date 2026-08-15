@@ -140,6 +140,7 @@ class DefaultGradleProvider(
         if (closed.compareAndSet(false, true)) {
             buildManager.listRunningBuilds().forEach { it.stop() }
             scope.cancel()
+            (connectionService as? AutoCloseable)?.close()
         }
     }
 

@@ -37,13 +37,13 @@ The system SHALL standardize the daemon identity of nested test builds at the `w
 
 ### Requirement: Test daemons self-expire
 
-The system SHALL configure nested test builds with a short test-only daemon idle timeout of 120 seconds so idle test daemons stop themselves instead of lingering for Gradle's default multi-hour idle timeout.
+The system SHALL configure nested test builds with a short test-only daemon idle timeout of 60 seconds (60000ms) so idle test daemons stop themselves instead of lingering for Gradle's default multi-hour idle timeout.
 
-#### Scenario: Idle test daemon exits after 120 seconds
+#### Scenario: Idle test daemon exits after 60 seconds
 
 - **WHEN** a nested test build finishes
 - **AND** its daemon remains idle
-- **THEN** the daemon SHALL self-terminate within 120 seconds of becoming idle
+- **THEN** the daemon SHALL self-terminate within 60 seconds (60000ms) of becoming idle
 
 #### Scenario: Active test daemons are not interrupted
 
@@ -65,3 +65,17 @@ Tests SHALL close every real `GradleProvider` they create (via `use` or `finally
 - **WHEN** a fixture class shares one real `GradleProvider` across test methods
 - **THEN** the class SHALL close that provider deterministically exactly once at class teardown (`@AfterAll`)
 - **AND** per-method server teardown SHALL NOT close it beforehand
+
+#### Scenario: Provider close disconnects the Gradle connector
+
+- **WHEN** a `DefaultGradleProvider` is closed (directly, or via its `DefaultGradleConnectionService`)
+- **THEN** the `GradleConnectionService` SHALL be closed
+- **AND** `DefaultGradleConnectionService.close()` SHALL call `GradleConnector.disconnect()` on every connector it manages, i.e. one per project root it connected to
+- **AND** a `disconnect()` failure SHALL NOT prevent the remaining connectors from being disconnected or the connector map from being cleared
+
+#### Scenario: Deterministic cleanup on shutdown
+
+- **WHEN** the server process shuts down
+- **THEN** each `DefaultGradleProvider` SHALL be closed exactly once, stopping its running builds, cancelling its coroutine scope, and closing its `GradleConnectionService` (which disconnects its `GradleConnector`s)
+- **AND** the provider SHALL register a JVM shutdown hook that performs this cleanup even if the provider was not closed explicitly
+- **AND** repeated close attempts SHALL be idempotent and free of side effects

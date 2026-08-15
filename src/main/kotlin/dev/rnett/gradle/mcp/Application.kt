@@ -27,6 +27,7 @@ import kotlinx.io.buffered
 import org.slf4j.LoggerFactory
 import org.slf4j.MDC
 import java.lang.management.ManagementFactory
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -111,6 +112,20 @@ sealed class Transport(val name: String) {
 
 class Application(val args: Array<String>, val transport: Transport) {
 
+    private val stopped = AtomicBoolean(false)
+
+    private val shutdownHook = Thread {
+        try {
+            runBlocking { stop() }
+        } catch (t: Throwable) {
+            try {
+                LOGGER.warn("Shutdown hook stop() failed", t)
+            } catch (_: Throwable) {
+                // Last resort: suppress logging failures during shutdown.
+            }
+        }
+    }
+
     init {
         val pid = try {
             ProcessHandle.current().pid().toString()
@@ -118,10 +133,17 @@ class Application(val args: Array<String>, val transport: Transport) {
             ManagementFactory.getRuntimeMXBean().name.split("@")[0]
         }
         MDC.put("PID", pid)
+        try {
+            Runtime.getRuntime().addShutdownHook(shutdownHook)
+        } catch (e: IllegalStateException) {
+            LOGGER.debug("Failed to register shutdown hook: JVM already shutting down", e)
+        } catch (e: SecurityException) {
+            LOGGER.warn("Failed to register shutdown hook: security manager denied", e)
+        }
     }
 
     private val config = CommandLineConfig(args)
-    private val koinApp: org.koin.core.KoinApplication = DI.createKoin(config.rootConfig.environment.config)
+    internal val koinApp: org.koin.core.KoinApplication = DI.createKoin(config.rootConfig.environment.config)
     val koinContext: org.koin.core.Koin = koinApp.koin
     val scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob() + CoroutineExceptionHandler { context, throwable ->
         LOGGER.error("Unhandled exception in coroutine", throwable)
@@ -145,17 +167,72 @@ class Application(val args: Array<String>, val transport: Transport) {
     }
 
     suspend fun stop() {
+        if (!stopped.compareAndSet(false, true)) return
+
+        try {
+            Runtime.getRuntime().removeShutdownHook(shutdownHook)
+        } catch (_: IllegalArgumentException) {
+            // Hook was not registered.
+        } catch (_: IllegalStateException) {
+            // JVM is already shutting down; hook is running or cannot be removed.
+        } catch (_: SecurityException) {
+            LOGGER.warn("Failed to remove shutdown hook: security manager denied")
+        }
+
         withContext(Dispatchers.IO) {
+            var firstError: Throwable? = null
+
+            fun recordError(t: Throwable) {
+                if (firstError == null) firstError = t
+                LOGGER.error("Error during Application.stop()", t)
+            }
+
+            // 1. Close MCP server and components (via transport). Best-effort.
             try {
                 transport.stop(this@Application)
+            } catch (t: Throwable) {
+                recordError(t)
+            }
+
+            // 2. Cancel the application coroutine scope. Best-effort.
+            try {
                 scope.cancel()
+            } catch (t: Throwable) {
+                recordError(t)
+            }
+
+            // 3. Dispose AutoCloseable singletons held by Koin (defense-in-depth).
+            //    Primary disposal is via Koin onClose callbacks registered in DI.createModule
+            //    (HttpClient, LuceneReaderCache, GradleConnectionService, GradleProvider, ReplManager).
+            //    This explicit pass ensures any bean that was created but missed an onClose binding
+            //    is still closed, and that close failures are isolated per bean.
+            try {
+                val closeables = buildList<AutoCloseable> {
+                    koinContext.getOrNull<io.ktor.client.HttpClient>()?.let { add(it) }
+                    koinContext.getOrNull<dev.rnett.gradle.mcp.lucene.LuceneReaderCache>()?.let { add(it) }
+                    (koinContext.getOrNull<dev.rnett.gradle.mcp.gradle.GradleConnectionService>() as? AutoCloseable)?.let { add(it) }
+                    (koinContext.getOrNull<dev.rnett.gradle.mcp.gradle.GradleProvider>() as? AutoCloseable)?.let { add(it) }
+                    (koinContext.getOrNull<dev.rnett.gradle.mcp.repl.ReplManager>() as? AutoCloseable)?.let { add(it) }
+                }
+                for (c in closeables) {
+                    try {
+                        c.close()
+                    } catch (t: Throwable) {
+                        LOGGER.warn("Failed to close AutoCloseable bean {}", c::class.simpleName, t)
+                    }
+                }
+            } catch (t: Throwable) {
+                recordError(t)
+            }
+
+            // 4. Close the Koin container (drops remaining instances, invokes onClose callbacks, closes scopes).
+            try {
                 koinApp.close()
             } catch (t: Throwable) {
-                LOGGER.error("Fatal uncaught error while stopping the server", t)
-                System.err.println("Fatal uncaught error: ${t.message}")
-                t.printStackTrace()
-                throw t
+                recordError(t)
             }
+
+            firstError?.let { throw it }
         }
     }
 
@@ -183,18 +260,33 @@ class Application(val args: Array<String>, val transport: Transport) {
         fun stdio(args: Array<String>) = runBlocking {
             val out = System.out
             System.setOut(System.err)
-            Application(args, Transport.Stdio(System.`in`.asSource().buffered(), out.asSink().buffered())).start()
+            val app = Application(args, Transport.Stdio(System.`in`.asSource().buffered(), out.asSink().buffered()))
+            try {
+                app.start()
+            } finally {
+                app.stop()
+            }
         }
 
         @JvmStatic
         fun server(args: Array<String>) = runBlocking {
             // Streamable HTTP is the default Ktor transport; SSE remains available via Transport.Sse.
-            Application(args, Transport.StreamableHttp()).start()
+            val app = Application(args, Transport.StreamableHttp())
+            try {
+                app.start()
+            } finally {
+                app.stop()
+            }
         }
 
         @JvmStatic
         fun streamableHttp(args: Array<String>) = runBlocking {
-            Application(args, Transport.StreamableHttp()).start()
+            val app = Application(args, Transport.StreamableHttp())
+            try {
+                app.start()
+            } finally {
+                app.stop()
+            }
         }
 
         @JvmStatic

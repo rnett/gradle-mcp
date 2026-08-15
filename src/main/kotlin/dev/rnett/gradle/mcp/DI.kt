@@ -87,6 +87,7 @@ import org.koin.core.module.Module
 import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import org.koin.dsl.module
+import org.koin.dsl.onClose
 
 object DI {
     val json = Json {
@@ -128,14 +129,14 @@ object DI {
         single { json }
         single { DefaultInitScriptProvider() } bind InitScriptProvider::class
         single { DefaultBundledJarProvider() } bind BundledJarProvider::class
-        single { createHttpClient(get(), get()) }
+        single { createHttpClient(get(), get()) } onClose { it?.close() }
         single { GradleMcpEnvironment.fromEnv() }
         single<EnvProvider> { DefaultEnvProvider }
-        single<ReplManager> { DefaultReplManager(get()) }
+        single<ReplManager> { DefaultReplManager(get()) } onClose { it?.close() }
         single<ReplEnvironmentService> { DefaultReplEnvironmentService(get()) }
         single<MarkdownService> { DefaultMarkdownService(get()) }
         single { HtmlConverter(get()) }
-        single { LuceneReaderCache() }
+        single { LuceneReaderCache() } onClose { it?.close() }
         single<DistributionDownloaderService> { DefaultDistributionDownloaderService(get(), get()) }
         single<ContentExtractorService> { DefaultContentExtractorService(get(), get(), get()) }
         single<GradleDocsIndexService> { DefaultGradleDocsIndexService(get(), get(), get(), get()) }
@@ -161,7 +162,7 @@ object DI {
         single<GradleSourceService> { DefaultGradleSourceService(get(), get(), get(), get(), get()) }
         single<JdkSourceService> { DefaultJdkSourceService(get(), get()) }
         single { BuildManager() }
-        single<GradleConnectionService> { DefaultGradleConnectionService() }
+        single<GradleConnectionService> { DefaultGradleConnectionService() } onClose { it?.close() }
         single { DaemonJvmSelector() }
         single<BuildExecutionService> { DefaultBuildExecutionService(envProvider = get(), daemonJvmSelector = get()) }
         single<GradleProvider> {
@@ -170,7 +171,7 @@ object DI {
                 executionService = get(),
                 buildManager = get()
             )
-        }
+        } onClose { it?.close() }
 
         single {
             val provider: GradleProvider = get()

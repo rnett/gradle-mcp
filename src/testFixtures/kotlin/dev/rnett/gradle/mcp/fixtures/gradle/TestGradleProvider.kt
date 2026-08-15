@@ -24,7 +24,7 @@ private const val TEST_DAEMON_HEAP = "256m"
  * stop daemons, so this makes stragglers self-expire instead of lingering for Gradle's default
  * multi-hour idle timeout.
  */
-internal const val TEST_DAEMON_IDLE_TIMEOUT_MS = 120_000
+internal const val TEST_DAEMON_IDLE_TIMEOUT_MS = 60_000
 
 /**
  * Canonical JVM args for nested test daemons: the test heap.
