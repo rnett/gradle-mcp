@@ -3,6 +3,7 @@ package dev.rnett.gradle.mcp
 import dev.rnett.gradle.mcp.Application.Companion.LOGGER
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
 import dev.rnett.gradle.mcp.mcp.closeServer
+import dev.rnett.gradle.mcp.utils.BomStrippingInputStream
 import io.ktor.server.engine.CommandLineConfig
 import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.netty.EngineMain
@@ -260,7 +261,7 @@ class Application(val args: Array<String>, val transport: Transport) {
         fun stdio(args: Array<String>) = runBlocking {
             val out = System.out
             System.setOut(System.err)
-            val app = Application(args, Transport.Stdio(System.`in`.asSource().buffered(), out.asSink().buffered()))
+            val app = Application(args, Transport.Stdio(BomStrippingInputStream(System.`in`).asSource().buffered(), out.asSink().buffered()))
             try {
                 app.start()
             } finally {
