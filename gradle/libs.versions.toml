@@ -12,7 +12,7 @@ kotlinxSerializationJson = "1.11.0"
 flexmark = "0.64.8"
 coroutines = "1.11.0"
 mcpSdk = "0.15.0"
-gradleToolingApi = "9.7.0" # renovate: ignoreUnstable=false
+gradleToolingApi = "9.7.1" # renovate: ignoreUnstable=false
 buildconfig = "6.0.10"
 vanniktechPublish = "0.37.0"
 jsoup = "1.23.1"
