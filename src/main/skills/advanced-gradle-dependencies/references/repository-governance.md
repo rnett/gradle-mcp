@@ -169,5 +169,5 @@ Repository governance also owns how dependencies are declared, because declarati
 - Supported repository types (Maven, Ivy layouts, flat dir): `gradle_docs(path="userguide/supported_repository_types.md")`
 - Supported repository protocols and authentication: `gradle_docs(path="userguide/supported_repository_protocols.md")`
 - Basic repository declaration (public, custom, local): `gradle_docs(path="userguide/declaring_repositories_basics.md")`
-- Basic repository authoring: `authoring-gradle-builds`'s [Dependencies and Catalogs](../authoring-gradle-builds/references/dependencies-and-catalogs.md)
+- Basic repository authoring: `authoring-gradle-builds`'s [Dependencies and Catalogs](../../authoring-gradle-builds/references/dependencies-and-catalogs.md)
 - Provenance inspection: `inspect_dependencies` and `dependencyInsight` via the `gradle` tool.

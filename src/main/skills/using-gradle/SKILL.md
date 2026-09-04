@@ -96,6 +96,7 @@ These rules are intentionally compact. Follow the linked authored reference for 
 1. **Add Entry**: Add version and library to `gradle/libs.versions.toml`.
 2. **Declare**: Add dependency to `build.gradle.kts` (e.g., `implementation(libs.library.name)`).
 3. **Verify**: Run `inspect_dependencies` to confirm resolution.
+
 *Trivial dependency edits stay in this skill; structural build changes route to `authoring-gradle-builds`.*
 
 ## Reference Discovery
@@ -116,6 +117,8 @@ Read the linked references as part of the workflow: use [Build Orientation](refe
 2. Diagnose failures via [Troubleshooting](references/troubleshooting.md) or [Testing](references/testing.md).
 3. Inspect conflicts via [Dependencies](references/dependencies.md).
 4. Read source via [Research](references/research.md).
+
+### Modification Loop
 
 1. Identify missing/incorrect config using inspection tools.
 2. If the change is a trivial dependency edit, update the version-catalog entry and library declaration in this skill, then verify resolution with `inspect_dependencies`.

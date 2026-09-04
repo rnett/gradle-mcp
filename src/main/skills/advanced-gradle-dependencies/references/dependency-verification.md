@@ -92,5 +92,5 @@ They are independent: locking makes the resolved graph reproducible; verificatio
 **More info:**
 - Dependency verification: `gradle_docs(path="userguide/dependency_verification.md")`
 - Dependency locking: `gradle_docs(path="userguide/dependency_locking.md")`
-- Locking basics live in `authoring-gradle-builds`'s [Dependency Locking](../authoring-gradle-builds/references/dependency-locking.md); the locking-vs-verification distinction is also retained in [Dependencies and Catalogs](../authoring-gradle-builds/references/dependencies-and-catalogs.md).
+- Locking basics live in `authoring-gradle-builds`'s [Dependency Locking](../../authoring-gradle-builds/references/dependency-locking.md); the locking-vs-verification distinction is also retained in [Dependencies and Catalogs](../../authoring-gradle-builds/references/dependencies-and-catalogs.md).
 - Enabling security features: `gradle_docs(path="userguide/security.md")`.

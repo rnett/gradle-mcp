@@ -56,7 +56,7 @@ Call `kotlin_repl(command="start", ...)` with the appropriate project path and s
 
 ### Rendering to Image
 
-Use the REPL to execute Compose rendering code:
+Use the REPL to execute Compose rendering code. The `renderComposable`, `displayImage`, and `renderPreview` helpers are injected by the REPL worker; see [Rendering Functions](references/rendering-functions.md) for their signatures and usage:
 
 ```kotlin
 import androidx.compose.ui.unit.*

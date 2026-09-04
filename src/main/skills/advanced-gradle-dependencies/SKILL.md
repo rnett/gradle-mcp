@@ -50,6 +50,7 @@ Diagnoses and fixes advanced Gradle dependency resolution problems as diagnose-t
 | Author advanced version catalog topics (bundles, plugins, multiple catalogs, composition) | [Advanced Version Catalogs](references/advanced-version-catalogs.md) |
 | Govern repository declaration modes, content filtering, or `exclusiveContent` | [Repository Governance](references/repository-governance.md) |
 | Reason about dependency cache freshness, resolution consistency, or resolution avoidance/performance | [Resolution Mechanics](references/resolution-mechanics.md) |
+| Research Gradle internals, resolution mechanics, or dependency source | [Research](references/research.md) |
 
 ## Provenance and Consumer Routing
 

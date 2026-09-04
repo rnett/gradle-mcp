@@ -103,5 +103,5 @@ Sharing a non-default artifact between projects is a producer/consumer pairing b
 - Variant selection and attribute matching: `gradle_docs(path="userguide/variant_aware_resolution.md")`
 - Sharing outputs between projects (consumable configurations and attributes): `gradle_docs(path="userguide/how_to_share_outputs_between_projects.md")`
 - Dependency configurations (roles and the declarable set): `gradle_docs(path="userguide/dependency_configurations.md")`
-- Authoring the configuration and variant model: `authoring-gradle-builds`'s [Configurations and Variants](../authoring-gradle-builds/references/configurations-and-variants.md)
+- Authoring the configuration and variant model: `authoring-gradle-builds`'s [Configurations and Variants](../../authoring-gradle-builds/references/configurations-and-variants.md)
 - Graph and winner inspection: `inspect_dependencies`; `dependencyInsight` via the `gradle` tool.

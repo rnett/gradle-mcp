@@ -66,6 +66,6 @@ A lockfile pins resolved versions for reproducibility; it is not proof that an a
 - Dependency locking: `gradle_docs(path="userguide/dependency_locking.md")`
 - Dependency caching and refresh semantics: `gradle_docs(path="userguide/dependency_caching.md")`
 - Preventing accidental dependency upgrades (`failOnVersionConflict`, strict constraints, locking): `gradle_docs(path="userguide/how_to_prevent_accidental_dependency_upgrades.md")`
-- Locking basics (enable, generate, commit, CI): `authoring-gradle-builds`'s [Dependency Locking](../authoring-gradle-builds/references/dependency-locking.md)
+- Locking basics (enable, generate, commit, CI): `authoring-gradle-builds`'s [Dependency Locking](../../authoring-gradle-builds/references/dependency-locking.md)
 - Locking vs verification: [Dependency Verification](dependency-verification.md)
 - Generation and lockfile commands: `gradle` with `--write-locks`; graph inspection via `inspect_dependencies`.

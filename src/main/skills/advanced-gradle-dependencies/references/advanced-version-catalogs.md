@@ -78,5 +78,5 @@ Most catalog authoring failures are configuration-time errors, not resolution-ti
 - Java platform plugin: `gradle_docs(path="userguide/java_platform_plugin.md")`
 - Platforms (BOMs, enforced platforms): `gradle_docs(path="userguide/platforms.md")`
 - Dependency declaration basics: `gradle_docs(path="userguide/declaring_dependencies_basics.md")`
-- Catalog basics and consuming accessors: `authoring-gradle-builds`'s [Dependencies and Catalogs](../authoring-gradle-builds/references/dependencies-and-catalogs.md)
+- Catalog basics and consuming accessors: `authoring-gradle-builds`'s [Dependencies and Catalogs](../../authoring-gradle-builds/references/dependencies-and-catalogs.md)
 - Coordinate discovery: `lookup_maven_versions`; graph inspection via `inspect_dependencies`.

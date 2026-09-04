@@ -79,5 +79,5 @@ Resolve capability conflicts programmatically with `resolutionStrategy.capabilit
 - Variant-aware resolution: `gradle_docs(path="userguide/variant_model.md")`
 - Resolving conflicts via capabilities (alternate implementations): `gradle_docs(path="userguide/dependencies_intermediate.md")`
 - Creating feature variants of a library: `gradle_docs(path="userguide/how_to_create_feature_variants_of_a_library.md")`
-- Declarative feature-variant and capability basics: `authoring-gradle-builds`'s [Configurations and Variants](../authoring-gradle-builds/references/configurations-and-variants.md)
+- Declarative feature-variant and capability basics: `authoring-gradle-builds`'s [Configurations and Variants](../../authoring-gradle-builds/references/configurations-and-variants.md)
 - Variant diagnostics: [Variant Resolution Diagnostics](variant-resolution-diagnostics.md); graph inspection via `inspect_dependencies` and `dependencyInsight`.

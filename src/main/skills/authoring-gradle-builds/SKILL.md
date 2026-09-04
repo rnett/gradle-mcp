@@ -92,6 +92,7 @@ These compact rules are loaded before any authoring reference. Links provide det
 | Publish artifacts or configure Central Portal delivery | [Artifact Publishing](references/artifact-publishing.md) |
 | Customize published variants, components, or artifacts | [Artifact Publishing](references/artifact-publishing.md) |
 | Wire CI/CD builds | [CI/CD Builds](references/ci-cd-builds.md) |
+| Configure build scan publication or Develocity policy | [Build Scans](references/build-scans.md) |
 | Enable or update dependency locking | [Dependency Locking](references/dependency-locking.md) |
 | Parallelize task work with Worker API | [Worker API](references/worker-api.md) |
 | Configure continuous builds | [Continuous Builds](references/continuous-builds.md) |
@@ -104,6 +105,7 @@ These compact rules are loaded before any authoring reference. Links provide det
 | Copy, sync, delete, or lazily handle files in a task | [File Operations](references/file-operations.md) |
 | Create, get, or work with a plugin extension | [Extensions](references/extensions.md) |
 | Assess build health, run a best-practice audit, or handle Gradle doctor / health check / performance audit requests | [Build Health Assessment](references/build-health-assessment.md) |
+| Research Gradle internals, plugin use and development, or dependency source | [Research](references/research.md) |
 
 ## Cross-Skill Handoffs
 

@@ -167,5 +167,5 @@ Resolution consequence: when the graph surprises you, check which metadata sourc
 - Declaring dependencies (module/project/file types): `gradle_docs(path="userguide/declaring_dependencies.md")`
 - Declaring dependencies basics and resolution-affecting notations: `gradle_docs(path="userguide/declaring_dependencies_basics.md")`
 - Gradle distribution-specific dependencies: `gradle_docs(path="userguide/gradle_dependencies.md")`
-- Cache TTL vs `--refresh-dependencies` execution guidance: `using-gradle`'s [Dependencies](../using-gradle/references/dependencies.md)
+- Cache TTL vs `--refresh-dependencies` execution guidance: `using-gradle`'s [Dependencies](../../using-gradle/references/dependencies.md)
 - Graph inspection: `inspect_dependencies`; `dependencyInsight` via the `gradle` tool.
