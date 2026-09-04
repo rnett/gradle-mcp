@@ -80,13 +80,18 @@ abstract class BaseReplIntegrationTest : BaseMcpServerTest() {
         project = fixture
     }
 
-    protected suspend fun startRepl(projectPath: String = ":", sourceSet: String = "main") {
+    protected suspend fun startRepl(
+        projectPath: String = ":",
+        sourceSet: String = "main",
+        additionalDependencies: List<String> = emptyList()
+    ) {
         val startResponse = server.client.callTool(
             ToolNames.REPL, mapOf(
                 "command" to "start",
                 "projectRoot" to project.path().toString(),
                 "projectPath" to projectPath,
-                "sourceSet" to sourceSet
+                "sourceSet" to sourceSet,
+                "additionalDependencies" to additionalDependencies
             )
         ) as CallToolResult
         assertTrue(

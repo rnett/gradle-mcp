@@ -322,6 +322,12 @@ gradle.lifecycle.afterProject {
                 // Helper to configure from a compilation
                 fun configureFromCompilation(compilation: Any) {
                     // Runtime classpath configuration
+                    // Prefer the compilation's runtimeDependencyFiles FileCollection: for compilations whose associated
+                    // Java source set is a test suite (e.g. kotlin("jvm") `test`), main output is only in the source
+                    // set's runtimeClasspath FileCollection (which runtimeDependencyFiles mirrors), not in any
+                    // resolvable configuration. Fall back to the configuration for compilations/KGP versions where
+                    // runtimeDependencyFiles is null.
+                    val runtimeDependencyFiles = ReplEnvHelpers.getProperty(compilation, "runtimeDependencyFiles") as? org.gradle.api.file.FileCollection
                     val confName = ReplEnvHelpers.getProperty(compilation, "runtimeDependencyConfigurationName") as? String ?: ReplEnvHelpers.getProperty(compilation, "compileDependencyConfigurationName") as? String
                     val conf = confName?.let { project.configurations.findByName(it) }
 
@@ -334,9 +340,13 @@ gradle.lifecycle.afterProject {
                                 replClasspath.dependencies.add(project.dependencies.create(dependency))
                             }
                             runtimeClasspath.from(replClasspath)
+                            if (runtimeDependencyFiles != null) runtimeClasspath.from(runtimeDependencyFiles)
                         } else {
+                            if (runtimeDependencyFiles != null) runtimeClasspath.from(runtimeDependencyFiles)
                             runtimeClasspath.from(conf)
                         }
+                    } else if (runtimeDependencyFiles != null) {
+                        runtimeClasspath.from(runtimeDependencyFiles)
                     }
 
                     // Add classes and resources from the compilation
