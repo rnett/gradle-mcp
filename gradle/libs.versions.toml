@@ -15,7 +15,7 @@ mcpSdk = "0.15.0"
 gradleToolingApi = "9.7.1" # renovate: ignoreUnstable=false
 buildconfig = "6.0.10"
 vanniktechPublish = "0.37.0"
-jsoup = "1.23.1"
+jsoup = "1.23.2"
 koin = "4.2.2"
 mockk = "1.14.11"
 slf4j = "2.0.19"
