@@ -13,6 +13,10 @@ jobs:
   buildAndTest:
     name: Build and test
     runs-on: ubuntu-latest
+    # Calibrated against observed buildAndTest wall times: worst green run ~27 min
+    # (run 33869984789), next-highest ~12 min. 60 min keeps a >2x margin over the
+    # worst case while still capping hour-long hangs (e.g. run 34992194105, ~62 min).
+    timeout-minutes: 60
     env:
       GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m"
     outputs:

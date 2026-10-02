@@ -22,6 +22,8 @@ import io.modelcontextprotocol.kotlin.sdk.types.Notification
 import io.modelcontextprotocol.kotlin.sdk.types.Request
 import io.modelcontextprotocol.kotlin.sdk.types.RequestResult
 import kotlin.reflect.KClass
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -38,36 +40,67 @@ import org.slf4j.LoggerFactory
 /**
  * Keeps SDK request timeouts on real time when fixture calls originate from [kotlinx.coroutines.test.runTest].
  * Caller cancellation still propagates through [withContext] to the SDK request and its peer notification.
+ *
+ * Every forwarding method resolves its [RequestOptions] through [resolve]: a caller-supplied
+ * `options` is forwarded verbatim, and an absent `options` falls back to [FIXTURE_REQUEST_TIMEOUT]
+ * so the SDK's real-time 60s default cannot fire on a healthy-but-slow fixture call.
  */
-class McpFixtureClient internal constructor(private val delegate: Client) {
+class McpFixtureClient internal constructor(
+    private val delegate: Client,
+    private val defaultRequestTimeout: Duration = FIXTURE_REQUEST_TIMEOUT,
+) {
     suspend fun callTool(
         name: String,
         arguments: Map<String, Any?>,
         meta: Map<String, Any?> = emptyMap(),
         options: RequestOptions? = null,
     ): CallToolResult = withContext(Dispatchers.Default) {
-        delegate.callTool(name, arguments, meta, options)
+        delegate.callTool(name, arguments, meta, resolve(options))
     }
 
     suspend fun callTool(request: CallToolRequest, options: RequestOptions? = null): CallToolResult =
         withContext(Dispatchers.Default) {
-            delegate.callTool(request, options)
+            delegate.callTool(request, resolve(options))
         }
 
     suspend fun listTools(
         request: ListToolsRequest = ListToolsRequest(),
         options: RequestOptions? = null,
     ): ListToolsResult = withContext(Dispatchers.Default) {
-        delegate.listTools(request, options)
+        delegate.listTools(request, resolve(options))
     }
 
     suspend fun <T : RequestResult> request(request: Request, options: RequestOptions? = null): T =
         withContext(Dispatchers.Default) {
-            delegate.request(request, options)
+            delegate.request(request, resolve(options))
         }
 
     fun <T : Notification> setNotificationHandler(method: Method, handler: (T) -> Deferred<Unit>) {
         delegate.setNotificationHandler(method, handler)
+    }
+
+    /** Caller-supplied [options] win verbatim; absent options fall back to [defaultRequestTimeout]. */
+    private fun resolve(options: RequestOptions?): RequestOptions =
+        options ?: RequestOptions(timeout = defaultRequestTimeout)
+
+    companion object {
+        /**
+         * Fixture-owned default SDK request timeout, applied whenever a fixture call supplies no
+         * [RequestOptions]. The suite's largest `runTest` deadline is 15 minutes
+         * (`KmpSearchIntegrationTest`), so 30 minutes exceeds every `runTest` deadline: `runTest`
+         * becomes the sole binding deadline and the SDK's real-time
+         * `io.modelcontextprotocol.kotlin.sdk.shared.DEFAULT_REQUEST_TIMEOUT` (60s) cannot fire on a
+         * healthy-but-slow call.
+         *
+         * The fixture deliberately hops calls onto [Dispatchers.Default] (real time), so `runTest`
+         * timeouts do not bound the SDK request; those generous real-time `runTest` timeouts remain
+         * required (openspec/specs/mcp-test-infrastructure/spec.md).
+         *
+         * Named `FIXTURE_REQUEST_TIMEOUT` (not `DEFAULT_REQUEST_TIMEOUT`) to avoid colliding with
+         * the SDK's same-named 60s constant imported from
+         * [io.modelcontextprotocol.kotlin.sdk.shared].
+         */
+        val FIXTURE_REQUEST_TIMEOUT: Duration = 30.minutes
     }
 }
 

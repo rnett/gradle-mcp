@@ -2,7 +2,16 @@ package dev.rnett.gradle.mcp.fixtures.mcp
 
 import dev.rnett.gradle.mcp.DI
 import dev.rnett.gradle.mcp.mcp.McpServerComponent
+import io.mockk.coVerify
+import io.mockk.mockk
+import io.mockk.slot
+import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.server.Server
+import io.modelcontextprotocol.kotlin.sdk.shared.RequestOptions
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequestParams
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.ListToolsRequest
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
@@ -54,4 +63,40 @@ class McpServerFixtureTest {
         assertEquals(1, registeredComponent.closeCount)
         assertTrue(fixture.scope.coroutineContext[kotlinx.coroutines.Job]?.isCompleted == true)
     }
+
+    @Test
+    fun `fixture client forwards its default request timeout at every site and caller options win`() =
+        runTest(timeout = 30.seconds) {
+            val delegate = mockk<Client>(relaxed = true)
+            val client = McpFixtureClient(delegate)
+
+            val nameSlot = slot<RequestOptions>()
+            client.callTool("tool", emptyMap())
+            coVerify { delegate.callTool("tool", emptyMap(), any(), capture(nameSlot)) }
+            assertEquals(McpFixtureClient.FIXTURE_REQUEST_TIMEOUT, nameSlot.captured.timeout)
+
+            val callRequest = CallToolRequest(CallToolRequestParams(name = "tool"))
+            val callSlot = slot<RequestOptions>()
+            client.callTool(callRequest)
+            coVerify { delegate.callTool(callRequest, capture(callSlot)) }
+            assertEquals(McpFixtureClient.FIXTURE_REQUEST_TIMEOUT, callSlot.captured.timeout)
+
+            val listRequest = ListToolsRequest()
+            val listSlot = slot<RequestOptions>()
+            client.listTools(listRequest)
+            coVerify { delegate.listTools(listRequest, capture(listSlot)) }
+            assertEquals(McpFixtureClient.FIXTURE_REQUEST_TIMEOUT, listSlot.captured.timeout)
+
+            val rawRequest = ListToolsRequest()
+            val rawSlot = slot<RequestOptions>()
+            client.request<CallToolResult>(rawRequest)
+            coVerify { delegate.request<CallToolResult>(rawRequest, capture(rawSlot)) }
+            assertEquals(McpFixtureClient.FIXTURE_REQUEST_TIMEOUT, rawSlot.captured.timeout)
+
+            val callerOptions = RequestOptions(timeout = 1.seconds)
+            client.callTool("caller-tool", mapOf("key" to "value"), options = callerOptions)
+            val callerSlot = slot<RequestOptions>()
+            coVerify { delegate.callTool("caller-tool", mapOf("key" to "value"), any(), capture(callerSlot)) }
+            assertSame(callerOptions, callerSlot.captured)
+        }
 }
