@@ -161,7 +161,13 @@ fun Build.toOutputString(includeArgs: Boolean = true): String {
 
         appendLine("Work:")
         phaseCounts.forEach { (bucket, count) ->
-            appendLine("  $bucket: ${count.completedItems}/${count.totalItems} completed")
+            if (count.totalItems == 0L) {
+                // The total is unknown for absent/unbucketed phases; a `3/0` ratio would be misleading,
+                // so render a bare count instead. A known total keeps the completed/total ratio.
+                appendLine("  $bucket: ${count.completedItems} completed")
+            } else {
+                appendLine("  $bucket: ${count.completedItems}/${count.totalItems} completed")
+            }
         }
         configCacheReportPointer?.let { appendLine("Configuration Cache Report: $it") }
         // Scan from the end of the output to avoid materialising all lines for large builds

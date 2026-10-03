@@ -1,0 +1,32 @@
+# Tasks
+
+## 1. Phase A — Item 4: Zero-total phase counts
+
+- [x] 1.1 Confirm `PhaseCount`'s positional parameter order at its definition and record the finding, then change the per-bucket rendering in `Build.toOutputString` (`GradleOutputs.kt:163-165`) so `totalItems == 0` emits `"  <bucket>: <completedItems> completed"` while `totalItems > 0` keeps the `completed/total` ratio; every bucket still emits.
+- [x] 1.2 Extend `BuildResultIntelligenceOutputTest` (existing `:48-73` assertions stay green) with: configuration `PhaseCount(totalItems=0, completedItems=3)` yields `configuration: 3 completed` and not `3/0`; a zero/zero bucket yields `dependency-resolution: 0 completed`; run the suite and confirm all cases pass.
+- [x] 1.3 Update the phase-count wording in `src/main/skills/using-gradle/SKILL.md:52` and `src/main/skills/using-gradle/references/diagnostic-tasks.md:51-53` from "completed/total counts" to "a count when the total is unknown (0), otherwise completed/total", leaving frontmatter untouched; verify `:verifySkillsList` passes for the edited skill body.
+
+## 2. Phase B — Item 1: Captured task output build identity
+
+- [x] 2.1 Change the `captureTaskOutput` response assembly (`GradleExecutionTools.kt:97-127`) so a finished build's response begins with `Gradle MCP Build ID: <id>`, a blank line, then the existing content (capture-failure warning, or truncation hint plus last 100 lines, or raw output); leave the not-found fallback unchanged.
+- [x] 2.2 Add `GradleExecutionToolTest` unit tests following the existing MockK pattern (`:46-60`): successful capture ≤100 lines contains `Gradle MCP Build ID: <id>` plus task output; truncation >100 lines contains the header AND the existing inline-buildId truncation hint; not-found regression; run the suite and confirm all cases pass.
+
+## 3. Phase C — Item 2: Exact-match precedence in lookup tools
+
+- [x] 3.1 In `GradleBuildLookupTools` (`:246-299` TASKS, `:154-201` TESTS) compute exact-match precedence: when `query` is non-empty and any member of the filtered set matches exactly (`path == query` / `fullName == query`), auto-expansion operates only on the exact-match subset; otherwise current prefix behavior. TASKS exact subset → single-task detail with no "Note:" line; TESTS exact subset may hold multiple executions → unchanged `testIndex` selection.
+- [x] 3.2 Extend the `query` `@Description` (`:49-50`) with "(an exact match takes precedence over longer prefix matches)", and replace the tool-level auto-expansion sentence at `:536` with: "If a query for TASKS, TESTS, FAILURES, or PROBLEMS matches exactly one item, it auto-expands to full details; for TASKS and TESTS, an exact path or test-name match auto-expands even when longer prefix matches exist. Otherwise, it returns a summary list with a hint to refine the query."
+- [x] 3.3 Extend `GradleBuildLookupPrefixTest`: exact-over-longer-prefix TASKS; exact-over-longer-prefix TESTS; exact name with multiple executions plus `testIndex`; ambiguous prefix still lists; existing `:249-279` cases stay green; run the suite and confirm all cases pass.
+- [x] 3.4 Run `:updateToolsList` and verify `docs/tools/LOOKUP_TOOLS.md` reflects both the updated `query` description and the updated tool-level auto-expansion sentence with no unrelated generated changes.
+
+## 4. Phase D — Item 3: Dependency inspection opt-in and cancellation guard
+
+- [x] 4.1 Change `InspectDependenciesArgs.checkUpdates` to default `false`, update its `@Description` (`GradleDependencyTools.kt:35-36`, ≤100 chars, e.g. "Opt-in authoritative newer-version check (network-bound). Forced `true` by `updatesOnly=true`.") and replace the tool-description bullet (`:58`) with: "- **Update Check**: opt-in via `checkUpdates=true` — authoritatively checks project repositories for newer versions (network-bound); individual lines show `[UPDATE AVAILABLE: X.Y.Z]`; use `updatesOnly=true` for a flat summary: `group:artifact: current → latest` with the project paths where each dep is used (forces `checkUpdates=true`). Use `stableOnly=true` to exclude pre-release versions."; keep the `updatesOnly=true` forcing behavior and `onlyDirect=true` default unchanged.
+- [x] 4.2 Extend `GradleDependencyToolsTest` (MockK seam): default args yield `checkUpdates == false`; `updatesOnly=true` yields true; explicit true yields true; default response contains no `[UPDATE CHECK SKIPPED]`; run the suite and confirm all cases pass.
+- [x] 4.3 Add a `BuildOutcome.Canceled` guard adjacent to the `BuildOutcome.Failed` branch in `GradleDependencyService.getDependencies` (`:407-413`) that throws `IllegalStateException` on **every** `Canceled` outcome, regardless of whether partial structured output was emitted, mirroring the Failed branch by logging the raw console at info first; the message states the dependency-report build was canceled and its output cannot be trusted and suggests a re-run (mentioning the `checkUpdates` opt-in when relevant), so a canceled build never reaches `parseStructuredOutput`. The guard is placed once in the shared `getDependencies` funnel, so `getSourceSetDependencies`, `getConfigurationDependencies`, and the four `download*Sources` entry points inherit it; no separate guards.
+- [x] 4.4 Add a service-guard unit test using a mocked `GradleProvider`/`RunningBuild` and the `FinishedBuild(outcome = BuildOutcome.Canceled)` synthetic-build pattern from `BuildResultIntelligenceOutputTest:24-46`, covering both an empty console and one already containing structured PROJECT markers (the guard is unconditional), plus one sibling entry point (e.g. `downloadAllSources`) to lock the funnel routing; assert the `IllegalStateException` message contains "cancel" (note `getDependencies` runs under `context(progress: ProgressReporter)`); run the test and confirm it passes.
+- [x] 4.5 Run `:updateToolsList` and verify `docs/tools/PROJECT_DEPENDENCY_TOOLS.md` reflects both the updated `checkUpdates` schema description (`InspectDependenciesArgs.checkUpdates`) and the updated tool-description bullet, with no unrelated generated changes.
+
+## 5. Phase E — Integration gates
+
+- [x] 5.1 Run `./gradlew :updateToolsList` and confirm the four items' metadata is fully synchronized, including that item 1 produces no `captureTaskOutput` description diff.
+- [x] 5.2 Run `./gradlew check verifySkillsList` and resolve every regression attributable to this change; confirm the focused suites from groups 1-4 remain green.

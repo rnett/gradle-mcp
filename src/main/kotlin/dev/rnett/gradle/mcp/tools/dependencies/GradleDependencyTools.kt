@@ -32,8 +32,8 @@ class GradleDependencyTools(
         val sourceSet: String? = null,
         @Description("Full-string regex over group:name:version[:variant]; blank ignored.")
         val dependency: String? = null,
-        @Description("Checking project repositories for newer versions of all dependencies authoritatively. Always `true` when `updatesOnly=true`.")
-        val checkUpdates: Boolean = true,
+        @Description("Opt-in authoritative newer-version check (network-bound). Forced `true` by `updatesOnly=true`.")
+        val checkUpdates: Boolean = false,
         @Description("Showing only direct dependencies in the summary. Set to false for the full tree. Also controls update-check scope: only direct deps are checked when `true`.")
         val onlyDirect: Boolean = true,
         @Description("Whether to include direct reverse consumer edges (who directly depends on each dependency). Implies full-graph processing as if `onlyDirect=false`; when `onlyDirect=true` is also passed, `includeConsumers` wins and a note is included in the response. Defaults to false.")
@@ -55,7 +55,7 @@ class GradleDependencyTools(
         """
             |Inspects the project's resolved dependency graph, checks for updates, and audits plugins; use instead of manually parsing build files which misses transitive deps and dynamic versions.
             |
-            |- **Update Check**: `checkUpdates=true` (default) detects newer versions — individual lines show `[UPDATE AVAILABLE: X.Y.Z]`; use `updatesOnly=true` for a flat summary: `group:artifact: current → latest` with the project paths where each dep is used (forces `checkUpdates=true`). Use `stableOnly=true` to exclude pre-release versions.
+            |- **Update Check**: opt-in via `checkUpdates=true` — authoritatively checks project repositories for newer versions (network-bound); individual lines show `[UPDATE AVAILABLE: X.Y.Z]`; use `updatesOnly=true` for a flat summary: `group:artifact: current → latest` with the project paths where each dep is used (forces `checkUpdates=true`). Use `stableOnly=true` to exclude pre-release versions.
             |- **[UPDATE CHECK SKIPPED]**: Appears only for dependencies that were in scope for update checking but whose resolution genuinely failed — not for dependencies intentionally excluded from the update-check scope (e.g., transitive deps when `onlyDirect=true`).
             |- **Plugin Auditing**: Use `sourceSet="buildscript"` to audit plugins.
             |- **Targeted**: Use `dependency` as a full-string Kotlin regex to narrow report output and update-check candidates. Resolved modules match `group:name:version[:variant]`; unresolved deps match `group:name`; project deps match `project::path`; blank strings are ignored.

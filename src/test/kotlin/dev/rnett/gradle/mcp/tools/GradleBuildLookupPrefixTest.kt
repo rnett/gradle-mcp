@@ -18,6 +18,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
@@ -48,6 +49,25 @@ class GradleBuildLookupPrefixTest {
             ":app:processResources" to TaskResult(":app:processResources", BuildComponentOutcome.SUCCESS, 0.5.seconds, "Resources output", "build file 'build.gradle.kts'"),
             ":lib:compileJava" to TaskResult(":lib:compileJava", BuildComponentOutcome.SUCCESS, 0.8.seconds, "Lib compile output")
         )
+        return FinishedBuild(
+            id = id,
+            startTime = Clock.System.now(),
+            args = GradleInvocationArguments.DEFAULT,
+            consoleOutput = "Synthetic build console",
+            publishedScans = emptyList(),
+            testResults = testResults,
+            problemAggregations = emptyMap(),
+            taskResults = taskResults,
+            outcome = BuildOutcome.Success,
+            finishTime = Clock.System.now()
+        )
+    }
+
+    private fun buildWith(
+        taskResults: Map<String, TaskResult> = emptyMap(),
+        testResults: TestResults = TestResults(emptySet(), emptySet(), emptySet())
+    ): FinishedBuild {
+        val id = BuildId(Uuid.random().toString())
         return FinishedBuild(
             id = id,
             startTime = Clock.System.now(),
@@ -556,5 +576,156 @@ class GradleBuildLookupPrefixTest {
         // Should NOT contain lines outside the range
         assertEquals(false, output.contains("Line 10"))
         assertEquals(false, output.contains("Line 21"))
+    }
+
+    @Test
+    fun `test exact task path expands despite longer prefix siblings`() = runTest {
+        val build = buildWith(
+            taskResults = mapOf(
+                ":app:assemble" to TaskResult(":app:assemble", BuildComponentOutcome.SUCCESS, 1.0.seconds, "Assemble output"),
+                ":app:assembleRelease" to TaskResult(":app:assembleRelease", BuildComponentOutcome.SUCCESS, 2.0.seconds, "Release output")
+            )
+        )
+
+        val args = GradleBuildLookupTools.QueryBuildArgs(
+            buildId = build.id,
+            kind = GradleBuildLookupTools.QueryKind.TASKS,
+            query = ":app:assemble"
+        )
+
+        val output = tools.getTasksOutput(build, args)
+        assertContains(output, "Task: :app:assemble")
+        assertContains(output, "Assemble output")
+        assertFalse(output.contains("Note: Showing details for unique prefix match"))
+        assertFalse(output.contains("Multiple tasks match"))
+        assertFalse(output.contains(":app:assembleRelease"))
+    }
+
+    @Test
+    fun `test ambiguous task prefix still lists when no exact match exists`() = runTest {
+        val build = buildWith(
+            taskResults = mapOf(
+                ":app:compileA" to TaskResult(":app:compileA", BuildComponentOutcome.SUCCESS, 1.0.seconds, null),
+                ":app:compileB" to TaskResult(":app:compileB", BuildComponentOutcome.SUCCESS, 1.0.seconds, null)
+            )
+        )
+
+        val args = GradleBuildLookupTools.QueryBuildArgs(
+            buildId = build.id,
+            kind = GradleBuildLookupTools.QueryKind.TASKS,
+            query = ":app:compile"
+        )
+
+        val output = tools.getTasksOutput(build, args)
+        assertContains(output, "Multiple tasks match prefix ':app:compile'")
+        assertContains(output, ":app:compileA")
+        assertContains(output, ":app:compileB")
+    }
+
+    @Test
+    fun `test exact test name expands despite longer prefix siblings`() = runTest {
+        val build = buildWith(
+            testResults = TestResults(
+                passed = setOf(
+                    TestResult("testBar", "com.example.FooTest", "Bar output", 0.1.seconds, null, BuildComponentOutcome.SUCCESS, emptyMap(), emptyList(), taskPath = ":test"),
+                    TestResult("testBarBaz", "com.example.FooTest", "Baz output", 0.2.seconds, null, BuildComponentOutcome.SUCCESS, emptyMap(), emptyList(), taskPath = ":test")
+                ),
+                failed = emptySet(),
+                skipped = emptySet()
+            )
+        )
+
+        val args = GradleBuildLookupTools.QueryBuildArgs(
+            buildId = build.id,
+            kind = GradleBuildLookupTools.QueryKind.TESTS,
+            query = "com.example.FooTest.testBar"
+        )
+
+        val output = tools.getTestsOutput(build, args)
+        assertContains(output, "com.example.FooTest.testBar - SUCCESS")
+        assertContains(output, "Bar output")
+        assertFalse(output.contains("Note: Showing details for unique prefix match"))
+        assertFalse(output.contains("Multiple tests match"))
+        assertFalse(output.contains("testBarBaz"))
+    }
+
+    @Test
+    fun `test exact test name with multiple executions still honors testIndex`() = runTest {
+        val build = buildWith(
+            testResults = TestResults(
+                passed = setOf(
+                    TestResult("testBar", "com.example.FooTest", "Later exec output", 0.3.seconds, null, BuildComponentOutcome.SUCCESS, emptyMap(), emptyList(), taskPath = ":test"),
+                    TestResult("testBar", "com.example.FooTest", "Earlier exec output", 0.1.seconds, null, BuildComponentOutcome.SUCCESS, emptyMap(), emptyList(), taskPath = ":test"),
+                    TestResult("testBarBaz", "com.example.FooTest", "Baz output", 0.2.seconds, null, BuildComponentOutcome.SUCCESS, emptyMap(), emptyList(), taskPath = ":test")
+                ),
+                failed = emptySet(),
+                skipped = emptySet()
+            )
+        )
+
+        val args = GradleBuildLookupTools.QueryBuildArgs(
+            buildId = build.id,
+            kind = GradleBuildLookupTools.QueryKind.TESTS,
+            query = "com.example.FooTest.testBar",
+            testIndex = 1
+        )
+
+        val output = tools.getTestsOutput(build, args)
+        // Executions are sorted by duration descending: [0.3s (Later), 0.1s (Earlier)]; testIndex=1 selects index 1, the faster "Earlier exec output".
+        assertContains(output, "com.example.FooTest.testBar - SUCCESS")
+        assertContains(output, "Earlier exec output")
+        assertFalse(output.contains("Later exec output"))
+        assertFalse(output.contains("Note: Showing details for unique prefix match"))
+        assertFalse(output.contains("Multiple tests match"))
+    }
+
+    @Test
+    fun `test out-of-range testIndex on a single-execution exact match returns a diagnostic`() = runTest {
+        val build = buildWith(
+            testResults = TestResults(
+                passed = setOf(
+                    TestResult("testBar", "com.example.FooTest", "Bar output", 0.1.seconds, null, BuildComponentOutcome.SUCCESS, emptyMap(), emptyList(), taskPath = ":test"),
+                    TestResult("testBarBaz", "com.example.FooTest", "Baz output", 0.2.seconds, null, BuildComponentOutcome.SUCCESS, emptyMap(), emptyList(), taskPath = ":test")
+                ),
+                failed = emptySet(),
+                skipped = emptySet()
+            )
+        )
+
+        val args = GradleBuildLookupTools.QueryBuildArgs(
+            buildId = build.id,
+            kind = GradleBuildLookupTools.QueryKind.TESTS,
+            query = "com.example.FooTest.testBar",
+            testIndex = 1
+        )
+
+        val output = tools.getTestsOutput(build, args)
+        assertContains(output, "1 test executions for unique prefix match 'com.example.FooTest.testBar' found. Pass a valid `testIndex` (0 to 0) to select one.")
+        assertFalse(output.contains("com.example.FooTest.testBar - SUCCESS"))
+    }
+
+    @Test
+    fun `test ambiguous test prefix still lists when no exact match exists`() = runTest {
+        val build = buildWith(
+            testResults = TestResults(
+                passed = setOf(
+                    TestResult("testBarA", "com.example.FooTest", "Output A", 0.1.seconds, null, BuildComponentOutcome.SUCCESS, emptyMap(), emptyList(), taskPath = ":test"),
+                    TestResult("testBarB", "com.example.FooTest", "Output B", 0.2.seconds, null, BuildComponentOutcome.SUCCESS, emptyMap(), emptyList(), taskPath = ":test")
+                ),
+                failed = emptySet(),
+                skipped = emptySet()
+            )
+        )
+
+        val args = GradleBuildLookupTools.QueryBuildArgs(
+            buildId = build.id,
+            kind = GradleBuildLookupTools.QueryKind.TESTS,
+            query = "com.example.FooTest.testBar"
+        )
+
+        val output = tools.getTestsOutput(build, args)
+        assertContains(output, "Multiple tests match prefix 'com.example.FooTest.testBar'")
+        assertContains(output, "com.example.FooTest.testBarA")
+        assertContains(output, "com.example.FooTest.testBarB")
     }
 }

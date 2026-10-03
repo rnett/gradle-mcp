@@ -85,6 +85,34 @@ class BuildResultIntelligenceOutputTest {
     }
 
     @Test
+    fun `toOutputString renders a bare count for a zero-total bucket`() {
+        val build = createBuild(
+            phaseCounts = mapOf(
+                "configuration" to PhaseCount(totalItems = 0, completedItems = 3)
+            )
+        )
+
+        val output = build.toOutputString()
+
+        assertContains(output, "configuration: 3 completed")
+        assertFalse(output.contains("3/0"))
+    }
+
+    @Test
+    fun `toOutputString renders a zero count for an absent zero-total bucket`() {
+        val build = createBuild(
+            phaseCounts = mapOf(
+                "dependency-resolution" to PhaseCount(totalItems = 0, completedItems = 0)
+            )
+        )
+
+        val output = build.toOutputString()
+
+        assertContains(output, "dependency-resolution: 0 completed")
+        assertFalse(output.contains("0/0"))
+    }
+
+    @Test
     fun `getTasksOutput includes task origins in TASKS list output`() {
         val buildManager = mockk<BuildManager>(relaxed = true)
         val tools = GradleBuildLookupTools(buildManager)

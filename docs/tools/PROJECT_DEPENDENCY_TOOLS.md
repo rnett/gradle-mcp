@@ -8,7 +8,7 @@ Tools for querying Gradle dependencies and checking for updates.
 
 Inspects the project's resolved dependency graph, checks for updates, and audits plugins; use instead of manually parsing build files which misses transitive deps and dynamic versions.
 
-- **Update Check**: `checkUpdates=true` (default) detects newer versions — individual lines show `[UPDATE AVAILABLE: X.Y.Z]`; use `updatesOnly=true` for a flat summary: `group:artifact: current → latest` with the project paths where each dep is used (forces `checkUpdates=true`). Use `stableOnly=true` to exclude pre-release versions.
+- **Update Check**: opt-in via `checkUpdates=true` — authoritatively checks project repositories for newer versions (network-bound); individual lines show `[UPDATE AVAILABLE: X.Y.Z]`; use `updatesOnly=true` for a flat summary: `group:artifact: current → latest` with the project paths where each dep is used (forces `checkUpdates=true`). Use `stableOnly=true` to exclude pre-release versions.
 - **[UPDATE CHECK SKIPPED]**: Appears only for dependencies that were in scope for update checking but whose resolution genuinely failed — not for dependencies intentionally excluded from the update-check scope (e.g., transitive deps when `onlyDirect=true`).
 - **Plugin Auditing**: Use `sourceSet="buildscript"` to audit plugins.
 - **Targeted**: Use `dependency` as a full-string Kotlin regex to narrow report output and update-check candidates. Resolved modules match `group:name:version[:variant]`; unresolved deps match `group:name`; project deps match `project::path`; blank strings are ignored.
@@ -59,7 +59,7 @@ Inspects the project's resolved dependency graph, checks for updates, and audits
     },
     "checkUpdates": {
       "type": "boolean",
-      "description": "Checking project repositories for newer versions of all dependencies authoritatively. Always `true` when `updatesOnly=true`."
+      "description": "Opt-in authoritative newer-version check (network-bound). Forced `true` by `updatesOnly=true`."
     },
     "onlyDirect": {
       "type": "boolean",

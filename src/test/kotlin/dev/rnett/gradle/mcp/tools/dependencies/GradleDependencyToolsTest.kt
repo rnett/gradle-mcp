@@ -696,4 +696,62 @@ class GradleDependencyToolsTest : BaseMcpServerTest() {
         assertTrue(result.contains("org.example:lib-c:1.0"), "Dependency should still render. Output:\n$result")
         assertFalse(result.contains("Consumers:"), "Consumers must be absent by default. Output:\n$result")
     }
+
+    @Test
+    fun `inspect_dependencies defaults checkUpdates to false and omits the update-skipped marker`() = runTest {
+        val report = GradleDependencyReport(projects = emptyList())
+
+        coEvery {
+            with(any<ProgressReporter>()) {
+                dependencyService.getDependencies(any(), any(), any())
+            }
+        } returns report
+
+        val response = server.client.callTool(
+            ToolNames.INSPECT_DEPENDENCIES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
+            }
+        ) as CallToolResult
+
+        val result = (response.content.first() as TextContent).text!!
+        assertFalse(result.contains("[UPDATE CHECK SKIPPED]"), "Update checking must be off by default. Output:\n$result")
+
+        coVerify {
+            with(any<ProgressReporter>()) {
+                dependencyService.getDependencies(
+                    projectRoot = any(),
+                    projectPath = any(),
+                    options = match { !it.checkUpdates }
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `inspect_dependencies explicit checkUpdates=true is passed through`() = runTest {
+        val report = GradleDependencyReport(projects = emptyList())
+
+        coEvery {
+            with(any<ProgressReporter>()) {
+                dependencyService.getDependencies(any(), any(), any())
+            }
+        } returns report
+
+        server.client.callTool(
+            ToolNames.INSPECT_DEPENDENCIES, buildJsonObject {
+                put("projectRoot", tempDir.toString())
+                put("checkUpdates", true)
+            }
+        ) as CallToolResult
+
+        coVerify {
+            with(any<ProgressReporter>()) {
+                dependencyService.getDependencies(
+                    projectRoot = any(),
+                    projectPath = any(),
+                    options = match { it.checkUpdates }
+                )
+            }
+        }
+    }
 }

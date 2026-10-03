@@ -95,10 +95,16 @@ class GradleExecutionTools(
 
             if (it.captureTaskOutput != null) {
                 return@tool ToolCallResult(buildString {
+                    val taskOut = finished.getTaskOutput(it.captureTaskOutput, true)
+                    // A captured response leads with the build identity so the output can be correlated
+                    // with the build that produced it, regardless of which content branch renders.
+                    if (taskOut != null) {
+                        appendLine("Gradle MCP Build ID: ${finished.id}")
+                        appendLine()
+                    }
                     if (finished.taskOutputCapturingFailed) {
                         appendLine("Task output capturing failed. Task output may be incomplete or interleaved with other tasks.\n")
                     }
-                    val taskOut = finished.getTaskOutput(it.captureTaskOutput, true)
                     if (taskOut != null) {
                         val lines = taskOut.lines()
                         if (lines.size > TASK_OUTPUT_MAX_LINES) {

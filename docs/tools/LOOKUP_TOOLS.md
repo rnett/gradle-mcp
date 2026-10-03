@@ -19,7 +19,7 @@ If called with no arguments, returns a dashboard of recent builds.
 - FAILURES: Build failures. `query` is the exact FailureId.
 - PROBLEMS: Compilation/configuration problems. `query` is the exact ProblemId.
 
-If a query for TASKS, TESTS, FAILURES, or PROBLEMS matches exactly one item, it auto-expands to full details. Otherwise, it returns a summary list with a hint to refine the query.
+If a query for TASKS, TESTS, FAILURES, or PROBLEMS matches exactly one item, it auto-expands to full details; for TASKS and TESTS, an exact path or test-name match auto-expands even when longer prefix matches exist. Otherwise, it returns a summary list with a hint to refine the query.
 See query_build(kind='CONSOLE', buildId='...') for full logs.
 
 <details>
@@ -54,7 +54,7 @@ See query_build(kind='CONSOLE', buildId='...') for full logs.
         "string",
         "null"
       ],
-      "description": "A query string. Acts as a prefix filter for tasks/tests, or a regex for CONSOLE. For failures/problems, it must be the exact ID."
+      "description": "A query string. Acts as a prefix filter for tasks/tests (an exact match takes precedence over longer prefix matches), or a regex for CONSOLE. For failures/problems, it must be the exact ID."
     },
     "outputFile": {
       "type": [

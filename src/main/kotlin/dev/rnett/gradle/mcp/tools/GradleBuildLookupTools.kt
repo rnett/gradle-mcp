@@ -46,7 +46,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
         @Description("The aspect of the build to query. Default is DASHBOARD.")
         val kind: QueryKind = QueryKind.DASHBOARD,
 
-        @Description("A query string. Acts as a prefix filter for tasks/tests, or a regex for CONSOLE. For failures/problems, it must be the exact ID.")
+        @Description("A query string. Acts as a prefix filter for tasks/tests (an exact match takes precedence over longer prefix matches), or a regex for CONSOLE. For failures/problems, it must be the exact ID.")
         val query: String? = null,
 
         @Description("Output file to save the result. Useful for large console logs.")
@@ -153,13 +153,18 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
 
         // Auto-expand logic
         if (query.isNotEmpty()) {
-            val uniqueNames = matched.map { it.fullName }.distinct()
+            // An exact match within the filtered candidate set takes precedence over longer prefix
+            // matches. TESTS may hold multiple executions of the same exact test, so the subset (not
+            // a single element) drives auto-expansion and `testIndex` selection still applies.
+            val exactMatches = matched.filter { it.fullName == query }
+            val candidates = if (exactMatches.isNotEmpty()) exactMatches else matched
+            val uniqueNames = candidates.map { it.fullName }.distinct()
             if (uniqueNames.size == 1) {
                 val targetIndex = args.testIndex ?: 0
-                if (matched.size > 1 && targetIndex >= matched.size) {
-                    return "${matched.size} test executions for unique prefix match '${uniqueNames.first()}' found. Pass a valid `testIndex` (0 to ${matched.size - 1}) to select one.\nSee query_build(kind='CONSOLE', buildId='${build.id}') for full logs."
+                if (targetIndex < 0 || targetIndex >= candidates.size) {
+                    return "${candidates.size} test executions for unique prefix match '${uniqueNames.first()}' found. Pass a valid `testIndex` (0 to ${candidates.size - 1}) to select one.\nSee query_build(kind='CONSOLE', buildId='${build.id}') for full logs."
                 }
-                val test = matched[targetIndex]
+                val test = candidates[targetIndex]
                 return buildString {
                     if (test.fullName != query) {
                         appendLine("Note: Showing details for unique prefix match: ${test.fullName}")
@@ -194,7 +199,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                     appendLine("\nSee query_build(kind='CONSOLE', buildId='${build.id}') for full logs.")
                 }
             } else if (uniqueNames.size > 1) {
-                val paged = paginate(matched, args.pagination, "test results") { tr ->
+                val paged = paginate(candidates, args.pagination, "test results") { tr ->
                     "${tr.fullName} | ${tr.status} | ${tr.executionDuration}"
                 }
                 return "Multiple tests match prefix '$query':\n$paged\nPlease provide a full test name to view details.\nSee query_build(kind='CONSOLE', buildId='${build.id}') for full logs."
@@ -245,8 +250,12 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
 
         // Auto-expand logic
         if (query.isNotEmpty()) {
-            if (tasks.size == 1) {
-                val taskResult = tasks.single()
+            // An exact path match within the filtered candidate set takes precedence over longer
+            // prefix matches, so the exact task expands even when longer-prefix siblings exist.
+            val exactMatches = tasks.filter { it.path == query }
+            val candidates = if (exactMatches.isNotEmpty()) exactMatches else tasks
+            if (candidates.size == 1) {
+                val taskResult = candidates.single()
                 return buildString {
                     if (taskResult.path != query) {
                         appendLine("Note: Showing details for unique prefix match: ${taskResult.path}")
@@ -291,8 +300,8 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
                     }
                     appendLine("\nSee query_build(kind='CONSOLE', buildId='${result.id}') for full logs.")
                 }
-            } else if (tasks.size > 1) {
-                val paged = paginate(tasks, args.pagination, "tasks") { task ->
+            } else if (candidates.size > 1) {
+                val paged = paginate(candidates, args.pagination, "tasks") { task ->
                     "${task.path}${task.provenance?.let { " ($it)" } ?: ""} | ${task.outcome} | ${task.duration}"
                 }
                 return "Multiple tasks match prefix '$query':\n$paged\nPlease provide a full task path to view details.\nSee query_build(kind='CONSOLE', buildId='${result.id}') for full logs."
@@ -533,7 +542,7 @@ class GradleBuildLookupTools(val buildResults: BuildManager) : McpServerComponen
             |- FAILURES: Build failures. `query` is the exact FailureId.
             |- PROBLEMS: Compilation/configuration problems. `query` is the exact ProblemId.
             |
-            |If a query for TASKS, TESTS, FAILURES, or PROBLEMS matches exactly one item, it auto-expands to full details. Otherwise, it returns a summary list with a hint to refine the query.
+            |If a query for TASKS, TESTS, FAILURES, or PROBLEMS matches exactly one item, it auto-expands to full details; for TASKS and TESTS, an exact path or test-name match auto-expands even when longer prefix matches exist. Otherwise, it returns a summary list with a hint to refine the query.
             |See query_build(kind='CONSOLE', buildId='...') for full logs.
         """.trimMargin()
     ) { inputArgs, _ ->

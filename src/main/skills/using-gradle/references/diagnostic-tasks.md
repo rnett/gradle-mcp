@@ -50,7 +50,7 @@ This reference does **not** exhaustively enumerate plugin-contributed tasks. Plu
 
 The DASHBOARD summary reports a frozen snapshot of the completed build in `Work:`:
 
-- `Work:` shows `configuration`, `dependency-resolution`, and `task-execution` as `completed/total` counts. These are detached from live progress state: they describe the finished build only.
+- `Work:` shows `configuration`, `dependency-resolution`, and `task-execution` counts: a count when the total is unknown (0), otherwise `completed/total`. These are detached from live progress state: they describe the finished build only.
 - `Configuration Cache Report:` is a nullable pointer to the configuration-cache report location when the build produced one. Treat it as a verbatim report location and route structured problem diagnosis through `query_build(kind="PROBLEMS")`; do not ask the MCP server to open or parse the report.
 
 Task origin aggregation is available only in `query_build(kind="TASKS")` output:

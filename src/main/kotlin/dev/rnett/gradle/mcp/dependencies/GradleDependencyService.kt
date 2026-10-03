@@ -411,6 +411,17 @@ class DefaultGradleDependencyService(
             val allMessages = failure?.flatten()?.mapNotNull { it.message }?.joinToString("; ") ?: "Unknown error"
             throw IllegalStateException("Gradle build failed: $allMessages")
         }
+        // A canceled report is never trustworthy: partial emission is silent truncation, and an empty
+        // report masquerades as the graph. Fail unconditionally so no caller parses a canceled build.
+        // Placed once in this funnel so every entry point (source-set/configuration plus the
+        // download*Sources family) inherits the same explicit cancellation error.
+        if (finished.outcome is BuildOutcome.Canceled) {
+            LOGGER.info("RAW OUTPUT ON CANCELLATION:\n${running.consoleOutput}")
+            throw IllegalStateException(
+                "The dependency-report build was canceled, so its output cannot be trusted. " +
+                    "Re-run the dependency inspection; pass checkUpdates=true when an authoritative newer-version check is needed."
+            )
+        }
 
         val text = running.consoleOutput.toString()
         val parsed = parseStructuredOutput(text)
