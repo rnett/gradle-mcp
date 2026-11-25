@@ -29,7 +29,7 @@ lucene = "10.6.0"
 shadow = "9.6.1"
 ktreesitter = "0.26.0"
 treeSitterLanguagePack = "1.7.0"
-zstd = "1.5.7-29"
+zstd = "1.6.0-1"
 commonsCompress = "1.28.0"
 
 [plugins]
